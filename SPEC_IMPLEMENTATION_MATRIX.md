@@ -10,6 +10,15 @@ protected integration, exact merge-head CI `31504122753`, Rust CI `31504122730`,
 CodeQL `31504122424`, and pinned Linux/Windows LLVM/Clang 22.1.8 native `-O0`/`-O2`
 gates pass.
 
+Local candidate CAP-006 adds a further bounded `PARTIAL` slice without changing
+accepted public truth: exact explicit recursive finite CopyData applications of one
+user-defined bound-free generic enum can be contextually specialized before both
+semantic analysis and raw checked admission, then reuse the accepted owned-enum,
+exhaustive-Match, checked-IR, verifier, and LLVM pipeline. Focused 4/4, corruption,
+compatibility, representative 3/3, and complete 235-library/32-binary/83-integration/
+doc/format/Clippy local gates pass. Pinned LLVM/Clang 22 Linux/Windows native and
+public exact-head evidence remain pending, so this is not an accepted row.
+
 Accepted CAP-005 adds one additional `PARTIAL` generics/function-call slice. Unique top-level
 bound-free generic functions whose type parameters are inferred from whole parameter
 positions can be compile-time-specialized at recursive finite CopyData arguments when
@@ -69,6 +78,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (accepted `CAP-003`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Explicit user-defined recursive-CopyData generic structs (accepted `CAP-004`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Bound-free whole-value recursive-CopyData generic transport functions (accepted `CAP-005`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Explicit user-defined recursive-CopyData generic enums (local `CAP-006` candidate; public acceptance pending) | Y | Y | Y | P | P | P | P | P | ? | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
@@ -305,6 +315,18 @@ generic operations/methods/enums/impls, recursive or generic-to-generic calls,
 result-only inference, nested generic signatures, non-CopyData arguments, runtime
 polymorphism, collections, lifetimes/drop, and stable callable ABI remain absent. The
 accepted broad generics row therefore remains `PARTIAL`, not `END_TO_END` or `STABLE`.
+
+Local candidate CAP-006 extends the same `PARTIAL` row with explicit user-defined
+bound-free generic enums over exact recursive finite CopyData arguments. One shared
+idempotent authority creates private nongeneric enum schemas before both trusted
+front-end routes; the independent verifier binds each identity to its canonical source
+application and complete specialized variant schema. The representative program uses
+`Sample<Reading<int>>` and `Sample<char>` at unchanged output/exit 91. Bounds/traits,
+named variants, nested generic templates, generic-to-generic use, context-free
+inference, non-CopyData arguments, aggregate/reference storage, borrowing, projection,
+drop/lifetimes, public ABI, and general generics remain absent. Local gates are green;
+pinned native and public exact-head acceptance remain pending, so CAP-006 does not yet
+change accepted-master classification.
 
 Accepted public `CORE-072` splits the prior combined Boolean/character row and moves
 only the Unicode-character slice from design-only to bounded partial execution. Exact

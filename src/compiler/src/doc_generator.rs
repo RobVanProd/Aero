@@ -46,6 +46,7 @@ pub fn generate_markdown(input_file: &str, source_code: &str) -> Result<String, 
                     name,
                     variants,
                     type_params,
+                    ..
                 } => {
                     enums.push((name, variants, type_params));
                 }

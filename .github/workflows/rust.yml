@@ -1234,6 +1234,8 @@ jobs:
         cargo run --locked --quiet -- build "${representative_source}" \
           -o "${representative_llvm}" --require-llvm-verifier
         grep -Fq 'call i32 (i8*, ...) @printf(' "${representative_llvm}"
+        grep -Fq '; Aero generic enum: Sample<Reading<int>>' "${representative_llvm}"
+        grep -Fq '; Aero generic enum: Sample<char>' "${representative_llvm}"
         if grep -E '@printf\([^\n]*, i64 ' "${representative_llvm}"; then
           echo "representative telemetry LLVM rewrote a numeric printf argument to i64"
           exit 1
@@ -2051,6 +2053,12 @@ jobs:
         $representativeText = Get-Content -LiteralPath $representativeLlvm -Raw
         if (-not $representativeText.Contains("call i32 (i8*, ...) @printf(")) {
           throw "Windows representative telemetry LLVM omitted the explicit variadic printf call type"
+        }
+        if (-not $representativeText.Contains("; Aero generic enum: Sample<Reading<int>>")) {
+          throw "Windows representative telemetry LLVM omitted Sample<Reading<int>>"
+        }
+        if (-not $representativeText.Contains("; Aero generic enum: Sample<char>")) {
+          throw "Windows representative telemetry LLVM omitted Sample<char>"
         }
         if ($representativeText -match '@printf\([^\r\n]*, i64 ') {
           throw "Windows representative telemetry LLVM rewrote a numeric printf argument to i64"

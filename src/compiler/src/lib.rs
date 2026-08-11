@@ -12,6 +12,7 @@ mod enum_match_contract;
 pub mod errors;
 mod fixed_array_method;
 mod function_call_contract;
+mod generic_enum_contract;
 mod generic_function_contract;
 mod generic_struct_contract;
 pub mod gpu;

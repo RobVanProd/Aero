@@ -129,6 +129,7 @@ enum EnumDefinitionDisposition {
 struct RawEnumDefinition {
     variants: Vec<crate::ast::VariantDecl>,
     type_params: Vec<String>,
+    trait_bounds: Vec<(String, Vec<String>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -355,6 +356,7 @@ impl EnumError {
 
 fn display_enum_identity(name: &str) -> String {
     crate::builtin_carrier_contract::private_carrier_source_name(name)
+        .or_else(|| crate::generic_enum_contract::private_generic_enum_source_name(name))
         .unwrap_or_else(|| name.to_string())
 }
 
@@ -371,10 +373,12 @@ impl EnumRegistry {
                     name,
                     variants,
                     type_params,
+                    trait_bounds,
                 }) => {
                     let definition = RawEnumDefinition {
                         variants: variants.clone(),
                         type_params: type_params.clone(),
+                        trait_bounds: trait_bounds.clone(),
                     };
                     if raw.contains_key(name) {
                         raw.insert(name.clone(), RawEnumDefinitionDisposition::Ambiguous);
@@ -415,6 +419,7 @@ impl EnumRegistry {
         let mut names = BTreeSet::new();
         if !valid_enum_symbol(name)
             || !definition.type_params.is_empty()
+            || !definition.trait_bounds.is_empty()
             || definition.variants.is_empty()
         {
             return EnumDefinitionDisposition::Unsupported;
@@ -1377,7 +1382,9 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_enum_symbol(name: &str) -> bool {
-    crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
+    crate::generic_enum_contract::valid_generic_aware_enum_symbol(name, |name| {
+        crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
+    })
 }
 
 fn display_type(ty: &Type) -> String {

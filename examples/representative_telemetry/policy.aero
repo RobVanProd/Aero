@@ -18,6 +18,20 @@ fn validate_delta(value: int, valid: bool) -> Result<int, char> {
     Err('e')
 }
 
+fn sample_reading_value(sample: Sample<Reading<int>>) -> int {
+    match sample {
+        Sample::Present(reading) => reading_value(reading),
+        Sample::Missing => 0
+    }
+}
+
+fn sample_marker_is_a(sample: Sample<char>, valid: bool) -> bool {
+    match sample {
+        Sample::Present(marker) => valid && marker == 'a',
+        Sample::Missing => 1 > 2
+    }
+}
+
 fn resolved_delta(result: Result<int, char>) -> int {
     match result {
         Ok(value) => value,

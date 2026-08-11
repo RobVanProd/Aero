@@ -129,7 +129,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         readme.contains("accepted CAP-005 adds bound-free whole-value generic transport functions")
     );
     assert!(readme.contains(
-        "General generic operations/enums/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
+        "Local candidate CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization, but public acceptance is pending."
+    ));
+    assert!(readme.contains(
+        "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
     assert!(readme.contains(
         "No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee."
@@ -315,5 +318,9 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
             "CAP-005 is accepted through protected PR #31 and exact merge-head workflows"
         )
     );
-    assert!(project_state.contains("fresh three-gap project-level ranking against accepted"));
+    assert!(
+        project_state
+            .contains("required fresh three-gap ranking selected CAP-006 explicit user-defined")
+    );
+    assert!(project_state.contains("next action is to commit and rerun the immutable candidate"));
 }

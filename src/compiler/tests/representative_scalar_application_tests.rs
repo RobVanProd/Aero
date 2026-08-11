@@ -47,7 +47,10 @@ fn main() -> int {
     let first_marker: Reading<char> = Reading { value: 'a', valid: 4 < 5 };
     let second_marker: Reading<char> = Reading { value: 'b', valid: 5 < 4 };
     let marker: Reading<char> = choose(first_marker, second_marker, 5 < 6);
-    let accepted_delta: Result<int, char> = validate_delta(reading_value(delta_reading), marker_is_a(marker));
+    let marker_valid = marker.valid;
+    let delta_sample: Sample<Reading<int>> = Sample::Present(delta_reading);
+    let marker_sample: Sample<char> = Sample::Present(marker.value);
+    let accepted_delta: Result<int, char> = validate_delta(sample_reading_value(delta_sample), sample_marker_is_a(marker_sample, marker_valid));
     let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
     total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
     if batch.meta.1 {
@@ -69,6 +72,11 @@ const MODEL_SOURCE: &str = r#"struct Sensor { value: int, trusted: bool }
 struct Batch { sensors: [Sensor; 3], meta: (int, bool) }
 struct Reading<T> { value: T, valid: bool }
 
+enum Sample<T> {
+    Present(T),
+    Missing
+}
+
 enum Decision {
     Normal(int),
     Alert(int, bool)
@@ -89,10 +97,6 @@ fn make_reading(value: int, valid: bool) -> Reading<int> {
 
 fn reading_value(reading: Reading<int>) -> int {
     reading.value
-}
-
-fn marker_is_a(marker: Reading<char>) -> bool {
-    marker.valid && marker.value == 'a'
 }
 
 fn make_batch() -> Batch {
@@ -122,6 +126,20 @@ fn add_urgent(urgent: bool, value: int) -> int {
 fn validate_delta(value: int, valid: bool) -> Result<int, char> {
     if valid { return Ok(value); }
     Err('e')
+}
+
+fn sample_reading_value(sample: Sample<Reading<int>>) -> int {
+    match sample {
+        Sample::Present(reading) => reading_value(reading),
+        Sample::Missing => 0
+    }
+}
+
+fn sample_marker_is_a(sample: Sample<char>, valid: bool) -> bool {
+    match sample {
+        Sample::Present(marker) => valid && marker == 'a',
+        Sample::Missing => 1 > 2
+    }
 }
 
 fn resolved_delta(result: Result<int, char>) -> int {
@@ -349,6 +367,10 @@ fn representative_scalar_application_is_composed_and_portable() {
             "%\"aero.struct.Reading<char>\" = type",
             "aero.generic.choose<Reading<int>>",
             "aero.generic.choose<Reading<char>>",
+            "; Aero generic enum: Sample<Reading<int>>",
+            "; Aero generic enum: Sample<char>",
+            "define i32 @sample_reading_value(",
+            "define i1 @sample_marker_is_a(",
             "telemetry score: %g",
             "declare void @llvm.trap()",
             "fcmp oge double",
@@ -462,6 +484,8 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "representative_telemetry.o0",
                 "representative_telemetry.o2",
                 "telemetry score: 91",
+                "; Aero generic enum: Sample<Reading<int>>",
+                "; Aero generic enum: Sample<char>",
                 "representative telemetry test passed with exit code 91",
                 "negative_index.aero",
                 "upper_bound_index.aero",

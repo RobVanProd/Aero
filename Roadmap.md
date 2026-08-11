@@ -72,8 +72,19 @@ identifier-bound Match, internal transport, checked IR, independent verification
 private typed LLVM, direct modules, and the pinned LLVM/Clang 22 native-exit-113 gate.
 Accepted CORE-061 keeps closures parsed-only/fail-closed and
 accepted CORE-062 supplies the recursive CopyData classifier. Projected borrows/writes,
-deeper CFG ownership, stable ABI, full module semantics, generic/named-field enums, and
+deeper CFG ownership, stable ABI, full module semantics, named-field, bounded, or
+general generic enums, and
 real GPU execution remain unresolved.
+
+Local candidate CAP-006 is the selected post-CAP-005 capability, not accepted roadmap
+progress. It adds exact explicit user-defined recursive-CopyData generic enum
+specialization and composes `Sample<Reading<int>>` with `Sample<char>` in the growing
+representative application at unchanged output/exit 91. The complete local repository
+gate is green; pinned LLVM/Clang 22 Linux/Windows native evidence, protected
+integration, and exact merge-head synchronization remain pending. Bounds/traits,
+general substitution/operations, named variants, collections, lifetimes/drop, and
+public ABI remain open.
+
 Accepted `CORE-064` adds exact direct whole-owner replacement
 for that admitted enum class through a shared owned-place classifier, generalized
 checked identities, independent verifier controls, and private typed LLVM loads/stores.
@@ -247,7 +258,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, and accepted CAP-005 bound-free whole-value generic transport functions have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 and CAP-005 supply exact generic data-definition and function-transport slices, not general substitution. | Collections, general generic substitution and operations, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, and accepted CAP-005 bound-free whole-value generic transport functions have executable slices. Local CAP-006 candidate evidence additionally covers explicit user-defined recursive-CopyData generic enums but is not accepted milestone truth. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 and CAP-005 supply exact generic data-definition and function-transport slices, not general substitution. | Collections, general generic substitution and operations, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 
@@ -372,9 +383,11 @@ propagation, collections, String errors, aggregate/reference storage, public ABI
 lifetimes/drop. The required fresh three-gap ranking was completed before CAP-004 and
 selected the accepted explicit generic-struct slice; ranks 2 and 3 were not automatic
 follow-ons. The next fresh ranking against accepted CAP-004 is recorded in the
-CAP-005 authorization and selected the now-accepted generic-transport slice. CAP-006
-requires another fresh ranking against accepted CAP-005; no neighboring generic
-topology inherits priority.
+CAP-005 authorization and selected the now-accepted generic-transport slice. The
+fresh CAP-006 ranking against accepted CAP-005 selected explicit user-defined
+recursive-CopyData generic enums (25) ahead of the canonical Milestone 0 contract
+(24) and owned dynamic collections (22). The local candidate is green but public
+acceptance is pending; no neighboring generic topology inherits priority.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

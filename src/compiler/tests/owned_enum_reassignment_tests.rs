@@ -305,9 +305,9 @@ fn owned_enum_reassignment_class_is_complete_checked_and_executable() {
             vec!["not admitted", "array"],
         ),
         (
-            "generic enum remains excluded",
+            "inferred generic enum remains excluded",
             "enum E<T> { A(T) } fn main() { let mut value = E::A(1); value = E::A(2); }",
-            vec!["not an admitted", "unsupported"],
+            vec!["requires an exact expected E<...> type"],
         ),
         (
             "multi-field constructor requires exact arity",

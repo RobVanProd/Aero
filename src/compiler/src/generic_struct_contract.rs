@@ -353,6 +353,7 @@ impl GenericStructNormalizer {
                 name,
                 variants,
                 type_params,
+                ..
             } => {
                 let mentions = variants.iter().any(|variant| match &variant.kind {
                     VariantDeclKind::Unit => false,
@@ -650,6 +651,7 @@ impl GenericStructNormalizer {
                     name,
                     variants,
                     type_params,
+                    ..
                 } if type_params.is_empty() => {
                     for variant in variants {
                         let payload = match &variant.kind {
@@ -1252,7 +1254,7 @@ fn types_equal(left: &Type, right: &Type) -> bool {
     }
 }
 
-fn display_source_type(ty: &Type) -> Result<String, String> {
+pub(crate) fn display_source_type(ty: &Type) -> Result<String, String> {
     match ty {
         Type::Named(name) => {
             if let Some(source) = private_generic_struct_source_name(name) {

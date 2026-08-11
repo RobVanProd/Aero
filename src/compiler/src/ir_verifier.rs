@@ -373,7 +373,9 @@ fn valid_symbol(name: &str) -> bool {
 }
 
 fn valid_enum_symbol(name: &str) -> bool {
-    crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
+    crate::generic_enum_contract::valid_generic_aware_enum_symbol(name, |name| {
+        crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
+    })
 }
 
 fn valid_struct_symbol(name: &str) -> bool {
@@ -416,6 +418,7 @@ fn valid_enum_payload_type(payload: &LogicalType) -> bool {
 fn valid_enum_schema(schema: &EnumSchema) -> bool {
     let mut unique = BTreeSet::new();
     valid_enum_symbol(&schema.name)
+        && crate::generic_enum_contract::valid_generic_enum_schema(&schema.name, &schema.variants)
         && !schema.variants.is_empty()
         && schema.variants.iter().all(|variant| {
             valid_symbol(&variant.name)
@@ -5425,6 +5428,59 @@ mod tests {
             Inst::Return(Value::ImmInt(0)),
         ]))
         .expect_err("private generic struct schema corruption must fail verification");
+        assert!(matches!(
+            error.kind,
+            IrVerificationErrorKind::UnsupportedType(_)
+        ));
+    }
+
+    #[test]
+    fn private_generic_enum_identity_rejects_checked_schema_corruption() {
+        let identity = crate::generic_enum_contract::private_name_for_test(
+            "Sample<int>",
+            &[
+                ("Present", vec![crate::ast::Type::Named("int".to_string())]),
+                ("Missing", Vec::new()),
+            ],
+        );
+        let exact = EnumSchema {
+            name: identity.clone(),
+            variants: vec![
+                EnumVariantSchema {
+                    name: "Present".to_string(),
+                    payload: Some(LogicalType::Int),
+                },
+                EnumVariantSchema {
+                    name: "Missing".to_string(),
+                    payload: None,
+                },
+            ],
+        };
+        verify_ir(function(vec![
+            checked_variant(Value::Reg(0), exact.clone(), 1),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("exact private generic enum schema must verify");
+
+        let mut corrupted = exact.clone();
+        corrupted.variants[0].payload = Some(LogicalType::Char);
+        let error = verify_ir(function(vec![
+            checked_variant(Value::Reg(0), corrupted, 1),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("private generic enum schema corruption must fail verification");
+        assert!(matches!(
+            error.kind,
+            IrVerificationErrorKind::UnsupportedType(_)
+        ));
+
+        let mut corrupted_name = exact;
+        corrupted_name.name.push_str("00");
+        let error = verify_ir(function(vec![
+            checked_variant(Value::Reg(0), corrupted_name, 1),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("private generic enum identity corruption must fail verification");
         assert!(matches!(
             error.kind,
             IrVerificationErrorKind::UnsupportedType(_)

@@ -160,6 +160,7 @@ pub enum Statement {
         name: String,
         variants: Vec<VariantDecl>,
         type_params: Vec<String>, // Phase 5: generic type parameters
+        trait_bounds: Vec<(String, Vec<String>)>,
     },
     ImplBlock {
         type_name: String,

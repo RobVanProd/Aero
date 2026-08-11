@@ -554,6 +554,7 @@ fn test_strict_parse_generic_enum_payloads_retained_shape() {
             name,
             variants,
             type_params,
+            ..
         }) => {
             assert_eq!(name, "Result");
             assert_eq!(type_params, &vec!["T".to_string(), "E".to_string()]);

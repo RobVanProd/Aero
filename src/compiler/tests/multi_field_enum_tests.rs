@@ -416,9 +416,9 @@ fn positional_multi_field_enum_class_is_complete_checked_and_executable() {
             vec!["not an admitted", "not admitted", "unsupported"],
         ),
         (
-            "generic multi-field enum",
+            "inferred generic multi-field enum",
             "enum E<T> { Pair(T, int) } fn main() { let value = E::Pair(1, 2); }",
-            vec!["not an admitted", "not admitted", "unsupported"],
+            vec!["requires an exact expected E<...> type"],
         ),
         (
             "named-field variant",

@@ -55,7 +55,12 @@ impl fmt::Display for Ty {
             Ty::Enum(name) => {
                 match crate::builtin_carrier_contract::private_carrier_source_name(name) {
                     Some(source_name) => f.write_str(&source_name),
-                    None => f.write_str(name),
+                    None => {
+                        match crate::generic_enum_contract::private_generic_enum_source_name(name) {
+                            Some(source_name) => f.write_str(&source_name),
+                            None => f.write_str(name),
+                        }
+                    }
                 }
             }
             Ty::Void => f.write_str("()"),
