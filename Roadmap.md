@@ -12,28 +12,29 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted public master is record-correction merge `e28a521efcc0acf18ecd6845ca39875c5eccab3f`;
-accepted compiler-capability master is protected CAP-002 merge
-`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`. Exact candidate `577e601`, all nine
-exact-head checks, protected PR #23, post-merge CI/Rust CI/CodeQL, the full root gate,
-and pinned LLVM/Clang 22 Linux/Windows representative plus runtime-failure execution at
-`-O0`/`-O2` pass. CAP-002 adds guarded runtime fixed-array writes throughout the
-existing mutable owned recursive CopyData projection class. Reference-target writes,
-collections, projected borrowing, partial moves, lifetime/drop, stable layout/ABI,
-memory safety, accelerators, and release claims remain excluded. Accepted CORE-082
+The current accepted public and compiler-capability master is protected CAP-003 merge
+`e6677941f9467e018089b21dcfe6556e465bf9bb`. Exact candidate `6a20ecfc`, all nine
+exact-head checks, protected PR #26, exact merge-head CI/Rust CI/CodeQL, the full root
+gate, and pinned LLVM/Clang 22.1.8 Linux/Windows representative and bounds-failure
+execution at `-O0`/`-O2` pass. Accepted CAP-003 adds bounded explicitly typed concrete
+recursive-CopyData `Option<T>` and `Result<T, E>` construction, owned transport,
+replacement, and exhaustive bound `Match`. Context-free inference, general generic
+substitution/error propagation, carrier aggregate/reference storage, collections,
+lifetimes/drop, stable layout/ABI, memory safety, accelerators, and release claims
+remain excluded. Accepted CORE-082
 remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 through
 CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
 composition fragments.
 
-CAP-003 is an unaccepted candidate selected by the required fresh milestone-gap and
-three-gap ranking. Its real-program delta is explicit absence/recoverable-failure
+CAP-003 was selected by the required fresh milestone-gap and three-gap ranking. Its
+accepted real-program delta is explicit absence/recoverable-failure
 transport: bounded Aero functions can return, move, replace, pass, and exhaustively
 inspect concrete recursive-CopyData `Option<T>` and `Result<T, E>` values rather than
 sentinel scalars. This is a closed monomorphic built-in-family slice, not general
 generic substitution or a complete error model. Local focused, shared-normalizer,
 adjacent ownership, representative-program, complete root, formatting, and
-correctness-denying Clippy evidence passes; public and pinned LLVM 22 gates remain
-pending.
+correctness-denying Clippy evidence passes, as do the exact public candidate,
+protected-merge, merge-head, and pinned LLVM 22 gates.
 
 Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
 accepted recursive CopyData grammar through construction, exhaustive
@@ -216,7 +217,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, and projected mutation have executable slices. CAP-003 locally candidates a bounded concrete CopyData `Option`/`Result` error-carrier slice. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 remains unaccepted and is not general generic/error propagation. | Collections, generic substitution, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, and accepted CAP-003 concrete CopyData `Option`/`Result` carriers have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence, not general generic substitution/error propagation. | Collections, generic substitution, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 
@@ -307,6 +308,39 @@ through independent verification; that alias/lifetime or stable-layout decisions
 required for the admitted direct-owner class; or that a higher-ranked task can unlock
 more real programs with lower correctness risk. Another argument ordering or selector
 permutation does not justify changing the architecture.
+
+### Post-CAP-002 ranking and accepted CAP-003
+
+The CAP-002 accepted-truth synchronization and corrective milestone audit selected a
+broader ordinary-program capability rather than another reference or index topology.
+The comparison used the same 1--5 scoring convention; `Risk` and `Evidence` reward
+more favorable delivery.
+
+| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Explicitly typed `Option`/`Result` construction, transport, and exhaustive `Match` (accepted `CAP-003`) | 5 | 5 | 5 | 5 | 2 | 3 | 25 |
+| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+Before CAP-003, Aero retained carrier syntax but functions could not truthfully return
+absence or recoverable failure: semantics fabricated missing types and checked
+admission rejected construction. Accepted CAP-003 removes those defaults and admits
+all four constructors only under an exact concrete recursive-CopyData binding,
+reassignment, nongeneric parameter, or nongeneric result context. The values reuse the
+owned-enum pipeline for moves, replacement, internal transport, and exhaustive bound
+`Match`. The representative telemetry application executes both `Ok` and `Err` paths
+while retaining exact output and exit 91. Focused 4/4, normalizer/corruption 4/4,
+representative 3/3, 224-library/32-binary root, all nine candidate checks, protected
+PR #26, exact merge-head workflows, and pinned Linux/Windows LLVM 22.1.8 `-O0`/`-O2`
+gates pass.
+
+What would change the decision: evidence that private carrier normalization changes
+observable source identity, that enum ownership is unsound for these values, or that a
+general substitution engine is required would have stopped the slice. Accepted
+CAP-003 does not settle context-free inference, general generics, question-mark
+propagation, collections, String errors, aggregate/reference storage, public ABI, or
+lifetimes/drop. A fresh three-gap ranking against this accepted baseline is mandatory
+before CAP-004; ranks 2 and 3 above are not automatic follow-ons.
 
 ## Milestone 0 - Establish compiler truth (in progress)
 

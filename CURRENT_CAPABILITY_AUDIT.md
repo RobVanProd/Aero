@@ -5,15 +5,14 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-`e28a521efcc0acf18ecd6845ca39875c5eccab3f`; accepted compiler-capability master is
-protected CAP-002 merge `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`.
+`e6677941f9467e018089b21dcfe6556e465bf9bb`; accepted compiler-capability master is
+the same protected CAP-003 merge.
 
-### CAP-003 candidate: explicitly typed algebraic error carriers
+### CAP-003 accepted: explicitly typed algebraic error carriers
 
-CAP-003 is local candidate evidence, not accepted public capability. Before the
-candidate, the parser retained `Some`/`None`/`Ok`/`Err`, semantics fabricated missing
+Before CAP-003, the parser retained `Some`/`None`/`Ok`/`Err`, semantics fabricated missing
 `Option`/`Result` arguments in two inference paths, and checked admission rejected all
-four constructors. The candidate removes both fabricated defaults and supplies one
+four constructors. Accepted CAP-003 removes both fabricated defaults and supplies one
 shared pre-semantic/pre-admission authority for exact concrete carriers. Explicit
 binding, same-typed reassignment, exact nongeneric function parameter, and exact
 nongeneric function result contexts admit recursive finite CopyData arguments;
@@ -29,7 +28,13 @@ text. The representative telemetry application composes a successful and rejecte
 validation result while preserving exact score 91. Local focused 4/4, normalizer 4/4,
 adjacent enum/ownership, representative 3/3, complete 224-library/32-binary/
 integration/doc root gate, formatting, and correctness-denying Clippy evidence pass.
-Public acceptance and pinned LLVM 22 native gates remain pending.
+Exact candidate `6a20ecfc845d264c68d47ea648acbeb19b2d8af4` and protected
+merge `e6677941f9467e018089b21dcfe6556e465bf9bb` share tree
+`de360d6c6b5b69355b171318f3eae352e585319d`. All nine candidate checks and exact
+merge-head CI `31471720829`, Rust CI `31471720839`, and CodeQL `31471720887` pass.
+Pinned LLVM/Clang 22.1.8 Linux and Windows lanes verify and execute the representative
+program at `-O0` and `-O2` with exact output/exit 91, while the bounds-failure corpus
+passes.
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -151,9 +156,9 @@ Milestone 0/1 exits were closed. This work is retained, tested, and useful, but 
 not satisfy Milestone 2: collections, generic substitution, trait dispatch, general
 error propagation, general lifetimes/drop/unsafe boundaries, public layout/ABI/
 destruction, a generic data structure, and an ownership-intensive representative
-program remain open. CAP-003 locally candidates only the bounded concrete CopyData
-`Option`/`Result` carrier slice and cannot close those broader exits before public
-acceptance.
+program remain open. Accepted CAP-003 closes only the bounded concrete CopyData
+`Option`/`Result` carrier slice; general generic substitution and broader error
+propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
 ### ROADMAP-001 ranking and M1-001 outcome
@@ -181,7 +186,9 @@ semantics, nonportable behavior, optimizer divergence, or a cheaper higher-lever
 path would stop or reorder the selection. The required post-M1 re-ranking is recorded
 in the CAP-001 section above. CAP-001 is accepted, and its bounded accepted-truth
 synchronization passed. CAP-002 records the required fresh three-gap ranking above;
-rows 2 and 3 remain candidates rather than automatic follow-ons.
+CAP-003 records the subsequent ranking and accepted carrier outcome. A new three-gap
+ranking against accepted CAP-003 is mandatory before CAP-004; no previous ordering is
+an automatic follow-on.
 
 ## Verified progress after the audit commit
 

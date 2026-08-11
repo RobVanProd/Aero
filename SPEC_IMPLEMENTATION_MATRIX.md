@@ -2,13 +2,12 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Current accepted public master is record-correction merge
-`e28a521efcc0acf18ecd6845ca39875c5eccab3f`; accepted compiler-capability master is
-protected CAP-002 merge `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`. Exact CAP-002 candidate
-`577e601fe1243b68ed1026268472c6f85af12074` and the merge have identical tree
-`f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c`; candidate-head and post-merge public
-gates pass. CAP-003 typed error carriers are an unaccepted candidate and are marked
-accordingly below.
+Current accepted public and compiler-capability master is protected CAP-003 merge
+`e6677941f9467e018089b21dcfe6556e465bf9bb`. Exact candidate
+`6a20ecfc845d264c68d47ea648acbeb19b2d8af4` and the merge have identical tree
+`de360d6c6b5b69355b171318f3eae352e585319d`; all nine candidate-head checks,
+protected integration, exact merge-head CI/Rust CI/CodeQL, and pinned Linux/Windows
+LLVM/Clang 22.1.8 native `-O0`/`-O2` gates pass.
 
 This matrix records stages independently. `Y` means direct evidence for the
 listed slice, `P` means partial or known-defective support, `N` means absent,
@@ -57,7 +56,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Fresh owned-enum Match-expression results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Conditional direct-owner enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unified typed CopyData/owned-enum Match results | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
-| Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (`CAP-003` candidate) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Explicit concrete CopyData `Option`/`Result` construction, internal transport, replacement, and exhaustive bound Match (accepted `CAP-003`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Generics and substitutions | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |

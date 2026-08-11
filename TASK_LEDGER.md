@@ -208,6 +208,74 @@
   candidate workflows, LLVM 22 native system gates, protected merge, and exact
   post-merge verification remain pending. No public acceptance is claimed.
 
+### CAP-003 accepted public checkpoint
+
+- Date/task/status: 2026-08-11, `CAP-003-ACCEPTANCE`, record-only synchronization
+  from accepted and post-merge-verified protected merge
+  `e6677941f9467e018089b21dcfe6556e465bf9bb`. The observed project-truth records
+  still describe the already merged capability as a local/unaccepted candidate. The
+  hypothesis is administrative only: replace those pending statements with the exact
+  immutable acceptance evidence without changing semantics or broadening the frozen
+  class. This amends the existing CAP-003 authorization record; it does not create a
+  second capability task.
+- Frozen semantics and allowed files: no compiler source, checked IR, verifier,
+  backend, CLI, workflow, specimen, dependency, package, release, benchmark,
+  claim-verification, branch-protection, or external-repository behavior may change.
+  Only `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`, and
+  `README.md` may record the established result. Exact concrete recursive-CopyData
+  `Option<T>`/`Result<T, E>` construction, owned transport/replacement, and exhaustive
+  bound `Match` remain the complete positive class; every earlier exclusion remains.
+- Acceptance evidence and identity: bounded PR #26 carried exact candidate
+  `6a20ecfc845d264c68d47ea648acbeb19b2d8af4`, tree
+  `de360d6c6b5b69355b171318f3eae352e585319d`, from accepted base
+  `e28a521efcc0acf18ecd6845ca39875c5eccab3f`. Both candidate CI runs
+  `31471444869` and `31471475995`, Rust CI `31471476004`, and CodeQL
+  `31471474738` pass on that exact head, comprising all nine required checks and the
+  pinned LLVM/Clang 22.1.8 stable/nightly Linux and Windows native lanes. PR #26
+  merged without tree substitution as `e6677941f9467e018089b21dcfe6556e465bf9bb`,
+  with the same tree and ordered parents prior master `e28a521efcc0acf18ecd6845ca39875c5eccab3f`
+  then the exact candidate. Exact merge-head CI `31471720829`, Rust CI
+  `31471720839`, and CodeQL `31471720887` pass.
+- Executable and trust evidence: focused carrier tests pass 4/4, shared normalizer and
+  corruption controls pass 4/4, the representative application passes 3/3 and executes
+  both `Ok` and `Err` paths while retaining exact score/exit 91, and the complete root
+  gate passes 224 library tests, 32 binary tests, every integration target, formatting,
+  correctness-denying Clippy, and doc tests. Pinned LLVM/Clang 22.1.8 on Linux and
+  Windows externally verifies, machine-verifies, lowers, links, and executes the
+  representative program at `-O0` and `-O2` with exact output/exit 91; the bounds-
+  failure corpus passes at both optimization levels.
+- Protected integration and public observability: PR #26 is merged with a bounded
+  three-commit, 23-file review surface. Its rendered front page now leads with the
+  accepted CAP-003 program delta, exact identities and workflow evidence, and retained
+  exclusions rather than stale candidate wording. Required approvals remain zero
+  under the established solo-maintainer protection rule; no reviewer was invited and
+  no impossible author self-approval was claimed.
+- Acceptance tests, risks, and stop conditions: changed-file scope must remain exactly
+  the seven authorized records; `git diff --check` and the complete repository-root
+  gate must pass; the record PR must pass every exact-head public workflow and merge
+  only through protected master. Stop on any identity mismatch, non-record mutation,
+  capability broadening, red baseline, or public-run failure. Context-free inference,
+  general generics/substitution, question-mark propagation, String errors, nested or
+  non-CopyData carriers, carrier aggregate/reference storage, borrowing, comparison,
+  printing, callable ABI, heap/drop/lifetime behavior, stable ABI/FFI, accelerators,
+  benchmarks, releases, performance, stability, production, and general memory-safety
+  claims remain excluded.
+- Local record verification: changed-file scope is exactly the seven authorized
+  Markdown records, `git diff --check` passes, and exact repository-root
+  `./tools/test.sh` passes formatting, correctness-denying Clippy, 224 library tests,
+  32 binary tests, every integration target, and doc tests. All tracked `.aero`
+  fixtures were normalized only during the Windows byte-identity gate and restored
+  without an indexed fixture diff. User/app-owned untracked directories remain
+  untouched.
+- Recovery, next action, and decision threshold: this bounded record-only PR is the
+  rollback boundary. Merge only after its exact candidate and protected merge remain
+  green and truthful. Once accepted master and all project-truth records agree, perform
+  a fresh three-gap project-level ranking before authorizing CAP-004. Do not inherit the
+  prior ordering or resume topology enumeration. Evidence that the carrier acceptance
+  identity differs, that any merge-head lane is not green, or that the records require
+  broader semantics changes the decision and stops publication.
+
 ## CAP-002 acceptance-record correction
 
 - Date/task/status: 2026-08-11, `CAP-002-ACCEPTANCE-CORRECTION`, authorized
