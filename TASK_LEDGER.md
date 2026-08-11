@@ -2,7 +2,8 @@
 
 ## CAP-003 - explicitly typed algebraic error carriers
 
-- Date/task/status: 2026-08-11, `CAP-003`, authorized red-first executable
+- Date/task/status: 2026-08-11, `CAP-003`, local implementation candidate after
+  red-first executable
   vertical slice from accepted and post-merge-verified public master
   `e28a521efcc0acf18ecd6845ca39875c5eccab3f`. Work belongs only on
   `agent/cap-003-typed-error-carriers`. User/app-owned untracked `tmp/` and
@@ -50,15 +51,14 @@
   already admitted recursive finite CopyData type. Each constructor must have one
   exact expected carrier type supplied by an explicit binding annotation, an existing
   same-typed direct owner on reassignment, an exact nongeneric internal function
-  parameter, or an exact nongeneric internal function result. `Some(value)` may also
-  infer `Option<T>` only when the payload itself has one exact admitted CopyData type;
-  the other three constructors never invent their missing type argument. The value
-  payload must exactly match the selected branch. Exact concrete carriers are
+  parameter, or an exact nongeneric internal function result. All four constructors
+  fail without that exact context; no carrier type argument is inferred or defaulted.
+  The value payload must exactly match the selected branch. Exact concrete carriers are
   non-Copy owned values and reuse existing whole-owner move, reinitialization,
   conditional/loop, by-value argument/result, and exhaustive Match rules. Match binds
   the exact payload and may return only existing CopyData or `Void`. Multiple distinct
   concrete carrier instantiations may coexist deterministically in one program.
-- Frozen negative boundary: context-free `None`, `Ok`, and `Err`; ambiguous or
+- Frozen negative boundary: context-free `Some`, `None`, `Ok`, and `Err`; ambiguous or
   conflicting contexts; wrong constructor arity/branch payload; unknown, generic,
   reference, String, dynamic collection, enum, carrier, cyclic, or otherwise
   non-CopyData type arguments; generic functions or user-defined generic enums;
@@ -95,7 +95,8 @@
 - Red-first measurement and decision threshold: before production mutation, one
   focused target must prove current semantic fabrication and checked-admission
   rejection. Its complete source product must enumerate all four constructors, every
-  admitted expected-context source, inferred `Some`, multiple concrete instantiations,
+  admitted expected-context source, context-free rejection for every constructor,
+  multiple concrete instantiations,
   exact payload types, exhaustive bound Match, moves/reinitialization, function
   arguments/results, direct modules, public check/build/run, deterministic LLVM, and
   native execution. Negative groups must cover every excluded missing/wrong/ambiguous
@@ -162,6 +163,50 @@
   coverage will be added behind the same class boundary; no accepted test was changed
   or weakened. User/app-owned untracked files and the quarantined stash remain
   untouched.
+
+### CAP-003 frozen inference boundary
+
+- The red confirmed that permitting context-free inferred `Some(value)` would require a
+  second expression-type inference engine inside the shared pre-semantic normalizer,
+  or general contextual unification across the existing semantic analyzer. Either
+  would violate the one-authority mechanism and enlarge this bounded task. Before any
+  production mutation, the frozen class therefore requires **all four** built-in
+  constructors to receive one exact expected concrete carrier from an explicit
+  binding, same-typed assignment target, exact function parameter, or exact function
+  result. Context-free `Some`, `None`, `Ok`, and `Err` all share the same missing-
+  context rejection. A future general inference task may admit `Some(value)` only after
+  it can reuse one authoritative contextual type engine.
+
+### CAP-003 local implementation candidate
+
+- One new `builtin_carrier_contract` module is the sole source/admission authority. It
+  validates exact recursive finite CopyData arguments, collects exact nongeneric
+  function contexts, tracks direct binding/reassignment contexts, rewrites all four
+  constructors and bound patterns to deterministic hex-encoded private concrete enum
+  identities, inserts exact schemas, and remains idempotent for semantic output passed
+  into checked admission. Both trusted routes call it before ordinary analysis; both
+  legacy semantic default blocks now fail defensively instead of manufacturing types.
+- Existing owned-enum construction, moves/reinitialization, function transport, bound
+  exhaustive Match, checked instructions, verifier, and LLVM representation are reused.
+  Private identities are accepted only in enum identity slots, decode to public carrier
+  names in diagnostics/type display, cannot be spelled by source, do not appear in
+  emitted LLVM, and fail normalization on wrong identity, wrong schema, nested private
+  annotation, or pre-normalized missing-context bypass.
+- Focused `typed_error_carrier_tests` pass 4/4. They cover all four constructors,
+  explicit binding/assignment/argument/result contexts, primitive and recursive named
+  CopyData payloads, multiple concrete instantiations, moves/replacement, exhaustive
+  Match, deterministic LLVM, semantic/raw-checked equality, and the complete frozen
+  exclusion matrix through semantic, public, and semantic-independent checked routes.
+  Shared normalizer unit controls pass 4/4; the surrounding unit/payload enum,
+  reassignment/reinitialization, Match-result, conditional, and loop ownership ring
+  passes; representative application tests pass 3/3.
+- The representative telemetry application now validates two deltas through
+  `Result<int, char>`, executes one `Ok` and one `Err` branch, and keeps its established
+  computed output and exit score 91. The exact root `./tools/test.sh` gate passes with
+  224/224 library tests, 32/32 binary tests, every integration target, formatting,
+  correctness-denying Clippy, and doc tests; `git diff --check` is clean. Public
+  candidate workflows, LLVM 22 native system gates, protected merge, and exact
+  post-merge verification remain pending. No public acceptance is claimed.
 
 ## CAP-002 acceptance-record correction
 

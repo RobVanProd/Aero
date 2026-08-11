@@ -160,13 +160,26 @@ aero lsp
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
 > **Project status after CAP-002:** Aero remains a Minimal Prototype in correctness
-> recovery, not a complete or stable language. Accepted master is
-> `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; accepted compiler capability is
-> CAP-002 at that protected merge.
+> recovery, not a complete or stable language. Accepted public master is record-only
+> correction merge `e28a521efcc0acf18ecd6845ca39875c5eccab3f`; accepted compiler
+> capability remains CAP-002 at protected merge
+> `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`.
 > The corrective roadmap prioritizes one
 > growing representative scalar application over more neighboring reference/topology partitions. Positive
 > import/name resolution remains high leverage but requires separately frozen namespace
 > and graph semantics first.
+
+> **CAP-003 candidate—not yet accepted:** explicitly typed concrete recursive-
+> CopyData `Option<T>` and `Result<T, E>` values can be constructed, moved, replaced,
+> transported through nongeneric internal functions, and exhaustively matched in the
+> local candidate. All four constructors require an exact binding, assignment,
+> parameter, or result context; missing type arguments never default. The
+> representative application executes success and error branches while preserving
+> score 91. Focused, adjacent, representative, and complete 224-library/32-binary
+> local gates are green, but public LLVM 22 gates, protected merge, and post-merge
+> verification are still pending. General generics,
+> error propagation, carrier aggregate/reference storage, String errors, stable ABI,
+> and memory-safety claims remain unsupported.
 
 > **CAP-002 accepted:** runtime `int` selectors can update the existing
 > mutable owned direct-local recursive CopyData projection class. Selectors execute

@@ -5,12 +5,31 @@ Last updated: 2026-08-11 (America/New_York)
 ## Current objective
 
 The current accepted public master is
-`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`, the protected PR #23 merge of
-`CAP-002` and the accepted compiler-capability master. Its ordered parents are prior
-accepted master `29c13fa32c2bef361ff33367b3b3839351e05534` then exact candidate
-`577e601fe1243b68ed1026268472c6f85af12074`; merge tree
+`e28a521efcc0acf18ecd6845ca39875c5eccab3f`, the protected record-correction PR #25
+merge. The accepted compiler-capability master remains protected CAP-002 merge
+`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; PR #24 synchronized its acceptance
+evidence and PR #25 corrected the remaining framework summary. CAP-002's ordered
+parents are prior accepted master `29c13fa32c2bef361ff33367b3b3839351e05534`
+then exact candidate `577e601fe1243b68ed1026268472c6f85af12074`; merge tree
 `f2f5123f41d3b2b96e418c3b1be0b1ba0ca2027c` exactly matches the candidate tree.
 Post-merge CI `31464742817`, Rust CI `31464742815`, and CodeQL `31464742282` pass.
+
+`CAP-003` is an unaccepted implementation candidate on
+`agent/cap-003-typed-error-carriers`; it is not public master truth. The candidate
+admits explicitly typed concrete `Option<T>` and `Result<T, E>` values only when all
+type arguments are already admitted recursive finite CopyData. One shared,
+idempotent contextual normalizer maps exact annotations, constructors, function
+transport, reassignment, and bound exhaustive `Match` to collision-checked private
+non-generic enum identities, then reuses the accepted enum ownership, checked-IR,
+verification, and LLVM contracts. All four constructors require an exact context; no
+missing argument is inferred or defaulted. The representative telemetry application
+now executes both success and error `Result<int, char>` paths while retaining exact
+score 91. Focused carrier tests are 4/4, the shared normalizer controls are 4/4,
+adjacent enum/ownership rings pass, representative tests are 3/3, and the complete
+224-library/32-binary/integration/doc root gate plus correctness-denying Clippy pass
+locally. Public candidate workflows, LLVM 22 native gates, protected merge, and
+post-merge evidence remain pending; therefore CAP-003 must not yet be described as
+accepted.
 
 Accepted `CAP-001` has frozen implementation
 `77a5c6457f3e87d79a0d1987bf02b4db32b875de`, tree
@@ -2594,11 +2613,13 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish and protected-merge this bounded CAP-002 accepted-truth synchronization, then
-verify its exact merge-head workflows. Only after the records agree with accepted
-master, perform a fresh three-gap project-level ranking and select the next real-program
+Finish CAP-003's complete local gate, freeze one exact candidate, publish one bounded
+PR, require all exact-head public workflows and pinned Linux/Windows LLVM 22 native
+gates, protected-merge without tree substitution, then verify exact merge-head
+workflows and synchronize accepted truth. Only after CAP-003 is accepted or rolled
+back may a fresh three-gap project-level ranking select the next real-program
 capability. Do not default to the quarantined CORE-091 topology, publish releases/
-packages/benchmarks, rewrite history, force-push, or delete retained integration work.
+packages/benchmarks, force-push, or delete retained integration work.
 
 ## Unauthorized actions
 

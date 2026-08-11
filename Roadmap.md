@@ -12,7 +12,8 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-The current accepted public and compiler-capability master is protected CAP-002 merge
+The current accepted public master is record-correction merge `e28a521efcc0acf18ecd6845ca39875c5eccab3f`;
+accepted compiler-capability master is protected CAP-002 merge
 `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`. Exact candidate `577e601`, all nine
 exact-head checks, protected PR #23, post-merge CI/Rust CI/CodeQL, the full root gate,
 and pinned LLVM/Clang 22 Linux/Windows representative plus runtime-failure execution at
@@ -23,6 +24,16 @@ memory safety, accelerators, and release claims remain excluded. Accepted CORE-0
 remains a bounded Milestone 1 primitive-constant slice; accepted CORE-083 through
 CORE-090 are useful but partial Milestone 2 reference, ownership, and aggregate-
 composition fragments.
+
+CAP-003 is an unaccepted candidate selected by the required fresh milestone-gap and
+three-gap ranking. Its real-program delta is explicit absence/recoverable-failure
+transport: bounded Aero functions can return, move, replace, pass, and exhaustively
+inspect concrete recursive-CopyData `Option<T>` and `Result<T, E>` values rather than
+sentinel scalars. This is a closed monomorphic built-in-family slice, not general
+generic substitution or a complete error model. Local focused, shared-normalizer,
+adjacent ownership, representative-program, complete root, formatting, and
+correctness-denying Clippy evidence passes; public and pinned LLVM 22 gates remain
+pending.
 
 Current integration work has accepted `CORE-063` publicly: unary owned enums carry the
 accepted recursive CopyData grammar through construction, exhaustive
@@ -205,7 +216,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; current lexical/syntactic controls and claim inventory are established. | False-success containment, function/binding/scope contracts, full gates, and independent verification are strong per accepted slice but not frozen as one selected stable-subset contract. | One canonical diagnostic/artifact contract and closure of remaining critical trusted-entrypoint residuals for the selected subset. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
-| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, and projected mutation have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. | Collections, generics, traits, error types, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
+| Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, and projected mutation have executable slices. CAP-003 locally candidates a bounded concrete CopyData `Option`/`Result` error-carrier slice. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 remains unaccepted and is not general generic/error propagation. | Collections, generic substitution, traits, broader error propagation, general lifetimes/drop/unsafe, public ABI/destruction, a generic data structure, and an ownership-intensive real program. |
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 

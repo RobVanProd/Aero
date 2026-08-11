@@ -5,8 +5,31 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-`62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`; accepted compiler-capability master is
-the same protected CAP-002 merge.
+`e28a521efcc0acf18ecd6845ca39875c5eccab3f`; accepted compiler-capability master is
+protected CAP-002 merge `62ccc6ad13c04a0cf17ba7922716ff0d66c3f22a`.
+
+### CAP-003 candidate: explicitly typed algebraic error carriers
+
+CAP-003 is local candidate evidence, not accepted public capability. Before the
+candidate, the parser retained `Some`/`None`/`Ok`/`Err`, semantics fabricated missing
+`Option`/`Result` arguments in two inference paths, and checked admission rejected all
+four constructors. The candidate removes both fabricated defaults and supplies one
+shared pre-semantic/pre-admission authority for exact concrete carriers. Explicit
+binding, same-typed reassignment, exact nongeneric function parameter, and exact
+nongeneric function result contexts admit recursive finite CopyData arguments;
+construction, moves, replacement, internal transport, and bound exhaustive `Match`
+reuse the checked owned-enum pipeline through deterministic private identities.
+
+Context-free constructors, wrong families or payloads, nested/non-CopyData carriers,
+generic functions, aggregate storage, borrowing, comparison, output, process results,
+use after move, and incomplete Match all fail before trusted LLVM through semantic,
+raw checked-admission, and public compilation routes. Private identities are
+idempotence/corruption checked and do not appear in source diagnostics or emitted LLVM
+text. The representative telemetry application composes a successful and rejected
+validation result while preserving exact score 91. Local focused 4/4, normalizer 4/4,
+adjacent enum/ownership, representative 3/3, complete 224-library/32-binary/
+integration/doc root gate, formatting, and correctness-denying Clippy evidence pass.
+Public acceptance and pinned LLVM 22 native gates remain pending.
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -125,9 +148,12 @@ benchmarks, and general memory-safety claims remain excluded.
 CORE-043 through CORE-090 implemented substantial typed aggregate, enum/`Match`,
 CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
-not satisfy Milestone 2: collections, generic substitution, trait dispatch, error
-types, general lifetimes/drop/unsafe boundaries, public layout/ABI/destruction, a
-generic data structure, and an ownership-intensive representative program remain open.
+not satisfy Milestone 2: collections, generic substitution, trait dispatch, general
+error propagation, general lifetimes/drop/unsafe boundaries, public layout/ABI/
+destruction, a generic data structure, and an ownership-intensive representative
+program remain open. CAP-003 locally candidates only the bounded concrete CopyData
+`Option`/`Result` carrier slice and cannot close those broader exits before public
+acceptance.
 The project therefore remains **Minimal Prototype / correctness recovery**.
 
 ### ROADMAP-001 ranking and M1-001 outcome
