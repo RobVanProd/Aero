@@ -11,6 +11,18 @@ protected integration, merge-head CI `31520069468`, Rust CI `31520069315`, and
 CodeQL `31520068887` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
+CAP-008 is a locally green candidate, not an accepted matrix reclassification. It
+adds nonbinding `_` payload leaves and one optional final whole-arm wildcard across
+the already-admitted concrete enum/`Option`/`Result`/generic-enum-specialization
+class. Semantic analysis, raw checked admission, and lowering use one shared arm
+resolver; lowering preserves one independently verified target per declared variant.
+Focused 4/4, complete root/verifier controls, and pinned Windows LLVM/Clang 22.1.8
+external, machine, native `-O0`/`-O2`, and public-run evidence pass at exact output and
+exit 91. Until exact-head public acceptance, the rows below continue to describe
+accepted CAP-007 master; CAP-008 moves no feature beyond `PARTIAL` and does not add
+guards, nested destructuring, whole-enum binding, propagation, storage, collections,
+drop/lifetimes, stable ABI, or safety claims.
+
 Accepted CAP-006 adds a further bounded `PARTIAL` slice: exact explicit recursive
 finite CopyData applications of one
 user-defined bound-free generic enum can be contextually specialized before both

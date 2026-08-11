@@ -436,19 +436,19 @@ fn positional_multi_field_enum_class_is_complete_checked_and_executable() {
             vec!["Expected ')'", "binding", "field"],
         ),
         (
-            "wildcard field pattern",
-            "enum E { Pair(int, bool) } fn main() -> int { match E::Pair(1, 1 < 2) { E::Pair(value, _) => value } }",
-            vec!["identifier", "binding"],
+            "top-level binding pattern",
+            "enum E { Pair(int, bool) } fn main() -> int { match E::Pair(1, 1 < 2) { value => 1 } }",
+            vec!["explicit variant arms", "terminal `_` wildcard"],
         ),
         (
             "literal field pattern",
             "enum E { Pair(int, bool) } fn main() -> int { match E::Pair(1, 1 < 2) { E::Pair(1, flag) => 1 } }",
-            vec!["identifier", "binding"],
+            vec!["identifier bindings", "wildcards"],
         ),
         (
             "nested field pattern",
             "enum E { Pair((int, bool), int) } fn main() -> int { match E::Pair((1, 1 < 2), 2) { E::Pair((number, flag), other) => number } }",
-            vec!["identifier", "binding"],
+            vec!["identifier bindings", "wildcards"],
         ),
         (
             "duplicate field binder",

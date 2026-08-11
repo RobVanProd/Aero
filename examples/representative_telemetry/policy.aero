@@ -28,14 +28,14 @@ fn sample_reading_value(sample: Sample<Reading<int>>) -> int {
 fn sample_marker_is_a(sample: Sample<char>, valid: bool) -> bool {
     match sample {
         Sample::Present(marker) => valid && marker == 'a',
-        Sample::Missing => 1 > 2
+        _ => 1 > 2
     }
 }
 
 fn resolved_delta(result: Result<int, char>) -> int {
     match result {
         Ok(value) => value,
-        Err(code) => 0
+        Err(_) => 0
     }
 }
 

@@ -3325,7 +3325,17 @@ impl IrGenerator {
             dispatch_schema: resolved.contract.schema.clone(),
         });
 
-        let arm_labels = (0..arms.len())
+        let lowering_arms = resolved
+            .arm_for_variant
+            .iter()
+            .map(|source_index| {
+                (
+                    arms[*source_index].clone(),
+                    resolved.payload_bindings[*source_index].clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let arm_labels = (0..lowering_arms.len())
             .map(|_| {
                 let label = format!("match_arm_{}", self.next_reg);
                 self.next_reg += 1;
@@ -3334,23 +3344,14 @@ impl IrGenerator {
             .collect::<Vec<_>>();
         let end_label = format!("match_end_{}", self.next_reg);
         self.next_reg += 1;
-        let targets = resolved
-            .arm_for_variant
-            .iter()
-            .map(|source_index| arm_labels[*source_index].clone())
-            .collect();
         function.body.push(Inst::CheckedEnumDispatch {
             value: scrutinee.clone(),
             schema: resolved.contract.schema.clone(),
-            targets,
+            targets: arm_labels.clone(),
         });
 
         let mut result_ty = None;
-        for ((arm, label), binding) in arms
-            .into_iter()
-            .zip(arm_labels)
-            .zip(resolved.payload_bindings)
-        {
+        for ((arm, binding), label) in lowering_arms.into_iter().zip(arm_labels) {
             function.body.push(Inst::Label(label));
             let before_scope = self.scope_snapshot();
             for binding in binding {
