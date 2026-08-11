@@ -66,6 +66,7 @@ pub fn guard_live_registry_transport_for_compiler_service() -> Result<(), String
 }
 
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 #[cfg(test)]
 mod checked_ir_contract_test;
@@ -91,42 +92,134 @@ fn validate_compiler_options(options: &CompilerOptions) -> Result<(), String> {
     Ok(())
 }
 
+fn render_ir_generation_error(error: IrGenerationError) -> String {
+    match error {
+        IrGenerationError::Admission(message) => format!("IR Generation Error: {message}"),
+        IrGenerationError::Verification(error) => error.to_string(),
+    }
+}
+
+/// Phase timings retained for the compiler-service CLI without duplicating the
+/// checked-program pipeline.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CheckedProgramTimings {
+    pub lexing: Duration,
+    pub parsing: Duration,
+    pub direct_modules: Duration,
+    pub semantics: Duration,
+    pub checked_ir: Duration,
+}
+
+/// Exact result of the canonical source-to-checked-IR pipeline.
+///
+/// This type is public only so the package's CLI binary can consume the library-owned
+/// authority. It is not a stable package or language API.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct CheckedProgram {
+    checked_ir: CheckedIr,
+    semantic_message: String,
+    direct_module_cache_material: Option<Vec<u8>>,
+    timings: CheckedProgramTimings,
+}
+
+impl CheckedProgram {
+    #[doc(hidden)]
+    pub fn semantic_message(&self) -> &str {
+        &self.semantic_message
+    }
+
+    #[doc(hidden)]
+    pub fn direct_module_cache_material(&self) -> Option<&[u8]> {
+        self.direct_module_cache_material.as_deref()
+    }
+
+    #[doc(hidden)]
+    pub fn timings(&self) -> CheckedProgramTimings {
+        self.timings
+    }
+
+    #[doc(hidden)]
+    pub fn into_checked_ir(self) -> CheckedIr {
+        self.checked_ir
+    }
+}
+
+/// Canonical compiler-service authority for lexing through verified checked IR.
+///
+/// The callback observes resolved direct modules for CLI progress reporting only. It
+/// cannot alter their source, AST, cache identity, or admission result.
+#[doc(hidden)]
+pub fn prepare_checked_program_for_compiler_service(
+    source: &str,
+    filename: Option<String>,
+    entry_file: Option<&str>,
+) -> Result<CheckedProgram, String> {
+    prepare_checked_program_with_module_observer(source, filename, entry_file, |_, _| {})
+}
+
+/// Canonical compiler-service authority with read-only direct-module observation.
+#[doc(hidden)]
+pub fn prepare_checked_program_with_module_observer(
+    source: &str,
+    filename: Option<String>,
+    entry_file: Option<&str>,
+    mut on_resolved: impl FnMut(&str, &Path),
+) -> Result<CheckedProgram, String> {
+    let lexing_start = Instant::now();
+    let tokens = try_tokenize_with_locations(source, filename)
+        .map_err(|err| format!("Lex error: {}", err))?;
+    let lexing = lexing_start.elapsed();
+
+    let parsing_start = Instant::now();
+    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
+    let parsing = parsing_start.elapsed();
+
+    let direct_modules_start = Instant::now();
+    let direct_module_cache_material =
+        collect_direct_modules_for_compiler_service(&mut ast, entry_file, |name, path| {
+            on_resolved(name, path)
+        })?;
+    let direct_modules = direct_modules_start.elapsed();
+
+    let semantics_start = Instant::now();
+    let mut semantic_analyzer = SemanticAnalyzer::new();
+    let (semantic_message, analyzed_ast) = semantic_analyzer
+        .analyze(ast)
+        .map_err(|err| format!("Semantic Analysis Error: {}", err))?;
+    let semantics = semantics_start.elapsed();
+
+    let checked_ir_start = Instant::now();
+    let mut ir_generator = IrGenerator::new();
+    let checked_ir = ir_generator
+        .try_generate_ir(analyzed_ast)
+        .map_err(render_ir_generation_error)?;
+    let checked_ir_time = checked_ir_start.elapsed();
+
+    Ok(CheckedProgram {
+        checked_ir,
+        semantic_message,
+        direct_module_cache_material,
+        timings: CheckedProgramTimings {
+            lexing,
+            parsing,
+            direct_modules,
+            semantics,
+            checked_ir: checked_ir_time,
+        },
+    })
+}
+
 fn compile_source(
     source: &str,
     filename: Option<String>,
     entry_file: Option<&str>,
 ) -> Result<String, String> {
-    // Lexical analysis
-    let tokens = try_tokenize_with_locations(source, filename)
-        .map_err(|err| format!("Lex error: {}", err))?;
-
-    // Parsing
-    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
-
-    // File-aware compilation resolves only the existing direct-module compatibility
-    // contract. Source-only compilation has no directory from which to resolve files.
-    collect_direct_modules_for_compiler_service(&mut ast, entry_file, |_, _| {})?;
-
-    // Semantic analysis
-    let mut semantic_analyzer = SemanticAnalyzer::new();
-    let (_analyzed_result, analyzed_ast) = match semantic_analyzer.analyze(ast.clone()) {
-        Ok((msg, typed_ast)) => (msg, typed_ast),
-        Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
-    };
-
-    // Checked IR admission and mandatory in-process verification.
-    let mut ir_generator = IrGenerator::new();
-    let ir = ir_generator
-        .try_generate_ir(analyzed_ast)
-        .map_err(|error| match error {
-            IrGenerationError::Admission(message) => {
-                format!("IR Generation Error: {message}")
-            }
-            IrGenerationError::Verification(error) => error.to_string(),
-        })?;
+    let program = prepare_checked_program_for_compiler_service(source, filename, entry_file)?;
 
     // Checked code generation re-verifies the private IR before LLVM emission.
-    let llvm_code = try_generate_code(ir).map_err(|error| match error {
+    let llvm_code = try_generate_code(program.into_checked_ir()).map_err(|error| match error {
         CodeGenerationError::IrVerification(error) => error.to_string(),
         other => format!("Code Generation Error: {other}"),
     })?;
@@ -185,6 +278,16 @@ pub fn compile_program(source: &str, options: CompilerOptions) -> Result<String,
     compile_source(source, None, None)
 }
 
+/// Check exact Aero source text through semantic analysis and verified checked IR.
+///
+/// This source-only API cannot resolve `mod` declarations because it has no entry-file
+/// directory. It never generates LLVM or writes filesystem artifacts. Only
+/// [`CompilerOptions::default`] is supported.
+pub fn check_program(source: &str, options: CompilerOptions) -> Result<(), String> {
+    validate_compiler_options(&options)?;
+    prepare_checked_program_for_compiler_service(source, None, None).map(|_| ())
+}
+
 /// Compile an Aero root file through the checked library pipeline.
 ///
 /// The file path supplies located root diagnostics and the base directory for
@@ -204,4 +307,25 @@ pub fn compile_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<
     let filename = path.to_string_lossy().into_owned();
 
     compile_source(&source, Some(filename.clone()), Some(&filename))
+}
+
+/// Check an Aero root file through semantic analysis and verified checked IR.
+///
+/// The file path supplies located diagnostics and the base directory for the existing
+/// direct `mod name;` compatibility contract. This function never generates LLVM or
+/// writes filesystem artifacts. Only [`CompilerOptions::default`] is supported.
+pub fn check_file(path: impl AsRef<Path>, options: CompilerOptions) -> Result<(), String> {
+    validate_compiler_options(&options)?;
+
+    let path = path.as_ref();
+    let source = std::fs::read_to_string(path).map_err(|error| {
+        format!(
+            "Could not read Aero source file `{}`: {error}",
+            path.display()
+        )
+    })?;
+    let filename = path.to_string_lossy().into_owned();
+
+    prepare_checked_program_for_compiler_service(&source, Some(filename.clone()), Some(&filename))
+        .map(|_| ())
 }

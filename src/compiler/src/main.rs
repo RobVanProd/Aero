@@ -14,11 +14,11 @@ static LLVM_VERIFIER_TEST_ENVIRONMENT_LOCK: std::sync::Mutex<()> = std::sync::Mu
 use compiler::accelerator::AcceleratorBackend;
 use compiler::gpu::{DeviceProfile, GpuDevice, default_gpu_arch};
 use compiler::{
-    CodeGenerationError, IrGenerationError, IrGenerator,
-    LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LlvmVerificationMode, PerformanceOptimizer,
-    SemanticAnalyzer, collect_direct_modules_for_compiler_service, conformance, graph_compiler,
-    guard_live_registry_transport_for_compiler_service, lexer, parser, quantization, registry,
-    try_generate_code, verify_llvm_module,
+    CodeGenerationError, LIVE_REGISTRY_DISABLED_FOR_COMPILER_SERVICE, LlvmVerificationMode,
+    PerformanceOptimizer, conformance, graph_compiler,
+    guard_live_registry_transport_for_compiler_service,
+    prepare_checked_program_with_module_observer, quantization, registry, try_generate_code,
+    verify_llvm_module,
 };
 use std::env;
 use std::fs;
@@ -26,15 +26,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-fn render_ir_generation_error(error: IrGenerationError) -> String {
-    match error {
-        IrGenerationError::Admission(message) => {
-            format!("IR Generation Error: {message}")
-        }
-        IrGenerationError::Verification(error) => error.to_string(),
-    }
-}
 
 fn render_code_generation_error(error: CodeGenerationError) -> String {
     match error {
@@ -438,13 +429,13 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                 eprintln!("Usage: {} test", args[0]);
                 return CliStatus::InvocationFailure;
             }
-            // Discover and semantically analyze Aero test sources without executing them.
+            // Discover and validate Aero test sources without executing them.
             let test_dirs = vec!["examples", "tests", "."];
             let mut test_count = 0;
             let mut completed_count = 0;
 
             println!(
-                "\x1b[1;36mAnalyzing\x1b[0m Aero test sources (parse, direct modules, semantics only; no execution)..."
+                "\x1b[1;36mAnalyzing\x1b[0m Aero test sources (canonical checked admission; no execution)..."
             );
             for dir in &test_dirs {
                 if let Ok(entries) = fs::read_dir(dir) {
@@ -457,24 +448,18 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
                                 match fs::read_to_string(&path) {
                                     Ok(src) => {
                                         let filename = path.to_string_lossy().to_string();
-                                        match parse_source_with_direct_modules(&src, &filename) {
-                                            Ok(ast) => {
-                                                let mut analyzer = SemanticAnalyzer::new();
-                                                match analyzer.analyze(ast) {
-                                                    Ok(_) => {
-                                                        completed_count += 1;
-                                                        println!(
-                                                            "      \x1b[1;32m✓\x1b[0m {} analysis completed (not executed)",
-                                                            name
-                                                        );
-                                                    }
-                                                    Err(err) => {
-                                                        println!(
-                                                            "      \x1b[1;31m✗\x1b[0m {} analysis failed: {}",
-                                                            name, err
-                                                        );
-                                                    }
-                                                }
+                                        match prepare_checked_program_with_module_observer(
+                                            &src,
+                                            Some(filename.clone()),
+                                            Some(&filename),
+                                            |_, _| {},
+                                        ) {
+                                            Ok(_) => {
+                                                completed_count += 1;
+                                                println!(
+                                                    "      \x1b[1;32m✓\x1b[0m {} analysis completed (not executed)",
+                                                    name
+                                                );
                                             }
                                             Err(err) => {
                                                 println!(
@@ -1678,36 +1663,25 @@ fn compile_to_llvm_ir_with_optimizer(
     let compilation_start = Instant::now();
     let verification_mode = build_config.llvm_verification_mode();
 
-    // Lexing with performance timing
-    let lexing_start = Instant::now();
-    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
-        .map_err(|err| format!("Lex error: {}", err))?;
-    let lexing_time = lexing_start.elapsed();
-    println!("Lexing completed in {:?}", lexing_time);
+    let checked_program = prepare_checked_program_with_module_observer(
+        source_code,
+        Some(input_file.to_string()),
+        Some(input_file),
+        |name, path| println!("  Resolved module `{name}` → {}", path.display()),
+    )?;
+    let pipeline_timings = checked_program.timings();
+    println!("Lexing completed in {:?}", pipeline_timings.lexing);
+    println!(
+        "Optimized parsing completed in {:?}",
+        pipeline_timings.parsing
+    );
 
-    // Optimized parsing with parser optimizer
-    let parsing_start = Instant::now();
-    let mut ast =
-        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
-
-    // Apply parser optimizations for complex constructs
-    let parser_optimizer = perf_optimizer.get_parser_optimizer();
-    // Note: In a real implementation, we would integrate parser optimization here
-
-    let parsing_time = parsing_start.elapsed();
-    println!("Optimized parsing completed in {:?}", parsing_time);
-
-    // Phase 7: Module resolution — resolve `mod foo;` to files
-    let direct_module_cache_material =
-        collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |name, path| {
-            println!("  Resolved module `{name}` → {}", path.display())
-        })?;
-
-    // Root parsing and exact direct-module collection are mandatory before lookup.
+    // The canonical checked pipeline is mandatory before a verified cache lookup. A
+    // cache hit may bypass only checked code generation and later transformations.
     let source_hash = compilation_cache_key(
         source_code,
         build_config,
-        direct_module_cache_material.as_deref(),
+        checked_program.direct_module_cache_material(),
     );
     if let Some(cached_llvm) = perf_optimizer
         .get_compilation_cache()
@@ -1727,49 +1701,23 @@ fn compile_to_llvm_ir_with_optimizer(
         println!("Cached result bypassed because external LLVM verification is unavailable");
     }
 
-    // Optimized semantic analysis
-    let semantic_start = Instant::now();
-    let mut analyzer = SemanticAnalyzer::new();
-
-    // Apply semantic optimizations for large programs
-    let semantic_optimizer = perf_optimizer.get_semantic_optimizer();
-    // Note: In a real implementation, we would integrate semantic optimization here
-
-    let (analyzed_result, analyzed_ast) = match analyzer.analyze(ast.clone()) {
-        Ok((msg, typed_ast)) => {
-            println!("Semantic Analysis Result: {}", msg);
-            (msg, typed_ast)
-        }
-        Err(err) => return Err(format!("Semantic Analysis Error: {}", err)),
-    };
-    let semantic_time = semantic_start.elapsed();
+    println!(
+        "Semantic Analysis Result: {}",
+        checked_program.semantic_message()
+    );
     println!(
         "Optimized semantic analysis completed in {:?}",
-        semantic_time
+        pipeline_timings.semantics
     );
-
-    // IR Generation with function call optimizations
-    let ir_start = Instant::now();
-    let mut ir_gen = IrGenerator::new();
-    let ir = ir_gen
-        .try_generate_ir(analyzed_ast)
-        .map_err(render_ir_generation_error)?;
-
-    // Apply function call optimizations
-    let function_optimizer = perf_optimizer.get_function_optimizer();
-    // Note: In a real implementation, we would optimize function calls in IR here
-
-    let ir_time = ir_start.elapsed();
-    println!("Optimized IR generation completed in {:?}", ir_time);
+    println!(
+        "Optimized IR generation completed in {:?}",
+        pipeline_timings.checked_ir
+    );
 
     // Optimized code generation with control flow optimizations
     let codegen_start = Instant::now();
-
-    // Apply control flow optimizations
-    let control_flow_optimizer = perf_optimizer.get_control_flow_optimizer();
-    // Note: In a real implementation, we would optimize control flow generation here
-
-    let llvm_ir = try_generate_code(ir).map_err(render_code_generation_error)?;
+    let llvm_ir = try_generate_code(checked_program.into_checked_ir())
+        .map_err(render_code_generation_error)?;
     let graph_compile_start = Instant::now();
     let graph_backend =
         AcceleratorBackend::from_env("AERO_ACCELERATOR").unwrap_or(match build_config.target {
@@ -2174,41 +2122,19 @@ fn print_registry_help(program_name: &str) {
 /// Runs lexer → parser → direct modules → semantics → checked IR/internal verification.
 fn check_aero_program(source_code: &str, input_file: &str) -> Result<(), String> {
     let check_start = Instant::now();
-
-    let ast = parse_source_with_direct_modules(source_code, input_file)?;
-
-    // Semantic analysis
-    let mut analyzer = SemanticAnalyzer::new();
-    match analyzer.analyze(ast) {
-        Ok((msg, typed_ast)) => {
-            let mut ir_generator = IrGenerator::new();
-            ir_generator
-                .try_generate_ir(typed_ast)
-                .map_err(render_ir_generation_error)?;
-            let elapsed = check_start.elapsed();
-            println!(
-                "\x1b[1;32m    Checking\x1b[0m {} ... \x1b[1;32mok\x1b[0m ({:?})",
-                input_file, elapsed
-            );
-            println!("  {}", msg);
-            Ok(())
-        }
-        Err(err) => Err(err.to_string()),
-    }
-}
-
-fn parse_source_with_direct_modules(
-    source_code: &str,
-    input_file: &str,
-) -> Result<Vec<compiler::ast::AstNode>, String> {
-    let tokens = lexer::try_tokenize_with_locations(source_code, Some(input_file.to_string()))
-        .map_err(|err| format!("Lex error: {}", err))?;
-    let mut ast =
-        parser::parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
-
-    collect_direct_modules_for_compiler_service(&mut ast, Some(input_file), |_, _| {})?;
-
-    Ok(ast)
+    let checked_program = prepare_checked_program_with_module_observer(
+        source_code,
+        Some(input_file.to_string()),
+        Some(input_file),
+        |_, _| {},
+    )?;
+    let elapsed = check_start.elapsed();
+    println!(
+        "\x1b[1;32m    Checking\x1b[0m {} ... \x1b[1;32mok\x1b[0m ({:?})",
+        input_file, elapsed
+    );
+    println!("  {}", checked_program.semantic_message());
+    Ok(())
 }
 
 fn report_check_error(source_code: &str, input_file: &str, error: &str) {

@@ -1,5 +1,188 @@
 # Aero Task Ledger
 
+## CAP-007 - canonical checked-program entrypoint contract
+
+- Date/task/status: 2026-08-11, `CAP-007`, authorized red-first architectural
+  capability slice from exact accepted and merge-head-green master
+  `80f35b4bcf1892838c3e43bdb5dfb0fd21caed06` (tree
+  `66536418537f602ea1f396440649bcfc8297aef5`) on
+  `agent/cap-007-canonical-trusted-pipeline`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Accepted-baseline and milestone audit: protected PRs #33 and #34 accepted CAP-006
+  implementation and synchronized project truth; exact final-master CI
+  `31516174486`, Rust CI `31516174478`, and CodeQL `31516173916` pass. Milestone 1's
+  bounded representative-program exit remains accepted. Milestone 2 has executable
+  fixed aggregates, ownership/reference slices, carriers, generic CopyData structs,
+  generic whole-value transport, and generic CopyData enums, but not collections,
+  general substitution/traits/error propagation, or general lifetime/drop behavior.
+  Milestone 0 still lacks its one canonical selected-subset diagnostic/artifact and
+  trusted-entrypoint contract. The library `compile_program`/`compile_file`, public
+  CLI `check`, optimized `build`/`run`, CLI `profile`, and CLI source-test discovery
+  currently spell overlapping front-end pipelines independently; `aero test` stops after semantics
+  and can report analysis completion for a source that canonical checked admission
+  rejects. This is the remaining trusted-validation false-success class.
+- Founding-framework and dependency audit: the original Aero PDF freezes only dotted
+  `import a.b [as c]` syntax. It does not define lookup roots, namespaces, export
+  visibility, collision precedence, cycles, or package/file mapping; the later formal
+  document sketches a different `mod`/`use`/`pub` surface. Positive imports would
+  invent semantics now. Historical collection records are explicitly non-capability
+  evidence, and current dynamic collection work still lacks allocation-failure,
+  growth, destruction, borrow-invalidation, iterator, and public ABI contracts.
+- Fresh post-CAP-006 ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery.
+
+  | Rank | Gap | Useful programs/tooling | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Canonical checked-program pipeline, diagnostics, artifact eligibility, and embeddable multi-file check API | 4 | 5 | 5 | 5 | 4 | 4 | 27 |
+  | 2 | Owned dynamic `List<T>` collection foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+  | 3 | Positive import/module name resolution | 5 | 4 | 5 | 4 | 1 | 1 | 20 |
+
+  CAP-007 wins because it closes a controlling Milestone 0 exit, removes duplicated
+  admission authority from every trusted validation route, and enables compiler
+  embedding tools to validate actual direct-module programs without requesting LLVM.
+  `List<T>` and imports remain higher eventual source-level payoff, but their missing
+  language/runtime decisions make implementation unsafe rather than merely difficult.
+- Before/after real-program delta: this task intentionally adds no new source syntax.
+  Before CAP-007, an embedding tool cannot ask the public library to check a root or
+  multi-file Aero program without also generating LLVM, and `aero test` can call a
+  semantic-only program "completed" even when `check`, `build`, and `run` reject it
+  before trusted IR. After CAP-007, public in-memory and file-aware check APIs validate
+  through mandatory checked IR/internal verification without emitting artifacts, and
+  library compilation plus CLI check/build/run/source-test validation consume the same
+  checked-program authority. This lower source delta is accepted only because it
+  closes the roadmap-critical false-success/entrypoint class and unlocks truthful LSP,
+  package, editor, and test-runner integration work.
+- Mechanism: introduce one shared checked-program preparation authority in the compiler
+  library. It owns exact lexing, fatal parsing, existing direct-module collection,
+  semantic analysis, checked-IR generation, and mandatory internal verification, while
+  retaining deterministic phase diagnostics and direct-module cache identity. Public
+  `check_program` and `check_file` consume it without LLVM generation or filesystem
+  artifact writes. Existing `compile_program`/`compile_file`, CLI `check`, optimized
+  `build`/`run` on cache miss, `profile`, and source discovery under `aero test` must
+  also consume it; a verified exact-source/module LLVM cache hit remains an explicitly
+  separate backend optimization path. Code generation re-verification, graph
+  transformation, external LLVM 22 verification, profile trace publication, and
+  publish-after-verification ordering remain unchanged. Documentation generation and
+  LSP syntax diagnostics remain explicitly parse-only non-compilation tools;
+  conformance retains its embedded-case and verifier-mutation harness while already
+  requiring checked IR.
+- Frozen selected-subset diagnostic/artifact contract: input/read and unsupported-
+  option failures precede source phases; otherwise phase order is lex -> parse ->
+  direct-module resolution/lex/parse -> semantics -> checked admission/internal
+  verification -> checked code generation -> transformed LLVM verification -> artifact
+  publication/native execution. The first failure is authoritative, nonzero for public
+  CLI validation, and carries the existing deterministic phase category plus available
+  source filename/span. `check_program`, `check_file`, and CLI `check` never emit LLVM,
+  object, executable, cache, or requested-output artifacts. A source-phase failure may
+  not invoke code generation or an external verifier. `build` publishes requested LLVM
+  only after the exact final bytes pass the selected verifier policy; `run` keeps its
+  artifacts private and removes them. No diagnostic JSON schema, stable numeric code,
+  stable runtime/ABI, package behavior, or generalized language-support claim is added.
+- Assumptions and evidence: the accepted lexer/parser/module/semantic/checked-IR/
+  verifier/codegen boundaries already fail closed individually; file-compilation,
+  representative-application, CLI status, LLVM verifier, direct-module, and corruption
+  tests prove their current products. The optimized cache key commits to root source,
+  exact direct-module names/candidates/bytes, target, and GPU selection, and cached
+  bytes are re-verified before publication. The implementation should compose these
+  authorities, not add a new semantic guard or duplicate any phase predicate.
+- Measurement and red-first proof: before production mutation, add one focused target
+  proving (1) public check APIs do not yet exist, by a compile-fail API probe or exact
+  test-only call boundary; (2) a discovered `_test.aero` source that passes semantics
+  but is rejected by checked admission is currently reported completed; and (3) the
+  library/CLI phase products are not one shared callable authority. Green requires
+  source-only and direct-module check success, exact failure-stage parity across public
+  check/compile and CLI check/build/run/test for lex, parse, module, semantic, and
+  checked-admission products, zero invalid artifacts or external-verifier invocation,
+  unchanged verified build/run behavior, and successful representative native output/
+  exit 91 at `-O0` and `-O2` on Linux and Windows.
+- Failure modes and detection: phase reordering could hide the first defect; diagnostic
+  wrapping could lose filenames/spans; double normalization could change AST identity;
+  cache lookup could bypass changed module bytes; semantic-only source-test validation
+  could survive; checking could generate LLVM; a failed build could publish bytes; or
+  valid programs could diverge by entrypoint. Focused parity/ordering tests, pre-IR
+  backend/verifier sentinels, file-artifact scans, cache mutation controls, existing
+  corruption tests, the representative application, and the complete root/native gates
+  detect these failures.
+- Allowed files and recovery: production changes are limited to `src/compiler/src/lib.rs`,
+  `src/compiler/src/main.rs`, and the directly coupled CLI orchestration module
+  `src/compiler/src/profiler.rs`, plus a directly coupled internal pipeline module only
+  if it prevents duplicated authority. Tests may add one focused integration target and
+  narrowly update superseded CLI/file API expectations. The representative example and
+  public workflows may change only to exercise the new canonical gate. After exact
+  green, only directly affected capability/state/roadmap/matrix/framework/README records
+  may change. No parser, semantic rule, IR schema, verifier invariant, backend lowering,
+  dependency, release, benchmark, claim-verification, protection, master, external
+  repository, or user-owned untracked content may change. The rollback boundary is one
+  bounded branch/PR restoring the prior duplicated orchestration without changing any
+  accepted language semantics.
+- Decision threshold and stop conditions: merge only if one shared authority is used by
+  every frozen trusted validation path, all enumerated failure classes preserve first-
+  failure diagnostics and artifact cleanliness, the new check APIs are artifact-free,
+  `aero test` no longer semantically false-succeeds, cache and verified code-generation
+  contracts remain exact, all repository/public/native gates pass, and no source
+  semantics broaden. Stop if canonicalization requires a language, ABI, package/import,
+  diagnostic-code, cache-trust, or external-tool semantic decision not frozen here; if
+  it crosses into phase implementation; if existing valid output changes; if any test
+  must be weakened; or if the baseline is red.
+- Strategic value and what would change our mind: CAP-007 closes the oldest controlling
+  milestone gap, makes future language capabilities enter through one auditable gate,
+  and enables trustworthy editor/package/test tooling without LLVM side effects. New
+  evidence that existing entrypoints already share one unbypassable checked authority,
+  that `aero test` cannot false-succeed on a checked-admission rejection, that cache
+  identity is not strong enough to remain a separate verified path, or that this work
+  necessarily changes source semantics would stop CAP-007 and force a different
+  architecture or re-ranking. Evidence that collection or import semantics have become
+  fully specified and independently testable would change the *next* ranking, not
+  justify bypassing this Milestone 0 exit.
+
+### CAP-007 exact red checkpoint
+
+- Before any compiler production mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test canonical_checked_pipeline_tests --
+  --nocapture` runs 0/1 green. The test-only source
+  `fn main() { let quotient: int = 1 / 0; }` passes current semantic analysis but is
+  already rejected by trusted checked admission elsewhere with `IR Generation Error:
+  constant integer division by zero is not admitted`. Public `aero test` instead exits
+  zero, prints `admission_test.aero analysis completed (not executed)`, and reports
+  `1 completed, 0 failed`. This proves the selected trusted-validation false-success
+  without changing a parser, semantic rule, IR/verifier/backend contract, workflow,
+  example, dependency, master, external repository, or user-owned untracked content.
+  The next production change must route this whole validation class through the shared
+  checked authority; a one-off division guard in `aero test` is forbidden.
+
+### CAP-007 locally green candidate
+
+- The implementation introduces one library-owned checked-program preparation
+  authority for lexing, fatal parsing, direct-module collection, semantic analysis,
+  checked-IR generation, and mandatory internal verification. Public artifact-free
+  `check_program` and `check_file` APIs consume it. Library compilation and CLI
+  `check`, optimized `build`/`run`, `profile`, and source discovery under `aero test`
+  consume the same authority; documentation and LSP syntax diagnostics remain
+  explicitly parse-only tools.
+- The red specimen now exits nonzero through `aero test` at checked admission instead
+  of reporting semantic-only completion. Focused canonical-pipeline coverage passes
+  3/3 across source/file library checking and compilation plus CLI
+  check/build/run/profile/test products for lexical, parse, direct-module, semantic,
+  and checked-admission failures. Each source-phase failure preserves one phase
+  identity, invokes no external verifier, and leaves no requested artifact or trace.
+  The compiler-graph control proves the binary and profiler no longer construct their
+  own semantic or IR-generation pipelines.
+- Compatibility expectations were narrowed only where the newly canonical semantic
+  phase prefix supersedes prior raw CLI fragments. No parser, semantic rule, IR
+  schema, independent verifier invariant, backend lowering, source behavior, example,
+  workflow, dependency, benchmark, release, or claim artifact changed.
+- Focused and adjacent results are green, including 61/61 remaining unsupported/use/
+  version targets. From a normalized tracked-source checkout, `./tools/test.sh` exits
+  0 with 235 library tests, 32 binary tests, all 84 integration targets, doc tests,
+  formatting, correctness-denying Clippy, examples, and repository/verifier controls.
+  Cached official Windows LLVM/Clang 22.1.8 tools also externally verify the generated
+  representative LLVM, machine-verify it, and link `-O0`/`-O2`; public `run` and both
+  native executables produce exact telemetry output and exit 91. This is local
+  candidate evidence only. CAP-007 is not accepted public capability until an exact
+  committed candidate passes candidate-head workflows, protected integration, exact
+  merge-head workflows, and the public pinned Linux/Windows system gates.
+
 ## CAP-006 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-006-ACCEPTANCE-SYNC`, authorized bounded

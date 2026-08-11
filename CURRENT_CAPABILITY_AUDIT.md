@@ -9,6 +9,27 @@ protected CAP-006 compiler-capability merge
 `bdfd4f5a282043ee957c1bf03975e266de5b9b6c`; this record is its bounded
 acceptance synchronization.
 
+### CAP-007 locally green: canonical checked-program entrypoint candidate
+
+CAP-007 is a local candidate, not accepted public capability. One library-owned
+authority now prepares a checked program through lexing, fatal parsing, direct-module
+collection, semantics, checked-IR generation, and mandatory internal verification.
+Public artifact-free `check_program` and `check_file` APIs, library compilation, and
+CLI check/build/run/profile/source-test validation consume it. The exact red proved
+that `aero test` previously reported completion for a semantics-pass program that
+checked admission rejects; the candidate now rejects that product consistently before
+code generation or an external verifier.
+
+Focused 3/3 and the complete normalized 235-library/32-binary/84-integration/doc/
+format/Clippy local gate pass. Cached official Windows LLVM/Clang 22.1.8 externally
+and machine verifies the representative product, and public `run` plus native
+`-O0`/`-O2` retain exact output/exit 91. The candidate adds no source syntax or semantics and
+does not make the selected language subset stable. It locally closes the canonical
+Milestone 0 trusted-entrypoint and artifact-eligibility mechanism, pending exact-head
+public workflows, protected integration, merge-head evidence, and pinned Linux/Windows
+LLVM/Clang 22 representative gates. Final accepted public master remains
+`80f35b4bcf1892838c3e43bdb5dfb0fd21caed06`.
+
 ### CAP-006 accepted: explicit user-defined generic CopyData enums
 
 Accepted CAP-006 supplies one shared idempotent

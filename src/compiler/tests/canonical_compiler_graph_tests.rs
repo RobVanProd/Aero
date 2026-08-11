@@ -28,6 +28,7 @@ fn declared_modules(source: &str) -> BTreeSet<String> {
 fn binary_uses_one_canonical_library_compiler_graph() {
     let library = fs::read_to_string(source_path("lib.rs")).expect("read library crate root");
     let binary = fs::read_to_string(source_path("main.rs")).expect("read binary crate root");
+    let profiler = fs::read_to_string(source_path("profiler.rs")).expect("read profiler module");
     let library_modules = declared_modules(&library);
     let binary_modules = declared_modules(&binary);
     let overlap = library_modules
@@ -70,10 +71,29 @@ fn binary_uses_one_canonical_library_compiler_graph() {
         "mod performance_optimizations;",
         "pub use performance_optimizations::PerformanceOptimizer;",
         "pub fn collect_direct_modules_for_compiler_service(",
+        "pub fn prepare_checked_program_with_module_observer(",
     ] {
         assert!(
             library.contains(declaration),
             "library must own `{declaration}` after graph convergence"
         );
+    }
+
+    for (name, source) in [("binary", &binary), ("profiler", &profiler)] {
+        assert!(
+            source.contains("prepare_checked_program_with_module_observer"),
+            "{name} must consume the library-owned checked-program authority"
+        );
+        for forbidden in [
+            "SemanticAnalyzer::new()",
+            "IrGenerator::new()",
+            "lexer::try_tokenize_with_locations",
+            "parser::parse_with_locations",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "{name} duplicates checked-program phase orchestration through `{forbidden}`"
+            );
+        }
     }
 }

@@ -888,7 +888,7 @@ fn invalid_ir_generation_stops_build_before_backend_or_publication() {
 }
 
 #[test]
-fn check_preserves_existing_raw_semantic_diagnostic_text() {
+fn check_uses_the_canonical_semantic_phase_diagnostic() {
     let workspace = TestWorkspace::new("check-semantic-text");
     let source_path = workspace.path("semantic.aero");
     fs::write(
@@ -913,12 +913,9 @@ fn check_preserves_existing_raw_semantic_diagnostic_text() {
     assert!(
         diagnostic
             .lines()
-            .any(|line| line.trim() == "error: Struct construction expressions are not supported."),
-        "check changed its existing semantic text: {diagnostic}"
-    );
-    assert!(
-        !diagnostic.contains("Semantic Analysis Error:"),
-        "check gained the build-only semantic prefix: {diagnostic}"
+            .any(|line| line.trim()
+                == "error: Semantic Analysis Error: Struct construction expressions are not supported."),
+        "check lost the canonical semantic phase identity: {diagnostic}"
     );
     assert_only_source_file_exists(&workspace, &source_path);
 }

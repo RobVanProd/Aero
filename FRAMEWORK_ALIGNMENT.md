@@ -59,6 +59,25 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+Local CAP-007 candidate advances the founding compiler/toolchain path rather than a
+new source-language feature. It adds public artifact-free `check_program` and
+`check_file` APIs and routes library compilation plus CLI
+check/build/run/profile/source-test validation through one library-owned checked
+preparation authority. This removes a real trusted-tool false-success where
+semantic-only test discovery could report completion for a program rejected by
+checked admission. Focused 3/3 and the complete normalized
+235-library/32-binary/84-integration/doc/format/Clippy local gate pass.
+Cached official Windows LLVM/Clang 22.1.8 also externally verifies, machine-verifies,
+and executes the representative product at `-O0`/`-O2` with exact output/exit 91.
+
+This candidate does not define imports, collections, traits, memory layout, runtime
+ABI, or any new executable source behavior. The founding PDF does not freeze import
+lookup, export/visibility, collision, cycle, or file-mapping semantics, so positive
+imports remain separately specified work. CAP-007 is not accepted public evidence
+until exact-head, protected-merge, merge-head, and pinned Linux/Windows LLVM/Clang 22
+representative gates pass; accepted master remains final CAP-006 state
+`80f35b4bcf1892838c3e43bdb5dfb0fd21caed06`.
+
 Accepted CAP-006 advances the founding paper's generic-enum grammar and
 compile-time monomorphization direction without claiming general generics or the
 paper's trait-bounded semantics. One shared idempotent authority specializes exact
