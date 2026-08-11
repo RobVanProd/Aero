@@ -2079,7 +2079,7 @@ fn semantic_only_test_command_reports_analysis_without_execution_claims() {
         ));
     }
     for fragment in [
-        "Analyzing Aero test sources (parse, direct modules, semantics only; no execution)...",
+        "Analyzing Aero test sources (canonical checked admission; no execution)...",
         "sample_test.aero analysis completed (not executed)",
         "analysis result: 1 completed, 0 failed, 1 total; no tests were executed",
     ] {
@@ -2124,7 +2124,7 @@ fn semantic_only_test_command_reports_analysis_without_execution_claims() {
         ));
     }
     for fragment in [
-        "Analyzing Aero test sources (parse, direct modules, semantics only; no execution)...",
+        "Analyzing Aero test sources (canonical checked admission; no execution)...",
         "no Aero test source files found (*_test.aero, *_tests.aero); no tests were executed",
     ] {
         if !empty_stdout.contains(fragment) {

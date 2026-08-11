@@ -18,8 +18,8 @@
   general substitution/traits/error propagation, or general lifetime/drop behavior.
   Milestone 0 still lacks its one canonical selected-subset diagnostic/artifact and
   trusted-entrypoint contract. The library `compile_program`/`compile_file`, public
-  CLI `check`, optimized `build`/`run`, and CLI source-test discovery currently spell
-  overlapping front-end pipelines independently; `aero test` stops after semantics
+  CLI `check`, optimized `build`/`run`, CLI `profile`, and CLI source-test discovery
+  currently spell overlapping front-end pipelines independently; `aero test` stops after semantics
   and can report analysis completion for a source that canonical checked admission
   rejects. This is the remaining trusted-validation false-success class.
 - Founding-framework and dependency audit: the original Aero PDF freezes only dotted
@@ -59,11 +59,14 @@
   retaining deterministic phase diagnostics and direct-module cache identity. Public
   `check_program` and `check_file` consume it without LLVM generation or filesystem
   artifact writes. Existing `compile_program`/`compile_file`, CLI `check`, optimized
-  `build`/`run` on cache miss, and source discovery under `aero test` must also consume
-  it; a verified exact-source/module LLVM cache hit remains an explicitly separate
-  backend optimization path. Code generation re-verification, graph transformation,
-  external LLVM 22 verification, and publish-after-verification ordering remain
-  unchanged.
+  `build`/`run` on cache miss, `profile`, and source discovery under `aero test` must
+  also consume it; a verified exact-source/module LLVM cache hit remains an explicitly
+  separate backend optimization path. Code generation re-verification, graph
+  transformation, external LLVM 22 verification, profile trace publication, and
+  publish-after-verification ordering remain unchanged. Documentation generation and
+  LSP syntax diagnostics remain explicitly parse-only non-compilation tools;
+  conformance retains its embedded-case and verifier-mutation harness while already
+  requiring checked IR.
 - Frozen selected-subset diagnostic/artifact contract: input/read and unsupported-
   option failures precede source phases; otherwise phase order is lex -> parse ->
   direct-module resolution/lex/parse -> semantics -> checked admission/internal
@@ -101,8 +104,9 @@
   backend/verifier sentinels, file-artifact scans, cache mutation controls, existing
   corruption tests, the representative application, and the complete root/native gates
   detect these failures.
-- Allowed files and recovery: production changes are limited to `src/compiler/src/lib.rs`
-  and `src/compiler/src/main.rs`, plus a directly coupled internal pipeline module only
+- Allowed files and recovery: production changes are limited to `src/compiler/src/lib.rs`,
+  `src/compiler/src/main.rs`, and the directly coupled CLI orchestration module
+  `src/compiler/src/profiler.rs`, plus a directly coupled internal pipeline module only
   if it prevents duplicated authority. Tests may add one focused integration target and
   narrowly update superseded CLI/file API expectations. The representative example and
   public workflows may change only to exercise the new canonical gate. After exact
@@ -146,6 +150,38 @@
   example, dependency, master, external repository, or user-owned untracked content.
   The next production change must route this whole validation class through the shared
   checked authority; a one-off division guard in `aero test` is forbidden.
+
+### CAP-007 locally green candidate
+
+- The implementation introduces one library-owned checked-program preparation
+  authority for lexing, fatal parsing, direct-module collection, semantic analysis,
+  checked-IR generation, and mandatory internal verification. Public artifact-free
+  `check_program` and `check_file` APIs consume it. Library compilation and CLI
+  `check`, optimized `build`/`run`, `profile`, and source discovery under `aero test`
+  consume the same authority; documentation and LSP syntax diagnostics remain
+  explicitly parse-only tools.
+- The red specimen now exits nonzero through `aero test` at checked admission instead
+  of reporting semantic-only completion. Focused canonical-pipeline coverage passes
+  3/3 across source/file library checking and compilation plus CLI
+  check/build/run/profile/test products for lexical, parse, direct-module, semantic,
+  and checked-admission failures. Each source-phase failure preserves one phase
+  identity, invokes no external verifier, and leaves no requested artifact or trace.
+  The compiler-graph control proves the binary and profiler no longer construct their
+  own semantic or IR-generation pipelines.
+- Compatibility expectations were narrowed only where the newly canonical semantic
+  phase prefix supersedes prior raw CLI fragments. No parser, semantic rule, IR
+  schema, independent verifier invariant, backend lowering, source behavior, example,
+  workflow, dependency, benchmark, release, or claim artifact changed.
+- Focused and adjacent results are green, including 61/61 remaining unsupported/use/
+  version targets. From a normalized tracked-source checkout, `./tools/test.sh` exits
+  0 with 235 library tests, 32 binary tests, all 84 integration targets, doc tests,
+  formatting, correctness-denying Clippy, examples, and repository/verifier controls.
+  Cached official Windows LLVM/Clang 22.1.8 tools also externally verify the generated
+  representative LLVM, machine-verify it, and link `-O0`/`-O2`; public `run` and both
+  native executables produce exact telemetry output and exit 91. This is local
+  candidate evidence only. CAP-007 is not accepted public capability until an exact
+  committed candidate passes candidate-head workflows, protected integration, exact
+  merge-head workflows, and the public pinned Linux/Windows system gates.
 
 ## CAP-006 accepted-master project-truth synchronization
 

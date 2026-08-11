@@ -587,7 +587,7 @@ fn cli_check_and_build_reject_root_match_without_panic_or_artifact() {
     let mut failures = cli_match_rejection_failures(
         "root check",
         &check,
-        "error: Match expressions are not supported.",
+        "error: Semantic Analysis Error: Match expressions are not supported.",
         None,
         source,
     );
@@ -617,7 +617,7 @@ fn cli_check_and_build_reject_direct_module_match_without_panic_or_artifact() {
     let mut failures = cli_match_rejection_failures(
         "module check",
         &check,
-        "error: Match expressions are not supported.",
+        "error: Semantic Analysis Error: Match expressions are not supported.",
         None,
         module_source,
     );
@@ -807,7 +807,7 @@ fn main() {}
     let mut failures = cli_match_rejection_failures(
         "trait-default root check",
         &check,
-        "error: Match expressions are not supported.",
+        "error: Semantic Analysis Error: Match expressions are not supported.",
         None,
         source,
     );
@@ -843,7 +843,7 @@ trait ModuleDefault {
     let mut failures = cli_match_rejection_failures(
         "trait-default module check",
         &check,
-        "error: Match expressions are not supported.",
+        "error: Semantic Analysis Error: Match expressions are not supported.",
         None,
         module_source,
     );

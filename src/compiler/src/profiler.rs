@@ -1,8 +1,6 @@
-use compiler::ast::AstNode;
 use compiler::{
-    CodeGenerationError, IrGenerationError, IrGenerator, LlvmVerificationMode, SemanticAnalyzer,
-    collect_direct_modules_for_compiler_service, parse_with_locations, try_generate_code,
-    try_tokenize_with_locations, verify_llvm_module,
+    CodeGenerationError, LlvmVerificationMode, prepare_checked_program_with_module_observer,
+    try_generate_code, verify_llvm_module,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -29,43 +27,25 @@ pub fn profile_compilation(
     let total_start = Instant::now();
     let mut stages = Vec::new();
 
-    let lex_start = Instant::now();
-    let tokens = try_tokenize_with_locations(source_code, Some(input_file.to_string()))
-        .map_err(|err| format!("Lex error: {}", err))?;
-    push_stage(&mut stages, "lexing", lex_start.elapsed());
-
-    let parse_start = Instant::now();
-    let mut ast = parse_with_locations(tokens).map_err(|err| format!("Parse error: {}", err))?;
-    push_stage(&mut stages, "parsing", parse_start.elapsed());
-
-    let module_start = Instant::now();
-    resolve_modules(input_file, &mut ast)?;
-    push_stage(&mut stages, "module_resolution", module_start.elapsed());
-
-    let semantic_start = Instant::now();
-    let mut analyzer = SemanticAnalyzer::new();
-    let (_, analyzed_ast) = analyzer
-        .analyze(ast)
-        .map_err(|err| format!("Semantic analysis failed: {}", err))?;
-    push_stage(&mut stages, "semantic_analysis", semantic_start.elapsed());
-
-    let ir_start = Instant::now();
-    let mut ir_gen = IrGenerator::new();
-    let ir = ir_gen
-        .try_generate_ir(analyzed_ast)
-        .map_err(|error| match error {
-            IrGenerationError::Admission(message) => {
-                format!("IR Generation Error: {message}")
-            }
-            IrGenerationError::Verification(error) => error.to_string(),
-        })?;
-    push_stage(&mut stages, "ir_generation", ir_start.elapsed());
+    let checked_program = prepare_checked_program_with_module_observer(
+        source_code,
+        Some(input_file.to_string()),
+        Some(input_file),
+        |_, _| {},
+    )?;
+    let timings = checked_program.timings();
+    push_stage(&mut stages, "lexing", timings.lexing);
+    push_stage(&mut stages, "parsing", timings.parsing);
+    push_stage(&mut stages, "module_resolution", timings.direct_modules);
+    push_stage(&mut stages, "semantic_analysis", timings.semantics);
+    push_stage(&mut stages, "ir_generation", timings.checked_ir);
 
     let codegen_start = Instant::now();
-    let llvm_ir = try_generate_code(ir).map_err(|error| match error {
-        CodeGenerationError::IrVerification(error) => error.to_string(),
-        other => format!("Code Generation Error: {other}"),
-    })?;
+    let llvm_ir =
+        try_generate_code(checked_program.into_checked_ir()).map_err(|error| match error {
+            CodeGenerationError::IrVerification(error) => error.to_string(),
+            other => format!("Code Generation Error: {other}"),
+        })?;
     push_stage(&mut stages, "code_generation", codegen_start.elapsed());
 
     let verification_start = Instant::now();
@@ -124,11 +104,6 @@ pub fn print_profile(profile: &CompilationProfile) {
         println!("  {:<20} {:>8.3} ms", stage.name, stage.duration_ms);
     }
     println!("  {:<20} {:>8.3} ms", "total", profile.total_ms);
-}
-
-fn resolve_modules(input_file: &str, ast: &mut Vec<AstNode>) -> Result<(), String> {
-    collect_direct_modules_for_compiler_service(ast, Some(input_file), |_, _| {})?;
-    Ok(())
 }
 
 fn push_stage(stages: &mut Vec<StageProfile>, name: &str, elapsed: std::time::Duration) {

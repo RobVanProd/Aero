@@ -501,7 +501,7 @@ fn main() { let point = Point { x: mark() }; }
     let mut failures = cli_struct_rejection_failures(
         "root check",
         &check,
-        "error: Struct construction expressions are not supported.",
+        "error: Semantic Analysis Error: Struct construction expressions are not supported.",
         None,
         source,
     );
@@ -534,7 +534,7 @@ fn make() -> Point { return Point { x: mark() }; }
     let mut failures = cli_struct_rejection_failures(
         "module check",
         &check,
-        "error: Struct construction expressions are not supported.",
+        "error: Semantic Analysis Error: Struct construction expressions are not supported.",
         None,
         module_source,
     );
