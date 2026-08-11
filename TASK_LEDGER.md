@@ -1,5 +1,213 @@
 # Aero Task Ledger
 
+## CAP-003 - explicitly typed algebraic error carriers
+
+- Date/task/status: 2026-08-11, `CAP-003`, local implementation candidate after
+  red-first executable
+  vertical slice from accepted and post-merge-verified public master
+  `e28a521efcc0acf18ecd6845ca39875c5eccab3f`. Work belongs only on
+  `agent/cap-003-typed-error-carriers`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. The quarantined CORE-091
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Fresh post-CAP-002 milestone audit: accepted-truth documents agree on CAP-002.
+  Milestone 0 still lacks one canonical diagnostic/artifact and trusted-entrypoint
+  contract. Milestone 1's bounded representative-program exit is accepted. Milestone
+  2 has executable aggregates, Match, bounded ownership/references, and safe fixed-
+  array reads/writes, but its explicit error-type, collections, generic substitution,
+  trait, lifetime/drop/unsafe, generic-data-structure, and ownership-intensive-program
+  exits remain open. Current work must therefore add ordinary-program breadth rather
+  than deepen another reference/index topology.
+- Fresh three-gap ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Explicitly typed `Option`/`Result` construction, transport, and exhaustive Match | 5 | 5 | 5 | 5 | 2 | 3 | 25 |
+  | 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |
+
+  CAP-003 wins because it closes an explicit Milestone 2 requirement, removes a real
+  false-success boundary, and lets functions represent absence and recoverable failure
+  instead of returning sentinel scalars. The canonical Milestone 0 contract remains
+  important but is consolidation, not a new executable program class. Imports remain
+  broadly useful, but current flattening drops module identity and `pub fn` visibility;
+  collision, lookup, visibility, recursive graph, and cache semantics must be frozen
+  before that larger redesign. Modulo and neighboring aggregate/reference cases have
+  smaller architectural and roadmap payoff.
+- Observed behavior and hypothesis: the parser deliberately preserves `Some`, `None`,
+  `Ok`, and `Err` constructors and patterns, and source annotations map to
+  `Ty::Option`/`Ty::Result`. Both semantic inference paths nevertheless fabricate
+  `Option<Int>` for context-free `None`, `Result<T, String>` for `Ok(value)`, and
+  `Result<Int, E>` for `Err(error)`. `Some(value)` can acquire an inferred type, but
+  independent checked admission rejects every `Option`/`Result` constructor before IR.
+  Existing non-generic owned-enum contracts already prove construction, exact schema,
+  by-value transport, move tracking, exhaustive bound Match, checked IR, corruption
+  controls, private LLVM, and native execution for recursive finite CopyData payloads.
+  A shared, idempotent contextual normalization into private concrete enum identities
+  can reuse those contracts without manufacturing types or defining general generics.
+- Frozen positive class: source keeps the existing built-in spellings
+  `Option<T>`, `Result<T, E>`, `Some(value)`, `None`, `Ok(value)`, `Err(value)`, and
+  their corresponding bound Match patterns. Every concrete type argument must be an
+  already admitted recursive finite CopyData type. Each constructor must have one
+  exact expected carrier type supplied by an explicit binding annotation, an existing
+  same-typed direct owner on reassignment, an exact nongeneric internal function
+  parameter, or an exact nongeneric internal function result. All four constructors
+  fail without that exact context; no carrier type argument is inferred or defaulted.
+  The value payload must exactly match the selected branch. Exact concrete carriers are
+  non-Copy owned values and reuse existing whole-owner move, reinitialization,
+  conditional/loop, by-value argument/result, and exhaustive Match rules. Match binds
+  the exact payload and may return only existing CopyData or `Void`. Multiple distinct
+  concrete carrier instantiations may coexist deterministically in one program.
+- Frozen negative boundary: context-free `Some`, `None`, `Ok`, and `Err`; ambiguous or
+  conflicting contexts; wrong constructor arity/branch payload; unknown, generic,
+  reference, String, dynamic collection, enum, carrier, cyclic, or otherwise
+  non-CopyData type arguments; generic functions or user-defined generic enums;
+  wildcard/literal/guard/nested/destructuring patterns beyond the existing explicit
+  bound exhaustive form; carrier comparison, arithmetic, printing, aggregate storage,
+  field/index projection, borrowing/reference transport, partial moves, methods or
+  question-mark propagation; heap/drop/lifetime/NLL/unsafe behavior; public layout,
+  stable ABI/FFI, accelerator, benchmark, release, production, stability, performance,
+  or memory-safety claims remain excluded. No later phase may recognize a constructor
+  that the shared contract did not classify.
+- Before/after real-program delta: before CAP-003, a function cannot truthfully return
+  “a value or an error” or “a value or no value”; the syntax either receives a
+  fabricated type in semantics and then fails at checked admission, or must use a
+  sentinel scalar. After CAP-003, a bounded Aero program can return, pass, move,
+  replace, and exhaustively inspect concrete CopyData `Option` and `Result` values.
+  The representative telemetry application must gain one fallible validation or
+  lookup path whose success and error branches both execute in the public native gate.
+- Mechanism: add one shared built-in-carrier authority that canonicalizes concrete
+  source annotations, expected contexts, constructors, and patterns into collision-
+  checked private non-generic enum identities before ordinary semantic inference or
+  independent checked admission. Both trusted routes call the same idempotent pass.
+  The pass inserts deterministic private enum definitions and then reuses the existing
+  enum registry, ownership flow, checked instructions, verifier, and backend. Remove
+  both semantic fallback blocks; no separate phase-local Option/Result guard or layout
+  is permitted. Private identities must not broaden source-visible generic semantics.
+- Assumptions and evidence: the AST and parser already retain all four constructors,
+  patterns, and parameterized annotations; `Ty` already distinguishes exact
+  `Option<T>`/`Result<T,E>` and marks them non-Copy. The formal and roadmap documents
+  explicitly identify strong typing, source-order evaluation, owned algebraic types,
+  Match, generic `Result<T,E>` direction, and error types as intended work. Accepted
+  CORE-049--079 provide the reusable owned-enum, Match, transport, replacement, CFG,
+  verifier, LLVM, and native evidence. CAP-003 does not claim general generic
+  substitution merely because it monomorphizes two closed built-in families.
+- Red-first measurement and decision threshold: before production mutation, one
+  focused target must prove current semantic fabrication and checked-admission
+  rejection. Its complete source product must enumerate all four constructors, every
+  admitted expected-context source, context-free rejection for every constructor,
+  multiple concrete instantiations,
+  exact payload types, exhaustive bound Match, moves/reinitialization, function
+  arguments/results, direct modules, public check/build/run, deterministic LLVM, and
+  native execution. Negative groups must cover every excluded missing/wrong/ambiguous
+  context and use topology in semantic and semantic-independent checked routes.
+  Existing enum verifier corruption controls must be supplemented only where private
+  concrete identity or normalization bypass needs proof. Merge additionally requires
+  representative-program enrichment, all affected compatibility rings, formatting,
+  correctness-denying Clippy, docs, `git diff --check`, exact root `./tools/test.sh`,
+  pinned LLVM 22 external/machine verification, Linux and Windows native `-O0`/`-O2`,
+  one bounded exact-head PR, protected merge, and exact merge-head workflows.
+- Failure modes and detection: a fallback type is caught by context-free semantic
+  tests; semantic/admission drift by raw-AST checked tests; type-family or
+  instantiation confusion by multiple same-program schemas and corruption controls;
+  collision by adversarial user symbols; wrong payload or branch by constructor and
+  pattern matrices; double evaluation by effect-order specimens; use-after-move and
+  ownership fabrication by existing enum flow tests; normalization bypass by direct
+  checked admission; invalid IR or layout confusion by verifier, deterministic LLVM,
+  external LLVM 22, machine lowering, and native results; optimizer/platform drift by
+  Linux/Windows `-O0`/`-O2` equivalence.
+- Allowed files: one new shared carrier-contract source module and its registration;
+  the semantic analyzer and checked-IR generator only to invoke it and delete the
+  fabricated stubs; directly coupled enum/type/ownership code only if red evidence
+  proves reuse cannot otherwise stay exact; one focused integration target; the
+  representative specimen/test; minimal public workflow anchors; and, only after the
+  exact candidate is green, this ledger plus the directly affected project-state,
+  capability, matrix, roadmap, framework, and README records. No dependency, package,
+  claim-verification, release, benchmark, protection, master, external-repository, or
+  unrelated test/spec change is authorized.
+- Recovery and stop conditions: one bounded CAP-003 PR is the rollback boundary.
+  Stop rather than approximate if concrete identities cannot be collision-free and
+  deterministic, source diagnostics leak misleading fabricated types, exact context
+  requires general unification, existing enum ownership cannot carry the values
+  without new lifetime/drop/layout semantics, String errors or heap allocation become
+  necessary, normalization cannot be independently enforced, the change unexpectedly
+  requires a second backend representation, an unrelated baseline is red, or any
+  accepted test/spec must be weakened. Candidate and public acceptance remain
+  separate; the four scaling controls remain active.
+- Strategic value and what would change our mind: this is the first trustworthy
+  executable error-handling primitive and a reusable monomorphization boundary for
+  later generic work. Evidence that private lowering changes observable source
+  identity, that existing enum moves are unsound for these carriers, that a generic
+  substitution engine is strictly required, or that module namespaces can deliver
+  the same program-level payoff with materially lower risk stops CAP-003 and returns
+  the ranking to audit. A neighboring constructor placement alone does not justify a
+  new task or a duplicated rule.
+
+### CAP-003 exact red checkpoint
+
+- Before any production compiler mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  typed_error_carrier_tests -- --nocapture` runs exactly 0/2 green. The positive
+  explicitly typed `Option<int>` / `Result<int, char>` function transport and bound
+  exhaustive-Match program reaches the existing semantic `Match expressions are not
+  supported.` boundary. The negative product independently proves all three missing-
+  argument constructors are currently false successes in semantics: `None` fabricates
+  `Option<Int>`, `Ok(7)` fabricates `Result<Int, String>`, and `Err('e')` fabricates
+  `Result<Int, Char>` before public and raw-AST checked routes later reject construction
+  with the less precise existing checked-IR diagnostic.
+- The red test changes no production source and asserts the future shared missing-
+  context diagnostic through semantic, public, and semantic-independent checked
+  routes. Its positive specimen already composes both carrier families, all four
+  constructors, exact CopyData payloads, by-value arguments/results, and bound
+  exhaustive Match. Full topology, CLI/module/native, corruption, and representative
+  coverage will be added behind the same class boundary; no accepted test was changed
+  or weakened. User/app-owned untracked files and the quarantined stash remain
+  untouched.
+
+### CAP-003 frozen inference boundary
+
+- The red confirmed that permitting context-free inferred `Some(value)` would require a
+  second expression-type inference engine inside the shared pre-semantic normalizer,
+  or general contextual unification across the existing semantic analyzer. Either
+  would violate the one-authority mechanism and enlarge this bounded task. Before any
+  production mutation, the frozen class therefore requires **all four** built-in
+  constructors to receive one exact expected concrete carrier from an explicit
+  binding, same-typed assignment target, exact function parameter, or exact function
+  result. Context-free `Some`, `None`, `Ok`, and `Err` all share the same missing-
+  context rejection. A future general inference task may admit `Some(value)` only after
+  it can reuse one authoritative contextual type engine.
+
+### CAP-003 local implementation candidate
+
+- One new `builtin_carrier_contract` module is the sole source/admission authority. It
+  validates exact recursive finite CopyData arguments, collects exact nongeneric
+  function contexts, tracks direct binding/reassignment contexts, rewrites all four
+  constructors and bound patterns to deterministic hex-encoded private concrete enum
+  identities, inserts exact schemas, and remains idempotent for semantic output passed
+  into checked admission. Both trusted routes call it before ordinary analysis; both
+  legacy semantic default blocks now fail defensively instead of manufacturing types.
+- Existing owned-enum construction, moves/reinitialization, function transport, bound
+  exhaustive Match, checked instructions, verifier, and LLVM representation are reused.
+  Private identities are accepted only in enum identity slots, decode to public carrier
+  names in diagnostics/type display, cannot be spelled by source, do not appear in
+  emitted LLVM, and fail normalization on wrong identity, wrong schema, nested private
+  annotation, or pre-normalized missing-context bypass.
+- Focused `typed_error_carrier_tests` pass 4/4. They cover all four constructors,
+  explicit binding/assignment/argument/result contexts, primitive and recursive named
+  CopyData payloads, multiple concrete instantiations, moves/replacement, exhaustive
+  Match, deterministic LLVM, semantic/raw-checked equality, and the complete frozen
+  exclusion matrix through semantic, public, and semantic-independent checked routes.
+  Shared normalizer unit controls pass 4/4; the surrounding unit/payload enum,
+  reassignment/reinitialization, Match-result, conditional, and loop ownership ring
+  passes; representative application tests pass 3/3.
+- The representative telemetry application now validates two deltas through
+  `Result<int, char>`, executes one `Ok` and one `Err` branch, and keeps its established
+  computed output and exit score 91. The exact root `./tools/test.sh` gate passes with
+  224/224 library tests, 32/32 binary tests, every integration target, formatting,
+  correctness-denying Clippy, and doc tests; `git diff --check` is clean. Public
+  candidate workflows, LLVM 22 native system gates, protected merge, and exact
+  post-merge verification remain pending. No public acceptance is claimed.
+
 ## CAP-002 acceptance-record correction
 
 - Date/task/status: 2026-08-11, `CAP-002-ACCEPTANCE-CORRECTION`, authorized

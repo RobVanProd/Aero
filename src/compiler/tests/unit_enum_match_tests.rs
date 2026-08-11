@@ -384,9 +384,9 @@ fn main() -> int {
             "Match expressions are not supported",
         ),
         (
-            "option match remains excluded",
+            "context-free Option match remains excluded",
             "fn main() { let value = match Option::Some(1) { _ => 0 }; }",
-            "Match expressions are not supported",
+            "requires an exact expected Option<T> or Result<T, E> type; missing type arguments are never inferred by default",
         ),
     ] {
         if let Some(failure) = expect_rejection(label, source, expected) {

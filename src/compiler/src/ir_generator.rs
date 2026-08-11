@@ -3,6 +3,7 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
     is_legacy_numeric_array_annotation, is_statically_empty_fixed_array,
 };
+use crate::builtin_carrier_contract::normalize_builtin_carriers;
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
@@ -232,6 +233,7 @@ impl IrGenerator {
         ast: Vec<AstNode>,
     ) -> Result<crate::ir::CheckedIr, IrGenerationError> {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
+        let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;
         Self::validate_checked_ast(&ast)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);

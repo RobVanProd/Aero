@@ -47,7 +47,12 @@ impl fmt::Display for Ty {
                 write!(f, ")")
             }
             Ty::Struct(name) => write!(f, "{}", name),
-            Ty::Enum(name) => write!(f, "{}", name),
+            Ty::Enum(name) => {
+                match crate::builtin_carrier_contract::private_carrier_source_name(name) {
+                    Some(source_name) => f.write_str(&source_name),
+                    None => f.write_str(name),
+                }
+            }
             Ty::Void => f.write_str("()"),
             Ty::Reference(inner, mutable) => {
                 if *mutable {

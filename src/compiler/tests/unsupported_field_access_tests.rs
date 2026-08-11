@@ -315,7 +315,7 @@ fn public_compile_rejects_field_access_matrix_without_unwinding() {
         ),
         (
             "enum-variant-receiver",
-            "fn main() { let value: int = Some(7).field; }",
+            "enum State { Value(int) } fn main() { let value: int = State::Value(7).field; }",
         ),
         ("chained", "fn main() { let value: int = 7.first.second; }"),
         ("root", "7.field;"),

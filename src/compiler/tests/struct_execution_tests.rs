@@ -368,7 +368,7 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
         (
             "struct Option payload",
             "struct Value { field: int } fn main() { let value = Some(Value { field: 1 }); }",
-            "enum construction is not admitted in checked IR",
+            "requires an exact expected Option<T> or Result<T, E> type; missing type arguments are never inferred by default",
         ),
         (
             "struct print argument",

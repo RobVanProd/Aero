@@ -13,6 +13,18 @@ fn add_urgent(urgent: bool, value: int) -> int {
     value
 }
 
+fn validate_delta(value: int, valid: bool) -> Result<int, char> {
+    if valid { return Ok(value); }
+    Err('e')
+}
+
+fn resolved_delta(result: Result<int, char>) -> int {
+    match result {
+        Ok(value) => value,
+        Err(code) => 0
+    }
+}
+
 fn decision_score(decision: Decision) -> int {
     match decision {
         Decision::Normal(value) => value,

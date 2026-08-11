@@ -419,8 +419,8 @@ fn public_compile_rejects_match_matrix_without_unwinding() {
             "fn main() { let value: int = match \"ready\" { _ => 22 }; }",
         ),
         (
-            "option-scrutinee",
-            "fn main() { let value: int = match Option::Some(7) { _ => 22 }; }",
+            "array-scrutinee",
+            "fn main() { let value: int = match [7] { _ => 22 }; }",
         ),
         (
             "call-arm",
@@ -539,7 +539,7 @@ fn public_compile_rejects_match_in_recursive_parent_matrix_without_unwinding() {
         ),
         (
             "enum-payload",
-            "fn main() { let option = Some(match 1 { 1 => 11, _ => 22 }); }",
+            "enum Payload { Value(int) } fn main() { let payload = Payload::Value(match 1 { 1 => 11, _ => 22 }); }",
         ),
         (
             "borrow-parent",

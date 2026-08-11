@@ -402,13 +402,13 @@ fn checked_admission_rejects_fabricated_scalar_fallbacks_and_accepts_verified_bo
         RejectionCase {
             name: "Some construction",
             source: "fn main() { let option = Some(7); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: built-in carrier constructor `Some` requires an exact expected Option<T> or Result<T, E> type",
             check_cli: false,
         },
         RejectionCase {
             name: "Ok construction",
             source: "fn main() { let result = Ok(9); }",
-            expected_prefix: "IR Generation Error:",
+            expected_prefix: "Semantic Analysis Error: built-in carrier constructor `Ok` requires an exact expected Option<T> or Result<T, E> type",
             check_cli: false,
         },
         RejectionCase {
