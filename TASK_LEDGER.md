@@ -1,5 +1,52 @@
 # Aero Task Ledger
 
+## CAP-005 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-005-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from exact accepted public master
+  `59f7e47b476871fae8cecdf7e40900e0d1f1b377`. Work belongs only on
+  `agent/cap-005-acceptance-sync`; user/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: protected PR #31 accepted exact candidate
+  `68e2cd8ef7766f3073bc9bf9714dafb0431525ef` as merge
+  `59f7e47b476871fae8cecdf7e40900e0d1f1b377`; candidate and merge share tree
+  `e0e6ac4d0bdec61fff30efee387b870ce63a282c`, and the merge has ordered parents
+  prior accepted master `d20480ec9d12a1d2b58f01666ff6fd762544b22e` then the exact candidate. All nine
+  exact-candidate checks pass, including rerun stable job `93820153827`, and exact
+  merge-head CI `31504122753`, Rust CI `31504122730`, and CodeQL `31504122424`
+  pass. The project-state documents still deliberately label CAP-005 as a local
+  candidate and leave public compiler-surface rows at CAP-004; after protected
+  acceptance that is now an observability defect.
+- Frozen mechanism and scope: change only `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `README.md`, the directly coupled state-claim contract,
+  and this ledger record. Convert candidate tense to accepted CAP-005 truth, name the
+  immutable candidate/merge/tree and public run identities, update bounded generic
+  function surface claims, preserve every exclusion and Minimal Prototype status, and
+  set the next action to a fresh post-CAP-005 three-gap ranking. No compiler, test
+  behavior, example, workflow, dependency, specification, benchmark, release, package,
+  claim-verification, branch-protection, or external artifact change is authorized.
+- Assumptions, evidence, measurement, and decision threshold: Git/GitHub identities
+  above prove exact-tree protected integration; all exact-head and merge-head workflows
+  are green; the complete 232-library/32-binary local gate, corruption controls,
+  pinned LLVM/Clang 22.1.8 verification, and native `-O0`/`-O2` exact output/exit 91
+  evidence remain immutable in PR #31 and the preceding CAP-005 record. Success means
+  all six project-truth surfaces agree that CAP-005 is accepted yet bounded, the claim
+  contract requires that accepted state, docs/claim tests and `git diff --check` pass,
+  the PR front page names only this synchronization, and its exact-head plus merge-head
+  workflows pass.
+- Failure modes, detection, recovery, and what would change our mind: overstating full
+  generics, traits, collections, ABI, memory safety, stability, or release readiness;
+  retaining candidate/pending instructions; using a wrong hash/run; or rewriting
+  historical chronology would create false public truth. Exact text/identity review,
+  repository claim tests, bounded diff review, and public workflows detect those
+  failures. One record-only commit/PR is the rollback boundary. Any non-documentation
+  delta, red exact-head evidence, tree mismatch, or evidence that CAP-005 was not
+  protected-integrated would stop the sync. After acceptance, do not start CAP-006
+  until a fresh milestone-gap audit and three-gap ranking identifies the largest
+  real-program payoff.
+
 ## CAP-005 - bound-free CopyData generic transport functions
 
 - Date/task/status: 2026-08-11, `CAP-005`, authorized red-first executable vertical
