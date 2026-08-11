@@ -155,6 +155,24 @@
   specialization architecture on the near-term watch; any observed drift or second
   feature-specific body classifier promotes it immediately.
 
+### CAP-012 exact red checkpoint
+
+- Before any production mutation, focused command `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test
+  projected_copydata_call_loan_tests -- --nocapture` runs 0/1 green. The source
+  strictly parses a nested `Telemetry.channels[index].reading` place, an immediate
+  immutable observation loan, an immediate mutable update loan, checked runtime
+  indexing, and post-call owner reuse. Semantic analysis, semantic-independent raw
+  checked admission, and public compilation all reject at the existing shared
+  boundary with `a local immutable Copy-data borrow requires an identifier place`
+  (the public route adds its phase prefix).
+- This red proves the missing capability is composition between already accepted
+  finite CopyData projection and nonescaping reference-call authorities, not parsing,
+  struct/array layout, runtime index syntax, reference syntax, ordinary calls, or
+  public pipeline routing. Exactly one focused test and this checkpoint record changed;
+  no production compiler, representative example, workflow, project-truth claim,
+  dependency, external repository, or user-owned untracked content changed.
+
 ## CAP-011 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-011-ACCEPTANCE-SYNC`, authorized bounded
