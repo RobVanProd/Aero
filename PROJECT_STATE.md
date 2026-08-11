@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-009 local candidate (not accepted): enforceable `stable-scalar-v0`
+### CAP-009 accepted: enforceable `stable-scalar-v0`
 
-The locally green CAP-009 candidate adds an explicitly selected
+Accepted CAP-009 adds an explicitly selected
 `stable-scalar-v0` language profile to public library compilation/checking and CLI
 `check`, `build`, and `run`. One exhaustive post-parse classifier rejects every
 out-of-profile AST form before module resolution, semantic analysis, checked IR,
@@ -20,16 +20,17 @@ initialized direct scalar bindings and assignments, direct calls and returns,
 `if`/`else`, `while`, and the enumerated scalar expression grammar. Its physical
 integer lane is exact wrapping LLVM `i32`; CLI target pairing is CPU-only; generated profile LLVM contains no
 `double`, `fptosi`, `sitofp`, `nsw`, or `nuw`. The growing profile application exits
-91, and its wrapping-boundary companion exits 93. Focused 9/9, affected library/CLI/
+91, and its wrapping-boundary companion exits 93. Focused 10/10, affected library/CLI/
 cache/API contracts, formatting, correctness-denying Clippy, documentation, and the
-complete repository gate pass locally. Pinned LLVM/Clang 22 Linux/Windows external,
-machine, native `-O0`/`-O2`, and public-route evidence is encoded in CI but remains
-publicly pending.
+complete repository gate pass. Exact candidate
+`bfd03ff770afc4aad69dc9925b8ad244d6761ec0` passed all nine public checks,
+including pinned Windows LLVM/Clang 22 external, machine, native `-O0`/`-O2`, and
+public-route evidence. Protected PR #40 merged it as accepted master
+`1ef21c564ec564379e611002b1b321d910a991a3`; candidate and merge share tree
+`29a481d53b05dc36c96f2eb90beac394d3e5bef6`, and exact merge-head CI
+`31534644903`, Rust CI `31534644999`, and CodeQL `31534643685` pass.
 
-This is candidate evidence only. Accepted public master remains CAP-008 truth-sync
-head `b2d57df89da3e3ca272c049847f3905b71f29eaa`. CAP-009 is not accepted
-until a bounded exact-head PR, protected merge, merge-identity proof, and exact
-merge-head workflows pass. The profile excludes modules/imports, floats, characters,
+The profile excludes modules/imports, floats, characters,
 strings and I/O, aggregates, enums/`Match`, references, closures, methods, general
 loops, division/remainder, traits/generics, recursion, allocation, lifetimes/drop,
 unsafe, public ABI/FFI, accelerators, benchmarks, and releases. It does not make Aero,

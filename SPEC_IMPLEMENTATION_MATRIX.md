@@ -2,17 +2,16 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-008 merge
-`a1716f8400052213c8f08e5c397a3d779437dff6`. Exact candidate
-`9ebd204407f09d14092bb4ed874e19afc5bf6105` and the merge have identical tree
-`c3dab0e762b27b5f49d8b25b424f24f7d5d66c1b`; candidate push/PR CI
-`31524994573`/`31525033075`, Rust CI `31525033103`, CodeQL `31525030957`,
-protected integration, merge-head CI `31525340621`, Rust CI `31525340810`, and
-master-push/CodeQL `31525340605` pass, including pinned LLVM/Clang 22 Linux/Windows
-native `-O0`/`-O2` gates.
+Latest accepted compiler-capability master is protected CAP-009 merge
+`1ef21c564ec564379e611002b1b321d910a991a3`. Exact candidate
+`bfd03ff770afc4aad69dc9925b8ad244d6761ec0` and the merge have identical tree
+`29a481d53b05dc36c96f2eb90beac394d3e5bef6`; candidate CI
+`31534296722`/`31534330261`, Rust CI `31534330284`, CodeQL `31534329471`,
+protected integration, merge-head CI `31534644903`, Rust CI `31534644999`, and
+CodeQL `31534643685` pass, including pinned LLVM/Clang 22 Linux/Windows native
+`-O0`/`-O2` gates.
 
-CAP-009 is a locally green candidate, not an accepted matrix reclassification. It
-adds an explicitly selected `stable-scalar-v0` profile with one exhaustive post-parse,
+Accepted CAP-009 adds an explicitly selected `stable-scalar-v0` profile with one exhaustive post-parse,
 pre-semantic classifier shared by public library and CLI `check`/`build`/`run` routes.
 The frozen profile contains one-file acyclic nongeneric scalar functions, direct
 initialized bindings/assignments, direct calls/returns, `if`/`else`, `while`, and the
@@ -20,10 +19,10 @@ enumerated `int`/`bool` expression grammar. The checked product privately preser
 profile identity into an exact wrapping LLVM `i32` lane; the default experimental
 profile and cache identities do not change, and non-CPU/`--gpu` CLI pairings fail.
 Focused 10/10, representative exits 91 and
-93, affected contracts, formatting, Clippy, docs, and the complete local repository
-gate pass. Pinned LLVM/Clang 22 exact-head public evidence remains pending. Until
-protected acceptance, the rows below continue to describe accepted CAP-008 master
-and no row is reclassified `STABLE`.
+93, affected contracts, formatting, Clippy, docs, the complete repository gate, and
+all exact-head public evidence pass. Only the explicitly selected profile row below is
+reclassified `STABLE`; its component features and the experimental default remain
+`PARTIAL` or otherwise classified as recorded.
 
 Accepted CAP-008 adds nonbinding `_` payload leaves and one optional final whole-arm wildcard across
 the already-admitted concrete enum/`Option`/`Result`/generic-enum-specialization
@@ -81,6 +80,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 
 | Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |
 | Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |
 | Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |

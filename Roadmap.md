@@ -12,7 +12,7 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
-CAP-009 is a locally green, unaccepted Milestone 0 candidate selected by the required
+CAP-009 is an accepted Milestone 0 capability selected by the required
 post-CAP-008 audit and three-gap ranking. Before it, programs could execute inside the
 experimental compiler but could not request enforcement of a frozen cross-platform
 source and representation contract. After it, public library and CLI routes can select
@@ -21,11 +21,10 @@ nongeneric `int`/`bool` class, and execute representative exit-91 and wrapping e
 programs through an exact LLVM `i32` lane at `-O0` and `-O2`. One post-parse classifier
 owns source admission; a private checked-program profile identity selects physical
 representation without duplicating feature guards; the CLI profile is CPU-only.
-Focused 10/10 and the complete local
-repository gate pass. Public exact-head and merge-head LLVM/Clang 22 Linux/Windows
-evidence is still required, so accepted public master remains CAP-008 truth-sync head
-`b2d57df89da3e3ca272c049847f3905b71f29eaa` and the Milestone 0 stable-
-subset exit remains open. CAP-009 does not stabilize Aero as a whole or add any of its
+Focused 10/10, the complete repository gate, all nine exact-candidate checks, protected
+PR #40 integration, and exact merge-head CI/Rust CI/CodeQL pass. Accepted public master
+is `1ef21c564ec564379e611002b1b321d910a991a3`, and the Milestone 0 selected-
+stable-subset exit is met. CAP-009 does not stabilize Aero as a whole or add any of its
 explicitly excluded aggregate, module, generic, ownership, runtime, ABI, accelerator,
 benchmark, or release behavior.
 
@@ -303,13 +302,13 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 
 | Roadmap area | Met | Partial | Open |
 |---|---|---|---|
-| Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes. | Per-slice false-success, function/binding/scope, full-gate, and independent-verification controls are strong, but no selected language subset is classified `STABLE`. | Classify the selected stable subset and close any newly enumerated critical residual class without treating neighboring topology as automatic work. |
+| Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes; accepted CAP-009 classifies and executes the selected `stable-scalar-v0` subset as `STABLE`. | The wider compiler, component feature rows, experimental default, ABI, ownership, modules, aggregates, and release surface remain unstabilized. | Milestone 0 exit is met; preserve the selected profile while ranking the next broad real-program capability. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, and accepted CAP-008 nonbinding enum wildcards have executable slices. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards, not general pattern semantics. | Collections, general generic substitution and operations, traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and an ownership-intensive real program. |
 
-The CAP-009 candidate targets the remaining Milestone 0 row directly. Local evidence
-does not close or reword that accepted-master exit; only protected exact-head and
-merge-head evidence may change it to met.
+Accepted CAP-009 closes the selected-stable-subset portion of the Milestone 0 row with
+protected exact-head and merge-head evidence. It does not promote neighboring
+component rows or the wider language beyond their recorded classifications.
 
 ### ROADMAP-001 ranked gaps and M1-001 outcome
 

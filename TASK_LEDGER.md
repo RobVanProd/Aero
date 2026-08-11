@@ -1,5 +1,67 @@
 # Aero Task Ledger
 
+## CAP-009 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-009-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #40 merge
+  `1ef21c564ec564379e611002b1b321d910a991a3` (tree
+  `29a481d53b05dc36c96f2eb90beac394d3e5bef6`) on
+  `agent/cap-009-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: exact candidate
+  `bfd03ff770afc4aad69dc9925b8ad244d6761ec0` passed every candidate-head gate
+  and merged through the normal protected path. Candidate and merge share tree
+  `29a481d53b05dc36c96f2eb90beac394d3e5bef6`; ordered merge parents are prior
+  accepted master `b2d57df89da3e3ca272c049847f3905b71f29eaa` then exact candidate.
+  Exact merge-head workflows now pass, so candidate-only wording is an
+  observability defect that must become immutable accepted-master evidence before
+  another capability is selected.
+- Frozen semantics and allowed files: no compiler, parser, semantic, checked-IR,
+  verifier, backend, CLI, workflow, example, dependency, claim-verification,
+  release, benchmark, protection, or external behavior may change. Only
+  `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `README.md`, `CONFORMANCE_PLAN.md`, and exact state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result.
+- Exact evidence: authorization `d574469db46c113bfd94991d9f86fda2799c1f04`, red
+  checkpoint `dc6d49cf31fc7c6ae5a1ca20737ca451ce0cf082`, candidate head
+  `bfd03ff770afc4aad69dc9925b8ad244d6761ec0`, protected PR #40 merge
+  `1ef21c564ec564379e611002b1b321d910a991a3`, and shared tree
+  `29a481d53b05dc36c96f2eb90beac394d3e5bef6`. Candidate CI runs
+  `31534296722` and `31534330261`, Rust CI `31534330284`, and CodeQL
+  `31534329471` pass all nine checks, including pinned Windows LLVM/Clang 22
+  native execution. Exact merge-head CI `31534644903`, Rust CI `31534644999`,
+  and CodeQL `31534643685` pass on the protected merge.
+- Acceptance tests, failure modes, recovery, and decision threshold: verify every
+  identity, parent order, tree, PR state/body, run SHA/conclusion, changed-file
+  scope, state assertions, Markdown/diff hygiene, and the repository-root gate.
+  Primary failures are relabeling the experimental default or whole language as
+  stable, broadening the frozen scalar class, or erasing explicit exclusions. The
+  rollback boundary is this record-only branch/PR. Merge only if every current
+  truth surface calls exactly `stable-scalar-v0` accepted while Aero remains a
+  Minimal Prototype and all excluded behavior remains unsupported. Any evidence
+  mismatch, non-record mutation, or red gate stops the sync.
+- Local record verification: the focused project-truth contract passes 8/8 and
+  `git diff --check` passes. The first repository-root gate passed 239 library and
+  35 binary tests, then exposed checkout-only CRLF bytes in tracked `.aero` examples
+  at the first byte-identity integration target. No compiler or test was changed.
+  After verifying that all 121 tracked `.aero` files were clean, 119 CRLF checkout
+  forms were normalized temporarily to their indexed LF content; the exact
+  repository-root `./tools/test.sh` gate then passed formatting, correctness-denying
+  Clippy, all 239 library tests, all 35 binary tests, every integration target, and
+  doc tests. Git restored every tracked `.aero` checkout afterward with no indexed or
+  worktree `.aero` diff. User-owned untracked content and the quarantined stash remain
+  untouched.
+- Strategic value and what would change our mind: this closes the Milestone 0
+  selected-stable-subset exit with an executable, cross-platform, fail-closed
+  scalar profile and restores one source of project truth. Evidence that the merge
+  tree differs, a public run did not execute the claimed head, or an admitted
+  program bypasses classification/verification would revoke acceptance and reopen
+  CAP-009 rather than being corrected in prose. After this bounded sync is accepted,
+  perform a fresh three-gap ranking and choose the highest real-program payoff.
+
 ## CAP-009 - enforceable `stable-scalar-v0` language profile
 
 - Date/task/status: 2026-08-11, `CAP-009`, authorized red-first compiler and

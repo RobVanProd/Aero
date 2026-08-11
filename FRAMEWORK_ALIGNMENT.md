@@ -59,7 +59,7 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-The CAP-009 local candidate advances the founding Stabilize direction without
+Accepted CAP-009 advances the founding Stabilize direction without
 mislabeling the wider prototype. It introduces an explicitly selected
 `stable-scalar-v0` profile whose single exhaustive post-parse classifier freezes a
 one-file, acyclic nongeneric `int`/`bool` program class before semantic or checked-IR
@@ -67,11 +67,14 @@ work. A private checked-program profile identity selects an exact wrapping LLVM 
 representation, one shared CLI rule rejects accelerator pairing, and the default
 experimental behavior remains unchanged. The
 profile's representative application and wrapping-boundary corpus execute with exact
-exits 91 and 93; focused 10/10 and the complete local repository gate pass.
+exits 91 and 93; focused 10/10 and the complete repository gate pass. Exact candidate
+`bfd03ff770afc4aad69dc9925b8ad244d6761ec0` passed all nine public checks,
+protected PR #40 merged it as `1ef21c564ec564379e611002b1b321d910a991a3`
+with identical tree `29a481d53b05dc36c96f2eb90beac394d3e5bef6`, and exact
+merge-head CI `31534644903`, Rust CI `31534644999`, and CodeQL `31534643685`
+pass.
 
-This is not yet accepted framework progress: pinned LLVM/Clang 22 exact-head and
-merge-head Linux/Windows evidence remains pending, and accepted public master remains
-CAP-008 truth-sync head `b2d57df`. The profile deliberately excludes modules,
+The profile deliberately excludes modules,
 aggregates, enums, references, closures, generics, allocation, ownership expansion,
 public ABI, accelerators, and release claims. It stabilizes neither Aero as a whole nor
 the experimental default compiler surface.
