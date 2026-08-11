@@ -142,7 +142,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!readme.contains("CAP-008 local candidate (not accepted)"));
     assert!(readme.contains("**CAP-009 accepted:**"));
     assert!(readme.contains("--language-profile stable-scalar-v0"));
-    assert!(readme.contains("baseline is protected CAP-009 merge"));
+    assert!(readme.contains("**CAP-010 accepted:**"));
+    assert!(!readme.contains("CAP-010 local candidate (not accepted master)"));
+    assert!(readme.contains("baseline is protected CAP-010 merge"));
 
     let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
     assert!(audit.contains(
@@ -152,9 +154,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-009 compiler-capability merge"));
+    assert!(audit.contains("protected CAP-010 compiler-capability merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
+    assert!(audit.contains(
+        "CAP-010 accepted: required-only CopyData trait-bound static dispatch"
+    ));
+    assert!(!audit.contains("CAP-010 local candidate"));
     assert!(audit.contains("selected-profile row is therefore `STABLE`"));
 
     let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
@@ -162,15 +168,35 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "accepted CAP-007 makes library compile/check plus CLI check/build/run/profile/source-test validation consume one canonical checked-program authority"
     ));
     assert!(alignment.contains("Accepted CAP-009 advances the founding Stabilize direction"));
+    assert!(alignment.contains(
+        "Accepted CAP-010 advances the founding preference for traits and generics"
+    ));
 
     let project_state = repository_file("PROJECT_STATE.md");
     assert!(project_state.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(project_state.contains("Protected PR #40 merged it as accepted master"));
+    assert!(project_state.contains(
+        "CAP-010 accepted: required-only CopyData trait-bound static dispatch"
+    ));
+    assert!(!project_state.contains("CAP-010 local candidate"));
 
     let matrix = repository_file("SPEC_IMPLEMENTATION_MATRIX.md");
     assert!(matrix.contains("Accepted CAP-009 adds an explicitly selected `stable-scalar-v0`"));
     assert!(matrix.contains("Selected `stable-scalar-v0` profile (accepted `CAP-009`)"));
+    assert!(matrix.contains("Accepted CAP-010 adds one bounded partial row"));
+    assert!(matrix.contains(
+        "Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`)"
+    ));
     assert!(matrix.contains("| STABLE |"));
+
+    let roadmap = repository_file("Roadmap.md");
+    assert!(roadmap.contains("CAP-010 is an accepted Milestone 2 capability"));
+    assert!(!roadmap.contains("CAP-010 is a local green Milestone 2 candidate"));
+
+    let conformance = repository_file("CONFORMANCE_PLAN.md");
+    assert!(conformance.contains(
+        "Accepted CAP-010 adds one required-only trait-dispatch conformance slice"
+    ));
     assert!(readme.contains(
         "General generic operations/impls/traits, inference/defaults, trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
