@@ -161,6 +161,25 @@
   wrapper, field order, count, or element-type permutation does not lower the
   threshold.
 
+### CAP-011 exact red checkpoint
+
+- Before any production mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  generic_copydata_window_tests -- --nocapture` runs 0/1 green. The source strictly
+  parses `Window<T> { values: [T; 3] }`, nested inference through `Window<int>`, a
+  runtime-indexed generic read, a copied direct-owner generic update, and an exact
+  generic-container result. Semantic analysis reaches the existing CAP-004 handoff
+  boundary and rejects `window_get` with `generic function 'window_get' cannot
+  transport an explicit generic CopyData struct in CAP-004` (rendered with source
+  backticks).
+- The red proves the missing capability is composition between already accepted
+  generic-struct substitution and generic-function specialization, not parsing,
+  fixed-array layout, struct projection, runtime index syntax, generic call syntax,
+  or concrete `Window<int>` construction. Exactly one new focused test and this
+  ledger changed; no generic normalizer, semantic, checked-IR, verifier, backend,
+  workflow, example, dependency, project-truth, external repository, or user-owned
+  untracked content changed.
+
 ## CAP-010 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-010-ACCEPTANCE-SYNC`, authorized bounded
