@@ -1,5 +1,50 @@
 # Aero Task Ledger
 
+## CAP-011 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-011-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #44 merge
+  `34b81eee1d598cbd00693f40301f1a4f72481d07` (tree
+  `b16d5f68e791c969a0aa81723801b2d1ae7c7f41`) on
+  `agent/cap-011-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Observed behavior and hypothesis: exact candidate
+  `dea5714e87e1fe3c059717b3e5aa23b8860b62f2` passed every candidate-head gate
+  and merged through the normal protected path. Candidate and merge share tree
+  `b16d5f68e791c969a0aa81723801b2d1ae7c7f41`; ordered merge parents are prior
+  accepted master `72b8ddade5a392b46b4b3d4f3ddde5f261f8465f` then exact candidate.
+  Exact merge-head workflows now pass, so CAP-011 candidate wording is an
+  observability defect that must become immutable accepted-master evidence before
+  another capability is selected.
+- Frozen semantics and allowed files: no compiler, parser, semantic, checked-IR,
+  verifier, backend, CLI, workflow, example, dependency, claim-verification,
+  release, benchmark, protection, or external behavior may change. Only
+  `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `README.md`, `CONFORMANCE_PLAN.md`, and exact state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result.
+- Exact evidence: authorization `7b24d50`, red checkpoint `fa90133`,
+  implementation `24db04a`, candidate record/head
+  `dea5714e87e1fe3c059717b3e5aa23b8860b62f2`, protected PR #44 merge
+  `34b81eee1d598cbd00693f40301f1a4f72481d07`, and shared tree
+  `b16d5f68e791c969a0aa81723801b2d1ae7c7f41`. Candidate push CI
+  `31546356295`, PR CI `31546382195`, Rust CI `31546382191`, and CodeQL
+  `31546380741` pass all nine results, including pinned Windows LLVM/Clang 22
+  native execution. Exact merge-head CI `31546637614`, Rust CI `31546637544`,
+  and CodeQL `31546636973` pass.
+- Acceptance tests, failure modes, recovery, and decision threshold: verify every
+  identity, parent order, tree, PR state/body, run SHA/conclusion, changed-file
+  scope, state assertion, Markdown/diff hygiene, and the repository-root gate.
+  Primary failures are broadening this fixed-capacity recursive-CopyData container
+  algorithm slice into general generics or collections, weakening its fail-closed
+  exclusions, or presenting private specialization/layout as public ABI. The
+  rollback boundary is this record-only branch/PR. Merge only if every current truth
+  surface calls exactly CAP-011 accepted while Aero remains a Minimal Prototype and
+  all excluded behavior remains unsupported. Any evidence mismatch, non-record
+  mutation, or red gate stops the sync.
+
 ## CAP-011 - fixed-capacity generic CopyData container algorithms
 
 - Date/task/status: 2026-08-11, `CAP-011`, authorized red-first compiler and
