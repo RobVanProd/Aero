@@ -253,7 +253,7 @@ fn monomorphic_scalar_struct_class_is_complete_and_executable() {
         (
             "generic definition",
             "struct Value<T> { field: T } fn main() { let value = Value { field: 1 }; }",
-            "Struct construction expressions are not supported.",
+            "generic struct literal `Value` requires an exact expected Value<...> type",
         ),
         (
             "duplicate declared field",

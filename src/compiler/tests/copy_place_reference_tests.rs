@@ -381,6 +381,11 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
                 "call void @observe(%aero.struct.Row*",
             ],
         ),
+        (
+            "explicit generic CopyData struct reference",
+            "struct Box<T> { value: T } fn read(value: &Box<int>) -> int { let copy = *value; copy.value } fn main() -> int { let value: Box<int> = Box { value: 9 }; read(&value) }",
+            vec!["define i32 @read(%\"aero.struct.Box<int>\"*"],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -466,11 +471,6 @@ fn immutable_copy_place_reference_class_is_complete_checked_and_executable() {
         (
             "cyclic struct pointee",
             "struct Node { next: Node } fn bad(value: &Node) -> int { 0 } fn main() -> int { 0 }",
-            "admitted Copy-data",
-        ),
-        (
-            "generic struct pointee",
-            "struct Box<T> { value: T } fn bad(value: &Box<int>) -> int { 0 } fn main() -> int { 0 }",
             "admitted Copy-data",
         ),
         (

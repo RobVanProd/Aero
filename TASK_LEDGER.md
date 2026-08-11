@@ -1,5 +1,236 @@
 # Aero Task Ledger
 
+## CAP-004 - explicit generic CopyData struct monomorphization
+
+- Date/task/status: 2026-08-11, `CAP-004`, local implementation candidate after an
+  authorized red-first executable vertical slice from accepted and post-merge-verified public master
+  `f428df22c3dd3e0ab88d7db731a281d4173e8cc9`. Work belongs only on
+  `agent/cap-004-generic-copydata-structs`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied or dropped.
+- Fresh post-CAP-003 milestone audit: accepted-truth records agree on CAP-003 and
+  Milestone 1's bounded representative-program workflow remains `END_TO_END`.
+  Milestone 0 still lacks one canonical stable-subset diagnostic/artifact and trusted-
+  entrypoint contract. Milestone 2 now has bounded aggregates, ownership/references,
+  checked fixed-array mutation, and concrete built-in carriers, but still lacks general
+  generic substitution, collections, traits, lifetimes/drop/unsafe, public ABI/
+  destruction, a generic data structure, and an ownership-intensive program. Positive
+  imports remain strategically useful but the founding material specifies only dotted
+  path/alias grammar, not lookup, visibility, collision, graph, or cycle semantics.
+- Fresh three-gap ranking: scores are 1--5; higher `Risk` and `Evidence` mean more
+  favorable delivery.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Explicit generic CopyData struct monomorphization | 5 | 5 | 5 | 4 | 2 | 3 | 24 |
+  | 2 | Canonical Milestone 0 stable-subset diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |
+  | 3 | Owned dynamic `List<T>` collection foundation | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
+
+  Rank 1 wins the tie because it creates a materially new reusable-program class and
+  advances the explicit Milestone 2 generic-data-structure exit, whereas rank 2 is
+  correctness-critical consolidation but adds no comparable source-program
+  expressiveness. Rank 3 is deferred because ownership, allocation, capacity growth,
+  element destruction, failure, iterator, and ABI semantics are not ready to freeze.
+  Positive import/name resolution scores below these three on present delivery
+  readiness because its namespace and graph semantics are unspecified; it is not
+  silently treated as implemented or abandoned.
+- Source-grounded observed behavior and hypothesis: the founding framework explicitly
+  specifies generic structs and compile-time monomorphization. The active parser retains
+  `struct Name<T, ...>`, type-parameter fields, and concrete `Name<A, ...>` annotations,
+  but generic definitions remain declaration-only and `Name { ... }` construction is
+  rejected. The legacy `generic_resolver.rs` is not registered in the canonical
+  compiler graph, contains placeholder trait behavior, and is not trusted evidence.
+  Accepted recursive CopyData structs already prove exact schemas, construction,
+  projection, transport, mutation, references, checked IR, independent verification,
+  private LLVM layout, and native execution. One shared, idempotent pre-semantic/pre-
+  admission monomorphization authority can elaborate exact concrete generic struct
+  applications into private nongeneric struct identities and reuse that pipeline.
+- Frozen positive class: a top-level uniquely named generic struct has one or more
+  unique type parameters and one or more uniquely named fields. Every concrete type
+  argument is an already admitted recursive finite CopyData type. Substitution must
+  produce a finite acyclic CopyData field graph using the accepted primitive, fixed-
+  array, arity-at-least-two tuple, and named CopyData struct grammar. Type parameters
+  may appear repeatedly and at any finite position in that field grammar. Exact
+  concrete applications may appear in explicit direct-local binding/reassignment,
+  nongeneric internal parameter/result, admitted aggregate field/array/tuple, and
+  existing reference annotations. A generic struct literal has no source type
+  arguments, so construction requires one exact contextual concrete application from
+  an explicit binding, same-typed reassignment target, exact nongeneric parameter, or
+  exact nongeneric result. Multiple definitions and multiple instantiations of one
+  definition may coexist deterministically. After elaboration, existing CopyData
+  construction, copy transport, field projection, aggregate storage, projected
+  assignment, whole-place references, function calls/results, checked verification,
+  LLVM, and native behavior apply without a second layout or ownership model.
+- Frozen negative boundary: context-free generic struct literals; missing, extra,
+  duplicate, unknown, unused, or recursively unresolvable type parameters; wrong
+  generic family/arity; conflicting contexts; duplicate/ambiguous definitions or
+  fields; unknown/cyclic dependencies; generic applications to String, references,
+  enums/carriers, collections, type parameters, or other non-CopyData types; nested
+  generic struct applications in generic definitions for this first architecture
+  slice; recursive generic definitions; generic enums/functions/impls/traits/methods;
+  inference from literal field values; default type arguments; specialization;
+  variance; higher-kinded types; trait bounds; heap/drop/lifetime/NLL/unsafe behavior;
+  public layout, stable ABI/FFI, accelerator, benchmark, release, production,
+  stability, performance, or general memory-safety claims remain excluded. Every
+  excluded executable use must fail before checked IR through both trusted routes.
+- Before/after real-program delta: before CAP-004, an Aero program must duplicate each
+  concrete record schema (`IntReading`, `CharReading`, and so on), and parsed generic
+  struct syntax cannot create a value. After CAP-004, one source definition such as
+  `struct Reading<T> { value: T, valid: bool }` can produce independently typed
+  `Reading<int>` and `Reading<char>` values that compose through existing functions,
+  aggregates, mutation, borrowing, checked LLVM, and native execution. The
+  representative telemetry application must replace at least one duplicated concrete
+  wrapper with a generic definition and execute more than one concrete instantiation
+  without changing its established exact output/exit 91.
+- Mechanism: introduce one shared generic-struct authority that inventories definitions
+  and concrete applications, validates the frozen class, performs capture-free exact
+  substitution, derives collision-checked private concrete struct identities, rewrites
+  every admitted annotation/literal consistently, inserts exact private nongeneric
+  definitions in deterministic order, and is idempotent when semantic output reaches
+  checked admission. Semantic analysis and checked IR generation invoke the same pass;
+  no phase-local generic topology guard or fallback layout is permitted. Source
+  diagnostics and type display must retain public `Name<...>` spelling, and private
+  identities may not be source-spellable or leak into emitted LLVM text.
+- Assumptions and evidence: parser/AST retention is covered by active strict tests;
+  `StructRegistry` already classifies complete finite recursive CopyData schemas;
+  accepted CORE-043--063 and CORE-090 prove the reusable struct/aggregate execution
+  and mutation contracts; CAP-003 proves the architecture of a shared deterministic
+  contextual elaboration pass without granting general generics. The red test must
+  confirm the current exact rejection and must not treat the disconnected legacy
+  generic resolver or parser-only tests as production support.
+- Measurement and decision threshold: before production mutation, one focused target
+  must run red on explicit `Reading<int>`/`Reading<char>` construction and prove the
+  current boundary. Its complete product must enumerate parameter arity, repeated and
+  finite nested field positions, multiple definitions/instantiations, every admitted
+  contextual construction source, function/aggregate/reference/mutation composition,
+  deterministic checked IR/LLVM, direct modules, public check/build/run, and native
+  execution. Negative groups must cover every frozen exclusion through semantics,
+  semantic-independent checked admission, and public compilation. Corruption controls
+  must reject private identity/schema/substitution/context bypass. Merge additionally
+  requires representative-program enrichment, affected compatibility rings,
+  formatting, correctness-denying Clippy, docs, `git diff --check`, exact root
+  `./tools/test.sh`, pinned LLVM 22 external/machine verification, Linux and Windows
+  native `-O0`/`-O2`, one bounded exact-head PR, protected merge, and exact merge-head
+  workflows.
+- Failure modes and detection: type-argument/schema confusion is detected by multiple
+  same-program instantiations and verifier mutation; capture or partial substitution by
+  repeated/nested parameter positions; identity collision by adversarial source names;
+  semantic/admission drift by raw-AST checked tests; fabricated inference by every
+  context-free form; recursive/infinite layout by cycle controls; wrong copy or
+  mutation behavior by aggregate/transport/reference rings; private-name leakage by
+  diagnostics and LLVM assertions; invalid layout/IR by the independent verifier,
+  official LLVM 22, machine lowering, and native results; optimizer/platform drift by
+  Linux/Windows `-O0`/`-O2` equivalence.
+- Allowed files: one new shared generic-struct contract module and registration;
+  `semantic_analyzer.rs` and `ir_generator.rs` only to invoke it and remove superseded
+  rejection behavior; directly coupled struct/type/display/verifier code only where
+  the red proof requires exact private identity reuse; one focused integration target;
+  the representative specimen/test; minimal public workflow anchors; and, only after
+  exact green, this ledger plus directly affected project-state, matrix, roadmap,
+  framework, and README records. No dependency, package, release, benchmark,
+  claim-verification, protection, master, external-repository, or unrelated test/spec
+  change is authorized.
+- Recovery and stop conditions: one bounded CAP-004 PR is the rollback boundary. Stop
+  rather than approximate if substitution requires trait resolution, literal-value
+  inference, nested generic applications, a second ownership/layout model, unstable
+  source identity, source-order changes, heap/drop/lifetime semantics, duplicated
+  phase guards, more than the expected semantic-to-checked-IR vertical slice, an
+  unrelated red baseline, or any accepted test/spec weakening. Candidate and public
+  acceptance remain separate; the four scaling controls remain active.
+- Strategic value and what would change our mind: CAP-004 establishes Aero's first
+  reusable user-defined generic data definition and a trusted monomorphization boundary
+  that can later support generic containers without prematurely defining heap or trait
+  behavior. Evidence that exact contextual applications cannot be recovered before
+  semantics and checked admission, that private elaboration changes observable type
+  identity, that the existing CopyData verifier cannot independently distinguish
+  instantiations, that nested generic applications are required for any useful first
+  program, or that the canonical Milestone 0 gap blocks trustworthy publication would
+  stop CAP-004 and return selection to the fresh ranking.
+
+### CAP-004 exact red checkpoint
+
+- Before any production compiler mutation, focused command
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  generic_copydata_struct_tests -- --nocapture` runs exactly 0/2 green. The parser
+  retains one `Reading<T>` definition, concrete `Reading<int>` and `Reading<char>`
+  annotations, contextual literals, reassignment, nongeneric parameters/results,
+  field observation, and executable composition. Semantic analysis reaches the
+  current deterministic `Struct construction expressions are not supported.` boundary.
+  Semantic-independent raw checked admission separately rejects the concrete generic
+  result with `function return type is not an admitted scalar or Void type`.
+- The red changes no production source. It already requires multiple concrete
+  instantiations, result-context and binding-context construction, same-typed
+  reassignment, by-value function transport, field access, deterministic semantic/raw-
+  checked LLVM equality, and no private identity leakage. The full substitution field
+  grammar, context matrix, exclusions, direct-module/native product, representative
+  application, and corruption controls will be added behind this same class boundary.
+  No accepted test was weakened; user/app-owned untracked directories and the
+  quarantined stash remain untouched.
+
+### CAP-004 local implementation candidate
+
+- Candidate status: the bounded implementation is green locally and remains
+  unaccepted until its exact public candidate and protected merge head pass every
+  required workflow. The enclosing implementation commit assigns the immutable
+  candidate SHA; accepted-master project-truth documents intentionally remain
+  unchanged until that merge is proven.
+- Implementation: one shared, idempotent pre-semantic/pre-checked-admission pass now
+  validates generic struct definitions and exact contextual applications, substitutes
+  the admitted recursive finite CopyData grammar, and emits deterministic private
+  nongeneric schemas. It is a no-op for programs without generic structs and does not
+  preempt legacy diagnostics for unrelated ordinary structs or ambiguous functions.
+  Exact applications compose through bindings, reassignment, nongeneric parameters and
+  results, arrays, tuples, ordinary structs, projected mutation, immutable references,
+  multiple concrete instantiations, and concrete nesting such as
+  `Wrapper<Box<int>>`. Generic applications inside a generic definition remain outside
+  this slice.
+- Trust boundary: private identities commit to both canonical public type spelling and
+  exact field schema. Independent checked-IR verification rejects malformed identities
+  and schema substitution. LLVM uses source-readable, quoted concrete identities such
+  as `aero.struct.Reading<int>` and never exposes the source-unspellable private
+  identity. Semantic and checked routes invoke the same authority; no fallback layout
+  or phase-local generic topology guard was added.
+- Representative-program delta: `examples/representative_telemetry` now defines one
+  `Reading<T>` and executes both `Reading<int>` and `Reading<char>` through ordinary
+  functions while preserving the composed application's established output and exit
+  sentinel 91. The existing public representative-program lane therefore provides the
+  native Linux/Windows integration point without a new one-feature workflow.
+- Negative and corruption evidence: the focused class rejects context-free literals,
+  wrong arity, unused or duplicate parameters, unsupported generic-definition field
+  topology, recursive definitions, non-CopyData arguments, unresolved dependencies,
+  conflicting contextual families, and generic-function transport through semantics,
+  semantic-independent checked admission, and public compilation. Unit and verifier
+  corruption controls reject private-name spoofing, noncanonical payloads, idempotence
+  corruption, and identity/schema disagreement.
+- Commands and results: focused generic target 5/5 green; generic-contract unit target
+  4/4 green; private generic schema corruption control 1/1 green; representative direct-
+  module target 1/1 green; correctness-denying Clippy green; formatting green. An
+  exhaustive `cargo test --locked --manifest-path src/compiler/Cargo.toml
+  --no-fail-fast` passed 229 library tests, 32 binary tests, every integration target,
+  and all doc tests (16 pre-existing ignored tests remain ignored). Exact root
+  `./tools/test.sh` passed after the same candidate, as did `git diff --check`.
+- Compatibility audit: the first exhaustive run exposed six legacy-test regressions.
+  Five were caused by the new pass diagnosing non-generic syntax; the no-op and
+  traversal boundaries above restored every legacy diagnostic. The sixth was an
+  obsolete exclusion of generic CopyData reference parameters; it was replaced by a
+  positive executable reference case because that behavior is intentionally inside
+  the frozen CAP-004 class. The six affected targets and the subsequent exhaustive and
+  root gates are green.
+- Files changed: `src/compiler/src/generic_struct_contract.rs` plus minimal registration
+  and coupling in `lib.rs`, `semantic_analyzer.rs`, `ir_generator.rs`,
+  `struct_contract.rs`, `types.rs`, `ir_verifier.rs`, and `code_generator.rs`; the
+  focused generic test, two compatibility assertions, and the representative source/
+  test. No dependency, workflow, specification, release, benchmark, protection, or
+  claim-verification file changed. User/app-owned untracked directories and the
+  quarantined stash remain untouched.
+- Remaining uncertainty, risk, and recovery: this local machine does not provide the
+  pinned LLVM 22 native toolchain, so exact LLVM verification, machine lowering, and
+  native `-O0`/`-O2` equivalence remain candidate requirements for public Linux and
+  Windows workflows. The bounded CAP-004 implementation commit/PR is the clean rollback
+  boundary. Any public verifier/native failure, private-identity collision, observable
+  source-identity drift, or evidence of required trait/heap/drop semantics rejects the
+  candidate rather than broadening it.
+
 ## CAP-003 - explicitly typed algebraic error carriers
 
 - Date/task/status: 2026-08-11, `CAP-003`, local implementation candidate after

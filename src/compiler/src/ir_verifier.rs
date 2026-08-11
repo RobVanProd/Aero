@@ -376,6 +376,10 @@ fn valid_enum_symbol(name: &str) -> bool {
     crate::builtin_carrier_contract::valid_carrier_aware_enum_symbol(name, valid_symbol)
 }
 
+fn valid_struct_symbol(name: &str) -> bool {
+    crate::generic_struct_contract::valid_generic_aware_struct_symbol(name, valid_symbol)
+}
+
 fn valid_immutable_reference_pointee(ty: &LogicalType) -> bool {
     valid_owned_place_type(ty)
 }
@@ -420,6 +424,12 @@ fn valid_struct_schema(fields: &[LogicalType]) -> bool {
     !fields.is_empty() && fields.iter().all(valid_copy_data_type)
 }
 
+fn valid_named_struct_schema(name: &str, fields: &[LogicalType]) -> bool {
+    valid_struct_symbol(name)
+        && valid_struct_schema(fields)
+        && crate::generic_struct_contract::valid_generic_struct_schema(name, fields)
+}
+
 fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
     if PrimitiveKind::from_logical_type(logical_type).is_some() {
         return true;
@@ -429,7 +439,7 @@ fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
         LogicalType::Tuple { elements } => {
             elements.len() >= 2 && elements.iter().all(valid_copy_data_type)
         }
-        LogicalType::Struct { name, fields } => valid_symbol(name) && valid_struct_schema(fields),
+        LogicalType::Struct { name, fields } => valid_named_struct_schema(name, fields),
         LogicalType::Int
         | LogicalType::Float
         | LogicalType::Bool
@@ -2119,7 +2129,7 @@ impl<'a> FunctionVerifier<'a> {
                             ),
                         ));
                     };
-                    if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
+                    if !valid_named_struct_schema(struct_name, field_types) {
                         return Err(IrVerificationError::new(
                             &self.body.name,
                             Some(&block.label),
@@ -2520,7 +2530,7 @@ impl<'a> FunctionVerifier<'a> {
                             field_types,
                             ..
                         } => {
-                            if !valid_symbol(struct_name) || !valid_struct_schema(field_types) {
+                            if !valid_named_struct_schema(struct_name, field_types) {
                                 return Err(IrVerificationError::new(
                                     &self.body.name,
                                     Some(&block.label),
@@ -5006,7 +5016,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
         let LogicalType::Struct { name, fields } = logical_type else {
             return Ok(());
         };
-        if !valid_symbol(name) || !valid_struct_schema(fields) {
+        if !valid_named_struct_schema(name, fields) {
             return Err(IrVerificationError::new(
                 "<module>",
                 None,
@@ -5347,6 +5357,40 @@ mod tests {
             checked.metadata().functions["main"].signature.result,
             LogicalType::Int
         );
+    }
+
+    #[test]
+    fn private_generic_struct_identity_rejects_checked_schema_corruption() {
+        let identity = crate::generic_struct_contract::private_name_for_test(
+            "Reading<int>",
+            &[
+                crate::ast::Type::Named("int".to_string()),
+                crate::ast::Type::Named("bool".to_string()),
+            ],
+        );
+        verify_ir(function(vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: identity.clone(),
+                field_types: vec![LogicalType::Int, LogicalType::Bool],
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect("exact private generic struct schema must verify");
+
+        let error = verify_ir(function(vec![
+            Inst::CheckedStructAlloca {
+                result: Value::Reg(0),
+                struct_name: identity,
+                field_types: vec![LogicalType::Char, LogicalType::Bool],
+            },
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("private generic struct schema corruption must fail verification");
+        assert!(matches!(
+            error.kind,
+            IrVerificationErrorKind::UnsupportedType(_)
+        ));
     }
 
     #[test]
