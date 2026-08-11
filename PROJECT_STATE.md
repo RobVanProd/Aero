@@ -1,8 +1,35 @@
 # Aero Project State
 
-Last updated: 2026-08-10 (America/New_York)
+Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
+
+The current accepted public master is
+`29019ff114f668a37eac429dc6f7905ab97fa6fb`, the protected PR #20 acceptance-
+synchronization merge over accepted M1-001 compiler-capability master
+`d7d1c7682911503470a19c97acb72d231824b193`. Post-merge CI `31430422095`, Rust
+CI `31430421975`, and CodeQL `31430419706` pass. That synchronization changed
+project truth only; M1-001 remains the accepted executable capability baseline.
+
+`CAP-001` is a local green candidate, not accepted public behavior. Its post-M1
+ranking selected verified runtime fixed-array reads ahead of the canonical Milestone
+0 trusted-entrypoint contract and positive import/name resolution. The active defect
+allowed a nonconstant out-of-range `int` index to reach unchecked LLVM `inbounds`
+address formation and falsely execute successfully. The candidate lowers every
+runtime index read over the existing nonempty recursive CopyData fixed-array universe
+through one ordered nonnegative/below-count guard, traps before conversion or access
+on failure, and retains direct constant-index lowering plus compile-time constant-
+bounds diagnostics. Dynamic projected writes, projected borrowing, collections,
+stable runtime/ABI behavior, and general memory safety remain excluded.
+
+The candidate enriches the representative telemetry application with computed index
+reads and adds a two-file negative/equal-to-count runtime-failure corpus. Focused 4/4,
+representative 3/3, all 218 library tests, adjacent array/verifier/workflow controls,
+the complete 218-library/32-binary root gate, local LLVM 22 external and machine
+verification, and local Windows representative `-O0`/`-O2` exact output/exit 91 pass.
+Both failure specimens build and machine-verify with the guard; public Linux/Windows
+failure execution, exact-head workflows, protected merge, and post-merge verification
+remain pending and no accepted capability claim moves yet.
 
 Milestone 111 `CORE-090` is accepted public at exact candidate head
 `af68d0e842ed2973087d2e3c78d2a19546e29ff7`, tree
@@ -2546,15 +2573,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Publish this bounded M1-001 acceptance synchronization so all project-truth surfaces
-name exact accepted master `d7d1c7682911503470a19c97acb72d231824b193` and its
-public evidence. Only after that merge, re-rank at least three remaining capability
-gaps against the now-accepted representative program and select by real-program delta,
-roadmap criticality, architectural leverage, safety value, risk, and proportional
-evidence cost. Do not default to CORE-091 or another neighboring topology. The
-quarantined projected-reference work remains excluded unless later evidence re-ranks
-it. Do not publish releases, packages, benchmarks, or unsupported claims; rewrite
-history; force-push; or delete retained integration work.
+Freeze the exact CAP-001 implementation identity, rerun the complete candidate gate,
+and publish one bounded successor PR. Require exact-head compiler CI, stable/nightly
+Rust, CodeQL, pinned Linux/Windows LLVM 22 external and machine verification,
+representative `-O0`/`-O2` exit 91, and nonzero negative/equal-to-count termination
+before protected merge. Keep candidate evidence separate from accepted master until
+those gates and exact post-merge verification pass, then synchronize accepted truth
+immediately. Do not start another capability, default to the quarantined CORE-091
+topology, publish releases/packages/benchmarks, rewrite history, force-push, or delete
+retained integration work.
 
 ## Unauthorized actions
 

@@ -2,10 +2,11 @@
 
 Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
-Audit date: 2026-08-02; corrective roadmap checkpoint: 2026-08-10
+Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
-Current accepted compiler-capability master:
-`d7d1c7682911503470a19c97acb72d231824b193` (`M1-001`)
+Current accepted public master:
+`29019ff114f668a37eac429dc6f7905ab97fa6fb`; accepted compiler-capability master:
+`d7d1c7682911503470a19c97acb72d231824b193` (`M1-001`).
 
 ## Corrective roadmap checkpoint after CORE-090
 
@@ -38,6 +39,32 @@ and passed post-merge CI `31429517811`, Rust CI `31429517729`, and CodeQL
 `31429517265`. The composed workflow is `END_TO_END`; its component feature rows
 remain `PARTIAL`. No stable grammar, public ABI, general ownership/memory-safety,
 performance, or release claim follows.
+
+### CAP-001 local candidate: verified runtime fixed-array reads
+
+The once-per-class post-M1 audit reproduced a trusted false-success: a nonconstant
+out-of-range `int` index into a two-element fixed array passed public `check`, passed
+externally verified `build`, became unchecked LLVM `getelementptr inbounds`, and
+falsely executed with status zero. The post-M1 ranking scores verified runtime fixed-
+array reads 26, the canonical Milestone 0 diagnostic/artifact contract 24, and positive
+import/name resolution 21. CAP-001 is selected for its ordinary-program delta and
+correctness value; the latter two remain ranked future gaps.
+
+The local candidate keeps the existing shared source/admission array classifier and
+atomic checked array-element-pointer instruction. Checked code generation emits one
+ordered nonnegative/below-count predicate for every nonconstant read, traps before
+numeric conversion or address formation on failure, and converts/forms the typed
+`inbounds` address only in the safe block. Constant indexes retain compile-time bounds
+diagnostics and direct lowering. Focused contexts cover primitive, recursive struct,
+nested, computed, and internal-function array reads under one backend rule. The
+representative telemetry application now uses computed reads and still prints
+`telemetry score: 91` and exits 91 at local Windows `-O0`/`-O2`; two runtime-failure
+specimens cover negative and equal-to-count values. Focused 4/4, representative 3/3,
+218 library tests, adjacent verifier/array/workflow controls, the complete root gate,
+and local LLVM 22 external/machine verification pass. Public exact-head and post-merge
+evidence remains pending, so CAP-001 is not yet accepted public behavior. Dynamic
+writes, projected borrows, collections, stable trap/status/ABI promises, and general
+memory-safety claims remain excluded.
 
 ### Milestone 0 gap classification
 
@@ -93,9 +120,10 @@ Milestone 1 exit path and a permanent growing integration gate. A red that expos
 real missing shared compiler contract changes the task into closing that complete
 blocking class, not adding a specimen-specific exception. Evidence of unspecified
 semantics, nonportable behavior, optimizer divergence, or a cheaper higher-leverage
-path would stop or reorder the selection. Before another implementation task begins,
-the remaining gaps must be re-ranked against this new accepted baseline; rows 2 and 3
-remain inputs, not an automatic next-task decision.
+path would stop or reorder the selection. The required post-M1 re-ranking is now
+recorded in the CAP-001 section above. No further implementation task may begin until
+CAP-001 is either accepted or stopped; rows 2 and 3 remain ranked inputs, not automatic
+follow-ons.
 
 ## Verified progress after the audit commit
 

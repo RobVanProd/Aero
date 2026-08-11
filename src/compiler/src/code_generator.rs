@@ -685,6 +685,52 @@ impl CodeGenerator {
         }
     }
 
+    fn checked_copy_array_index_to_i64_operand(
+        &mut self,
+        llvm_ir: &mut String,
+        index: &Value,
+        count: usize,
+        element_place: u32,
+    ) -> String {
+        match index {
+            Value::ImmInt(index) => index.to_string(),
+            Value::Reg(index) => {
+                let nonnegative = self.fresh_reg();
+                let below_count = self.fresh_reg();
+                let in_bounds = self.fresh_reg();
+                let safe_label = format!("aero.bounds.safe.{element_place}");
+                let trap_label = format!("aero.bounds.trap.{element_place}");
+                let count = format!("0x{:016X}", (count as f64).to_bits());
+
+                llvm_ir.push_str(&format!(
+                    "  %{nonnegative} = fcmp oge double %reg{index}, 0x0000000000000000\n"
+                ));
+                llvm_ir.push_str(&format!(
+                    "  %{below_count} = fcmp olt double %reg{index}, {count}\n"
+                ));
+                llvm_ir.push_str(&format!(
+                    "  %{in_bounds} = and i1 %{nonnegative}, %{below_count}\n"
+                ));
+                llvm_ir.push_str(&format!(
+                    "  br i1 %{in_bounds}, label %{safe_label}, label %{trap_label}\n"
+                ));
+                llvm_ir.push_str(&format!("{trap_label}:\n"));
+                llvm_ir.push_str("  call void @llvm.trap()\n");
+                llvm_ir.push_str("  unreachable\n");
+                llvm_ir.push_str(&format!("{safe_label}:\n"));
+
+                let converted = self.fresh_reg();
+                llvm_ir.push_str(&format!(
+                    "  %{converted} = fptosi double %reg{index} to i64\n"
+                ));
+                format!("%{converted}")
+            }
+            Value::ImmFloat(_) | Value::ImmChar(_) | Value::ImmString(_) => {
+                unreachable!("verified checked Copy-data array indexes are integers")
+            }
+        }
+    }
+
     fn type_to_llvm(&self, type_name: &str) -> &str {
         match type_name {
             "int" | "i32" => "i32",
@@ -928,6 +974,18 @@ impl CodeGenerator {
         Ok(())
     }
 
+    fn contains_dynamic_checked_copy_array_index(instructions: &[Inst]) -> bool {
+        instructions.iter().any(|instruction| match instruction {
+            Inst::CheckedCopyStructArrayElementPtr { index, .. } => {
+                !matches!(index, Value::ImmInt(_))
+            }
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                Self::contains_dynamic_checked_copy_array_index(body)
+            }
+            _ => false,
+        })
+    }
+
     /// Verifies private IR and emits LLVM only after the complete program is admitted.
     pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
     where
@@ -951,6 +1009,9 @@ impl CodeGenerator {
         llvm_ir.push_str("source_filename = \"aero_compiler\"\n");
         llvm_ir.push_str("target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n");
         llvm_ir.push_str("target triple = \"x86_64-pc-linux-gnu\"\n\n");
+        let requires_array_bounds_trap = ir_functions
+            .values()
+            .any(|function| Self::contains_dynamic_checked_copy_array_index(&function.body));
         let mut struct_schemas = BTreeMap::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_struct_schemas(metadata, &mut struct_schemas);
@@ -971,6 +1032,9 @@ impl CodeGenerator {
             llvm_ir.push('\n');
         }
         self.generate_printf_declaration(&mut llvm_ir);
+        if requires_array_bounds_trap {
+            llvm_ir.push_str("declare void @llvm.trap()\n\n");
+        }
 
         let mut function_defs: HashMap<String, FunctionDef> = HashMap::new();
         for function in ir_functions.values() {
@@ -1740,7 +1804,8 @@ impl CodeGenerator {
                     };
                     let element = Self::copy_data_type_to_llvm(element);
                     let aggregate = format!("[{count} x {element}]");
-                    let index = self.value_to_i64_operand(llvm_ir, index);
+                    let index = self
+                        .checked_copy_array_index_to_i64_operand(llvm_ir, index, *count, *result);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = getelementptr inbounds {aggregate}, {aggregate}* %ptr{base}, i64 0, i64 {index}\n"
                     ));
