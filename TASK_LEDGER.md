@@ -53,7 +53,10 @@
   searches, changed-file audits, and the root gate detect it. The clean rollback is one
   bounded record-only PR. After this synchronization passes exact-head checks and
   protected merge, verify exact merge-head workflows, then perform a fresh three-gap
-  project-level ranking before any new implementation. Commit SHA: pending.
+  project-level ranking before any new implementation. Frozen record commit
+  `b973454d0010c959b525e6e3c404c952a1364e23`, tree
+  `8eb2a5e0803c2b4b048068485d01e939fea9143d`, stable patch ID
+  `5fc96538a71d2a4c90b654a286a0f6c6d0fd39a2`.
 
 ## CAP-002 - checked runtime-indexed fixed-array assignment
 
