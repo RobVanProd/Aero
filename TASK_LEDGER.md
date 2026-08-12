@@ -152,6 +152,18 @@
   read-only factual/contract/diff audits, publish an immutable exact nine-file
   candidate, require exact-head public gates, protected integration, and fresh
   merge-head CI/Rust/CodeQL evidence before calling the synchronization accepted.
+- Red claim-contract checkpoint: commit `962139f` adds the dedicated CAP-020
+  accepted-truth contract in only
+  `src/compiler/tests/version_claim_contract_tests.rs`; follow-up `ff3bee5`
+  preserves legitimate historical Roadmap ranking records while retaining one
+  exact canonical current post-CAP-020 table and explicit stale-current-row
+  rejection. The dedicated locked target compiles and is intentionally red
+  `6/8`: the only failures are README missing
+  `**CAP-020 accepted product gate:**` and PROJECT_STATE missing
+  `Current accepted public master is CAP-020`. Static read-only review accepted
+  the exact labeled evidence template, frozen boundaries, current ranking,
+  Roadmap decision clauses, readiness-only successor guards, unchanged profile
+  row, sole CAP-020 CPU row, and closed matrix classification headers/vocabulary.
 - Risks and stop conditions: risks are calling an application encoding a matrix
   language feature, calling CAP-020 a compiler/profile widening, erasing CAP-019
   history, overstating warning-free CodeQL despite pre-existing alert #4,
