@@ -111,6 +111,19 @@
   semantic typing rather than enforcing profile policy, or that rank 2 safely closes
   the useful transform class with comparable scope, would change our mind before merge.
 
+### CAP-018 red checkpoint
+
+- The committed red matrix covers the complete frozen root/placement class in
+  `fixed_int_array_profile_tests.rs`. General semantic analysis, independent checked
+  admission, metadata, and the experimental `[3 x double]` control are green for the
+  composed program. With the cached qualified LLVM 22 verifier on `PATH`, the focused
+  target is 12 passed / 2 intentionally failed: the positive exact-profile class stops
+  at the existing `function result types` exclusion, and the separation matrix first
+  observes the same header-level mask before its source-root diagnostics can become
+  reachable. Existing exact public check/build/run, stable separation, wrapping,
+  bounds, workflow, and neighboring-family controls all remain green. No production,
+  example, workflow, cumulative-truth, dependency, protection, or GitHub state changed.
+
 ## CAP-017-RESULT-PROPAGATION-READINESS - typed ordinary-call-chain error forwarding
 
 - Date/task/status: 2026-08-12, `CAP-017-RESULT-PROPAGATION-READINESS`,

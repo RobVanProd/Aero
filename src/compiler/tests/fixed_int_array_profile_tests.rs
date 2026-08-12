@@ -1,5 +1,6 @@
 use compiler::{
-    CompilerOptions, LanguageProfile, check_file, check_program, compile_file, compile_program,
+    CompilerOptions, IrGenerator, LanguageProfile, SemanticAnalyzer, check_file, check_program,
+    compile_file, compile_program, parse_with_locations, try_tokenize_with_locations,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,41 @@ const NEGATIVE_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_index.aero");
 const EQUAL_TO_COUNT_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_index.aero");
+
+const IMMUTABLE_ARRAY_VALUE_COMPOSITION: &str = r#"
+fn transform(values: [int; 3]) -> [i32; 3] {
+    return [values[0] * 2, values[1] + 3, values[2] - 1];
+}
+
+fn identity(values: [i32; 3]) -> [int; 3] {
+    return values;
+}
+
+fn return_call(values: [int; 3]) -> [i32; 3] {
+    return identity(values);
+}
+
+fn score(values: [int; 3]) -> int {
+    return values[0] + values[1] + values[2];
+}
+
+fn main() -> int {
+    let source = [2, 3, 4];
+    let computed = transform(source);
+    let annotated: [i32; 3] = return_call(computed);
+    let copied = annotated;
+    let nested_score: int = score(identity(transform(source)));
+    let literal_score: int = score([7, 8, 9]);
+    let call_index: int = transform(source)[0];
+    let literal_index: int = [10, 11, 12][1];
+    if source[0] == 2 && copied[1] == 6 && annotated[2] == 3
+        && nested_score == 13 && literal_score == 24
+        && call_index == 4 && literal_index == 11 {
+        return 91;
+    }
+    return 1;
+}
+"#;
 
 fn exact_options() -> CompilerOptions {
     CompilerOptions {
@@ -308,6 +344,139 @@ fn exact_profile_is_shared_by_source_and_file_library_routes() {
 }
 
 #[test]
+fn general_checked_pipeline_already_owns_the_complete_immutable_array_value_class() {
+    let tokens = try_tokenize_with_locations(IMMUTABLE_ARRAY_VALUE_COMPOSITION, None)
+        .expect("immutable array composition control should lex");
+    let ast =
+        parse_with_locations(tokens).expect("immutable array composition control should parse");
+    let mut analyzer = SemanticAnalyzer::new();
+    let (_, analyzed) = analyzer
+        .analyze(ast)
+        .expect("general semantics should already own immutable array composition");
+    let checked = IrGenerator::new()
+        .try_generate_ir(analyzed)
+        .expect("checked IR should already own immutable array composition");
+    let metadata = format!("{:#?}", checked.metadata());
+    for anchor in [
+        "\"transform\": FunctionMetadata",
+        "\"identity\": FunctionMetadata",
+        "element: Int",
+        "count: 3",
+    ] {
+        assert!(
+            metadata.contains(anchor),
+            "checked metadata omitted array-composition identity `{anchor}`:\n{metadata}"
+        );
+    }
+
+    let llvm = compile_program(
+        IMMUTABLE_ARRAY_VALUE_COMPOSITION,
+        CompilerOptions::default(),
+    )
+    .expect("experimental control should retain general immutable array composition");
+    assert!(llvm.contains("define [3 x double] @transform("));
+    assert!(llvm.contains("call [3 x double] @identity("));
+}
+
+#[test]
+fn exact_profile_admits_the_complete_immutable_array_value_composition_class() {
+    check_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should admit every frozen immutable array value placement");
+    let first = compile_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should lower immutable array value composition");
+    let second = compile_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should lower deterministically");
+    assert_eq!(
+        first, second,
+        "exact immutable-array LLVM must be deterministic"
+    );
+
+    for anchor in [
+        "define [3 x i32] @transform([3 x i32] %aero.arg.values)",
+        "define [3 x i32] @identity([3 x i32] %aero.arg.values)",
+        "define [3 x i32] @return_call([3 x i32] %aero.arg.values)",
+        "call [3 x i32] @transform([3 x i32]",
+        "call [3 x i32] @identity([3 x i32]",
+        "call [3 x i32] @return_call([3 x i32]",
+        "ret [3 x i32]",
+        "getelementptr inbounds [3 x i32]",
+    ] {
+        assert!(
+            first.contains(anchor),
+            "missing exact composition anchor `{anchor}`:\n{first}"
+        );
+    }
+    for forbidden in ["[3 x double]", "fptosi", "sitofp", " nsw ", " nuw "] {
+        assert!(
+            !first.contains(forbidden),
+            "exact array value composition leaked `{forbidden}`:\n{first}"
+        );
+    }
+}
+
+#[test]
+fn exact_array_value_composition_retains_topology_and_mutability_separation() {
+    let cases = [
+        (
+            "zero result",
+            "fn bad() -> [int; 0] { return []; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "nested result",
+            "fn bad() -> [[int; 1]; 1] { return [[1]]; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "non-int result",
+            "fn bad() -> [bool; 1] { return [1 < 2]; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "repeat source",
+            "fn bad() -> [int; 2] { return [1; 2]; } fn main() -> int { return 0; }",
+            "array value sources other than literals, identifiers, or ordinary calls",
+        ),
+        (
+            "wrong result count",
+            "fn bad() -> [int; 3] { return [1, 2]; } fn main() -> int { return 0; }",
+            "array value source count mismatch",
+        ),
+        (
+            "non-int computed element",
+            "fn bad() -> [int; 1] { return [1 < 2]; } fn main() -> int { return 0; }",
+            "array literal elements other than exact Int expressions",
+        ),
+        (
+            "mutable returned binding",
+            "fn make() -> [int; 1] { return [1]; } fn main() -> int { let mut values = make(); return values[0]; }",
+            "mutable array bindings",
+        ),
+        (
+            "aggregate process result",
+            "fn main() -> [int; 1] { return [1]; }",
+            "entrypoints other than exact `fn main() -> int`",
+        ),
+    ];
+
+    for (label, source, expected) in cases {
+        let error = check_program(source, exact_options())
+            .expect_err("excluded exact-array value topology must fail closed");
+        assert!(
+            error.starts_with("Language Profile Error: exact-i32-array-v0 rejects "),
+            "{label} escaped profile admission: {error}"
+        );
+        assert!(
+            error.contains(expected),
+            "{label}: wrong diagnostic: {error}"
+        );
+        assert!(
+            !error.contains("Semantic Analysis Error") && !error.contains("IR Generation Error")
+        );
+    }
+}
+
+#[test]
 fn exact_profile_emits_one_guarded_i32_array_lane() {
     let llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
         .expect("exact fixed-array kernel should compile");
@@ -395,11 +564,6 @@ fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
 fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
     let cases = [
         (
-            "inferred array",
-            "fn main() -> int { let values = [1]; return 0; }",
-            "array expressions",
-        ),
-        (
             "repeat array",
             "fn main() -> int { let values: [int; 2] = [1; 2]; return 0; }",
             "array bindings without direct literal initializers",
@@ -433,11 +597,6 @@ fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
             "user-defined element",
             "fn take(values: [Widget; 1]) -> int { return 0; } fn main() -> int { return 0; }",
             "function parameter types",
-        ),
-        (
-            "array result",
-            "fn values() -> [int; 1] { let item: [int; 1] = [1]; return item; } fn main() -> int { return 0; }",
-            "function result types",
         ),
         (
             "mutable array",
