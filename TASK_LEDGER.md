@@ -77,6 +77,27 @@
   advanced, CAP-018 changed another profile, or the fresh accepted-head ranking gives
   a different project-level payoff must amend this record before publication.
 
+### CAP-018 acceptance-sync local checkpoint
+
+- The red-first claim contract compiled on the authorized branch and initially failed
+  only because the cumulative README had not yet published CAP-018 accepted status.
+  After synchronizing the seven truth surfaces, all eight
+  `version_claim_contract_tests` pass. The assembled documentation/test head before
+  this checkpoint is `80d7cecc0233bb828fed39f1d8f1cb92abd452de`, tree
+  `050a84bcdedef02f6416800b94f094f9617093c4`, and its cumulative diff from accepted
+  master names exactly the nine authorized files.
+- The first repository-root `./tools/test.sh` attempt stopped at `cargo fmt --check`
+  before compiler tests because the new Rust assertions needed mechanical rustfmt
+  layout. `cargo fmt` changed only the claim-contract test; the full eight-test claim
+  suite then passed. The exact root gate was restarted from the beginning with Cargo
+  and the authenticated LLVM 22.1.8 tool root explicit on `PATH`; formatting, Clippy's
+  correctness gate, the complete compiler unit/integration suite, and doc-tests all
+  passed. `git diff --check` is clean.
+- This is local candidate evidence only. Accepted public truth does not change until
+  the exact sync candidate passes public push/PR CI, Rust stable/nightly and pinned
+  Windows LLVM 22, CodeQL, protected integration, and fresh merge-head verification.
+  No CAP-019 implementation may be stacked on this branch before that boundary.
+
 ## CAP-018-EXACT-ARRAY-VALUE-COMPOSITION - immutable array-producing CPU pipeline
 
 - Date/task/status: 2026-08-12, `CAP-018-EXACT-ARRAY-VALUE-COMPOSITION`, authorized
