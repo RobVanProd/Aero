@@ -381,6 +381,14 @@ fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
             );
         }
     }
+
+    let wrapping_llvm = compile_program(FIXED_INT_ARRAY_WRAPPING_EDGES, exact_options())
+        .expect("constant-index wrapping specimen should compile");
+    assert!(
+        wrapping_llvm.contains("icmp slt i32"),
+        "wrapping control flow must retain its ordinary signed comparison"
+    );
+    assert_dynamic_guard_sequences(&wrapping_llvm, "[4 x i32]", 0);
 }
 
 #[test]
@@ -527,5 +535,47 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
         "& \"$llvmBin\\clang.exe\" -O2",
     ] {
         assert!(workflow.contains(anchor), "workflow omitted `{anchor}`");
+    }
+
+    assert!(
+        !workflow
+            .contains("upper_line=\"$(grep -n -m1 -F 'icmp slt i32' \"${llvm}\" | cut -d: -f1)\""),
+        "Linux must search for an array upper guard only after its lower guard"
+    );
+    assert_eq!(
+        workflow
+            .matches("icmp sge i32|icmp slt i32|sext i32|llvm\\.trap")
+            .count(),
+        0,
+        "ordinary signed comparisons are not sufficient evidence of dynamic bounds IR"
+    );
+    for identity_linked_anchor in [
+        "guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+        "grep -Pzo -- \"${guard_block_pattern}\" \"${llvm}\"",
+        "test \"${guard_count}\" -eq 2",
+        "$guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+        "$guardMatches = [regex]::Matches($llvmText, $guardPattern)",
+        "$guardMatches.Count -ne 2",
+    ] {
+        assert_eq!(
+            workflow.matches(identity_linked_anchor).count(),
+            1,
+            "workflow must retain one identity-linked proof anchor `{identity_linked_anchor}`"
+        );
+    }
+    for shared_identity_link in [
+        r"\k<index>, [0-9]+",
+        r"\k<lower>, \k<upper>",
+        r"br i1 \k<inbounds>",
+        r"%aero\.bounds\.trap\.\k<place>",
+        r"sext i32 \k<index> to i64",
+        r"\k<aggregate>\* %ptr",
+        r"i64 \k<extended>\r?$",
+    ] {
+        assert_eq!(
+            workflow.matches(shared_identity_link).count(),
+            2,
+            "Linux and Windows must both retain identity link `{shared_identity_link}`"
+        );
     }
 }

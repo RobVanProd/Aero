@@ -155,6 +155,46 @@
   pre-existing warnings. This checkpoint remains mutable and non-acceptance evidence:
   create one immutable candidate and repeat pinned LLVM/native and public workflow evidence
   at its exact SHA.
+- First immutable-candidate public checkpoint, red and not accepted: candidate
+  `46c4d44512bf49ce4aa323fa311f2f50ce09ae26` (tree
+  `e7caa673c9f717df2d2e8de6b95d2c326e653899`) passed push CI
+  `31567979234`, PR CI `31568017832`, and all CodeQL analyses in
+  `31568017589`, but exact-head Rust CI `31568017822` is red. Stable job
+  `94023847756` selected the kernel loop's ordinary signed `icmp slt i32` as
+  the first array upper-bound guard, so its order assertion compared that
+  unrelated instruction against the later `icmp sge` lower guard. Windows job
+  `94023847841` rejected the wrapping specimen because its assertion classified
+  any ordinary signed `icmp slt i32` comparison as dynamic bounds IR; nightly
+  job `94023847680` was then cancelled by fail-fast. These are proof-script
+  false positives, not compiler/native acceptance: the candidate remains red
+  and PR #50 remains draft. The frozen correction is to locate each dynamic
+  upper guard only after its lower guard and to classify dynamic bounds by the
+  complete lower/upper/trap/sign-extension/address sequence, while explicitly
+  retaining ordinary scalar signed comparisons in the constant-index wrapping
+  specimen. A red workflow-contract regression must reproduce both mistakes
+  before the workflow changes; the corrected exact head must repeat the full
+  local gate, independent review, pinned native evidence, and every fresh public
+  check. No language, profile, checked-IR, verifier, or LLVM-emission behavior is
+  authorized to change by this correction.
+- Corrected-candidate local checkpoint, not public evidence: a workflow-contract
+  regression first failed on both published false-positive forms. The final
+  correction leaves ordinary scalar `icmp slt i32` comparisons admissible while
+  requiring exactly two contiguous dynamic guard blocks on the kernel. Both Linux
+  PCRE2 and Windows .NET patterns bind the same index SSA through lower/upper
+  predicates, the conjunction and branch, matching safe/trap place labels, sign
+  extension, aggregate identity, and the GEP index; the constant-index wrapping
+  specimen retains three ordinary signed comparisons and has zero lower guards,
+  trap calls, or sign extensions. Positive contract assertions preserve the Linux
+  matcher execution/count and every shared identity backreference in both workflow
+  lanes. The focused CAP-014 matrix passes 11/11 with pinned LLVM 22 available, the
+  Windows system-gate contract passes 1/1, exact extracted Linux and Windows matchers
+  each count two kernel blocks, formatting and diff hygiene pass, and the complete
+  repository-root `./tools/test.sh` gate passes after the final test assertions,
+  including 259 library tests and all integration, CLI, documentation, formatting,
+  and correctness-Clippy targets. Independent read-only execution audit reports no
+  blocker. This remains mutable local correction evidence until committed as a new
+  immutable candidate, rerun through pinned native evidence at that exact SHA, and
+  reproduced by every fresh public workflow; CAP-014 is still not accepted.
 
 ## CAP-013 accepted-master project-truth synchronization
 
