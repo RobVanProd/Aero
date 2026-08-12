@@ -4,6 +4,11 @@ use crate::ast::{
 use crate::builtin_carrier_contract::private_carrier_source_name;
 use crate::ir::LogicalType;
 use crate::primitive_contract::PrimitiveKind;
+use crate::specialization_contract::{
+    canonical_copydata_source, canonicalize_specialization_type, decode_private_identity,
+    parse_canonical_copydata_type, parse_canonical_copydata_type_list, private_identity,
+    specialization_types_equal, valid_source_symbol,
+};
 use crate::struct_contract::StructRegistry;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -171,7 +176,7 @@ struct GenericStructNormalizer {
 
 pub(crate) fn private_generic_struct_source_name(name: &str) -> Option<String> {
     let (source, _) = decode_private_payload(name)?;
-    let parsed = CanonicalTypeParser::new(&source).parse_complete().ok()?;
+    let parsed = parse_canonical_copydata_type(&source)?;
     if display_source_type(&parsed).ok()? != source {
         return None;
     }
@@ -188,16 +193,14 @@ pub(crate) fn valid_generic_struct_schema(name: &str, fields: &[LogicalType]) ->
     let Some((source, encoded_fields)) = decode_private_payload(name) else {
         return false;
     };
-    if CanonicalTypeParser::new(&source)
-        .parse_complete()
-        .ok()
+    if parse_canonical_copydata_type(&source)
         .and_then(|ty| display_source_type(&ty).ok())
         .as_deref()
         != Some(source.as_str())
     {
         return false;
     }
-    let Ok(expected_fields) = CanonicalTypeParser::new(&encoded_fields).parse_type_list() else {
+    let Some(expected_fields) = parse_canonical_copydata_type_list(&encoded_fields) else {
         return false;
     };
     expected_fields.len() == fields.len()
@@ -220,18 +223,7 @@ pub(crate) fn valid_generic_aware_struct_symbol(
 
 pub(crate) fn private_generic_struct_application(name: &str) -> Option<Type> {
     let source = private_generic_struct_source_name(name)?;
-    CanonicalTypeParser::new(&source).parse_complete().ok()
-}
-
-pub(crate) fn parse_canonical_copydata_type_list(source: &str) -> Option<Vec<Type>> {
-    let types = CanonicalTypeParser::new(source).parse_type_list().ok()?;
-    let canonical = types
-        .iter()
-        .map(display_source_type)
-        .collect::<Result<Vec<_>, _>>()
-        .ok()?
-        .join(",");
-    (canonical == source).then_some(types)
+    parse_canonical_copydata_type(&source)
 }
 
 pub(crate) fn canonical_copydata_type_matches_logical(
@@ -617,6 +609,10 @@ impl GenericStructNormalizer {
                 "generic struct `{source_name}` requires recursive finite CopyData type arguments"
             ));
         }
+        let arguments = arguments
+            .iter()
+            .map(canonicalize_specialization_type)
+            .collect::<Vec<_>>();
         let substitutions = definition
             .parameters
             .iter()
@@ -680,7 +676,8 @@ impl GenericStructNormalizer {
         let canonical = private_generic_struct_source_name(&name)
             .ok_or_else(|| format!("invalid private generic-struct identity `{name}`"))?;
         let Type::Generic(source_name, mut arguments) =
-            CanonicalTypeParser::new(&canonical).parse_complete()?
+            parse_canonical_copydata_type(&canonical)
+                .ok_or_else(|| "invalid canonical generic-struct type".to_string())?
         else {
             unreachable!("private identity decoder accepts generic applications only")
         };
@@ -1362,70 +1359,19 @@ fn statement_mentions_generic_struct(
 fn fields_equal(left: &[FieldDecl], right: &[FieldDecl]) -> bool {
     left.len() == right.len()
         && left.iter().zip(right).all(|(left, right)| {
-            left.name == right.name && types_equal(&left.field_type, &right.field_type)
+            left.name == right.name
+                && specialization_types_equal(&left.field_type, &right.field_type)
         })
 }
 
-fn types_equal(left: &Type, right: &Type) -> bool {
-    match (left, right) {
-        (Type::Named(left), Type::Named(right)) => left == right,
-        (Type::Array(left, left_count), Type::Array(right, right_count)) => {
-            left_count == right_count && types_equal(left, right)
-        }
-        (Type::Tuple(left), Type::Tuple(right)) => {
-            left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right)
-                    .all(|(left, right)| types_equal(left, right))
-        }
-        (Type::Generic(left_name, left), Type::Generic(right_name, right)) => {
-            left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right)
-                    .all(|(left, right)| types_equal(left, right))
-        }
-        (Type::Reference(left, left_mutable), Type::Reference(right, right_mutable)) => {
-            left_mutable == right_mutable && types_equal(left, right)
-        }
-        _ => false,
-    }
-}
-
 pub(crate) fn display_source_type(ty: &Type) -> Result<String, String> {
-    match ty {
-        Type::Named(name) => {
-            if let Some(source) = private_generic_struct_source_name(name) {
-                Ok(source)
-            } else if let Some(source) = private_carrier_source_name(name) {
-                Ok(source.replace(", ", ","))
-            } else {
-                Ok(name.clone())
-            }
-        }
-        Type::Array(element, count) => Ok(format!("[{};{count}]", display_source_type(element)?)),
-        Type::Tuple(elements) => Ok(format!(
-            "({})",
-            elements
-                .iter()
-                .map(display_source_type)
-                .collect::<Result<Vec<_>, _>>()?
-                .join(",")
-        )),
-        Type::Reference(_, _) => Err(
-            "generic struct applications require recursive finite CopyData arguments".to_string(),
-        ),
-        Type::Generic(name, arguments) => Ok(format!(
-            "{name}<{}>",
-            arguments
-                .iter()
-                .map(display_source_type)
-                .collect::<Result<Vec<_>, _>>()?
-                .join(",")
-        )),
-    }
+    canonical_copydata_source(
+        ty,
+        &[
+            private_generic_struct_source_name,
+            private_carrier_source_name,
+        ],
+    )
 }
 
 fn private_name_for(canonical: &str, fields: &[FieldDecl]) -> Result<String, String> {
@@ -1434,13 +1380,10 @@ fn private_name_for(canonical: &str, fields: &[FieldDecl]) -> Result<String, Str
         .map(|field| display_source_type(&field.field_type))
         .collect::<Result<Vec<_>, _>>()?
         .join(",");
-    let payload = format!("{canonical}|{schema}");
-    let encoded = payload
-        .as_bytes()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    Ok(format!("{PRIVATE_GENERIC_STRUCT_PREFIX}{encoded}"))
+    Ok(private_identity(
+        PRIVATE_GENERIC_STRUCT_PREFIX,
+        &[canonical, &schema],
+    ))
 }
 
 #[cfg(test)]
@@ -1457,20 +1400,8 @@ pub(crate) fn private_name_for_test(canonical: &str, fields: &[Type]) -> String 
 }
 
 fn decode_private_payload(name: &str) -> Option<(String, String)> {
-    let encoded = name.strip_prefix(PRIVATE_GENERIC_STRUCT_PREFIX)?;
-    if encoded.is_empty() || !encoded.len().is_multiple_of(2) {
-        return None;
-    }
-    let mut bytes = Vec::with_capacity(encoded.len() / 2);
-    for index in (0..encoded.len()).step_by(2) {
-        bytes.push(u8::from_str_radix(&encoded[index..index + 2], 16).ok()?);
-    }
-    let payload = String::from_utf8(bytes).ok()?;
-    let (source, schema) = payload.split_once('|')?;
-    if source.is_empty() || schema.is_empty() || schema.contains('|') {
-        return None;
-    }
-    Some((source.to_string(), schema.to_string()))
+    let mut parts = decode_private_identity(PRIVATE_GENERIC_STRUCT_PREFIX, name, 2)?.into_iter();
+    Some((parts.next()?, parts.next()?))
 }
 
 fn annotation_matches_logical(annotation: &Type, logical: &LogicalType) -> bool {
@@ -1507,133 +1438,6 @@ fn annotation_matches_logical(annotation: &Type, logical: &LogicalType) -> bool 
                     .all(|(expected, actual)| annotation_matches_logical(expected, actual))
         }
         _ => false,
-    }
-}
-
-fn valid_source_symbol(name: &str) -> bool {
-    let mut characters = name.chars();
-    characters
-        .next()
-        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
-        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
-}
-
-struct CanonicalTypeParser<'a> {
-    source: &'a [u8],
-    position: usize,
-}
-
-impl<'a> CanonicalTypeParser<'a> {
-    fn new(source: &'a str) -> Self {
-        Self {
-            source: source.as_bytes(),
-            position: 0,
-        }
-    }
-
-    fn parse_complete(mut self) -> Result<Type, String> {
-        let ty = self.parse_type()?;
-        if self.position != self.source.len() {
-            return Err("invalid canonical generic-struct type".to_string());
-        }
-        Ok(ty)
-    }
-
-    fn parse_type_list(mut self) -> Result<Vec<Type>, String> {
-        let mut types = vec![self.parse_type()?];
-        while self.peek() == Some(b',') {
-            self.position += 1;
-            types.push(self.parse_type()?);
-        }
-        if self.position != self.source.len() {
-            return Err("invalid canonical generic-struct schema".to_string());
-        }
-        Ok(types)
-    }
-
-    fn parse_type(&mut self) -> Result<Type, String> {
-        match self.peek() {
-            Some(b'[') => self.parse_array(),
-            Some(b'(') => self.parse_tuple(),
-            Some(_) => self.parse_named_or_generic(),
-            None => Err("incomplete canonical generic-struct type".to_string()),
-        }
-    }
-
-    fn parse_array(&mut self) -> Result<Type, String> {
-        self.expect(b'[')?;
-        let element = self.parse_type()?;
-        self.expect(b';')?;
-        let count = self.parse_digits()?;
-        self.expect(b']')?;
-        Ok(Type::Array(Box::new(element), count))
-    }
-
-    fn parse_tuple(&mut self) -> Result<Type, String> {
-        self.expect(b'(')?;
-        let mut elements = vec![self.parse_type()?];
-        while self.peek() == Some(b',') {
-            self.position += 1;
-            elements.push(self.parse_type()?);
-        }
-        self.expect(b')')?;
-        if elements.len() < 2 {
-            return Err("canonical tuples require at least two elements".to_string());
-        }
-        Ok(Type::Tuple(elements))
-    }
-
-    fn parse_named_or_generic(&mut self) -> Result<Type, String> {
-        let start = self.position;
-        while self
-            .peek()
-            .is_some_and(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-        {
-            self.position += 1;
-        }
-        if start == self.position {
-            return Err("invalid canonical type name".to_string());
-        }
-        let name = std::str::from_utf8(&self.source[start..self.position])
-            .map_err(|_| "invalid UTF-8 canonical type name".to_string())?
-            .to_string();
-        if self.peek() != Some(b'<') {
-            return Ok(Type::Named(name));
-        }
-        self.position += 1;
-        let mut arguments = vec![self.parse_type()?];
-        while self.peek() == Some(b',') {
-            self.position += 1;
-            arguments.push(self.parse_type()?);
-        }
-        self.expect(b'>')?;
-        Ok(Type::Generic(name, arguments))
-    }
-
-    fn parse_digits(&mut self) -> Result<usize, String> {
-        let start = self.position;
-        while self.peek().is_some_and(|byte| byte.is_ascii_digit()) {
-            self.position += 1;
-        }
-        if start == self.position {
-            return Err("missing canonical array count".to_string());
-        }
-        std::str::from_utf8(&self.source[start..self.position])
-            .map_err(|_| "invalid canonical array count".to_string())?
-            .parse()
-            .map_err(|_| "invalid canonical array count".to_string())
-    }
-
-    fn expect(&mut self, expected: u8) -> Result<(), String> {
-        if self.peek() != Some(expected) {
-            return Err("invalid canonical generic-struct type".to_string());
-        }
-        self.position += 1;
-        Ok(())
-    }
-
-    fn peek(&self) -> Option<u8> {
-        self.source.get(self.position).copied()
     }
 }
 

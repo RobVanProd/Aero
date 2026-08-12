@@ -1,5 +1,9 @@
 use crate::ast::{AstNode, Block, Expression, Parameter, Statement, Type};
 use crate::ir::LogicalType;
+use crate::specialization_contract::{
+    decode_private_identity, logical_signature_key, private_identity, specialization_types_equal,
+    valid_source_symbol,
+};
 use crate::struct_contract::StructRegistry;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -602,31 +606,7 @@ fn same_optional_type(left: Option<&Type>, right: Option<&Type>) -> bool {
 }
 
 fn same_type(left: &Type, right: &Type) -> bool {
-    match (left, right) {
-        (Type::Named(left), Type::Named(right)) => left == right,
-        (Type::Array(left_element, left_count), Type::Array(right_element, right_count)) => {
-            left_count == right_count && same_type(left_element, right_element)
-        }
-        (Type::Tuple(left), Type::Tuple(right)) => {
-            left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right)
-                    .all(|(left, right)| same_type(left, right))
-        }
-        (Type::Reference(left, left_mutable), Type::Reference(right, right_mutable)) => {
-            left_mutable == right_mutable && same_type(left, right)
-        }
-        (Type::Generic(left_name, left), Type::Generic(right_name, right)) => {
-            left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right)
-                    .all(|(left, right)| same_type(left, right))
-        }
-        _ => false,
-    }
+    specialization_types_equal(left, right)
 }
 
 fn replace_self_types_in_block(block: &mut Block, target: &str) {
@@ -1201,27 +1181,27 @@ pub(crate) fn is_trait_call_marker(name: &str) -> bool {
 }
 
 fn call_marker_name(trait_name: &str, method: &str, type_parameter: &str) -> String {
-    let payload = format!("{trait_name}|{method}|{type_parameter}");
-    format!("{PRIVATE_TRAIT_CALL_PREFIX}{}", encode_hex(&payload))
+    private_identity(
+        PRIVATE_TRAIT_CALL_PREFIX,
+        &[trait_name, method, type_parameter],
+    )
 }
 
 fn decode_call_marker(name: &str) -> Option<CallMarker> {
-    let payload = decode_hex(name.strip_prefix(PRIVATE_TRAIT_CALL_PREFIX)?)?;
-    let mut parts = payload.split('|');
+    let mut parts = decode_private_identity(PRIVATE_TRAIT_CALL_PREFIX, name, 3)?.into_iter();
     let trait_name = parts.next()?;
     let method = parts.next()?;
     let type_parameter = parts.next()?;
-    if !valid_source_symbol(trait_name)
-        || !valid_source_symbol(method)
-        || !valid_source_symbol(type_parameter)
-        || parts.next().is_some()
+    if !valid_source_symbol(&trait_name)
+        || !valid_source_symbol(&method)
+        || !valid_source_symbol(&type_parameter)
     {
         return None;
     }
     Some(CallMarker {
-        trait_name: trait_name.to_string(),
-        method: method.to_string(),
-        type_parameter: type_parameter.to_string(),
+        trait_name,
+        method,
+        type_parameter,
     })
 }
 
@@ -1233,42 +1213,26 @@ fn private_impl_name(
     result: &LogicalType,
 ) -> String {
     let signature = logical_signature_key(parameters, result);
-    let payload = format!("{trait_name}|{target}|{method}|{signature}");
-    format!("{PRIVATE_TRAIT_IMPL_PREFIX}{}", encode_hex(&payload))
-}
-
-fn logical_signature_key(parameters: &[LogicalType], result: &LogicalType) -> String {
-    format!(
-        "({})->{result}",
-        parameters
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(",")
+    private_identity(
+        PRIVATE_TRAIT_IMPL_PREFIX,
+        &[trait_name, target, method, &signature],
     )
 }
 
 fn decode_impl_name(name: &str) -> Option<(String, String, String, String)> {
-    let payload = decode_hex(name.strip_prefix(PRIVATE_TRAIT_IMPL_PREFIX)?)?;
-    let mut parts = payload.split('|');
+    let mut parts = decode_private_identity(PRIVATE_TRAIT_IMPL_PREFIX, name, 4)?.into_iter();
     let trait_name = parts.next()?;
     let target = parts.next()?;
     let method = parts.next()?;
     let signature = parts.next()?;
-    if !valid_source_symbol(trait_name)
-        || !valid_source_symbol(target)
-        || !valid_source_symbol(method)
+    if !valid_source_symbol(&trait_name)
+        || !valid_source_symbol(&target)
+        || !valid_source_symbol(&method)
         || signature.is_empty()
-        || parts.next().is_some()
     {
         return None;
     }
-    Some((
-        trait_name.to_string(),
-        target.to_string(),
-        method.to_string(),
-        signature.to_string(),
-    ))
+    Some((trait_name, target, method, signature))
 }
 
 pub(crate) fn valid_private_trait_impl_signature(
@@ -1320,34 +1284,4 @@ fn reject_source_private_symbols(ast: &[AstNode]) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-fn encode_hex(value: &str) -> String {
-    value
-        .as_bytes()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
-}
-
-fn decode_hex(encoded: &str) -> Option<String> {
-    if encoded.is_empty()
-        || encoded.len() % 2 != 0
-        || !encoded.bytes().all(|byte| byte.is_ascii_hexdigit())
-    {
-        return None;
-    }
-    let bytes = (0..encoded.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&encoded[index..index + 2], 16).ok())
-        .collect::<Option<Vec<_>>>()?;
-    String::from_utf8(bytes).ok()
-}
-
-fn valid_source_symbol(name: &str) -> bool {
-    let mut characters = name.chars();
-    characters
-        .next()
-        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
-        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }

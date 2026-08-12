@@ -19,7 +19,7 @@ fn main() -> int {
     const EXPECTED: int = 91;
 
     let mut batch: Batch = make_batch();
-    let calibration_seed: Window<int> = Window { values: [0, 20, 30] };
+    let calibration_seed: Window<i32> = Window { values: [0, 20, 30] };
     let calibration: Window<int> = window_set(calibration_seed, 0, BASE);
     let mut sensor_index = 0;
     while sensor_index < 3 {
@@ -127,7 +127,7 @@ const POLICY_SOURCE: &str = r#"trait PolicyValue {
 }
 
 impl PolicyValue for Sensor {
-    fn policy_value(&self, bias: int) -> int {
+    fn policy_value(&self, bias: i32) -> int {
         (*self).value + bias
     }
 }
@@ -560,6 +560,17 @@ fn representative_scalar_application_is_composed_and_portable() {
         ] {
             if !first.contains(anchor) {
                 failures.push(format!("representative LLVM omitted anchor {anchor:?}"));
+            }
+        }
+        for forbidden in [
+            "Window<i32>",
+            "aero.generic.window_get<i32>",
+            "aero.generic.window_set<i32>",
+        ] {
+            if first.contains(forbidden) {
+                failures.push(format!(
+                    "representative LLVM retained split alias identity {forbidden:?}"
+                ));
             }
         }
     }
