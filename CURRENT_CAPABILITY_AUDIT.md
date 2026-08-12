@@ -5,8 +5,52 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-015 project-integration merge
-`b62696272f293f9f378f8a368cc818fcb8ef1074`.
+protected CAP-018 merge
+`c49ff17cab7fc0e8d4f552a71499929135c16c61`, tree
+`3073c881c883984f53fcde2f0b205acbec760145`.
+
+### CAP-018 accepted: immutable exact-array value/result composition
+
+Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
+widens that same profile with immutable exact-array results rather than creating
+another profile. Ordinary nongeneric functions may now construct,
+return, bind, forward, pass, and index immutable exact flat `[int; N]`/`[i32; N]`
+values for `1 <= N <= i32::MAX`. One shared recursive exact-value classifier owns
+the complete admitted root set--literal, exact-array identifier, and ordinary named
+acyclic call--across explicit results, inferred/annotated bindings, call arguments,
+and literal/call/identifier index objects. Semantic analysis, checked IR, independent
+verification, and LLVM production were already capable and remain unchanged.
+
+The maintained eight-lane source-to-native gate now transforms lane 127 to 128 in a
+returned array, forwards that value through another ordinary helper, computes 2035 in
+the dot-plus-bias kernel, proves the original Copy source remains readable, and
+retains exact exit 91. Profile authority tests pass 12/12, fixed-array integration
+passes 14/14, stable-profile controls pass 10/10, backend controls pass 4/4, and the
+complete repository, docs, review, verifier, LLVM, machine, Linux, and pinned Windows
+gates pass.
+
+Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, tree
+`3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
+`c49ff17cab7fc0e8d4f552a71499929135c16c61` are immutable. Candidate push/PR/Rust/CodeQL runs
+`31614934307`, `31614994226`, `31614994253`, and `31614991761` pass. Exact
+merge-head CI/Rust/CodeQL runs `31615467151`, `31615467115`, and `31615465499`
+pass; default-branch Actions/Python/Rust analyses `1608636029`, `1608636345`, and
+`1608644785` pass.
+
+CAP-014 remains the profile origin and first bounded Milestone 3 CPU slice; CAP-018
+is the latest accepted compiler/profile capability. CAP-015 remains the accepted
+M1-001 representative-integration checkpoint. CAP-015 changes no compiler production
+or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture
+stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013 remains the shared specialization identity/
+phase authority, and CAP-018 adds no specialization classifier. The named profile
+remains `END_TO_END`; broad integers and fixed arrays remain `PARTIAL`; only
+`stable-scalar-v0` is `STABLE`.
+
+Mutable array production, recursion, empty/repeat/nested/non-integer arrays,
+projected writes, modules/imports, constants, surrounding aggregate/reference use,
+methods, generics/traits, closures, collections, allocation/drop, I/O, accelerators,
+stable aggregate layout or callable ABI, performance, safety, releases, and language
+completion remain excluded.
 
 ### CAP-015 accepted: embedded character-record representative integration
 
@@ -41,8 +85,9 @@ pass. Exact merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
 public-route, external LLVM, machine-verification, native `-O0`/`-O2`, exact-output,
 and clean runtime-trap evidence.
 
-CAP-014 remains Aero's latest accepted compiler/profile capability.
-CAP-015 is the latest accepted project integration checkpoint and enriches only the existing M1-001
+CAP-014 remains the exact-array profile origin; accepted CAP-018 is the latest
+compiler/profile capability. CAP-015 remains the latest separately classified M1-001
+project integration checkpoint and enriches only the existing M1-001
 `END_TO_END` row. It creates no parser/grammar/profile/conformance row and promotes
 no component feature.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
@@ -52,41 +97,38 @@ General error propagation,
 variable-width inputs, dynamic collections, allocation/drop, I/O, public ABI,
 safety, performance, releases, and whole-language completion remain excluded.
 
-The post-CAP-015 order begins with `CAP-016-MODULE-RESOLUTION-READINESS`, not
-automatic implementation; the ranked successors are typed `Result` propagation and
-runtime byte/file acquisition:
+CAP-016 and CAP-017 are completed architecture stops, not automatic implementation
+successors.
+The post-CAP-018 order begins with mutable loop-produced exact-`i32` flat-array results:
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
-| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
+| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
 | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
 `Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
-lower evidence cost. The module task ranks first for architectural leverage and
-false-success prevention. Before it, direct `mod` collection supports the tracked
-application, but positive `import`/`use` is rejected, module flattening erases
-visibility and namespace distinctions, and specialization identities are not
-qualified for collision-safe composition. After the eventual bounded capability, an
-ordinary acyclic multi-file program should deterministically import public values,
-functions, and types through frozen qualified/unqualified lookup and collision
-rules. Readiness must freeze namespace, visibility, collision, graph/cycle,
-source-path, cache, diagnostic, and private-identity contracts and run a red probe.
-Stop if admission would preserve erased visibility, ambiguous flattened names,
-unqualified specialization identities, order-dependent lookup, unfrozen cycle
-behavior, more than two compiler phases, or a duplicate feature-specific
-specialization classifier.
+lower evidence cost. Rank 1 would add initialized mutable flat arrays, guarded
+runtime-indexed loop writes, returned-value identity, and consumption by the accepted
+CPU kernel while preserving wrapping, bounds-trap, initialization, and source-owner
+oracles. Stop for new mutation/partial-initialization semantics, reference escape,
+stable ABI/layout, more than the profile/backend phase pair, duplicated guards, or an
+unavoidable new IR/verifier contract. A recursive authority that safely subsumes the
+same result at comparable scope/risk would change the decision.
 
-Typed `Result` propagation ranks second. The accepted language can construct,
-transport, and exhaustively match concrete `Result` values, but a fallible ordinary
-call chain must manually destructure each boundary. The intended delta is a bounded
-identity-preserving path that forwards the exact typed error through useful
-multi-function composition; syntax, control-flow, ownership, conversion, and
-diagnostic semantics remain unfrozen. Runtime byte/file acquisition ranks third.
-CAP-015 interprets only source-embedded data; the eventual delta is external bytes in
-a bounded owned buffer feeding typed parsing and CPU computation. That task remains
-stopped until path, byte, buffer/count, error, ownership/drop, platform, and
-determinism contracts are frozen. Neither successor is authorized by this ranking.
+Rank 2 would add one bounded nonempty recursive exact-`i32`/2D matrix class under a
+canonical recursive shape authority, checked multidimensional bounds, and a composed
+native CPU kernel. Stop for unfrozen depth/product bounds, divergent source/physical
+shape identity, stable ABI or new ownership requirements, or rank-specific topology
+guards. Clear expression through rank 1 plus flat indexing would defer it; safe
+subsumption of rank 1 would combine the slices.
+
+Rank 3 would add size-bounded external bytes, a frozen typed acquisition failure, and
+a handoff into parsing and CPU computation. It is not authorizable until path/byte
+identity, capacity/initialized count, partial-read/EOF, error mapping, ownership/drop,
+runtime linkage, sandboxing, determinism, and Linux/Windows behavior are frozen. A
+platform-neutral caller-provided byte slice or embedded-binary source that unlocks the
+flagship sooner would replace or reorder it.
 
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
@@ -115,8 +157,10 @@ exact merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073`
 all pass.
 
 The accepted class remains bounded and experimental outside its named profile.
-Within this profile, array results, empty/repeat/nested arrays, projected or mutable
-array writes, non-integer elements, struct/tuple/enum or reference use,
+Accepted CAP-018 subsequently admits immutable exact array results rooted in
+literals, identifiers, or ordinary acyclic calls across result, binding,
+call-argument, and index-object placements in this same profile. Empty/repeat/nested
+arrays, recursion, projected or mutable array writes, non-integer elements, struct/tuple/enum or reference use,
 modules/imports, constants, methods, generics/traits, closures, dynamic collections,
 allocation/drop, I/O, accelerators, and non-CPU target pairing remain rejected.
 Aggregate layout, callable
@@ -126,8 +170,9 @@ Prototype in correctness recovery. CAP-013 remains accepted as the canonical
 specialization identity and phase authority; CAP-014 neither duplicates nor reopens
 it.
 
-CAP-014 remains the accepted compiler/profile substrate beneath CAP-015's project
-integration. Its exact source/profile boundary and exclusions remain unchanged.
+CAP-014 remains the compiler/profile origin beneath accepted CAP-018; CAP-015 remains
+the separate representative-integration checkpoint. CAP-018 changes only the bounded
+immutable result-composition exclusion stated above.
 
 ### CAP-013 accepted: canonical specialization identity and phase authority
 

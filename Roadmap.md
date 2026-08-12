@@ -12,6 +12,34 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-018 is accepted as immutable exact-array value/result composition inside
+CAP-014's existing CPU-only `exact-i32-array-v0` profile. Accepted CAP-014 created
+the CPU-only `exact-i32-array-v0` profile; accepted CAP-018 widens that same profile
+with immutable exact-array results rather than creating another profile. Ordinary nongeneric
+functions may construct, return, bind, forward, pass, and index immutable exact flat
+`[int; N]`/`[i32; N]` values for `1 <= N <= i32::MAX`. One shared recursive profile
+classifier covers literal, exact-array identifier, and ordinary named acyclic-call
+roots across result, inferred/annotated binding, call-argument, and index-object
+placements. It adds no profile or specialization architecture and changes no semantic,
+checked-IR, verifier, or LLVM production contract.
+
+The maintained eight-lane application now transforms source lane 127 to 128 in a
+returned array, forwards it through an ordinary helper, consumes it in the CPU kernel,
+observes result 2035, preserves the original Copy source, and retains exact exit 91.
+Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, tree
+`3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
+`c49ff17cab7fc0e8d4f552a71499929135c16c61` are immutable. Candidate push/PR/Rust/
+CodeQL runs `31614934307`, `31614994226`, `31614994253`, and `31614991761` pass.
+Merge-head CI/Rust/CodeQL runs `31615467151`, `31615467115`, and `31615465499`
+pass, and default-branch Actions/Python/Rust analyses `1608636029`, `1608636345`, and
+`1608644785` pass. CAP-014 remains the profile origin and first bounded Milestone 3
+CPU slice; CAP-018 is the latest accepted compiler/profile capability. CAP-015 remains
+the accepted M1-001 representative-integration checkpoint. CAP-015 changes no compiler
+production or language-profile code. CAP-016 and CAP-017 remain completed
+readiness/architecture stops, not accepted capabilities; neither adds a profile or matrix row.
+CAP-013 remains the shared
+specialization identity/phase authority.
+
 CAP-014 is accepted as the first bounded Milestone 3 CPU computation slice. Its
 distinct CPU-only `exact-i32-array-v0` profile composes exact wrapping LLVM `i32`
 arithmetic with flat fixed integer arrays, by-value nongeneric calls, guarded runtime
@@ -25,8 +53,10 @@ candidate `226279dd174f26dc3cd1c7573798955bfe789f78`, protected PR #50 merge
 `31570455915`/`31570461500`, Rust CI `31570461524`, CodeQL `31570456382`, and
 merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073` all pass,
 including pinned Linux and Windows LLVM 22 gates. This is one private bounded CPU
-reference computation. Within this profile, array results, empty/repeat/nested arrays,
-projected or mutable array writes, non-integer elements, surrounding aggregate or
+reference computation. Accepted CAP-018 subsequently admits immutable exact array
+results rooted in literals, identifiers, or ordinary acyclic calls across result,
+binding, call-argument, and index-object placements within this same profile.
+Empty/repeat/nested arrays, recursion, projected or mutable array writes, non-integer elements, surrounding aggregate or
 reference use, modules/imports, constants, methods, generics/traits, closures, collections,
 allocation/drop, I/O, accelerators, and non-CPU target pairing remain rejected. It
 does not stabilize ABI/layout, serialization, packages, SIMD, tensor/quantized
@@ -42,9 +72,9 @@ all ten first-malformed-position identities, three first-error precedence contro
 and negative/equal-to-count trap-before-access specimens across public and pinned
 Linux/Windows LLVM/Clang 22 `-O0`/`-O2` routes.
 CAP-015 changes no compiler production or language-profile code.
-CAP-014 remains Aero's latest accepted compiler/profile capability and first Milestone
-3 CPU slice; CAP-015 is the latest
-accepted project integration checkpoint and only enriches the existing M1-001
+CAP-014 remains Aero's exact-array profile origin and first Milestone 3 CPU slice;
+CAP-018 is its latest accepted compiler/profile capability. CAP-015 remains the latest
+separately classified project-integration checkpoint and only enriches the existing M1-001
 `END_TO_END` application evidence. Both named profiles continue to reject the parser.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
 input, and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
@@ -70,15 +100,14 @@ Focused, corruption, complete-root, pinned LLVM 22 O0/O2, exact candidate, prote
 PR #48 merge `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`, and exact merge-head gates
 pass. This does not complete generics or traits.
 
-The post-CAP-015 ranking now controls task selection. First is
-`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation: freeze and red-
-probe positive module/import/name-resolution architecture before admitting a source
-path. Second is typed `Result` propagation across ordinary call chains. Third is
-runtime byte/file acquisition into a bounded owned buffer. The exact scored ranking,
-real-program deltas, and stop conditions appear below. Runtime acquisition remains
-stopped until path, byte, buffer, error, ownership/drop, and platform semantics are
-frozen; a failed module readiness probe must trigger an architecture decision, not a
-guard removal or invented namespace behavior.
+The post-CAP-018 ranking now controls task selection. First is mutable loop-produced
+exact-`i32` flat-array results. Second is one bounded recursive exact-array/2D matrix
+pipeline under a shared recursive shape authority. Third is runtime byte/file
+acquisition into a bounded owned buffer. The exact scored ranking and full before/
+after/stop/change-mind contracts appear below. CAP-016 and CAP-017 remain completed
+stops: no import semantics or propagation syntax may be invented merely to revive
+their earlier rank.
+Mutable loop-produced exact-`i32` flat-array results rank first.
 
 CAP-012 is an accepted Milestone 2 capability. It closes the remaining selected exit
 half by letting the representative telemetry program call ordinary
@@ -421,7 +450,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes; accepted CAP-009 classifies and executes the selected `stable-scalar-v0` subset as `STABLE`. | The wider compiler, component feature rows, experimental default, ABI, ownership, modules, aggregates, and release surface remain unstabilized. | Milestone 0 exit is met; preserve the selected profile while ranking the next broad real-program capability. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. Accepted CAP-015 enriches that same application with exact embedded-character interpretation through guarded reads and typed `Result`, materially composed into the unchanged exit-91 oracle. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`; CAP-015 adds no parser or profile row. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, accepted CAP-008 nonbinding enum wildcards, accepted CAP-010 required-only CopyData trait dispatch, accepted CAP-011 fixed-capacity generic container algorithms, accepted CAP-012 projected call loans, and accepted CAP-013 canonical bounded-specialization identity/phase authority have executable slices. CAP-011 and CAP-012 satisfy the selected generic-data-structure plus ownership-intensive-program exit product. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards; CAP-010 adds one verifier-bound static-dispatch class; CAP-011 and CAP-012 close only the selected exit gate; CAP-013 closes alias/identity/phase drift without adding general semantics. | The selected Milestone 2 exit gate is met. General collections and generic operations, broader traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and ordinary-program breadth remain higher-milestone capability work. |
-| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence. | The CPU lane remains one private named profile over flat integer arrays. CAP-015's embedded-literal evidence belongs only to M1-001 representative integration; runtime ingestion, file input, general parsing, broader error propagation, collections, streaming, quantization/tensors, resource measurement, and accelerator execution remain open. | The milestone exit is not met. Follow the post-CAP-015 ranking, beginning with module-resolution readiness; keep runtime file acquisition stopped until its semantics are frozen. |
+| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence; accepted CAP-018 widens the same profile with immutable exact-array construction, result, binding, forwarding, argument, and direct-index composition. | The CPU lane remains one private named profile over flat integer arrays. Mutable loop-produced results, recursive arrays/2D matrices, and the larger workload remain open. CAP-015's embedded-literal evidence belongs only to M1-001 representative integration; runtime ingestion, file input, general parsing, broader error propagation, collections, streaming, quantization/tensors, resource measurement, and accelerator execution remain open. | The milestone exit is not met. Follow the post-CAP-018 ranking, beginning with mutable flat-array production; keep recursive shapes and runtime file acquisition within their stated stop contracts. |
 
 Accepted CAP-009 closes the selected-stable-subset portion of the Milestone 0 row with
 protected exact-head and merge-head evidence. It does not promote neighboring
@@ -608,60 +637,89 @@ application through checked IR, verified LLVM, and pinned Linux/Windows native
 execution. The selected exit gate is met; general ownership, generics, collections,
 layout/ABI/destruction, and the broader milestone ambitions remain partial.
 
-### Post-CAP-015 ranking
+### Post-CAP-018 ranking
 
-CAP-015 consumed the embedded-record readiness question without changing the compiler:
-the accepted behavior was already sufficient, so the representative gate was enriched
-and the project reranked. Scores are 1--5 with higher better; `Risk` and `Evidence` are
-delivery favorability, so 5 means lower implementation risk or lower evidence cost.
+CAP-018 closed immutable exact-array value/result composition inside CAP-014's existing
+profile. CAP-016 and CAP-017 separately completed their architecture probes and stopped
+because the missing namespace/visibility and propagation-syntax contracts are not
+founded; they are not implementation successors. Scores are 1--5 with higher better;
+`Risk` and `Evidence` are delivery favorability, so 5 means lower implementation risk
+or lower evidence cost.
 
 | Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
-| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
+| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
 | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
-1. `CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation. Before the
-   destination capability, ordinary programs cannot use explicit positive `import` or
-   `use` resolution to organize reusable APIs under defined namespaces and visibility;
-   the existing direct-module flattening does not supply that contract. After the
-   eventual bounded vertical slice, one frozen multi-file program should resolve an
-   explicitly imported name deterministically through source, checked IR, verified
-   LLVM, and native execution. Readiness must first freeze namespace roots, file-to-
-   module mapping, visibility/export rules, qualified and unqualified lookup,
-   shadowing/collisions, dependency order, cycles, diagnostics/spans, cache identity,
-   and specialization identity. Stop if the probe requires silently removing the
-   shared fail-closed guard, erasing visibility, accepting ambiguous lookup, inventing
-   cycle behavior, or crossing the authorized architecture boundary.
-2. typed `Result` propagation across ordinary call chains. Before this capability,
-   each fallible layer must manually inspect and reconstruct `Result` with exhaustive
-   `Match`; a useful parser/service pipeline cannot concisely forward its first typed
-   error. After a separately frozen slice, an admitted ordinary call chain should
-   return the unchanged error and continue the success value under independently
-   verified control flow. Stop unless propagation syntax, early-return behavior,
-   exact success/error compatibility, ownership effects, source spans, and interaction
-   with explicit `Match` are frozen without generalizing carriers or generics by
-   accident.
-3. runtime byte/file acquisition into a bounded owned buffer. Before this capability,
-   Aero can interpret only source-embedded characters, not acquire external workload
-   bytes. After its eventual bounded slice, a real CPU workload should obtain a
-   size-bounded owned buffer, report acquisition failure through a frozen typed error,
-   and hand validated data to computation. This work remains stopped until path and
-   byte identities, buffer capacity/initialization, partial reads, EOF, error mapping,
-   ownership/drop, runtime linkage, sandboxing, and Linux/Windows behavior are frozen.
+1. Mutable loop-produced exact-`i32` flat-array results.
 
-The ranking favors broad composition and the shortest credible path to normal Aero
-programs; it does not authorize any of the three implementations. Evidence that module
-semantics cannot be bounded without a package architecture, that explicit `Match`
-already serves the target error workflow better than propagation, or that a safe
-platform-neutral byte source must precede filesystem paths would change the order and
-require a fresh scored decision.
+   Before, `exact-i32-array-v0` can construct, return, bind, forward, and consume
+   immutable flat array values, but cannot initialize a mutable flat array, transform
+   it with guarded runtime-indexed loop writes, and return the produced value. After,
+   one ordinary bounded nongeneric function can initialize an exact flat array, update
+   its lanes once through checked loop selectors, return it by value, and feed it into
+   the accepted CPU kernel while preserving wrapping, bounds-trap, and source-ownership
+   oracles.
+
+   Stop and rerank if the complete flat mutation/result class needs new source mutation
+   semantics, partial/uninitialized-array semantics, reference escape, stable
+   ABI/layout, more than the authorized profile/backend phase pair, or any guard duplicated
+   outside the shared profile and projected-place authorities.
+
+   What would change our mind: Evidence that the checked mutation path cannot prove
+   whole-array initialization and returned-value identity without a new IR/verifier
+   contract, or that one shared recursive-array slice can safely subsume this capability
+   at comparable scope and risk, would change the decision.
+
+2. Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared
+   recursive shape authority.
+
+   Before, the exact CPU profile admits only flat nonempty integer arrays, so no trusted
+   exact 2D matrix value can be produced, transported, indexed across both dimensions,
+   and consumed by a matrix-shaped CPU computation. After, one canonical recursive
+   exact-array shape authority should admit a separately bounded nonempty integer matrix
+   class and execute a composed 2D kernel through checked multidimensional bounds,
+   verified LLVM, and Linux/Windows native oracles—without rank-, dimension-, or
+   argument-order-specific classifiers.
+
+   Stop if depth/product bounds are unfrozen, recursive physical mapping cannot consume
+   the same canonical shape as source admission, a stable aggregate ABI or new ownership
+   semantics are required, or implementation starts adding rank-specific topology
+   guards.
+
+   What would change our mind: If a task-local probe shows the useful matrix workload is
+   already expressible clearly with row 1 plus flat indexing, defer recursive syntax;
+   if the recursive authority safely absorbs row 1 within the same bounded phase/risk
+   envelope, combine the work instead of stacking topology milestones.
+
+3. Runtime byte/file acquisition into a bounded owned buffer.
+
+   Before, Aero can interpret only source-embedded character/array data; it cannot
+   acquire external workload bytes. After the eventual capability, a cross-platform
+   program should acquire a size-bounded owned byte buffer, report a frozen typed
+   acquisition failure, and hand validated bytes to parsing and CPU computation.
+
+   This row is a strategic gap, not an authorizable implementation: stop until path
+   and byte identity, capacity/initialized-count, partial-read/EOF, error mapping,
+   ownership/drop, runtime linkage, sandboxing, determinism, and Linux/Windows behavior
+   are explicitly frozen.
+
+   What would change our mind: Evidence that a platform-neutral caller-provided byte
+   slice or embedded-binary source unlocks the flagship workload sooner and safely
+   avoids filesystem/runtime semantics would replace or reorder this row.
+
+The ranking favors broad executable composition and a shortest credible path toward
+the Aero-native CPU workload. It authorizes no implementation by itself, and it does
+not revive the stopped module or propagation designs.
 
 ## Milestone 3 - Aero-native AI/ML infrastructure flagship
 
 - Accepted CAP-014 provides the first bounded CPU computation toward this milestone:
   an exact wrapping `i32` fixed-array kernel with guarded dynamic indexing and a
-  cross-platform native oracle. It does not meet the milestone exit.
+  cross-platform native oracle. Accepted CAP-018 widens that same profile with
+  immutable exact-array result composition. Together they still do not meet the
+  milestone exit.
 - Build a correct CPU reference workload for binary/tensor ingestion and a small
   quantized numerical kernel.
 - Grow it into a streaming data or inference component that exercises Aero's
