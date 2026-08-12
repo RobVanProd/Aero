@@ -1,5 +1,74 @@
 # Aero Task Ledger
 
+## CAP-014 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from exact protected master
+  `ca09ebe3c1b981339c8bf56b360e62208ac900e1` (tree
+  `448e1c2ff397012804b886b904aa43bec63f2d37`) on
+  `agent/cap-014-acceptance-sync`. User/app-owned untracked
+  `.codex-remote-attachments/` and `tmp/` remain outside the task. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Observed behavior and real-program consequence: protected PR #50 accepted the
+  first bounded Milestone 3 CPU data-computation slice, but the cumulative truth
+  surfaces still identify CAP-013 as current and still name the now-accepted exact
+  fixed-array kernel as future work. This is an observability defect only. Before
+  this sync, a reader cannot reliably discover that Aero can execute the selected
+  exact wrapping `i32` fixed-array kernel; afterward, all current-state surfaces
+  consistently describe that bounded program and its exclusions without claiming
+  general integer arrays, SIMD, tensors, performance, safety, stability, or language
+  completion.
+- Mechanism, assumptions, and immutable evidence: update only cumulative records and
+  their exact claim assertions. Corrected candidate
+  `226279dd174f26dc3cd1c7573798955bfe789f78` and protected merge
+  `ca09ebe3c1b981339c8bf56b360e62208ac900e1` share tree
+  `448e1c2ff397012804b886b904aa43bec63f2d37`; the merge parents are prior accepted
+  master `1b0a5bab67ed44527a0c5c363bb2f86ce98bc343` then that candidate. Candidate
+  push/PR CI `31570455915`/`31570461500`, Rust CI `31570461524`, and CodeQL
+  `31570456382` pass. Merge-head CI `31570823665`, Rust CI `31570823712`, and
+  CodeQL `31570823073` pass, including stable `94032246048`, nightly
+  `94032246051`, Windows LLVM 22 `94032246011`, and exact-SHA actions/Python/Rust
+  code-scanning analyses with no errors. The accepted PR metadata separately retains
+  the failed first-candidate chronology.
+- Frozen wording and boundary: record the distinct CPU-only
+  `exact-i32-array-v0` profile, flat `[int; N]`/`[i32; N]` with
+  `1 <= N <= i32::MAX`, explicitly annotated immutable literal locals, by-value
+  nongeneric parameters, identifier call transport, direct admitted scalar indexing,
+  exact wrapping `i32` storage/arithmetic, signed pre-GEP bounds traps, and the
+  tracked exits 91/93. Keep `stable-scalar-v0` frozen and keep broad integers and
+  fixed arrays partial. Preserve exclusions for array results/writes, neighboring
+  aggregate shapes, general modules/imports, constants, references, generics/traits,
+  closures, I/O, allocation/drop, accelerators, ABI/layout, performance, tensors,
+  safety, stability, releases, and language completion. Preserve all historical
+  authorization, red, failed-candidate, correction, and acceptance chronology.
+- Allowed files and architecture boundary: only `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. No compiler production,
+  example, workflow, dependency, package, release, benchmark, claim-verification,
+  protection, or external artifact change is authorized.
+- Measurement, failure modes, and detection: every current surface must identify
+  CAP-014 and exact accepted master, describe the same bounded profile, retain Minimal
+  Prototype status and exclusions, and replace the consumed fixed-array-next wording
+  with the fresh post-CAP-014 three-gap ranking. Exact positive/stale-negative claim
+  assertions, diff/file-scope inspection, formatting, documentation, the complete
+  root gate, independent read-only review, exact-head public checks, protected merge,
+  and merge-head workflows detect stale identity, tense drift, candidate/acceptance
+  conflation, unsupported broadening, or evidence omission.
+- Recovery, decision threshold, strategic value, and what would change our mind: this
+  branch and one bounded PR are the rollback boundary. Publish only if all nine files
+  agree, focused and complete gates pass, review reports no blocker, and the exact
+  record candidate passes every protected check. Do not begin the next compiler
+  capability until this sync is accepted. Stop if GitHub identities or trees diverge,
+  any merge-head analysis is incomplete, the fresh ranking cannot be supported by the
+  founding framework and accepted capability matrix, or accurate wording would
+  require a language/roadmap semantic decision. Such evidence would revoke the
+  affected claim or leave next-task selection explicitly pending rather than inventing
+  semantics. Strategically, this restores one source of truth and forces the next
+  task upward toward the best real-program payoff after CAP-014.
+
 ## CAP-014 - exact fixed-width integer fixed-array CPU reference kernel
 
 - Date/task/status: 2026-08-12, `CAP-014`, authorized red-first executable
