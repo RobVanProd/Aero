@@ -5,8 +5,88 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-014 compiler-capability merge
-`ca09ebe3c1b981339c8bf56b360e62208ac900e1`.
+protected CAP-015 project-integration merge
+`b62696272f293f9f378f8a368cc818fcb8ef1074`.
+
+### CAP-015 accepted: embedded character-record representative integration
+
+Accepted CAP-015 enriches the existing M1-001 representative application rather
+than adding a compiler feature. Its exact source-embedded grammar is
+`T=<digit><digit>;H=<digit><digit>;` in `[char; 10]`; equality-only ASCII decoding
+returns the first unexpected character unchanged through `Result<int, char>` or
+computes `temperature * 2 + humidity`. Canonical input `T=17;H=08;` produces 42,
+which is materially consumed as telemetry's third calibration sensor while exact
+stdout `telemetry score: 91` and exit 91 remain unchanged. Boundaries 0 and 297, all
+ten malformed positions, three first-error-precedence controls, and negative-one and
+equal-to-count runtime bounds traps complete the frozen application class.
+
+CAP-015 changes no compiler production or language-profile code. It composes
+already accepted experimental character identity, guarded fixed-array reads,
+concrete recursive-CopyData `Result` transport, exhaustive `Match`, direct module
+collection, canonical checked IR, independent verification, and LLVM generation.
+Semantic and raw checked routes retain exact `char`, `[char; 10]`, and
+`Result<int, char>` metadata. The public artifact matches library parser-function
+LLVM; every one of ten reads identity-binds lower/upper comparisons, conjunction,
+guard branch, safe/trap labels, checked conversion, and `[10 x i32]` GEP; and the
+decimal classifier contains ten exact equality cases with no numeric character
+conversion. Both named profiles reject the module-free specimen, so neither
+`stable-scalar-v0` nor `exact-i32-array-v0` is widened.
+
+Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f` and protected PR #52
+merge `b62696272f293f9f378f8a368cc818fcb8ef1074` share tree
+`27f359bc5ca90212a06ce73b71759cac0533c1f0`. Candidate push/PR CI
+`31597830488`/`31598146528`, Rust CI `31598146473`, and CodeQL `31598144554`
+pass. Exact merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
+`31598633803` pass, including stable, nightly, pinned Windows LLVM/Clang 22,
+public-route, external LLVM, machine-verification, native `-O0`/`-O2`, exact-output,
+and clean runtime-trap evidence.
+
+CAP-014 remains Aero's latest accepted compiler/profile capability.
+CAP-015 is the latest accepted project integration checkpoint and enriches only the existing M1-001
+`END_TO_END` row. It creates no parser/grammar/profile/conformance row and promotes
+no component feature.
+General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
+input, and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
+bounded Unicode scalar `char` remains `PARTIAL`.
+General error propagation,
+variable-width inputs, dynamic collections, allocation/drop, I/O, public ABI,
+safety, performance, releases, and whole-language completion remain excluded.
+
+The post-CAP-015 order begins with `CAP-016-MODULE-RESOLUTION-READINESS`, not
+automatic implementation; the ranked successors are typed `Result` propagation and
+runtime byte/file acquisition:
+
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
+| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+`Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
+lower evidence cost. The module task ranks first for architectural leverage and
+false-success prevention. Before it, direct `mod` collection supports the tracked
+application, but positive `import`/`use` is rejected, module flattening erases
+visibility and namespace distinctions, and specialization identities are not
+qualified for collision-safe composition. After the eventual bounded capability, an
+ordinary acyclic multi-file program should deterministically import public values,
+functions, and types through frozen qualified/unqualified lookup and collision
+rules. Readiness must freeze namespace, visibility, collision, graph/cycle,
+source-path, cache, diagnostic, and private-identity contracts and run a red probe.
+Stop if admission would preserve erased visibility, ambiguous flattened names,
+unqualified specialization identities, order-dependent lookup, unfrozen cycle
+behavior, more than two compiler phases, or a duplicate feature-specific
+specialization classifier.
+
+Typed `Result` propagation ranks second. The accepted language can construct,
+transport, and exhaustively match concrete `Result` values, but a fallible ordinary
+call chain must manually destructure each boundary. The intended delta is a bounded
+identity-preserving path that forwards the exact typed error through useful
+multi-function composition; syntax, control-flow, ownership, conversion, and
+diagnostic semantics remain unfrozen. Runtime byte/file acquisition ranks third.
+CAP-015 interprets only source-embedded data; the eventual delta is external bytes in
+a bounded owned buffer feeding typed parsing and CPU computation. That task remains
+stopped until path, byte, buffer/count, error, ownership/drop, platform, and
+determinism contracts are frozen. Neither successor is authorized by this ranking.
 
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
@@ -46,18 +126,8 @@ Prototype in correctness recovery. CAP-013 remains accepted as the canonical
 specialization identity and phase authority; CAP-014 neither duplicates nor reopens
 it.
 
-The post-CAP-014 order begins with `CAP-015-READINESS`, not automatic
-implementation. Freeze the bounded embedded-data `[char; N]` parser/interpreter's
-exact ASCII grammar/result contract. Its specimen may already compile experimentally,
-so run the complete representative program as a red probe against accepted behavior.
-A green probe installs the representative gate and triggers a reranking without a
-compiler change. A red limited to one established class spanning at most two compiler
-phases may be separately authorized and closed; unfrozen semantics, profile fusion,
-or any widening of `exact-i32-array-v0` requires a stop and decision. The next gaps
-remain a separately frozen positive module/import/name-resolution architecture and
-then runtime file-byte acquisition. Its path/byte/buffer/error/ownership-drop/platform
-contracts are not frozen, so file I/O remains stopped. No new implementation may
-begin before this accepted-truth synchronization is green and protected-integrated.
+CAP-014 remains the accepted compiler/profile substrate beneath CAP-015's project
+integration. Its exact source/profile boundary and exclusions remain unchanged.
 
 ### CAP-013 accepted: canonical specialization identity and phase authority
 

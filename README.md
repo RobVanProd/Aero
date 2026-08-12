@@ -160,6 +160,28 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
+> **CAP-015 accepted project integration:** protected master now includes the bounded
+> embedded character-record interpreter in the existing M1-001 telemetry application.
+> The maintained source interprets exact grammar
+> `T=<digit><digit>;H=<digit><digit>;`, obtains 42 from `T=17;H=08;`, materially uses
+> that value as its third calibration sensor, proves results 0 and 297 at the numeric
+> boundaries, and preserves exact output `telemetry score: 91` and exit 91. All ten
+> first-malformed positions, three first-error precedence controls, and negative and
+> equal-to-count parser-index traps are exercised. Checked metadata retains `char`,
+> `[char; 10]`, and `Result<int, char>`; public and library LLVM agree; and Linux and
+> Windows LLVM/Clang 22 `-O0`/`-O2` gates verify and execute the representative and
+> trap controls. Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f`,
+> protected PR #52 merge `b62696272f293f9f378f8a368cc818fcb8ef1074`, and shared
+> tree `27f359bc5ca90212a06ce73b71759cac0533c1f0` are exact. Candidate push/PR CI
+> `31597830488`/`31598146528`, Rust CI `31598146473`, CodeQL `31598144554`, and
+> merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` pass.
+> CAP-015 changes no compiler production or language-profile code; both named profiles
+> continue to reject the parser specimen. It adds no CAP-015 parser, grammar, profile,
+> language-feature, stability, or conformance row.
+> General-purpose text parsing, runtime Strings, serialization, runtime ingestion,
+> file input, and Unicode text encoding/normalization remain unsupported; accepted
+> CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.
+
 > **CAP-014 accepted:** protected master now includes the distinct CPU-only
 > `exact-i32-array-v0` profile. It admits flat `[int; N]`/`[i32; N]` with
 > `1 <= N <= i32::MAX`, explicitly annotated immutable literal locals, by-value
@@ -248,22 +270,38 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-014:** Aero remains a Minimal Prototype in correctness
-> recovery, not a complete or stable language. Accepted public and compiler-capability
-> baseline is protected CAP-014 merge
-> `ca09ebe3c1b981339c8bf56b360e62208ac900e1`.
+> **Project status after CAP-015:** Aero remains a Minimal Prototype in correctness
+> recovery, not a complete or stable language. The accepted public
+> baseline is protected CAP-015 project-integration merge
+> `b62696272f293f9f378f8a368cc818fcb8ef1074`.
+> CAP-014 remains Aero's latest accepted compiler/profile capability and first
+> Milestone 3 CPU slice. CAP-015 is the latest accepted project integration checkpoint
+> and enriches M1-001 without widening either language profile.
 > CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
 > general ownership, generics, collections, layout/ABI/destruction, and ordinary-
 > program breadth remain partial.
-> The next action is `CAP-015-READINESS`, not automatic implementation: freeze one
-> exact ASCII grammar and result for a bounded embedded-data `[char; N]` parser/
-> interpreter, then run the complete program as a red probe without widening
-> `exact-i32-array-v0`. If it is already green, install it as a representative gate
-> and rerank; if exactly one established at-most-two-phase class blocks it, close that
-> class; if profile fusion, semantic invention, or wider architecture is required,
-> stop for a decision. Positive module/import resolution comes next only under a
-> separately frozen namespace and graph contract. Runtime file-byte acquisition
-> remains blocked on path, buffer, error, ownership, and platform semantics.
+>
+> The fresh post-CAP-015 ranking uses 1--5 scores; higher risk/evidence favorability
+> means safer and cheaper delivery:
+>
+> | Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+> |---:|---|---:|---:|---:|---:|---:|---:|---:|
+> | 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
+> | 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+> | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+>
+> The next action is `CAP-016-MODULE-RESOLUTION-READINESS`, not automatic
+> implementation: freeze namespace, visibility, graph/cycle, qualification, source-
+> location, and specialization-identity contracts, then run a red probe before any
+> guard removal. Before that task, direct `mod` collection only flattens files while
+> executable `use` and `import` fail closed; afterward, a bounded ordinary multi-file
+> program should resolve explicit names without identity collisions. Evidence that
+> this requires invented semantics, more than the frozen phase boundary, or duplicate
+> specialization authority stops the task and changes the architecture decision.
+> Typed `Result` propagation is second because ordinary error-returning call chains
+> cannot yet propagate without explicit `Match`. Runtime byte/file acquisition is
+> third and remains stopped until path, byte, bounded-buffer, error, ownership/drop,
+> and platform contracts are frozen.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

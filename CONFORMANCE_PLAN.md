@@ -106,6 +106,22 @@
   verification, and native `-O0`/`-O2` execution are required on pinned Linux and
   Windows LLVM/Clang 22. This is selected-profile conformance only, not broad array,
   ABI/layout, SIMD, tensor, performance, accelerator, safety, or stability conformance.
+- The accepted CAP-015 representative integration must retain one exact embedded
+  `[char; 10]` grammar, equality-only ASCII digit classification, exact
+  `Result<int, char>` checked metadata, and material consumption of canonical value 42
+  by the existing exit-91 telemetry oracle. Positive evidence retains 0 and 297
+  boundaries; negative evidence retains all ten first-malformed-position identities,
+  three first-error precedence cases, profile rejection, forbidden numeric-character
+  representations, and negative/equal-to-count trap-before-GEP controls. The Linux and
+  Windows representative lanes must each retain public check/verified-build/run,
+  external LLVM and machine verification, Clang `-O0`/`-O2`, exact stdout/exit 91,
+  and the same runtime-failure loop.
+  CAP-015 changes no compiler production or language-profile code.
+  It enriches only M1-001 `END_TO_END` application evidence;
+  it is not a parser, grammar, feature, profile, or promoted component conformance row.
+  General-purpose text parsing, runtime Strings, serialization, runtime ingestion,
+  file input, and Unicode text encoding/normalization remain unsupported; accepted
+  CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,
@@ -136,18 +152,20 @@
 ## Real-program progression
 
 The release suite has reached bounded generic-data-structure, ownership-intensive,
-canonical-specialization telemetry, and exact fixed-width integer fixed-array CPU
-kernel stages. `CAP-015-READINESS` is the next action, not automatic implementation:
-freeze one exact ASCII grammar/result for a bounded embedded-data `[char; N]` parser/
-interpreter and run the complete program as a red probe without widening
-`exact-i32-array-v0`. If it is already green, install it as a representative gate and
-rerank; if exactly one established at-most-two-phase capability class blocks it, close
-that class; if profile fusion, semantic invention, or wider architecture is required,
-stop for a decision. Positive module/import name resolution follows only after its
-namespace, visibility, collision, cycle, graph, and cache semantics are separately
-frozen. Runtime file-byte acquisition remains blocked until its path, buffer, error,
-ownership, and platform contracts are frozen. Real vector, matrix, and tensor
-accelerator workloads follow only after their runtime contracts exist.
+canonical-specialization telemetry, exact fixed-width integer fixed-array CPU kernel,
+and embedded-character representative-integration stages. Accepted CAP-015 consumes
+the prior parser readiness probe without widening `exact-i32-array-v0` or changing the
+compiler: the existing M1-001 application now proves that structured embedded data can
+reach materially used typed computation under the established cross-platform oracle.
+`CAP-016-MODULE-RESOLUTION-READINESS` is the next action: freeze namespace roots,
+file/module identity, visibility, qualified and unqualified lookup, collisions,
+dependency order, cycles, diagnostics, cache identity, and specialization identity,
+then red-probe one bounded positive multi-file program before any guard removal.
+Second is typed `Result` propagation across ordinary call chains; third is
+runtime byte/file acquisition into a bounded owned buffer. File acquisition remains stopped
+until path, byte, buffer, partial-read/EOF, error, ownership/drop, runtime-linkage, and
+Linux/Windows contracts are frozen. Real vector, matrix, and tensor accelerator
+workloads follow only after their runtime contracts exist.
 
 ## Platform matrix
 
@@ -181,6 +199,35 @@ nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
+
+Accepted CAP-015 enriches the existing M1-001 representative application with one
+exact source-embedded `[char; 10]` telemetry record. Ten identity-linked signed
+bounds guards protect ten runtime reads; equality-only ASCII classification returns
+the first unexpected `char` through exact `Result<int, char>` metadata; exhaustive
+`Match` supplies canonical value 42, which is materially consumed while preserving
+exact stdout `telemetry score: 91` and exit 91. Boundary results 0 and 297, all ten
+malformed positions, three first-error precedence cases, absence of forbidden numeric-
+character conversion/representation, exact raw/semantic/public LLVM parity, both
+profile rejections, and negative/equal-to-count trap controls are retained. The same
+existing Linux and Windows representative lanes perform public check/required-
+verifier build/run, external LLVM and machine verification, Clang `-O0`/`-O2`, exact
+output/exit, and clean runtime-failure checks.
+CAP-015 changes no compiler production or language-profile code.
+CAP-014 remains Aero's latest accepted compiler/profile capability and first Milestone
+3 CPU slice; CAP-015 is the latest accepted project
+integration checkpoint and only enriches the M1-001 `END_TO_END` row. General-purpose
+text parsing, runtime Strings, serialization, runtime ingestion, file input, and
+Unicode text encoding/normalization remain unsupported; accepted CORE-072's bounded
+Unicode scalar `char` remains `PARTIAL`.
+
+Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f`, protected PR #52
+merge `b62696272f293f9f378f8a368cc818fcb8ef1074`, and shared tree
+`27f359bc5ca90212a06ce73b71759cac0533c1f0` are immutable. Candidate push/PR CI
+`31597830488`/`31598146528`, Rust CI `31598146473`, CodeQL `31598144554`, and
+merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` all pass,
+including pinned Linux/Windows LLVM/Clang 22 representative and bounds-trap gates.
+This accepted evidence adds no CAP-015 parser/profile row and promotes no neighboring
+component classification.
 
 Accepted CAP-014 adds one selected `exact-i32-array-v0` conformance lane. Its
 CPU-only profile admits the exact flat fixed-array source class and rejects the full
