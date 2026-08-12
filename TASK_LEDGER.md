@@ -1,5 +1,97 @@
 # Aero Task Ledger
 
+## CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION - loop-produced flat-array results
+
+- Date/task/status: 2026-08-12, `CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION`, authorized
+  architecture audit and red-first vertical slice on
+  `agent/cap-019-mutable-array-results` from exact accepted master
+  `84916e124752b8e7d228855a0969cd9eab8dba26`, tree
+  `1fedb29c3cc865b3e4900d9aee47855396d8fa9a`. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remains untouched.
+- Selection and project payoff: the protected CAP-018 truth sync ranks mutable
+  loop-produced exact-`i32` flat-array results first at `5/5/5/5/3/3 = 26`, ahead
+  of one recursive exact-array/2D matrix authority at 23 and runtime byte/file
+  acquisition at 21. Before this task, `exact-i32-array-v0` can construct, return,
+  bind, forward, and consume immutable flat exact-array values, but an ordinary helper
+  cannot copy or initialize one into a mutable local, update lanes under guarded
+  runtime loop selectors, and return the produced value. The intended after-state is
+  one ordinary nongeneric transform feeding the accepted CPU kernel while preserving
+  source-copy, wrapping, bounds-trap, and Linux/Windows O0/O2 oracles.
+- Frozen language class: only the existing selected profile and its flat nonempty
+  `Array<Int, N>` logical shape for `1 <= N <= i32::MAX`, including `int`/`i32` alias
+  identity. A mutable local array must be fully initialized at declaration from one
+  already admitted immutable exact-array value source (literal, exact identifier, or
+  acyclic ordinary nongeneric call) of the same count. The only new mutation placement
+  under consideration is direct projected assignment through that mutable owned local,
+  `local[index] = value`, where the existing profile proves exact-Int index/value
+  expressions and the existing checked projected-place path owns lower/upper bounds,
+  trap-before-GEP ordering, and aggregate identity. The representative transform must
+  use an ordinary admitted loop and materially change lanes before returning the whole
+  initialized value by Copy. “Each lane once” is an application oracle, not a new
+  global definite-assignment theorem; declaration initialization makes every lane valid
+  before any loop write.
+- Preserved exclusions: no uninitialized or partially initialized arrays, mutable
+  parameters/results/aliases, references or escaping places, whole-array reassignment,
+  nested/recursive/repeat/zero/oversized/non-Int arrays, structs/enums/tuples, modules,
+  generics/traits, recursion, compound assignment, division/remainder, iterators,
+  methods, closures, heap/collections/tensors/SIMD/GPU, stable aggregate ABI/layout,
+  performance, or safety claim. Preserve `stable-scalar-v0` byte-for-behavior and the
+  broad experimental compiler. CAP-013's single specialization identity/phase
+  authority is unchanged; this task must not add a specialization classifier.
+- Architecture hypothesis and shared authority: accepted general checked IR already
+  owns initialized mutable recursive-CopyData projected writes and accepted CAP-014/018
+  already own the exact flat physical lane, immutable value classification, returns,
+  and bounds helper. The expected smallest production change is therefore one shared
+  `language_profile.rs` policy/classifier extension, with existing backend admission
+  consuming the same profile disposition. Do not add placement-specific return,
+  binding, loop, or store guards. A fresh audit must prove this assumption before any
+  production mutation and enumerate every source root/placement boundary.
+- Red-first evidence and acceptance threshold: first commit one focused matrix in
+  `src/compiler/tests/fixed_int_array_profile_tests.rs` proving the current exact
+  profile rejects the canonical fully initialized mutable transform before semantics
+  and leaves no artifacts, while raw semantic, raw checked admission, and experimental
+  compilation already accept the same shape. Cover literal/identifier/call
+  initialization, static and dynamic projected writes, exact count/alias identity,
+  loop-carried index/accumulator behavior, source preservation, whole-result return,
+  and downstream kernel use. Freeze separation failures for immutable targets,
+  wrong-count/non-Int/nested sources, array-valued stores, unsupported index/value
+  expressions, reference/escape attempts, whole-array assignment, recursion, and both
+  named profiles. Green requires one shared classifier/unit matrix, deterministic
+  diagnostics, semantic/raw/public parity, logical checked metadata, verifier
+  corruption controls only for any genuinely new invariant, exact `[N x i32]` LLVM,
+  guard/store/load/return identity, public check/build/run, opt/llc/Clang LLVM 22 O0/O2
+  native application and trap controls on Linux/Windows, full `./tools/test.sh`, docs,
+  review, exact-head public checks, protected merge, and fresh merge-head evidence.
+- Initially allowed files and rollback: this authorization and red phase may change
+  only `TASK_LEDGER.md` and
+  `src/compiler/tests/fixed_int_array_profile_tests.rs`. After a green architecture
+  audit confirms the phase boundary, production is initially limited to
+  `src/compiler/src/language_profile.rs`; the existing
+  `examples/fixed_int_array_v0/main.aero` and `.github/workflows/rust.yml` may be
+  amended only for the material product/native gate. Any need for another file must
+  amend this record before editing. The authorization commit is the rollback boundary;
+  every later checkpoint is additive and must keep red evidence distinct from green.
+- Failure modes, detection, and recovery: a partial implementation could accept a
+  mutable declaration but reject its writes/return; launder Bool/Unknown/array values
+  into Int; bypass count or alias identity; mutate the source Copy; lower stores as
+  double; omit negative/equal-to-count traps; admit immutable writes; change stable
+  diagnostics; introduce order-dependent loop behavior; or add another topology
+  classifier. Root-by-placement positives, typed negatives, metadata/corruption checks,
+  LLVM identity/absence assertions, source/transformed oracles, public/native O0/O2,
+  and stable controls detect these. Revert to the last green checkpoint rather than
+  weakening tests or widening the language claim.
+- Stop, merge threshold, strategic value, and change of mind: stop before production
+  if the useful complete class needs new source mutation semantics, partial/uninitialized
+  state, reference escape, stable ABI/layout, semantic/IR/verifier production changes,
+  more than the authorized profile/backend phase pair, or any guard duplicated outside
+  shared profile/projected-place authorities. Merge only an immutable candidate whose
+  complete local/public/native evidence is green and whose exclusions remain explicit.
+  This advances ordinary CPU array transforms and the path toward matrix/AI kernels.
+  Evidence that returned-value identity cannot be proven without a new IR/verifier
+  contract, or that one shared recursive-array slice safely subsumes this capability at
+  comparable scope and risk, must stop this task and trigger reranking.
+
 ## CAP-018-ACCEPTANCE-SYNC - immutable array-result composition accepted truth
 
 - Date/task/status: 2026-08-12, `CAP-018-ACCEPTANCE-SYNC`, authorized bounded
