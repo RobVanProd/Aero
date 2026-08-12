@@ -1883,6 +1883,10 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
         ("llc-22 -verify-machineinstrs", 2),
         ("clang-22 -O0", 1),
         ("clang-22 -O2", 1),
+        (
+            "test \"$(printf '%s\\n' \"${public_output}\" | grep -Fxc \"Exit code: ${expected}\")\" -eq 1",
+            1,
+        ),
         ("if [ \"${name}\" = kernel ]; then", 1),
         (
             "kernel_mutation_pattern='(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32",
