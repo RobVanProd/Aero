@@ -1,12 +1,33 @@
 mod model;
 mod policy;
+mod records;
 
 fn main() -> int {
     const BASE: int = 10 + 1;
     const EXPECTED: int = 91;
 
+    let parsed_record: Result<int, char> = parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';']);
+    let parsed_value = result_or(parsed_record, -100);
+    let parser_contract = parsed_value == 42
+        && result_or(parse_record(['T', '=', '0', '0', ';', 'H', '=', '0', '0', ';']), -1) == 0
+        && result_or(parse_record(['T', '=', '9', '9', ';', 'H', '=', '9', '9', ';']), -1) == 297
+        && result_has_error(parse_record(['X', '=', '1', '7', ';', 'H', '=', '0', '8', ';']), 'X')
+        && result_has_error(parse_record(['T', ':', '1', '7', ';', 'H', '=', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', 'x', '7', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', 'x', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ':', 'H', '=', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'J', '=', '0', '8', ';']), 'J')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', ':', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', 'x', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', 'x', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', '8', ':']), ':')
+        && result_has_error(parse_record(['X', '=', 'x', '7', ';', 'H', '=', '0', '8', ';']), 'X')
+        && result_has_error(parse_record(['T', '=', 'x', 'y', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', 'x', ':', 'H', '=', '0', '8', ';']), 'x');
+    if !parser_contract { return 2; }
+
     let mut batch: Batch = make_batch();
-    let calibration_seed: Window<i32> = Window { values: [0, 20, 30] };
+    let calibration_seed: Window<i32> = Window { values: [0, 8, parsed_value] };
     let calibration: Window<int> = window_set(calibration_seed, 0, BASE);
     let mut sensor_index = 0;
     while sensor_index < 3 {

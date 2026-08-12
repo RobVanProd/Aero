@@ -1399,6 +1399,24 @@ jobs:
         grep -Fq 'aero.generic.window_get<char>' "${representative_llvm}"
         grep -Fq 'aero.generic.window_set<int>' "${representative_llvm}"
         grep -Fq 'aero.generic.window_set<char>' "${representative_llvm}"
+        grep -Fq 'define { i32, double, i32 } @parse_record([10 x i32]' "${representative_llvm}"
+        parser_llvm="$(awk '/^define .*@parse_record\(/ { capture=1 } capture { print } capture && /^}/ { exit }' "${representative_llvm}")"
+        parser_lower_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'fcmp oge double' || true)"
+        parser_upper_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'fcmp olt double' || true)"
+        parser_trap_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'call void @llvm.trap()' || true)"
+        parser_gep_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'getelementptr inbounds [10 x i32]' || true)"
+        if test "${parser_lower_count}" -ne 10 \
+          || test "${parser_upper_count}" -ne 10 \
+          || test "${parser_trap_count}" -ne 10 \
+          || test "${parser_gep_count}" -ne 10; then
+          echo "representative parser LLVM did not contain exactly ten guarded character reads"
+          exit 1
+        fi
+        if grep -Fq '[10 x double]' "${representative_llvm}" \
+          || grep -Fq 'sitofp i32 %aero.arg.character' "${representative_llvm}"; then
+          echo "representative parser retained a forbidden numeric character array lane"
+          exit 1
+        fi
         if grep -E '@printf\([^\n]*, i64 ' "${representative_llvm}"; then
           echo "representative telemetry LLVM rewrote a numeric printf argument to i64"
           exit 1
@@ -1435,7 +1453,9 @@ jobs:
           generic_negative_write_index.aero \
           generic_upper_bound_write_index.aero \
           projected_negative_index.aero \
-          projected_upper_bound_index.aero; do
+          projected_upper_bound_index.aero \
+          parser_negative_index.aero \
+          parser_equal_to_count_index.aero; do
           bounds_case="${bounds_file%.aero}"
           bounds_source="${runtime_fail_root}/${bounds_file}"
           bounds_llvm="${RUNNER_TEMP}/${bounds_case}.ll"
@@ -2475,6 +2495,29 @@ jobs:
         if (-not $representativeText.Contains("aero.generic.window_set<char>")) {
           throw "Windows representative telemetry LLVM omitted window_set<char>"
         }
+        if (-not $representativeText.Contains("define { i32, double, i32 } @parse_record([10 x i32]")) {
+          throw "Windows representative telemetry LLVM omitted the fixed character-record parser"
+        }
+        $parserMatch = [regex]::Match(
+          $representativeText,
+          '(?ms)^define \{ i32, double, i32 \} @parse_record\([^\r\n]*\).*?^\}'
+        )
+        if (-not $parserMatch.Success) {
+          throw "Windows representative telemetry LLVM could not isolate the fixed character-record parser"
+        }
+        $parserText = $parserMatch.Value
+        $parserCounts = @(
+          ([regex]::Matches($parserText, [regex]::Escape("fcmp oge double"))).Count,
+          ([regex]::Matches($parserText, [regex]::Escape("fcmp olt double"))).Count,
+          ([regex]::Matches($parserText, [regex]::Escape("call void @llvm.trap()"))).Count,
+          ([regex]::Matches($parserText, [regex]::Escape("getelementptr inbounds [10 x i32]"))).Count
+        )
+        if (@($parserCounts | Where-Object { $_ -ne 10 }).Count -ne 0) {
+          throw "representative parser LLVM did not contain exactly ten guarded character reads"
+        }
+        if ($representativeText.Contains("[10 x double]") -or $representativeText.Contains("sitofp i32 %aero.arg.character")) {
+          throw "representative parser retained a forbidden numeric character array lane"
+        }
         if ($representativeText -match '@printf\([^\r\n]*, i64 ') {
           throw "Windows representative telemetry LLVM rewrote a numeric printf argument to i64"
         }
@@ -2546,7 +2589,9 @@ jobs:
           "generic_negative_write_index.aero",
           "generic_upper_bound_write_index.aero",
           "projected_negative_index.aero",
-          "projected_upper_bound_index.aero"
+          "projected_upper_bound_index.aero",
+          "parser_negative_index.aero",
+          "parser_equal_to_count_index.aero"
         )) {
           $boundsCase = [System.IO.Path]::GetFileNameWithoutExtension($boundsFile)
           $boundsSource = Join-Path $runtimeFailRoot $boundsFile

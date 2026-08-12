@@ -1,5 +1,260 @@
 # Aero Task Ledger
 
+## CAP-015-READINESS - bounded embedded character-record parser/interpreter probe
+
+- Date/task/status: 2026-08-12, `CAP-015-READINESS`, authorized readiness contract
+  and full-program probe from exact accepted master
+  `7f669c3a58f296fa0596c5722d3afdc96d596798` (tree
+  `f66d5ee7a962c2e2c69d93e7929f2973e0e3d2c6`) on
+  `agent/cap-015-readiness`. Protected PR #51 accepted the CAP-014 truth sync;
+  exact merge-head CI `31592323512`, Rust CI `31592323497`, and CodeQL
+  `31592323342` pass. User/app-owned untracked `.codex-remote-attachments/` and
+  `tmp/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Founding-framework and roadmap basis: the original
+  `__Aero___ A High-Performance, Ergonomic Programming Language.pdf` identifies
+  `char`, fixed-size arrays, explicit control flow, algebraic sum types, typed IR,
+  LLVM, and high-performance data/AI pipelines as founding language/workload
+  directions. `Aero Programming Language Framework - Claude.pdf` emphasizes that
+  execution quality and a real AI/ML infrastructure workload, not feature count,
+  determine adoption. Accepted project truth ranks a bounded embedded `[char; N]`
+  parser/interpreter first because it is the shortest composition step from CAP-014's
+  CPU kernel toward an ingestion-to-computation workload. The PDFs are design
+  direction, not evidence that these capabilities are implemented.
+- Real-program delta and mechanism: before this task, Aero has isolated accepted
+  evidence for character CopyData, fixed arrays, dynamic guarded reads, functions,
+  loops, arithmetic, concrete `Result<int, char>`, and exhaustive `Match`, but no
+  maintained application interprets structured embedded character data into a typed
+  numerical result. This readiness task changes no compiler behavior by assumption.
+  It first probes one complete program through current semantic, raw checked,
+  verified LLVM, public `check`/`build`/`run`, and native routes. If already green,
+  the only permitted next mutation is a separately recorded representative
+  application/system gate followed by reranking. If red, classify the first failure;
+  only one semantically established capability class spanning at most two compiler
+  phases may be proposed for a separate red-first implementation authorization.
+- Frozen application grammar and result contract: the input is exactly the ten-code-
+  point ASCII record `T=<digit><digit>;H=<digit><digit>;`, represented as
+  `[char; 10]`. `digit` is exactly ASCII `0` through `9`; no whitespace, sign,
+  separator variation, variable field width, trailing data, locale, normalization,
+  case folding, or Unicode digit class is admitted. Parsing is left-to-right through
+  runtime integer indexes over the fixed array. The first unexpected character is
+  returned unchanged as `Err(character)`. On success the two decimal fields are
+  interpreted as `temperature` and `humidity`, and the exact typed result is
+  `Ok(temperature * 2 + humidity)`. The canonical source record `T=17;H=08;`
+  therefore has independent oracle 42. Decimal accumulation is bounded to `0..99`,
+  so no arithmetic-overflow semantic decision is needed. The program must use an
+  explicit `Result<int, char>` and exhaustive `Match`; question-mark propagation is
+  outside this contract.
+- Complete probe class: positive canonical record; boundary digits `00` and `99`;
+  invalid first marker; invalid first and second decimal digits; invalid separators;
+  invalid second field marker; first-error precedence when two positions are invalid;
+  runtime index below zero and equal to count as clean trap controls; char/int identity
+  separation; and current-profile separation. The parser uses no mutable array write,
+  array result, repeat/nested array, struct/tuple/enum storage around the input,
+  reference storage, module/import, constant, method, generic/trait, closure, dynamic
+  collection, heap/drop, string/slice, I/O, unsafe/FFI, accelerator, or public ABI.
+- Assumptions and evidence: accepted CORE-072 proves exact character identity and
+  equality through recursive CopyData; CAP-001 proves pre-address dynamic fixed-array
+  read guards; CAP-003 proves concrete recursive-CopyData `Result` transport and
+  exhaustive `Match`; CORE-068 proves exact named-call admission; and M1-001 proves
+  representative public/native execution infrastructure. Current source tests and
+  implementation are evidence for the probe hypothesis only. They do not establish
+  that this complete composition is green, nor do they authorize profile widening.
+- CEO/engineering measurement and failure detection: success requires a complete
+  source specimen, exact semantic/raw checked/public parity, independent checked-IR
+  verification, LLVM verification, identity-linked bounds guards before every dynamic
+  GEP, no character-to-numeric conversion, exact native/public oracle 42 at `-O0` and
+  `-O2`, deterministic typed-error outcomes for every malformed class, and nonzero
+  clean bounds-trap controls on Linux and Windows. A green microcomponent is not
+  sufficient. Detect false success through source-readable diagnostics, checked-IR
+  corruption controls where a new invariant is introduced, LLVM-shape/absence/order
+  assertions, public artifact hygiene, O0/O2 comparison, and a tracked composed
+  application rather than feature-only snippets.
+- Profile and claim boundary: probe the accepted default experimental behavior first.
+  Do not widen or rename `stable-scalar-v0` or `exact-i32-array-v0`; do not claim this
+  parser is part of either profile. A green experimental probe is integration evidence,
+  not a new `STABLE`/`END_TO_END` language row, general parsing, strings, file input,
+  serialization, performance, safety, or Milestone 3 completion. A separate additive
+  profile would require a new architecture/semantics decision and is not authorized.
+- Initial allowed files and stop conditions: before probe classification, only this
+  `TASK_LEDGER.md` authorization may change. Probe sources/evidence must live in a
+  task-local directory outside the repository. Do not change compiler production,
+  examples, tests, workflows, state/claim documents, dependencies, releases,
+  benchmarks, or external artifacts. Stop if the grammar requires character casts or
+  arithmetic, `String`, slices, variable-length storage, Unicode policy, I/O,
+  allocation/drop, imports, new generic specialization, profile fusion, more than two
+  compiler phases, or any unfrozen language semantic. Stop and rerank rather than
+  inventing behavior.
+- Recovery, decision threshold, strategic value, and what would change our mind: this
+  branch and the authorization commit are the rollback boundary. Commit this record
+  before running the probe. If the full program is green, record that finding and
+  authorize only the smallest representative gate; if one established class is red,
+  record its exhaustive shapes and separately authorize one shared-predicate vertical
+  slice; otherwise stop. Evidence that the program is artificial, duplicates the
+  existing telemetry gate without adding structured ingestion, requires profile
+  fusion, crosses the two-phase boundary, or does not shorten the path to the
+  ingestion/error/kernel workload would change the decision and trigger immediate
+  reranking toward positive module/name resolution instead.
+
+### CAP-015 readiness green classification and representative-gate authorization
+
+- Observed full-program result: the task-local probe at authorization head
+  `f6dc895dd343499649cdacdde1d80e79974b1dd5` is green without any repository or
+  compiler mutation. Canonical `T=17;H=08;` returns 42; `00/00` returns 0 and
+  `99/99` returns 297. All ten first-invalid-position classes return the exact
+  offending character, and three cross-category multi-error controls return the
+  earliest character. Raw checked admission, semantic checked admission, and the
+  public library route emit identical verified LLVM. Public `check`, externally
+  verified `build`, and `run` pass under the default experimental path. Pinned LLVM
+  22 `opt`, `llc -verify-machineinstrs`, and native `-O0`/`-O2` agree for every
+  value/error case. Runtime indexes `-1` and `10` trap before access at both
+  optimization levels. The canonical LLVM retains `[10 x i32]`, character `i32`,
+  ten ordered lower/upper/trap/safe/conversion/GEP sequences, and no character-to-
+  numeric conversion or `[10 x double]` array. `stable-scalar-v0` and
+  `exact-i32-array-v0` both reject the program as required. The only initial red was
+  an audit environment with LLVM tools absent from `PATH`; the same frozen source
+  passed after selecting the repository-pinned LLVM 22 tools.
+- Classification and real-program delta: this is an already implemented composition,
+  not a missing compiler class. No compiler phase or language-profile change is
+  authorized. Before the tracked gate, Aero's maintained representative program does
+  not interpret a structured character record into its computation. Afterward, the
+  existing telemetry application parses one exact embedded record through
+  `[char; 10]`, runtime guarded reads, equality-only ASCII digit decoding,
+  `Result<int, char>`, and exhaustive `Match`, and feeds the parsed numerical value
+  into ordinary aggregate/generic computation. This is a program-level integration
+  gain and does not justify a new language capability row.
+- Frozen integration mechanism: add one direct `records.aero` module containing the
+  exact readiness parser and small result-observation helpers. `main.aero` must parse
+  `T=17;H=08;`, prove the 0 and 297 boundaries, all ten first-invalid positions, and
+  the three frozen first-error precedence controls, then use canonical 42 as the
+  third calibration sensor. Together with BASE 11 and the second sensor 8, the
+  calibration sum remains 61, so the established exact stdout and exit 91 remain
+  unchanged without cancelling or ignoring the parsed value. A wrong value or
+  unexpected `Err` must alter control/data flow and fail the existing oracle. Digit
+  decoding remains equality against `'0'` through `'9'` returning integer literals;
+  no character cast or arithmetic is permitted. Add only negative-one and equal-to-
+  ten parser-context runtime trap specimens.
+- Red-first and evidence plan: first extend the existing representative Rust test
+  with exact embedded sources, tracked-byte parity, the frozen result matrix, checked
+  `Char`/array/carrier identity, raw/semantic/public verified-route parity, exact
+  parser LLVM guard/GEP counts and ordering, profile-separation controls, two tracked
+  trap sources, and required Linux/Windows workflow anchors. Run that test red while
+  the tracked module/specimens/workflow contract are absent. Then add the smallest
+  tracked application/workflow changes that turn the same test green. Reuse the
+  existing representative Linux and Windows `check`/verified-build/public-run,
+  `opt`, `llc`, Clang `-O0`/`-O2`, exact-output, and runtime-failure loops; do not add
+  another job, standalone application lane, or evidence subsystem.
+- Exact allowed files: only `TASK_LEDGER.md`,
+  `examples/representative_telemetry/main.aero`, new
+  `examples/representative_telemetry/records.aero`, new
+  `examples/representative_telemetry/runtime_fail/parser_negative_index.aero`, new
+  `examples/representative_telemetry/runtime_fail/parser_equal_to_count_index.aero`,
+  `src/compiler/tests/representative_scalar_application_tests.rs`, and
+  `.github/workflows/rust.yml`. No compiler production, profile, other test, state,
+  matrix, roadmap, README, dependency, release, benchmark, or external-artifact
+  change is authorized in this candidate.
+- Decision threshold and detection: the focused representative target, formatting,
+  diff hygiene, complete root gate, documentation, exact pinned local LLVM 22/native
+  lane, independent read-only review, all exact-head public workflows, protected
+  integration, and merge-head workflows must pass. The Windows workflow must retain
+  exactly fifteen reset groups. Detection must bind the parser's ten dynamic accesses
+  to ten complete guard-before-GEP sequences rather than unrelated textual anchors,
+  keep `[char; 10]` physically distinct from numeric arrays, verify exact malformed
+  characters, and prove O0/O2/public agreement. No new checked-IR corruption control
+  is required because no compiler invariant changes.
+- Claim boundary, recovery, and what would change our mind: this remains default
+  experimental representative evidence. It does not compose inside CAP-014's
+  `exact-i32-array-v0`, and it establishes no general parser, string, serialization,
+  file input, Unicode, profile, ABI, safety, performance, or language-completion
+  claim. This branch and the seven-file change are the rollback boundary. Stop and
+  rerank if tracked composition is red despite the isolated probe, requires a
+  compiler/profile edit, changes more than the authorized files, loses exact error
+  identity or guard ordering, cannot preserve the external 91 oracle while using 42
+  materially, or causes evidence administration to exceed the bounded existing gate.
+  After protected acceptance, synchronize current truth and rerank the three highest-
+  leverage gaps; do not automatically select profile fusion.
+
+### CAP-015 representative-gate red checkpoint
+
+- Test-first result: the focused representative target passes its two unchanged
+  controls and reaches the new composed parser test through direct-module compile,
+  flattened semantic analysis, raw checked admission, independently verified
+  codegen, exact route parity, parser guard/GEP assertions, public check/build, and
+  both profile-rejection controls. It then fails only because tracked `main.aero`
+  still has the old bytes, `records.aero` and the two parser trap specimens do not
+  exist, and the existing Linux/Windows workflow lacks the five frozen parser
+  anchors. This is the intended red boundary; no compiler production failure or
+  semantic ambiguity was observed.
+- Command/result: `cargo fmt --manifest-path src/compiler/Cargo.toml --check` passes;
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  representative_scalar_application_tests -- --nocapture` reports 2 passed and 1
+  failed with only those source/workflow integration diagnostics. A first local
+  attempt to add public `run` inside the Rust test exposed only that the ambient
+  PowerShell `PATH` omitted the pinned LLVM verifier; that duplicate local route was
+  removed before this red checkpoint because the existing Linux/Windows workflow
+  lane owns required-verifier public/native execution. The readiness probe already
+  proved the same source through pinned local LLVM 22.
+- Green threshold: add exactly the authorized tracked source and workflow changes;
+  the unchanged focused test must become green without modifying compiler
+  production, profiles, expected diagnostic policy, or any test assertion.
+
+### CAP-015 representative-gate local candidate checkpoint
+
+- Local candidate result: the settled seven-file tree is green without compiler
+  production, profile, specialization, dependency, or claim-surface changes. The
+  tracked telemetry application now interprets the exact embedded record
+  `T=17;H=08;` as typed value 42, proves boundary results 0 and 297, all ten
+  first-invalid positions, and the three frozen precedence controls, and uses 42 as
+  the third calibration sensor while preserving exact stdout `telemetry score: 91`
+  and exit 91. Raw and semantic checked metadata retain `char`, `[char; 10]`, and
+  `Result<int, char>`; public CLI and library parser-function LLVM agree; both named
+  profiles reject the module-free parser specimen with their exact first
+  diagnostic. No general parser, string, I/O, profile-fusion, Unicode, safety,
+  performance, stability, or completion claim is created.
+- Test/evidence hardening: the focused gate binds ten ASCII equality classifiers
+  (`48..57`) and forbids integer/float/pointer conversion in `decimal_digit`. Each
+  of the ten parser reads binds the same index through exact zero/ten comparisons,
+  conjunction, guard branch, matching safe/trap place labels, conversion, and
+  `[10 x i32]` GEP. It also reads the actual public LLVM artifact, checks exact
+  parser-function parity, validates checked logical metadata, uses non-module
+  profile controls, and binds the real Linux and Windows extraction/count/absence
+  predicates independently. Both native workflow lanes reuse the existing
+  representative job and runtime-failure loop; job/step topology is unchanged and
+  the Windows workflow retains exactly fifteen reset groups.
+- Correction chronology: the first pinned native pass found that both new trap
+  specimens attempted to format a `char`, which current Aero correctly rejects
+  before checked IR. This was a fixture false-boundary, not a compiler defect. The
+  authorized specimens and embedded byte copies were amended before publication to
+  consume the post-read character through supported equality, then execute a
+  literal-only post-access sentinel. Public `check` and verified `build` now reach
+  the bounds guards; negative-one and equal-to-count indexes trap before the
+  sentinel through public, native `-O0`, and native `-O2` routes with identical
+  nonzero Windows status and empty program output.
+- Commands and results on the settled live tree: `cargo fmt` and `git diff --check`
+  pass; the focused `representative_scalar_application_tests` target passes 3/3;
+  the complete repository `./tools/test.sh` gate passes after inheriting Cargo and
+  the pinned LLVM 22 paths; and `cargo doc --locked --no-deps` passes with only
+  pre-existing warnings. Independent candidate and workflow audits report no open
+  P0-P3 finding. Pinned Windows LLVM/Clang 22.1.8 evidence passes public
+  `check`/required-verifier `build`/`run`, `opt -passes=verify`,
+  `llc -verify-machineinstrs`, Clang `-O0`/`-O2`, exact output/91, ten classifier
+  and guard sequences, forbidden-representation absence, and both clean trap
+  controls. Evidence is under
+  `C:\Users\usa50\AppData\Local\Temp\aero-cap015-native-103c667-20260812-01`;
+  representative/negative/equal LLVM SHA-256 values are respectively
+  `FB92F7F19EAAF1467AA092423CE2E8507BD333A09380D3170E91C1D23C6BD282`,
+  `EF79066CD8BA5DD022F140C4DC13FF9C0A3090AABACA5F7439FC6F4BB975BE6C`, and
+  `AAABA892D5A84E0AD070A7BD84BEB444A80396391EC8F3509995BEFB789AC1FE`.
+- Candidate boundary and next action: this record describes a mutable local tree,
+  not accepted public behavior. Commit exactly the seven authorized files, rerun
+  focused/root/documentation/pinned-native evidence on the immutable candidate,
+  then publish a draft PR and require exact-head public Linux/Windows, CodeQL,
+  protected integration, and merge-head evidence. Any tree mutation invalidates
+  this local evidence and requires the relevant gates again. After protected
+  acceptance, synchronize current truth and rerank; do not automatically widen a
+  profile or start file I/O.
+
 ## CAP-014 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded

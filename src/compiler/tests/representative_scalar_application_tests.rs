@@ -1,6 +1,7 @@
 use compiler::{
-    CodeGenerator, CompilerOptions, IrGenerator, SemanticAnalyzer, compile_file,
-    parse_with_locations, try_tokenize_with_locations,
+    CheckedIr, CodeGenerator, CompilerOptions, IrGenerator, LanguageProfile, LogicalType,
+    SemanticAnalyzer, compile_file, compile_program, parse_with_locations,
+    try_tokenize_with_locations,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,13 +14,34 @@ const WORKFLOW: &str = ".github/workflows/rust.yml";
 
 const MAIN_SOURCE: &str = r#"mod model;
 mod policy;
+mod records;
 
 fn main() -> int {
     const BASE: int = 10 + 1;
     const EXPECTED: int = 91;
 
+    let parsed_record: Result<int, char> = parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';']);
+    let parsed_value = result_or(parsed_record, -100);
+    let parser_contract = parsed_value == 42
+        && result_or(parse_record(['T', '=', '0', '0', ';', 'H', '=', '0', '0', ';']), -1) == 0
+        && result_or(parse_record(['T', '=', '9', '9', ';', 'H', '=', '9', '9', ';']), -1) == 297
+        && result_has_error(parse_record(['X', '=', '1', '7', ';', 'H', '=', '0', '8', ';']), 'X')
+        && result_has_error(parse_record(['T', ':', '1', '7', ';', 'H', '=', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', 'x', '7', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', 'x', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ':', 'H', '=', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'J', '=', '0', '8', ';']), 'J')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', ':', '0', '8', ';']), ':')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', 'x', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', 'x', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', '8', ':']), ':')
+        && result_has_error(parse_record(['X', '=', 'x', '7', ';', 'H', '=', '0', '8', ';']), 'X')
+        && result_has_error(parse_record(['T', '=', 'x', 'y', ';', 'H', '=', '0', '8', ';']), 'x')
+        && result_has_error(parse_record(['T', '=', '1', 'x', ':', 'H', '=', '0', '8', ';']), 'x');
+    if !parser_contract { return 2; }
+
     let mut batch: Batch = make_batch();
-    let calibration_seed: Window<i32> = Window { values: [0, 20, 30] };
+    let calibration_seed: Window<i32> = Window { values: [0, 8, parsed_value] };
     let calibration: Window<int> = window_set(calibration_seed, 0, BASE);
     let mut sensor_index = 0;
     while sensor_index < 3 {
@@ -200,6 +222,101 @@ fn decision_score(decision: Decision) -> int {
 }
 "#;
 
+const RECORDS_SOURCE: &str = r#"fn decimal_digit(character: char) -> Result<int, char> {
+    if character == '0' { return Ok(0); }
+    if character == '1' { return Ok(1); }
+    if character == '2' { return Ok(2); }
+    if character == '3' { return Ok(3); }
+    if character == '4' { return Ok(4); }
+    if character == '5' { return Ok(5); }
+    if character == '6' { return Ok(6); }
+    if character == '7' { return Ok(7); }
+    if character == '8' { return Ok(8); }
+    if character == '9' { return Ok(9); }
+    Err(character)
+}
+
+fn parse_record(record: [char; 10]) -> Result<int, char> {
+    let mut index = 0;
+    let first_marker = record[index];
+    if first_marker != 'T' { return Err(first_marker); }
+
+    index = index + 1;
+    let first_equals = record[index];
+    if first_equals != '=' { return Err(first_equals); }
+
+    index = index + 1;
+    let first_tens_character = record[index];
+    let first_tens_result: Result<int, char> = decimal_digit(first_tens_character);
+    let first_tens = match first_tens_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if first_tens < 0 { return Err(first_tens_character); }
+
+    index = index + 1;
+    let first_ones_character = record[index];
+    let first_ones_result: Result<int, char> = decimal_digit(first_ones_character);
+    let first_ones = match first_ones_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if first_ones < 0 { return Err(first_ones_character); }
+    let temperature = first_tens * 10 + first_ones;
+
+    index = index + 1;
+    let first_separator = record[index];
+    if first_separator != ';' { return Err(first_separator); }
+
+    index = index + 1;
+    let second_marker = record[index];
+    if second_marker != 'H' { return Err(second_marker); }
+
+    index = index + 1;
+    let second_equals = record[index];
+    if second_equals != '=' { return Err(second_equals); }
+
+    index = index + 1;
+    let second_tens_character = record[index];
+    let second_tens_result: Result<int, char> = decimal_digit(second_tens_character);
+    let second_tens = match second_tens_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if second_tens < 0 { return Err(second_tens_character); }
+
+    index = index + 1;
+    let second_ones_character = record[index];
+    let second_ones_result: Result<int, char> = decimal_digit(second_ones_character);
+    let second_ones = match second_ones_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if second_ones < 0 { return Err(second_ones_character); }
+    let humidity = second_tens * 10 + second_ones;
+
+    index = index + 1;
+    let final_separator = record[index];
+    if final_separator != ';' { return Err(final_separator); }
+
+    Ok(temperature * 2 + humidity)
+}
+
+fn result_or(result: Result<int, char>, fallback: int) -> int {
+    match result {
+        Ok(value) => value,
+        Err(character) => fallback
+    }
+}
+
+fn result_has_error(result: Result<int, char>, expected: char) -> bool {
+    match result {
+        Ok(value) => 1 > 2,
+        Err(character) => character == expected
+    }
+}
+"#;
+
 const NUMERIC_PRINT_ABI_SOURCE: &str = r#"fn main() -> int {
     let integer = 7;
     let floating = 2.5;
@@ -282,6 +399,37 @@ const UPPER_BOUND_INDEX_SOURCE: &str = r#"fn main() -> int {
     let index = count;
     let selected = values[index];
     println!("unreachable upper-bound index: {}", selected);
+    0
+}
+"#;
+
+const PARSER_NEGATIVE_INDEX_SOURCE: &str = r#"fn read_record_character(record: [char; 10], index: int) -> char {
+    record[index]
+}
+
+fn main() -> int {
+    let record: [char; 10] = ['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';'];
+    let zero = 0;
+    let index = zero - 1;
+    let selected = read_record_character(record, index);
+    let selected_is_marker = selected == 'T';
+    println!("unreachable parser negative index");
+    if selected_is_marker { return 1; }
+    0
+}
+"#;
+
+const PARSER_EQUAL_TO_COUNT_INDEX_SOURCE: &str = r#"fn read_record_character(record: [char; 10], index: int) -> char {
+    record[index]
+}
+
+fn main() -> int {
+    let record: [char; 10] = ['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';'];
+    let count = 10;
+    let selected = read_record_character(record, count);
+    let selected_is_marker = selected == 'T';
+    println!("unreachable parser equal-to-count index");
+    if selected_is_marker { return 1; }
     0
 }
 "#;
@@ -479,9 +627,9 @@ fn repository_root() -> PathBuf {
 
 fn flattened_source() -> String {
     let root_without_modules = MAIN_SOURCE
-        .strip_prefix("mod model;\nmod policy;\n\n")
+        .strip_prefix("mod model;\nmod policy;\nmod records;\n\n")
         .expect("representative root keeps the frozen direct-module prefix");
-    format!("{MODEL_SOURCE}\n{POLICY_SOURCE}\n{root_without_modules}")
+    format!("{MODEL_SOURCE}\n{POLICY_SOURCE}\n{RECORDS_SOURCE}\n{root_without_modules}")
 }
 
 fn run_aero(workspace: &TestWorkspace, arguments: &[&str]) -> Output {
@@ -498,6 +646,249 @@ fn output_text(output: &Output) -> String {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     )
+}
+
+fn occurrences(text: &str, needle: &str) -> usize {
+    text.match_indices(needle).count()
+}
+
+fn llvm_function_body<'a>(llvm: &'a str, signature: &str) -> Option<&'a str> {
+    llvm.split(signature)
+        .nth(1)
+        .and_then(|rest| rest.split("\n}").next())
+}
+
+fn decimal_digit_failure(llvm: &str) -> Option<String> {
+    let Some(body) = llvm_function_body(llvm, "define { i32, double, i32 } @decimal_digit") else {
+        return Some("representative LLVM omitted the decimal_digit body".to_string());
+    };
+
+    let equality_lines = body
+        .lines()
+        .map(str::trim)
+        .filter(|line| line.contains(" = icmp eq i32 "))
+        .collect::<Vec<_>>();
+    if equality_lines.len() != 10 {
+        return Some(format!(
+            "decimal_digit has {} equality classifiers, expected 10",
+            equality_lines.len()
+        ));
+    }
+    for ascii in 48..=57 {
+        let suffix = format!(", {ascii}");
+        let actual = equality_lines
+            .iter()
+            .filter(|line| line.ends_with(&suffix))
+            .count();
+        if actual != 1 {
+            return Some(format!(
+                "decimal_digit classified ASCII {ascii} {actual} times, expected once"
+            ));
+        }
+    }
+    for forbidden in [
+        " sitofp ",
+        " uitofp ",
+        " fptosi ",
+        " fptoui ",
+        " zext ",
+        " sext ",
+        " trunc ",
+        " bitcast ",
+        " ptrtoint ",
+        " inttoptr ",
+    ] {
+        if body.contains(forbidden) {
+            return Some(format!(
+                "decimal_digit introduced forbidden character conversion {forbidden:?}"
+            ));
+        }
+    }
+    None
+}
+
+fn parser_guard_failure(llvm: &str) -> Option<String> {
+    let Some(body) = llvm_function_body(llvm, "define { i32, double, i32 } @parse_record") else {
+        return Some("representative LLVM omitted the parse_record body".to_string());
+    };
+
+    for (anchor, expected) in [
+        ("fcmp oge double", 10),
+        ("fcmp olt double", 10),
+        ("call void @llvm.trap()", 10),
+        ("getelementptr inbounds [10 x i32]", 10),
+    ] {
+        let actual = occurrences(body, anchor);
+        if actual != expected {
+            return Some(format!(
+                "parse_record has {actual} occurrences of {anchor:?}, expected {expected}"
+            ));
+        }
+    }
+
+    let lines = body.lines().map(str::trim).collect::<Vec<_>>();
+    let lower_lines = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.contains(" = fcmp oge double "))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    if lower_lines.len() != 10 {
+        return Some(format!(
+            "parse_record has {} lower-bound sequence starts, expected 10",
+            lower_lines.len()
+        ));
+    }
+
+    for (ordinal, lower_line) in lower_lines.into_iter().enumerate() {
+        let sequence = lines.get(lower_line..lower_line + 10).unwrap_or(&[]);
+        if sequence.len() != 10 {
+            return Some(format!(
+                "dynamic parser read {ordinal} has a truncated guard"
+            ));
+        }
+        let Some((lower_result, lower_rhs)) = sequence[0].split_once(" = fcmp oge double ") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} malformed its lower guard"
+            ));
+        };
+        let Some((index_value, lower_bound)) = lower_rhs.split_once(',') else {
+            return Some(format!(
+                "dynamic parser read {ordinal} lost its lower operand"
+            ));
+        };
+        if lower_bound.trim() != "0x0000000000000000" {
+            return Some(format!(
+                "dynamic parser read {ordinal} used lower bound {lower_bound:?}, expected zero"
+            ));
+        }
+        let Some((upper_result, upper_rhs)) = sequence[1].split_once(" = fcmp olt double ") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} malformed its upper guard"
+            ));
+        };
+        let Some((upper_index, upper_bound)) = upper_rhs.split_once(',') else {
+            return Some(format!(
+                "dynamic parser read {ordinal} lost its upper operand"
+            ));
+        };
+        if upper_index != index_value {
+            return Some(format!(
+                "dynamic parser read {ordinal} compared different lower/upper indexes"
+            ));
+        }
+        if upper_bound.trim() != "0x4024000000000000" {
+            return Some(format!(
+                "dynamic parser read {ordinal} used upper bound {upper_bound:?}, expected ten"
+            ));
+        }
+        let Some((conjunction, conjunction_rhs)) = sequence[2].split_once(" = and i1 ") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} omitted its conjunction"
+            ));
+        };
+        if conjunction_rhs != format!("{lower_result}, {upper_result}") {
+            return Some(format!(
+                "dynamic parser read {ordinal} did not combine its exact bound predicates"
+            ));
+        }
+        let Some(branch_rhs) = sequence[3].strip_prefix("br i1 ") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} omitted its guard branch"
+            ));
+        };
+        let expected_branch_prefix = format!("{conjunction}, label %");
+        let Some(labels) = branch_rhs.strip_prefix(&expected_branch_prefix) else {
+            return Some(format!(
+                "dynamic parser read {ordinal} did not branch on its exact conjunction"
+            ));
+        };
+        let Some((safe_label, trap_label)) = labels.split_once(", label %") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} malformed its branch labels"
+            ));
+        };
+        let Some(place) = safe_label.strip_prefix("aero.bounds.safe.") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} used noncanonical safe label {safe_label:?}"
+            ));
+        };
+        if trap_label != format!("aero.bounds.trap.{place}") {
+            return Some(format!(
+                "dynamic parser read {ordinal} did not bind safe/trap labels to one place"
+            ));
+        }
+        if sequence[4] != format!("{trap_label}:")
+            || sequence[5] != "call void @llvm.trap()"
+            || sequence[6] != "unreachable"
+            || sequence[7] != format!("{safe_label}:")
+        {
+            return Some(format!(
+                "dynamic parser read {ordinal} did not bind its trap/safe branch labels"
+            ));
+        }
+        let Some((conversion, conversion_rhs)) = sequence[8].split_once(" = fptosi double ") else {
+            return Some(format!(
+                "dynamic parser read {ordinal} omitted its guarded index conversion"
+            ));
+        };
+        if conversion_rhs != format!("{index_value} to i64") {
+            return Some(format!(
+                "dynamic parser read {ordinal} converted a different index value"
+            ));
+        }
+        if !sequence[9].contains("getelementptr inbounds [10 x i32]")
+            || !sequence[9].ends_with(&format!("i64 {conversion}"))
+        {
+            return Some(format!(
+                "dynamic parser read {ordinal} did not feed its guarded index into the character GEP"
+            ));
+        }
+    }
+    None
+}
+
+fn parser_metadata_failure(checked: &CheckedIr) -> Option<String> {
+    let result_schema_is_exact = |ty: &LogicalType| {
+        let LogicalType::Enum { variants, .. } = ty else {
+            return false;
+        };
+        variants.len() == 2
+            && variants[0].name == "Ok"
+            && variants[0].payload == Some(LogicalType::Int)
+            && variants[1].name == "Err"
+            && variants[1].payload == Some(LogicalType::Char)
+    };
+    let Some(digit) = checked.metadata().functions.get("decimal_digit") else {
+        return Some("checked metadata omitted decimal_digit".to_string());
+    };
+    if !matches!(&digit.signature.parameters[..], [(_, LogicalType::Char)])
+        || !result_schema_is_exact(&digit.signature.result)
+    {
+        return Some(format!(
+            "decimal_digit checked signature lost char -> Result<int, char>: {:?}",
+            digit.signature
+        ));
+    }
+    let Some(function) = checked.metadata().functions.get("parse_record") else {
+        return Some("checked metadata omitted parse_record".to_string());
+    };
+    match &function.signature.parameters[..] {
+        [(_, LogicalType::Array { element, count })]
+            if **element == LogicalType::Char && *count == 10 => {}
+        actual => {
+            return Some(format!(
+                "parse_record checked parameter lost Array<Char; 10>: {actual:?}"
+            ));
+        }
+    }
+    if !result_schema_is_exact(&function.signature.result) {
+        return Some(format!(
+            "parse_record checked Result schema changed: {:?}",
+            function.signature.result
+        ));
+    }
+    None
 }
 
 fn contains_regular_file(path: &Path) -> bool {
@@ -517,6 +908,7 @@ fn representative_scalar_application_is_composed_and_portable() {
     let root = workspace.write("main.aero", MAIN_SOURCE);
     workspace.write("model.aero", MODEL_SOURCE);
     workspace.write("policy.aero", POLICY_SOURCE);
+    workspace.write("records.aero", RECORDS_SOURCE);
 
     let first_llvm = match compile_file(&root, CompilerOptions::default()) {
         Ok(llvm) => Some(llvm),
@@ -553,6 +945,10 @@ fn representative_scalar_application_is_composed_and_portable() {
             "; Aero generic enum: Sample<char>",
             "define i32 @sample_reading_value(",
             "define i1 @sample_marker_is_a(",
+            "define { i32, double, i32 } @decimal_digit(i32 %aero.arg.character)",
+            "define { i32, double, i32 } @parse_record([10 x i32] %aero.arg.record)",
+            "call { i32, double, i32 } @parse_record([10 x i32]",
+            "getelementptr inbounds [10 x i32]",
             "telemetry score: %g",
             "declare void @llvm.trap()",
             "fcmp oge double",
@@ -566,12 +962,20 @@ fn representative_scalar_application_is_composed_and_portable() {
             "Window<i32>",
             "aero.generic.window_get<i32>",
             "aero.generic.window_set<i32>",
+            "[10 x double]",
+            "sitofp i32 %aero.arg.character",
         ] {
             if first.contains(forbidden) {
                 failures.push(format!(
                     "representative LLVM retained split alias identity {forbidden:?}"
                 ));
             }
+        }
+        if let Some(failure) = parser_guard_failure(first) {
+            failures.push(failure);
+        }
+        if let Some(failure) = decimal_digit_failure(first) {
+            failures.push(failure);
         }
     }
 
@@ -582,21 +986,71 @@ fn representative_scalar_application_is_composed_and_portable() {
     match ast {
         Err(error) => failures.push(format!("representative flattened source rejected: {error}")),
         Ok(ast) => {
-            if let Err(error) = SemanticAnalyzer::new().analyze(ast.clone()) {
-                failures.push(format!(
-                    "representative semantic analysis rejected: {error}"
-                ));
-            }
-            match IrGenerator::new().try_generate_ir(ast) {
-                Err(error) => failures.push(format!(
-                    "representative semantic-independent checked admission rejected: {error}"
-                )),
-                Ok(checked) => {
-                    if let Err(error) = CodeGenerator::new().try_generate_code(checked) {
+            let semantic_llvm = match SemanticAnalyzer::new().analyze(ast.clone()) {
+                Err(error) => {
+                    failures.push(format!(
+                        "representative semantic analysis rejected: {error}"
+                    ));
+                    None
+                }
+                Ok((_, analyzed)) => match IrGenerator::new().try_generate_ir(analyzed) {
+                    Err(error) => {
                         failures.push(format!(
-                            "representative independent verified codegen rejected: {error}"
+                            "representative semantic checked admission rejected: {error}"
                         ));
+                        None
                     }
+                    Ok(checked) => {
+                        if let Some(failure) = parser_metadata_failure(&checked) {
+                            failures.push(format!(
+                                "representative semantic checked metadata: {failure}"
+                            ));
+                        }
+                        match CodeGenerator::new().try_generate_code(checked) {
+                            Err(error) => {
+                                failures.push(format!(
+                                    "representative semantic verified codegen rejected: {error}"
+                                ));
+                                None
+                            }
+                            Ok(llvm) => Some(llvm),
+                        }
+                    }
+                },
+            };
+            let raw_llvm = match IrGenerator::new().try_generate_ir(ast) {
+                Err(error) => {
+                    failures.push(format!(
+                        "representative semantic-independent checked admission rejected: {error}"
+                    ));
+                    None
+                }
+                Ok(checked) => {
+                    if let Some(failure) = parser_metadata_failure(&checked) {
+                        failures.push(format!("representative raw checked metadata: {failure}"));
+                    }
+                    match CodeGenerator::new().try_generate_code(checked) {
+                        Err(error) => {
+                            failures.push(format!(
+                                "representative independent verified codegen rejected: {error}"
+                            ));
+                            None
+                        }
+                        Ok(llvm) => Some(llvm),
+                    }
+                }
+            };
+            if let (Some(raw), Some(semantic)) = (&raw_llvm, &semantic_llvm) {
+                if raw != semantic {
+                    failures
+                        .push("representative raw and semantic checked LLVM drifted".to_string());
+                }
+                if let Some(public) = &first_llvm
+                    && semantic != public
+                {
+                    failures.push(
+                        "representative flattened and direct-module LLVM drifted".to_string(),
+                    );
                 }
             }
         }
@@ -618,9 +1072,69 @@ fn representative_scalar_application_is_composed_and_portable() {
             "representative public build failed: {}",
             output_text(&build)
         ));
-    } else if !workspace.root.join("representative.ll").is_file() {
-        failures
-            .push("representative public build omitted its requested LLVM artifact".to_string());
+    } else {
+        let artifact = workspace.root.join("representative.ll");
+        if !artifact.is_file() {
+            failures.push(
+                "representative public build omitted its requested LLVM artifact".to_string(),
+            );
+        } else {
+            match fs::read_to_string(&artifact) {
+                Err(error) => failures.push(format!(
+                    "representative public LLVM artifact was unreadable: {error}"
+                )),
+                Ok(public_llvm) => {
+                    if let Some(library_llvm) = &first_llvm {
+                        for signature in [
+                            "define { i32, double, i32 } @decimal_digit",
+                            "define { i32, double, i32 } @parse_record",
+                        ] {
+                            let public_body = llvm_function_body(&public_llvm, signature);
+                            let library_body = llvm_function_body(library_llvm, signature);
+                            if public_body != library_body {
+                                failures.push(format!(
+                                    "representative public and library LLVM drifted in {signature}"
+                                ));
+                            }
+                        }
+                    }
+                    if let Some(failure) = decimal_digit_failure(&public_llvm) {
+                        failures.push(format!("representative public LLVM: {failure}"));
+                    }
+                    if let Some(failure) = parser_guard_failure(&public_llvm) {
+                        failures.push(format!("representative public LLVM: {failure}"));
+                    }
+                }
+            }
+        }
+    }
+    let parser_profile_source = format!(
+        "{RECORDS_SOURCE}\nfn main() -> int {{ let parsed: Result<int, char> = parse_record(['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';']); result_or(parsed, 1) }}\n"
+    );
+    for (profile, name) in [
+        (LanguageProfile::StableScalarV0, "stable-scalar-v0"),
+        (LanguageProfile::ExactI32ArrayV0, "exact-i32-array-v0"),
+    ] {
+        let result = compile_program(
+            &parser_profile_source,
+            CompilerOptions {
+                language_profile: profile,
+                ..CompilerOptions::default()
+            },
+        );
+        match result {
+            Ok(_) => failures.push(format!(
+                "representative parser unexpectedly entered profile {name}"
+            )),
+            Err(error)
+                if error
+                    == format!(
+                        "Language Profile Error: {name} rejects function parameter types"
+                    ) => {}
+            Err(error) => failures.push(format!(
+                "representative parser profile {name} produced unexpected diagnostic: {error}"
+            )),
+        }
     }
 
     let repository = repository_root();
@@ -628,6 +1142,7 @@ fn representative_scalar_application_is_composed_and_portable() {
         ("main.aero", MAIN_SOURCE),
         ("model.aero", MODEL_SOURCE),
         ("policy.aero", POLICY_SOURCE),
+        ("records.aero", RECORDS_SOURCE),
         (
             "compile_fail/immutable_projected_update.aero",
             IMMUTABLE_PROJECTED_UPDATE_SOURCE,
@@ -648,6 +1163,14 @@ fn representative_scalar_application_is_composed_and_portable() {
         (
             "runtime_fail/upper_bound_index.aero",
             UPPER_BOUND_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/parser_negative_index.aero",
+            PARSER_NEGATIVE_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/parser_equal_to_count_index.aero",
+            PARSER_EQUAL_TO_COUNT_INDEX_SOURCE,
         ),
         (
             "runtime_fail/projected_negative_index.aero",
@@ -713,9 +1236,14 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "aero.generic.window_get<char>",
                 "aero.generic.window_set<int>",
                 "aero.generic.window_set<char>",
+                "define { i32, double, i32 } @parse_record([10 x i32]",
+                "representative parser LLVM did not contain exactly ten guarded character reads",
+                "representative parser retained a forbidden numeric character array lane",
                 "representative telemetry test passed with exit code 91",
                 "negative_index.aero",
                 "upper_bound_index.aero",
+                "parser_negative_index.aero",
+                "parser_equal_to_count_index.aero",
                 "negative_write_index.aero",
                 "upper_bound_write_index.aero",
                 "generic_negative_index.aero",
@@ -732,6 +1260,81 @@ fn representative_scalar_application_is_composed_and_portable() {
                         "native workflow {} omitted anchor {anchor:?}",
                         workflow_path.display()
                     ));
+                }
+            }
+            let shared_parser_anchors = [
+                "define { i32, double, i32 } @parse_record([10 x i32]",
+                "representative parser LLVM did not contain exactly ten guarded character reads",
+                "representative parser retained a forbidden numeric character array lane",
+                "parser_negative_index.aero",
+                "parser_equal_to_count_index.aero",
+            ];
+            let linux_step = workflow
+                .split("- name: Test representative telemetry application at O0 and O2")
+                .nth(1)
+                .and_then(|rest| rest.split("- name: Run tests").next());
+            let windows_step = workflow
+                .split("- name: Test representative telemetry application on Windows at O0 and O2")
+                .nth(1)
+                .and_then(|rest| rest.split("\n    - name:").next());
+            for (lane, step) in [("Linux", linux_step), ("Windows", windows_step)] {
+                let Some(step) = step else {
+                    failures.push(format!(
+                        "native workflow omitted the {lane} representative step body"
+                    ));
+                    continue;
+                };
+                for anchor in shared_parser_anchors {
+                    if !step.contains(anchor) {
+                        failures.push(format!(
+                            "{lane} representative workflow omitted parser anchor {anchor:?}"
+                        ));
+                    }
+                }
+            }
+            for anchor in shared_parser_anchors {
+                if occurrences(&workflow, anchor) != 2 {
+                    failures.push(format!(
+                        "native workflow must bind parser anchor {anchor:?} once per OS lane"
+                    ));
+                }
+            }
+            if let Some(step) = linux_step {
+                for anchor in [
+                    r#"parser_llvm="$(awk '/^define .*@parse_record\(/ { capture=1 } capture { print } capture && /^}/ { exit }' "${representative_llvm}")"#,
+                    r#"parser_lower_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'fcmp oge double' || true)"#,
+                    r#"parser_upper_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'fcmp olt double' || true)"#,
+                    r#"parser_trap_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'call void @llvm.trap()' || true)"#,
+                    r#"parser_gep_count="$(printf '%s\n' "${parser_llvm}" | grep -Fc 'getelementptr inbounds [10 x i32]' || true)"#,
+                    r#"if test "${parser_lower_count}" -ne 10 \"#,
+                    r#"|| test "${parser_upper_count}" -ne 10 \"#,
+                    r#"|| test "${parser_trap_count}" -ne 10 \"#,
+                    r#"|| test "${parser_gep_count}" -ne 10; then"#,
+                    r#"if grep -Fq '[10 x double]' "${representative_llvm}" \"#,
+                    r#"|| grep -Fq 'sitofp i32 %aero.arg.character' "${representative_llvm}"; then"#,
+                ] {
+                    if !step.contains(anchor) {
+                        failures.push(format!(
+                            "Linux representative workflow omitted parser predicate {anchor:?}"
+                        ));
+                    }
+                }
+            }
+            if let Some(step) = windows_step {
+                for anchor in [
+                    "$parserMatch = [regex]::Match(",
+                    r#"([regex]::Matches($parserText, [regex]::Escape("fcmp oge double"))).Count,"#,
+                    r#"([regex]::Matches($parserText, [regex]::Escape("fcmp olt double"))).Count,"#,
+                    r#"([regex]::Matches($parserText, [regex]::Escape("call void @llvm.trap()"))).Count,"#,
+                    r#"([regex]::Matches($parserText, [regex]::Escape("getelementptr inbounds [10 x i32]"))).Count"#,
+                    "if (@($parserCounts | Where-Object { $_ -ne 10 }).Count -ne 0) {",
+                    r#"if ($representativeText.Contains("[10 x double]") -or $representativeText.Contains("sitofp i32 %aero.arg.character")) {"#,
+                ] {
+                    if !step.contains(anchor) {
+                        failures.push(format!(
+                            "Windows representative workflow omitted parser predicate {anchor:?}"
+                        ));
+                    }
                 }
             }
         }
