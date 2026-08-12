@@ -152,7 +152,7 @@ aero lsp
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference contracts remain supported; accepted CORE-087 composes one mutable reference with CopyData sides, CORE-088 adds immutable-reference sides, and CORE-089 admits two or more pairwise-disjoint mutable references with any immutable and CopyData sides in every declared order. CORE-090 permits already admitted calls as projected-assignment RHS values, and accepted CAP-012 admits immediate nonescaping projected CopyData arguments to ordinary nongeneric reference parameters with checked call-lifecycle identity. Accepted CAP-003 transports exact concrete recursive-CopyData `Option`/`Result` values, CAP-004 transports exact concrete user-defined generic CopyData structs through nongeneric internal parameters and results, CAP-005 specializes bound-free whole-value generic transport functions over exact recursive finite CopyData arguments, CAP-006 transports exact specialized user-defined generic enums through nongeneric parameters/results, CAP-010 specializes exact required-only trait method calls over recursive-CopyData structs to verifier-bound monomorphic helpers, and CAP-011 specializes exact fixed-container read/update algorithms inferred through generic-struct schemas. Missing or unsupported signatures, wrong arguments, mutable-root overlap with any other argument, and `Void` value use fail before checked IR. Overloads, conversions, broader trait-bounded or operational generic functions, generic-to-generic/recursive calls, general trait/closure calls, stored/escaping projected references, generic projected calls, reference results, question-mark propagation, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Accepted CAP-007 adds artifact-free `check_program`/`check_file` APIs over the same checked preparation authority. Accepted CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Accepted CORE-080 likewise preserves the founding direct/aliased dotted `import` syntax with a distinct AST identity and fail-closed diagnostic. Accepted CORE-081 makes the collector and compiler phases library-owned while preserving current flattened behavior. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, and separate compilation are not implemented. |
-| **Selected profiles** | `stable-scalar-v0` remains Aero's only `STABLE` profile. Accepted CAP-014 adds the separate CPU-only `exact-i32-array-v0` profile, classified `END_TO_END` for flat `[int; N]`/`[i32; N]` (`1 <= N <= i32::MAX`) through explicitly annotated immutable literal locals, by-value nongeneric parameters, identifier calls, and direct scalar indexing. Broad integer and fixed-array support remains `PARTIAL`; the default experimental profile is not widened or reclassified. |
+| **Selected profiles** | `stable-scalar-v0` remains Aero's only `STABLE` profile. Accepted CAP-014 created the separate CPU-only `exact-i32-array-v0` profile, classified `END_TO_END`; accepted CAP-018 widens that same profile so ordinary nongeneric functions can construct, return, immutably bind, forward, pass, and index exact flat `[int; N]`/`[i32; N]` values (`1 <= N <= i32::MAX`). Broad integer and fixed-array support remains `PARTIAL`; the default experimental profile is not widened or reclassified. |
 | **Codegen** | LLVM IR backend with optimization passes. In `exact-i32-array-v0`, admitted scalar and array leaves use exact wrapping LLVM `i32`; dynamic indexes take signed lower/upper trap paths before GEP address formation and then `sext i32`. This private selected-profile representation is not a public aggregate layout/ABI, SIMD, tensor, accelerator, or performance claim. |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp`. Accepted CORE-081 removes the binary's duplicate compiler-phase module graph. Accepted CAP-007 makes check/build/run/profile/source-test validation consume one checked-program preparation authority; docs and LSP syntax diagnostics remain intentionally parse-only. |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
@@ -182,6 +182,33 @@ aero lsp
 > file input, and Unicode text encoding/normalization remain unsupported; accepted
 > CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.
 
+> **CAP-018 accepted:** protected master now composes immutable exact flat-array values
+> through the existing CPU-only `exact-i32-array-v0` profile. Accepted CAP-014 created
+> the CPU-only `exact-i32-array-v0` profile; accepted CAP-018 widens that same profile
+> with immutable exact-array results rather than creating another profile. Ordinary
+> acyclic nongeneric functions may construct computed exact-`Int` literals, return an
+> exact array by value, bind it immutably with inference or an exact annotation,
+> forward or pass literal/identifier/call values, and index literal/identifier/call
+> roots. The maintained N=8 application preserves source lane 127, produces transformed
+> lane 128, computes 2035, and retains exit 91 through public and native Linux/Windows
+> `-O0`/`-O2` routes.
+>
+> Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
+> `3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
+> `c49ff17cab7fc0e8d4f552a71499929135c16c61` are exact. Candidate push/PR CI
+> `31614934307`/`31614994226`, Rust CI `31614994253`, CodeQL `31614991761`, and
+> merge-head CI/Rust CI/CodeQL `31615467151`/`31615467115`/`31615465499` pass. Exact
+> default-branch Actions/Python/Rust analyses `1608636029`/`1608636345`/`1608644785`
+> also pass.
+>
+> Mutable array bindings/results, loop-produced arrays, whole or projected array
+> writes in this selected profile, recursion, zero/repeat/nested/non-Int arrays,
+> neighboring aggregate shapes, modules/imports, constants/references, generics/traits,
+> closures, I/O, allocation/drop, accelerators, stable ABI/layout, SIMD, tensors,
+> performance, safety, stability, releases, and language completion remain excluded.
+> Broad integers and fixed arrays remain `PARTIAL`; `stable-scalar-v0` remains Aero's
+> only `STABLE` profile.
+
 > **CAP-014 accepted:** protected master now includes the distinct CPU-only
 > `exact-i32-array-v0` profile. It admits flat `[int; N]`/`[i32; N]` with
 > `1 <= N <= i32::MAX`, explicitly annotated immutable literal locals, by-value
@@ -198,7 +225,8 @@ aero lsp
 > `448e1c2ff397012804b886b904aa43bec63f2d37` are exact. Candidate push/PR CI
 > `31570455915`/`31570461500`, Rust CI `31570461524`, CodeQL `31570456382`, and
 > merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073` pass.
-> Within this profile, array results and writes, neighboring aggregate shapes,
+> CAP-018 subsequently closes CAP-014's immutable array-result limitation in this same
+> profile. Mutable array bindings/results and writes, neighboring aggregate shapes,
 > modules/imports, constants, reference use, generics/traits, closures, I/O,
 > allocation/drop, accelerators,
 > ABI/layout, SIMD, tensors, performance, safety, stability, releases, and language
@@ -270,38 +298,46 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-015:** Aero remains a Minimal Prototype in correctness
+> **Project status after CAP-018:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. The accepted public
-> baseline is protected CAP-015 project-integration merge
-> `b62696272f293f9f378f8a368cc818fcb8ef1074`.
-> CAP-014 remains Aero's latest accepted compiler/profile capability and first
-> Milestone 3 CPU slice. CAP-015 is the latest accepted project integration checkpoint
-> and enriches M1-001 without widening either language profile.
+> baseline is protected CAP-018 compiler/profile merge
+> `c49ff17cab7fc0e8d4f552a71499929135c16c61` at tree
+> `3073c881c883984f53fcde2f0b205acbec760145`.
+> CAP-018 is Aero's latest accepted compiler/profile capability and widens CAP-014's
+> first Milestone 3 CPU slice. CAP-015 is the latest accepted project integration checkpoint.
+> CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
+> changes no compiler production or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture
+> stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013
+> remains the shared specialization identity and phase authority; CAP-018 adds no
+> specialization classifier.
 > CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
 > general ownership, generics, collections, layout/ABI/destruction, and ordinary-
 > program breadth remain partial.
 >
-> The fresh post-CAP-015 ranking uses 1--5 scores; higher risk/evidence favorability
+> The fresh post-CAP-018 ranking uses 1--5 scores; higher risk/evidence favorability
 > means safer and cheaper delivery:
 >
 > | Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
 > |---:|---|---:|---:|---:|---:|---:|---:|---:|
-> | 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
-> | 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+> | 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
+> | 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
 > | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 >
-> The next action is `CAP-016-MODULE-RESOLUTION-READINESS`, not automatic
-> implementation: freeze namespace, visibility, graph/cycle, qualification, source-
-> location, and specialization-identity contracts, then run a red probe before any
-> guard removal. Before that task, direct `mod` collection only flattens files while
-> executable `use` and `import` fail closed; afterward, a bounded ordinary multi-file
-> program should resolve explicit names without identity collisions. Evidence that
-> this requires invented semantics, more than the frozen phase boundary, or duplicate
-> specialization authority stops the task and changes the architecture decision.
-> Typed `Result` propagation is second because ordinary error-returning call chains
-> cannot yet propagate without explicit `Match`. Runtime byte/file acquisition is
-> third and remains stopped until path, byte, bounded-buffer, error, ownership/drop,
-> and platform contracts are frozen.
+> The next action is mutable loop-produced exact-`i32` flat-array results.
+> Rank 1's real-program delta is a guarded loop-produced flat-array transform that can
+> be returned into the accepted CPU kernel; stop if this needs uninitialized/partial
+> array semantics, escaping references, stable layout/ABI, a new checked-IR contract,
+> or duplicated guards. Evidence that one recursive-array authority safely subsumes
+> the same capability at comparable scope and risk would combine or replace it.
+> Rank 2 would move from flat-only values to a bounded nonempty recursive exact-`i32`
+> matrix pipeline under one shared source/physical shape authority; stop on unfrozen
+> depth/product bounds, rank-specific classifiers, new ownership semantics, or stable
+> ABI requirements. A clear flat-indexed workload after rank 1 would defer it.
+> Rank 3 would move from source-embedded bytes to bounded owned runtime acquisition,
+> but remains stopped until path/byte identity, capacity and initialized count,
+> partial-read/EOF, typed errors, ownership/drop, linkage, sandboxing, determinism, and
+> Linux/Windows behavior are frozen. A safer caller-provided or embedded byte source
+> that unlocks the target workload sooner would reorder that decision.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

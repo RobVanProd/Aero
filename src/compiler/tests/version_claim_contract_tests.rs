@@ -31,15 +31,55 @@ const CAP015_ACCEPTANCE_EVIDENCE: [&str; 10] = [
     "31598633803",
 ];
 
+const CAP018_ACCEPTANCE_EVIDENCE: [&str; 13] = [
+    "409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df",
+    "3073c881c883984f53fcde2f0b205acbec760145",
+    "c49ff17cab7fc0e8d4f552a71499929135c16c61",
+    "31614934307",
+    "31614994226",
+    "31614994253",
+    "31614991761",
+    "31615467151",
+    "31615467115",
+    "31615465499",
+    "1608636029",
+    "1608636345",
+    "1608644785",
+];
+
 const CAP015_PRODUCT_BOUNDARY: &str = "General-purpose text parsing, runtime Strings, \
 serialization, runtime ingestion, file input, and Unicode text encoding/normalization \
 remain unsupported; accepted CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.";
 const STALE_CAP015_PRODUCT_BOUNDARY: &str = "general parsing, strings, serialization, runtime ingestion, file input, and unicode remain unsupported";
 
-const POST_CAP015_RANKING_ROWS: [&str; 3] = [
-    "| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |",
-    "| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |",
+const CAP018_PROFILE_HISTORY: &str = "Accepted CAP-014 created the CPU-only \
+`exact-i32-array-v0` profile; accepted CAP-018 widens that same profile with immutable \
+exact-array results rather than creating another profile.";
+
+const CAP015_M1_BOUNDARY: &str = "CAP-015 remains the accepted M1-001 \
+representative-integration checkpoint. CAP-015 changes no compiler production or \
+language-profile code.";
+
+const CAP016_CAP017_STOP_BOUNDARY: &str = "CAP-016 and CAP-017 remain completed \
+readiness/architecture stops, not accepted capabilities; neither adds a profile or \
+matrix row.";
+
+const POST_CAP018_RANKING_ROWS: [&str; 3] = [
+    "| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |",
+    "| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |",
     "| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |",
+];
+
+const POST_CAP018_DECISION_CONTRACTS: [&str; 9] = [
+    "Before, `exact-i32-array-v0` can construct, return, bind, forward, and consume immutable flat array values, but cannot initialize a mutable flat array, transform it with guarded runtime-indexed loop writes, and return the produced value. After, one ordinary bounded nongeneric function can initialize an exact flat array, update its lanes once through checked loop selectors, return it by value, and feed it into the accepted CPU kernel while preserving wrapping, bounds-trap, and source-ownership oracles.",
+    "Stop and rerank if the complete flat mutation/result class needs new source mutation semantics, partial/uninitialized-array semantics, reference escape, stable ABI/layout, more than the authorized profile/backend phase pair, or any guard duplicated outside the shared profile and projected-place authorities.",
+    "Evidence that the checked mutation path cannot prove whole-array initialization and returned-value identity without a new IR/verifier contract, or that one shared recursive-array slice can safely subsume this capability at comparable scope and risk, would change the decision.",
+    "Before, the exact CPU profile admits only flat nonempty integer arrays, so no trusted exact 2D matrix value can be produced, transported, indexed across both dimensions, and consumed by a matrix-shaped CPU computation. After, one canonical recursive exact-array shape authority should admit a separately bounded nonempty integer matrix class and execute a composed 2D kernel through checked multidimensional bounds, verified LLVM, and Linux/Windows native oracles—without rank-, dimension-, or argument-order-specific classifiers.",
+    "Stop if depth/product bounds are unfrozen, recursive physical mapping cannot consume the same canonical shape as source admission, a stable aggregate ABI or new ownership semantics are required, or implementation starts adding rank-specific topology guards.",
+    "If a task-local probe shows the useful matrix workload is already expressible clearly with row 1 plus flat indexing, defer recursive syntax; if the recursive authority safely absorbs row 1 within the same bounded phase/risk envelope, combine the work instead of stacking topology milestones.",
+    "Before, Aero can interpret only source-embedded character/array data; it cannot acquire external workload bytes. After the eventual capability, a cross-platform program should acquire a size-bounded owned byte buffer, report a frozen typed acquisition failure, and hand validated bytes to parsing and CPU computation.",
+    "This row is a strategic gap, not an authorizable implementation: stop until path and byte identity, capacity/initialized-count, partial-read/EOF, error mapping, ownership/drop, runtime linkage, sandboxing, determinism, and Linux/Windows behavior are explicitly frozen.",
+    "Evidence that a platform-neutral caller-provided byte slice or embedded-binary source unlocks the flagship workload sooner and safely avoids filesystem/runtime semantics would replace or reorder this row.",
 ];
 
 fn repository_root() -> PathBuf {
@@ -65,6 +105,32 @@ fn table_line(line: &str) -> &str {
     line.trim_start().strip_prefix('>').unwrap_or(line).trim()
 }
 
+fn normalized_markdown_paragraphs(document: &str) -> Vec<String> {
+    let mut paragraphs = Vec::new();
+    let mut current = Vec::new();
+    for line in document.lines() {
+        let line = table_line(line);
+        if line.is_empty() {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+        } else {
+            current.push(line);
+        }
+    }
+    if !current.is_empty() {
+        paragraphs.push(current.join(" "));
+    }
+    paragraphs
+}
+
+fn table_cells(line: &str) -> Option<Vec<&str>> {
+    let line = table_line(line);
+    line.starts_with('|')
+        .then(|| line.trim_matches('|').split('|').map(str::trim).collect())
+}
+
 fn assert_bounded_acceptance_evidence(
     document_name: &str,
     document: &str,
@@ -72,17 +138,57 @@ fn assert_bounded_acceptance_evidence(
     identities: &[&str],
     require_order: bool,
 ) {
+    let paragraphs = normalized_markdown_paragraphs(document);
+    let matching = paragraphs
+        .iter()
+        .filter(|paragraph| paragraph.contains(identities[0]))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matching.len(),
+        1,
+        "{document_name} must contain exactly one {capability} evidence paragraph"
+    );
+    let paragraph = matching[0];
+    assert!(
+        paragraph.len() < 2_000,
+        "{document_name} has an unbounded {capability} evidence paragraph"
+    );
+
     let mut positions = Vec::with_capacity(identities.len());
     let mut search_from = 0;
     for identity in identities {
-        let relative = document[search_from..].find(identity).unwrap_or_else(|| {
-            panic!("{document_name} is missing ordered {capability} evidence {identity}")
-        });
-        let position = search_from + relative;
+        let count = paragraph.matches(identity).count();
+        if capability == "CAP-018" {
+            assert_eq!(
+                count, 1,
+                "{document_name} must bind {capability} evidence {identity} exactly once"
+            );
+        } else {
+            assert!(
+                count > 0,
+                "{document_name} is missing {capability} evidence {identity}"
+            );
+        }
+        let position = if require_order {
+            search_from
+                + paragraph[search_from..].find(identity).unwrap_or_else(|| {
+                    panic!("{document_name} is missing ordered {capability} evidence {identity}")
+                })
+        } else {
+            paragraph
+                .find(identity)
+                .expect("identity count already proved nonzero")
+        };
         positions.push(position);
         if require_order {
             search_from = position + identity.len();
         }
+    }
+    if require_order {
+        assert!(
+            positions.windows(2).all(|pair| pair[0] < pair[1]),
+            "{document_name} does not preserve ordered {capability} evidence"
+        );
     }
     let start = *positions
         .iter()
@@ -96,36 +202,70 @@ fn assert_bounded_acceptance_evidence(
         .expect("nonempty evidence identities");
     let cursor = positions[final_index] + identities[final_index].len();
     assert!(
-        cursor - start < 2_000,
+        cursor - start < 700,
         "{document_name} detaches the {capability} evidence identities"
     );
-    let conclusion = &document[cursor..document.len().min(cursor + 160)];
-    let normalized = conclusion.to_ascii_lowercase();
-    let pass = normalized.find("pass");
-    let fail = normalized.find("fail");
+    let conclusion = paragraph[cursor..].trim_start();
     assert!(
-        pass.is_some() && fail.map_or(true, |failure| pass.expect("pass checked") < failure),
+        [
+            "` pass.",
+            "` pass,",
+            "` also pass.",
+            "` also pass,",
+            "` all pass.",
+            "` all pass,",
+        ]
+        .iter()
+        .any(|prefix| conclusion.starts_with(prefix)),
         "{document_name} does not bind a passing {capability} conclusion to its exact evidence: {conclusion:?}"
     );
+    if capability == "CAP-018" {
+        let normalized = paragraph.to_ascii_lowercase();
+        for contradiction in ["fail", "pending", "not pass", "did not pass"] {
+            assert!(
+                !normalized.contains(contradiction),
+                "{document_name} gives contradictory {capability} evidence: {contradiction}"
+            );
+        }
+    }
 }
 
-fn assert_post_cap015_ranking_table(document_name: &str, document: &str) {
-    let lines = document.lines().map(table_line).collect::<Vec<_>>();
-    assert_eq!(
-        lines
-            .windows(POST_CAP015_RANKING_ROWS.len())
-            .filter(|window| *window == POST_CAP015_RANKING_ROWS)
-            .count(),
-        1,
-        "{document_name} must preserve one consecutive ordered post-CAP-015 ranking"
-    );
-    for expected in POST_CAP015_RANKING_ROWS {
+fn assert_post_cap018_ranking_table(document_name: &str, document: &str) {
+    let rows = document
+        .lines()
+        .enumerate()
+        .filter_map(|(source_index, line)| {
+            table_cells(line).map(|cells| (source_index, table_line(line), cells))
+        })
+        .collect::<Vec<_>>();
+    let mut indices = Vec::new();
+    for expected in POST_CAP018_RANKING_ROWS {
+        let expected_cells = table_cells(expected).expect("canonical ranking table row");
+        let label = expected_cells[1];
+        let matches = rows
+            .iter()
+            .filter(|(_, _, cells)| {
+                cells
+                    .get(1)
+                    .is_some_and(|actual| actual.eq_ignore_ascii_case(label))
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
-            lines.iter().filter(|line| **line == expected).count(),
+            matches.len(),
             1,
-            "{document_name} must contain exactly one canonical ranking row: {expected}"
+            "{document_name} must contain one unambiguous ranking row for {label}"
         );
+        let (source_index, actual, _) = matches[0];
+        assert_eq!(
+            *actual, expected,
+            "{document_name} changes the rank, scores, or total for {label}"
+        );
+        indices.push(*source_index);
     }
+    assert!(
+        indices.windows(2).all(|pair| pair[1] == pair[0] + 1),
+        "{document_name} must preserve one consecutive ordered post-CAP-018 ranking"
+    );
 }
 
 fn assert_cap014_acceptance_evidence(document_name: &str, document: &str) {
@@ -148,27 +288,101 @@ fn assert_cap015_acceptance_evidence(document_name: &str, document: &str) {
     );
 }
 
-fn assert_post_cap015_successor_order(document_name: &str, document: &str) {
+fn assert_cap018_acceptance_evidence(document_name: &str, document: &str) {
+    assert_bounded_acceptance_evidence(
+        document_name,
+        document,
+        "CAP-018",
+        &CAP018_ACCEPTANCE_EVIDENCE,
+        true,
+    );
+}
+
+fn assert_post_cap018_successor_order(document_name: &str, document: &str) {
     let normalized = document.to_ascii_lowercase();
-    let modules = normalized
-        .find("cap-016-module-resolution-readiness")
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked module-resolution gap"));
-    let result = normalized[modules..]
-        .find("typed `result` propagation")
-        .map(|offset| modules + offset)
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked Result gap"));
-    let file_bytes = normalized[result..]
+    let mutable_array = normalized
+        .find("mutable loop-produced exact-`i32` flat-array results")
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked mutable-array gap"));
+    let recursive_array = normalized[mutable_array..]
+        .find("bounded nonempty recursive exact-`i32` array / 2d matrix pipeline")
+        .map(|offset| mutable_array + offset)
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked matrix gap"));
+    let file_bytes = normalized[recursive_array..]
         .find("runtime byte/file acquisition")
-        .map(|offset| result + offset)
+        .map(|offset| recursive_array + offset)
         .unwrap_or_else(|| panic!("{document_name} is missing the ranked runtime byte/file gap"));
     assert!(
-        modules < result && result < file_bytes,
-        "{document_name} does not preserve modules -> Result -> byte/file ordering"
+        mutable_array < recursive_array && recursive_array < file_bytes,
+        "{document_name} does not preserve mutable array -> matrix -> byte/file ordering"
     );
     assert!(
-        !normalized.contains("cap-015-readiness"),
-        "{document_name} resurrects consumed CAP-015 readiness work"
+        !normalized.contains("cap-018-readiness"),
+        "{document_name} invents CAP-018 readiness work after acceptance"
     );
+}
+
+fn assert_cap018_boundaries(document_name: &str, document: &str) {
+    let normalized = normalized_words(document);
+    let normalized_lower = normalized.to_ascii_lowercase();
+    for expected in [
+        CAP018_PROFILE_HISTORY,
+        CAP015_M1_BOUNDARY,
+        CAP016_CAP017_STOP_BOUNDARY,
+    ] {
+        assert!(
+            normalized.contains(expected),
+            "{document_name} is missing the canonical accepted-history boundary: {expected}"
+        );
+    }
+
+    for stale in [
+        "CAP-014 remains Aero's latest accepted compiler/profile capability",
+        "The next action is `CAP-016-MODULE-RESOLUTION-READINESS`",
+        "`CAP-016-MODULE-RESOLUTION-READINESS` is the next action",
+        "The post-CAP-015 order begins with `CAP-016-MODULE-RESOLUTION-READINESS`",
+        "The post-CAP-015 ranking now controls task selection",
+        "Current accepted public master is CAP-015",
+        "baseline is protected CAP-015",
+        "Project status after CAP-015",
+        "Within this profile, array results",
+        "CAP-018 local candidate",
+        "CAP-018 candidate (not accepted)",
+    ] {
+        assert!(
+            !normalized_lower.contains(&stale.to_ascii_lowercase()),
+            "{document_name} retains stale post-CAP-018 wording: {stale}"
+        );
+    }
+    for counterclaim in [
+        "cap-018 creates a new profile",
+        "cap-018 created a new profile",
+        "cap-018 adds a new profile",
+        "cap-018 is a new profile",
+        "cap-018 is a separate profile",
+        "cap-018 remains a candidate",
+        "cap-018 is not accepted",
+        "cap-018 remains unaccepted",
+        "cap-014 is not the profile origin",
+        "cap-014 is no longer the profile origin",
+        "cap-014 is the latest accepted compiler/profile capability",
+        "cap-014 remains the latest accepted compiler/profile capability",
+        "latest accepted compiler/profile capability is cap-014",
+        "cap-015 changes compiler production",
+        "cap-015 changes language-profile code",
+        "cap-015 widens `exact-i32-array-v0`",
+        "cap-016 is accepted",
+        "cap-017 is accepted",
+        "cap-016 is an accepted capability",
+        "cap-017 is an accepted capability",
+        "cap-016 and cap-017 are accepted capabilities",
+        "cap-016 is the next implementation",
+        "cap-017 is the next implementation",
+    ] {
+        assert!(
+            !normalized_lower.contains(counterclaim),
+            "{document_name} contradicts accepted history: {counterclaim}"
+        );
+    }
 }
 
 fn run_aero(args: &[&str]) -> Output {
@@ -308,11 +522,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(
         readme.contains("**CAP-015 accepted project integration:** protected master now includes")
     );
-    assert!(readme.contains("Project status after CAP-015"));
-    assert!(readme.contains("baseline is protected CAP-015 project-integration merge"));
+    assert!(readme.contains("**CAP-018 accepted:**"));
+    assert!(readme.contains("Project status after CAP-018"));
+    assert!(readme.contains("baseline is protected CAP-018 compiler/profile merge"));
     assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
-    assert!(readme.contains("The next action is `CAP-016-MODULE-RESOLUTION-READINESS`"));
-    assert!(readme.contains("CAP-014 remains Aero's latest accepted compiler/profile capability"));
+    assert!(
+        readme.contains("The next action is mutable loop-produced exact-`i32` flat-array results")
+    );
+    assert!(readme.contains("CAP-018 is Aero's latest accepted compiler/profile capability"));
     assert!(readme.contains("CAP-015 is the latest accepted project integration checkpoint"));
     assert!(readme.contains("`exact-i32-array-v0` profile, classified `END_TO_END`"));
     assert!(readme.contains("Broad integer and fixed-array support remains `PARTIAL`"));
@@ -322,6 +539,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!readme.contains("baseline is protected CAP-012 merge"));
     assert!(!readme.contains("baseline is protected CAP-013 merge"));
     assert!(!readme.contains("Project status after CAP-014"));
+    assert!(!readme.contains("Project status after CAP-015"));
     assert!(!readme.contains("CAP-013 candidate (not accepted)"));
     assert!(!readme.contains("CAP-014 candidate (not accepted)"));
     assert!(!readme.contains("`CAP-015-READINESS`"));
@@ -337,7 +555,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-015 project-integration merge"));
+    assert!(audit.contains("protected CAP-018 compiler/profile merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(audit.contains("CAP-010 accepted: required-only CopyData trait-bound static dispatch"));
@@ -352,10 +570,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(
         audit.contains("CAP-015 accepted: embedded character-record representative integration")
     );
-    assert!(
-        audit.contains("The post-CAP-015 order begins with `CAP-016-MODULE-RESOLUTION-READINESS`")
-    );
+    assert!(audit.contains("CAP-018 accepted: immutable exact-array value/result composition"));
+    assert!(audit.contains(
+        "The post-CAP-018 order begins with mutable loop-produced exact-`i32` flat-array results"
+    ));
     assert!(audit.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(audit.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(audit.contains(
         "CORE-043 through CORE-090 and accepted CAP-001 through CAP-013 implemented substantial typed"
     ));
@@ -392,10 +612,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(alignment.contains(
         "Accepted CAP-015 advances the founding composition and execution-quality direction"
     ));
-    assert!(
-        alignment.contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
-    );
+    assert!(alignment.contains(
+        "Accepted CAP-018 advances the founding high-performance and data-pipeline direction"
+    ));
+    assert!(alignment.contains("Mutable loop-produced exact-`i32` flat-array results rank first"));
     assert!(alignment.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(alignment.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!alignment.contains("`CAP-015-READINESS`"));
     assert!(alignment.contains("satisfy the roadmap's selected Milestone 2 exit gate"));
     assert!(alignment.contains("Aero remains\na Minimal Prototype"));
@@ -432,12 +654,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("CAP-015 accepted: embedded character-record representative integration")
     );
     assert!(
-        project_state.contains("Current accepted public master is CAP-015 project integration")
+        project_state.contains("CAP-018 accepted: immutable exact-array value/result composition")
     );
+    assert!(project_state.contains("Current accepted public master is CAP-018"));
     assert!(project_state.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(project_state.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(
-        project_state
-            .contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+        project_state.contains("Mutable loop-produced exact-`i32` flat-array results rank first")
     );
     assert!(!project_state.contains("Current accepted public master is CAP-012"));
     assert!(!project_state.contains("Current accepted public master is CAP-013"));
@@ -456,9 +679,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`)"
     ));
     assert!(matrix.contains("| STABLE |"));
-    assert!(
-        matrix.contains("Latest accepted compiler-capability master is protected CAP-014 merge")
-    );
+    assert!(matrix.contains("Latest accepted compiler/profile master is protected CAP-018 merge"));
     assert!(
         normalized_words(&matrix)
             .contains("Latest accepted project-integration master is protected CAP-015 merge")
@@ -468,9 +689,80 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(matrix.contains(
         "Canonical alias identity and shared bounded-specialization phase authority (accepted `CAP-013`)"
     ));
-    assert!(matrix.contains(
-        "| Selected CPU-only `exact-i32-array-v0` profile (accepted `CAP-014`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
+    let language_features = matrix
+        .split_once("## Language features")
+        .expect("matrix language-feature section")
+        .1
+        .split_once("## Compiler, tooling, and ecosystem surfaces")
+        .expect("matrix compiler/tooling section")
+        .0;
+    let language_feature_rows = language_features
+        .lines()
+        .filter_map(|line| table_cells(line).map(|cells| (table_line(line), cells)))
+        .collect::<Vec<_>>();
+    let exact_profile_rows = language_features
+        .lines()
+        .map(table_line)
+        .filter(|line| {
+            let lower = line.to_ascii_lowercase();
+            lower.starts_with('|')
+                && (lower.contains("exact-i32-array-v0") || lower.contains("cap-018"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        exact_profile_rows,
+        [
+            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
+        ],
+        "CAP-014/CAP-018 must classify in exactly one widened profile row"
+    );
+    let stable_rows = language_feature_rows
+        .iter()
+        .filter(|(_, cells)| {
+            cells
+                .last()
+                .is_some_and(|classification| classification.eq_ignore_ascii_case("stable"))
+        })
+        .map(|(line, _)| *line)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        stable_rows,
+        [
+            "| Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |"
+        ],
+        "stable-scalar-v0 must remain the only STABLE language-feature row"
+    );
+    assert!(language_features.contains(
+        "| Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |"
     ));
+    assert!(language_features.contains(
+        "| Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |"
+    ));
+    for (label, expected) in [
+        (
+            "Integers/floats and arithmetic",
+            "| Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |",
+        ),
+        (
+            "Fixed arrays",
+            "| Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |",
+        ),
+    ] {
+        let matches = language_feature_rows
+            .iter()
+            .filter(|(_, cells)| {
+                cells
+                    .first()
+                    .is_some_and(|actual| actual.eq_ignore_ascii_case(label))
+            })
+            .map(|(line, _)| *line)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches,
+            [expected],
+            "matrix must preserve one canonical {label} classification row"
+        );
+    }
     assert!(matrix.contains(
         "| Representative scalar application/conformance subset (`M1-001`, enriched by accepted `CAP-015`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |"
     ));
@@ -490,6 +782,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "The selected-profile row is `END_TO_END`; broad integers and\nfixed arrays remain `PARTIAL`, and `stable-scalar-v0` remains the only `STABLE`"
     ));
     assert!(matrix.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(matrix.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!matrix.contains("`CAP-015-READINESS`"));
     assert!(
         !matrix.contains("Latest accepted compiler-capability master is protected CAP-011 merge")
@@ -517,10 +810,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "CAP-015 is accepted as a bounded representative application integration checkpoint"
     ));
     assert!(
-        roadmap.contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+        roadmap.contains("CAP-018 is accepted as immutable exact-array value/result composition")
     );
+    assert!(roadmap.contains("Mutable loop-produced exact-`i32` flat-array results rank first"));
     assert!(roadmap.contains("The milestone exit is not met"));
     assert!(roadmap.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(roadmap.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!roadmap.contains("`CAP-015-READINESS`"));
     assert!(!roadmap.contains("product task is an explicitly profiled exact fixed-width integer"));
     assert!(roadmap.contains("selected Milestone 2 exit gate is met"));
@@ -530,36 +825,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(normalized_roadmap.contains(
         "Scores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability, so 5 means lower implementation risk or lower evidence cost."
     ));
-    assert!(normalized_roadmap.contains(
-        "Before the destination capability, ordinary programs cannot use explicit positive `import` or `use` resolution"
-    ));
-    assert!(normalized_roadmap.contains(
-        "After the eventual bounded vertical slice, one frozen multi-file program should resolve an explicitly imported name deterministically"
-    ));
-    assert!(normalized_roadmap.contains(
-        "Stop if the probe requires silently removing the shared fail-closed guard, erasing visibility, accepting ambiguous lookup, inventing cycle behavior, or crossing the authorized architecture boundary."
-    ));
-    assert!(normalized_roadmap.contains(
-        "Before this capability, each fallible layer must manually inspect and reconstruct `Result` with exhaustive `Match`"
-    ));
-    assert!(normalized_roadmap.contains(
-        "After a separately frozen slice, an admitted ordinary call chain should return the unchanged error and continue the success value under independently verified control flow."
-    ));
-    assert!(normalized_roadmap.contains(
-        "Stop unless propagation syntax, early-return behavior, exact success/error compatibility, ownership effects, source spans, and interaction with explicit `Match` are frozen"
-    ));
-    assert!(normalized_roadmap.contains(
-        "Before this capability, Aero can interpret only source-embedded characters, not acquire external workload bytes."
-    ));
-    assert!(normalized_roadmap.contains(
-        "After its eventual bounded slice, a real CPU workload should obtain a size-bounded owned buffer, report acquisition failure through a frozen typed error, and hand validated data to computation."
-    ));
-    assert!(normalized_roadmap.contains(
-        "This work remains stopped until path and byte identities, buffer capacity/initialization, partial reads, EOF, error mapping, ownership/drop, runtime linkage, sandboxing, and Linux/Windows behavior are frozen."
-    ));
-    assert!(normalized_roadmap.contains(
-        "Evidence that module semantics cannot be bounded without a package architecture, that explicit `Match` already serves the target error workflow better than propagation, or that a safe platform-neutral byte source must precede filesystem paths would change the order and require a fresh scored decision."
-    ));
+    for contract in POST_CAP018_DECISION_CONTRACTS {
+        assert!(
+            normalized_roadmap.contains(contract),
+            "Roadmap.md is missing a post-CAP-018 decision contract: {contract}"
+        );
+    }
 
     let conformance = repository_file("CONFORMANCE_PLAN.md");
     assert!(
@@ -580,10 +851,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         conformance
             .contains("Accepted CAP-015 enriches the existing M1-001 representative application")
     );
-    assert!(conformance.contains("`CAP-016-MODULE-RESOLUTION-READINESS` is the next action"));
+    assert!(conformance.contains("Accepted CAP-018 widens the existing `exact-i32-array-v0` lane"));
+    assert!(
+        conformance.contains("Mutable loop-produced exact-`i32` flat-array results rank first")
+    );
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
     assert!(conformance.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(conformance.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!conformance.contains("`CAP-015-READINESS`"));
     for (document_name, document) in [
         ("README.md", readme.as_str()),
@@ -596,6 +871,8 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     ] {
         assert_cap014_acceptance_evidence(document_name, document);
         assert_cap015_acceptance_evidence(document_name, document);
+        assert_cap018_acceptance_evidence(document_name, document);
+        assert_cap018_boundaries(document_name, document);
     }
     for (document_name, document, expected_boundaries) in [
         ("README.md", readme.as_str(), 1),
@@ -632,24 +909,32 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("Roadmap.md", roadmap.as_str()),
         ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
-        assert_post_cap015_successor_order(document_name, document);
+        assert_post_cap018_successor_order(document_name, document);
     }
     for (document_name, document) in [
         ("README.md", readme.as_str()),
         ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
+        ("FRAMEWORK_ALIGNMENT.md", alignment.as_str()),
         ("PROJECT_STATE.md", project_state.as_str()),
         ("SPEC_IMPLEMENTATION_MATRIX.md", matrix.as_str()),
         ("Roadmap.md", roadmap.as_str()),
+        ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
-        assert_post_cap015_ranking_table(document_name, document);
+        assert_post_cap018_ranking_table(document_name, document);
     }
-    assert!(readme.contains("Within this profile, array results and writes"));
-    assert!(audit.contains("Within this profile, array results"));
-    assert!(project_state.contains("Within this profile, array results"));
-    assert!(matrix.contains("Within this profile, array results or writes"));
-    assert!(!matrix.contains("Selected `CAP-015` profile"));
-    assert!(!matrix.contains("Parser feature row (accepted `CAP-015`)"));
-    assert!(roadmap.contains("Within this profile, array results"));
+    let cap018_matrix_rows = matrix
+        .lines()
+        .map(table_line)
+        .filter(|line| line.starts_with('|') && line.to_ascii_lowercase().contains("cap-018"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cap018_matrix_rows,
+        [
+            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |",
+            "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/trap gates widened by CAP-018 immutable result composition | P | P | PARTIAL |",
+        ],
+        "CAP-018 may classify only in the widened exact profile and its existing CPU platform row"
+    );
     assert!(readme.contains(
         "General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
@@ -840,13 +1125,8 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
         project_state.contains("CAP-006 accepted: explicit user-defined generic CopyData enums")
     );
     assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
-    assert!(
-        project_state
-            .contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
-    );
-    assert!(
-        project_state.contains("Current accepted public master is CAP-015 project integration")
-    );
+    assert!(normalized_words(&project_state).contains(CAP016_CAP017_STOP_BOUNDARY));
+    assert!(project_state.contains("Current accepted public master is CAP-018"));
     assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(!project_state.contains("exact next action is this bounded"));
 }
