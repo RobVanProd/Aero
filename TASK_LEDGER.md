@@ -168,18 +168,20 @@
   checked AST construction must also fail closed, so a trustworthy repair participates
   in the broader shared provenance/placement architecture and exceeds the current
   phase boundary. Keep it explicit and reopen it with the module migration task.
-- Decision synchronization authorization: before starting the next behavior task,
-  amend the current ranking/next-action wording in `TASK_LEDGER.md`,
-  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+- Evidence-proportional synchronization boundary: do not publish a standalone
+  records-only CAP-016 milestone or mutate cumulative truth merely to describe this
+  readiness result. Accepted `master` truth remains the CAP-015 synchronization until
+  a later executable candidate is green. Carry these immutable readiness commits into
+  the next typed-`Result` capability branch, authorize and classify that task in this
+  ledger first, and synchronize `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
   `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
-  `CONFORMANCE_PLAN.md`, `README.md`, and
-  `src/compiler/tests/version_claim_contract_tests.rs` only. Record CAP-016 as a
+  `CONFORMANCE_PLAN.md`, `README.md`, and their exact claim tests once, only after the
+  executable candidate passes. That final synchronization must record CAP-016 as a
   completed readiness stop without a capability/profile/matrix promotion, retain
-  modules/imports/visibility as `PARSED_ONLY`, expose the local-`mod` false-success, and
-  move typed `Result` propagation to the next separately authorized readiness/probe.
-  The first change after this amendment must be a failing claim-contract assertion;
-  no production, example, workflow, dependency, release, benchmark, protection, or
-  external-artifact change is authorized.
+  modules/imports/visibility as `PARSED_ONLY`, expose the local-`mod` false-success,
+  and identify the actual next accepted capability. No production, example, workflow,
+  dependency, release, benchmark, protection, or external-artifact change is
+  authorized by CAP-016 itself.
 - What changes the decision: an explicit module RFC/migration contract that chooses the
   executable syntax, privacy and shadow rules, flattened-program migration/versioning,
   canonical qualified specialization identity, cache/diagnostic identity, and a shared
