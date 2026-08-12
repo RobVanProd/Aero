@@ -1,5 +1,97 @@
 # Aero Task Ledger
 
+## CAP-019-ACCEPTANCE-SYNC - mutable flat-array production accepted truth
+
+- Date/task/status: 2026-08-12, `CAP-019-ACCEPTANCE-SYNC`, authorized bounded
+  record/claim-contract synchronization on `agent/cap-019-accepted-truth-sync`
+  from exact protected master
+  `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4`, tree
+  `c520729e7b081087bbe431e97d937fb77f519b37`. Its ordered parents are accepted
+  base `84916e124752b8e7d228855a0969cd9eab8dba26`, then reviewed candidate
+  `f2955bedd22708041e36ee90c65c4f08c443d740`; the merge tree exactly preserves
+  the candidate tree. User/app-owned `.codex-remote-attachments/` and `tmp/`
+  remain outside scope. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and observability defect: protected PR #56 accepted CAP-019.
+  Exact-candidate push CI `31627264709`, PR CI `31627385522`, Rust CI
+  `31627385563`, and CodeQL `31627405516` passed, including aggregate candidate
+  check `94217394313`. Fresh merge-head CI `31627880853`, Rust CI
+  `31627880924`, and CodeQL `31627880812` passed. Merge jobs are compiler
+  `94218938557`, Windows LLVM 22 `94218938794`, nightly `94218938835`, stable
+  `94218939033`, and CodeQL Actions/Python/Rust
+  `94218943455`/`94218943514`/`94218943605`; exact default-branch analyses are
+  Actions `1609396076`, Python `1609396442`, and Rust `1609401493`. The sole open
+  CodeQL finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+  CAP-019 alert surfaced. Cumulative truth still stops at CAP-018 and therefore
+  omits an accepted executable capability. This is a documentation/claim-contract
+  defect, not evidence that the protected compiler behavior is missing.
+- Frozen accepted truth: CAP-019 widens the existing CPU-only
+  `exact-i32-array-v0` profile created by CAP-014; it creates no new profile and
+  does not change `stable-scalar-v0`. The accepted flat nonempty exact-Int class
+  now includes a fully initialized mutable owned local whose initializer is an
+  admitted literal, immutable exact-array identifier, or acyclic ordinary call of
+  the same count, plus direct `local[index] = exact_int_value` projected writes.
+  The material application copies an immutable eight-lane input, increments every
+  lane in a guarded loop, returns the whole array by value, feeds it into the
+  accepted CPU kernel, preserves every source lane, produces result `2035`, and
+  exits `91`. Linux/Windows evidence retains read traps and adds negative and
+  equal-to-count write traps. CAP-018 remains the immutable array-result
+  composition checkpoint, CAP-015 remains the M1-001 parser/integration checkpoint,
+  CAP-016 and CAP-017 remain completed architecture/readiness stops rather than
+  accepted capabilities, and CAP-013 remains the single specialization
+  identity/phase authority.
+- Preserved exclusions and claim boundary: broad integer and fixed-array support
+  remain `PARTIAL`; only `stable-scalar-v0` remains `STABLE`, and the selected CPU
+  row remains the bounded `END_TO_END` lane. Do not claim general mutable arrays,
+  uninitialized or partial arrays, mutable parameters/results/aliases, references
+  or escaping places, whole-array reassignment, recursive/nested/repeat/non-Int
+  arrays, stable aggregate ABI/layout, general parsing/string/file behavior,
+  GPU execution, performance, or safety. Do not relabel CAP-019 as a new profile,
+  a general array feature, or another generic-specialization refactor.
+- Ranking and next-action hypothesis: CAP-019 closes the former rank-one flat-array
+  production gap. Re-score the remaining highest-leverage gaps from the accepted
+  head rather than mechanically promoting the old table. In particular, audit the
+  separately bounded recursive exact-array/2D matrix destination against the
+  accepted flat mutation path; keep runtime byte/file acquisition non-authorizable
+  until its path/byte/buffer/count/error/drop/platform contract is frozen; and keep
+  the CAP-016 module and CAP-017 propagation stops closed unless their explicit
+  language/architecture decisions are supplied. Freeze one canonical ordered
+  three-row table with six named 1-5 dimensions, totals, before/after deltas, stop
+  conditions, and evidence that would change the decision before cumulative prose
+  is edited.
+- Allowed files and sequence: this authorization commit may change only
+  `TASK_LEDGER.md`. The red claim-contract checkpoint may then change only
+  `src/compiler/tests/version_claim_contract_tests.rs`. The synchronized candidate
+  may additionally change only `README.md`, `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `Roadmap.md`, and `CONFORMANCE_PLAN.md`. That is exactly
+  nine tracked files total. No compiler, example, workflow, fixture, dependency, or
+  other test may change. Each writing agent must own a disjoint file set; auditors
+  remain read-only.
+- Acceptance tests and immutable evidence contract: first make the dedicated
+  version-claim test compile and fail only because cumulative docs lack CAP-019,
+  then make it require one bounded, ordered CAP-019 evidence paragraph in all seven
+  cumulative docs. Bind candidate/tree/base/merge/merge-tree/ordered-parent
+  identity, all candidate and merge run identities, default-branch analyses, and an
+  immediate passing conclusion; bind the CAP-014-origin/CAP-018/CAP-019 same-profile
+  history, CAP-015 integration boundary, CAP-016/017 stops, the single selected
+  matrix row, broad `PARTIAL`/stable-only-`STABLE` separation, canonical ranking
+  rows in source-line order, and complete before/after/stop/change-mind contracts.
+  Reject stale CAP-018-current, CAP-019-candidate/unaccepted, old next-action,
+  mutable-array-result exclusion, or new-profile counterclaims case-insensitively.
+  Then run the dedicated contract, full root `./tools/test.sh`, diff/scope/history
+  audits, immutable candidate review, exact-head public checks, protected merge, and
+  fresh merge-head verification before calling the synchronization accepted.
+- Risks, stop conditions, and rollback: contradictory prose could overclaim general
+  mutation, erase CAP-014/018/015 chronology, convert an architecture stop into an
+  accepted feature, publish stale run identities, or let one matrix/table surface
+  mask another. Exact bounded evidence, case-insensitive uniqueness/negative scans,
+  source-line-adjacent tables, and independent review must fail closed. Stop if any
+  claimed behavior is not supported by immutable CAP-019 evidence, if ranking needs
+  an unfrozen semantic decision, if a tenth tracked file or production change is
+  needed, or if the root/public gates are red. Roll back to this authorization
+  boundary rather than weakening a claim or test.
+
 ## CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION - loop-produced flat-array results
 
 - Date/task/status: 2026-08-12, `CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION`, red
