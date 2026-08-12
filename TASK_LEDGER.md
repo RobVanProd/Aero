@@ -1,5 +1,87 @@
 # Aero Task Ledger
 
+## CAP-012 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-11, `CAP-012-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #46 merge
+  `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92` (tree
+  `83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`) on
+  `agent/cap-012-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as acceptance evidence.
+- Observed behavior and hypothesis: project-truth surfaces still call CAP-012 a
+  candidate and CAP-011 the current accepted master after the exact CAP-012 candidate
+  passed all public gates, merged normally through strict branch protection, and
+  passed every exact merge-head workflow. This is an observability defect only.
+  Replacing pending statements with immutable accepted identities makes repository
+  truth match public master without changing language behavior.
+- Frozen semantics and allowed files: no parser, semantic, checked-IR, verifier,
+  backend, CLI, workflow, example, dependency, package, release, benchmark,
+  claim-verification artifact, protection setting, or external behavior may change.
+  Only `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and exact repository-state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result. After the exact record candidate is locally green, PR #46 title/body may be
+  updated metadata-only to the accepted merge and merge-head identities; no code,
+  review, protection, or merge state may change.
+- Immutable evidence: exact candidate
+  `79d14866061184bc619ce5c92603c0964a31e74d` is based on prior accepted master
+  `f35f0cff5c3337bd06bef215d49bbdc9368686df`. Candidate push CI
+  `31552115552`, PR CI `31552154519`, Rust CI `31552154532`, and CodeQL
+  `31552152210` pass, including stable/nightly Linux and pinned Windows LLVM/Clang
+  22 native execution. PR #46 merged as
+  `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`, whose ordered parents are prior
+  master then exact candidate and whose tree exactly equals candidate tree
+  `83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`. Exact merge-head CI
+  `31554826581`, Rust CI `31554826582`, and CodeQL `31554826233` pass.
+- Acceptance tests, risks, recovery, and decision threshold: update every mandatory
+  public truth surface to CAP-012 accepted while retaining Minimal Prototype status
+  and every frozen exclusion. The selected Milestone 2 exit gate may be called met
+  only because accepted CAP-011 supplies its generic data structure and accepted
+  CAP-012 supplies its ownership-intensive representative program through checked IR,
+  verified LLVM, and pinned Linux/Windows native execution; this is not proof that all
+  Milestone 2 ambitions or general ownership/generics are complete. Add exact positive
+  and stale-negative repository-state assertions, run focused assertions plus
+  formatting, diff hygiene, docs, and the complete root gate, then require one bounded
+  exact-head PR, all protected checks, normal integration, and merge-head evidence.
+  Stop on any identity mismatch, semantic broadening, non-record mutation, stale
+  candidate wording, red baseline, or claim beyond the accepted finite call-loan
+  class. The rollback boundary is this record-only branch/PR.
+- Strategic consequence and what would change our mind: synchronizing accepted truth
+  closes evidence administration before selecting another capability and permits the
+  next ranking to optimize for the post-Milestone-2 program path. Any evidence that
+  the telemetry specimen did not actually exercise both immutable and mutable nested
+  loans through the public native routes, or that one accepted identity/run differs,
+  would revoke the milestone-exit statement and stop this sync. The shared compile-
+  time specialization subsystem remains a near-term ranked architectural watch;
+  duplication alone does not authorize a semantic refactor, while observed identity
+  drift, another feature-specific body classifier, or a multi-capability blocker does.
+
+### CAP-012 acceptance-sync local green checkpoint
+
+- The record patch changes exactly the nine authorized truth/assertion files. It calls
+  CAP-012 accepted at protected merge `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`,
+  preserves every call-only exclusion and Minimal Prototype status, and records that
+  CAP-011 plus CAP-012 meet only the selected Milestone 2 exit gate. Historical
+  candidate checkpoints remain chronology rather than being rewritten.
+- The executable repository-state contract passes its focused test after proving all
+  CAP-012 accepted/current identities and the absence of targeted stale candidate or
+  CAP-011-current wording. Two independent read-only audits found and closed stale
+  framework-table, audit, README, roadmap, conformance-progression, assertion, and PR-
+  metadata classes; they agreed the broader milestone remains partial.
+- `git diff --check` and formatting pass. Exact repository-root `./tools/test.sh`
+  passes 242 library tests, 35 CLI tests, every integration target, correctness-
+  denying Clippy, and doc tests. No production source, workflow, example, dependency,
+  release, benchmark, claim artifact, protection setting, quarantined stash, or user/
+  app-owned untracked content changed.
+- Remaining public work: commit and publish one bounded record-only PR, require all
+  exact-head checks, update PR #46 metadata to accepted identities under this
+  authorization, merge normally, and verify its exact merge-head workflows. Until
+  that sync merges, CAP-012 compiler behavior is accepted but accepted-master records
+  remain locally corrected rather than publicly synchronized.
+
 ## CAP-012 - nonescaping projected CopyData call loans
 
 - Date/task/status: 2026-08-11, `CAP-012`, authorized red-first compiler and

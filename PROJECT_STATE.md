@@ -4,9 +4,9 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
-### CAP-012 candidate (not accepted): nonescaping projected CopyData call loans
+### CAP-012 accepted: nonescaping projected CopyData call loans
 
-The CAP-012 branch candidate composes the accepted finite projected-place and
+Accepted CAP-012 composes the finite projected-place and
 call-bounded reference authorities so ordinary nongeneric helpers can immediately
 observe or update a nested field/tuple/fixed-array CopyData place. One shared place
 classifier owns root facts, recursive path/type identity, and checked selectors for
@@ -15,18 +15,24 @@ admission consume that classifier. Checked IR carries the complete owner root,
 projected source, exact logical types, mutability, and explicit call-end lifecycle for
 independent verification before LLVM.
 
-The telemetry application candidate now reads
+The telemetry application now reads
 `batch.sensors[index].value` and updates `batch.meta.0` through ordinary reference
 helpers while retaining exact output/exit 91. Focused 3/3, representative 3/3,
 surrounding reference/assignment suites, nine verifier-corruption mutations, format,
 correctness Clippy, 242 library tests, 35 CLI tests, every integration target, and doc
-tests pass locally. Pinned LLVM 22 Linux/Windows native and public exact-head evidence
-remain pending, so this is not accepted master and does not yet close Milestone 2.
+tests pass. Exact candidate `79d14866061184bc619ce5c92603c0964a31e74d`
+passed push CI `31552115552`, PR CI `31552154519`, Rust CI `31552154532`, and
+CodeQL `31552152210`, including pinned LLVM/Clang 22 native execution. Protected PR
+#46 merged it as accepted master `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`;
+candidate and merge share tree `83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`,
+and exact merge-head CI `31554826581`, Rust CI `31554826582`, and CodeQL
+`31554826233` pass. Together with CAP-011's generic data structure, this satisfies
+the selected Milestone 2 exit gate without promoting the wider milestone surface.
 
 Stored or escaping references, reference results/fields/containers, partial moves,
 disjoint-projection alias claims, generic/method/trait call expansion, dynamic
 collections, lifetimes/NLL/drop/unsafe, stable ABI, safety, and stability remain
-outside the candidate. Current accepted public master remains CAP-011.
+outside the accepted slice. Current accepted public master is CAP-012.
 
 ### CAP-011 accepted: fixed-capacity generic CopyData container algorithms
 

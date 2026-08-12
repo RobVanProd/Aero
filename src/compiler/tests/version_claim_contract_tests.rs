@@ -146,7 +146,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!readme.contains("CAP-010 local candidate (not accepted master)"));
     assert!(readme.contains("**CAP-011 accepted:**"));
     assert!(!readme.contains("CAP-011 local candidate (not accepted)"));
-    assert!(readme.contains("baseline is protected CAP-011 merge"));
+    assert!(readme.contains("**CAP-012 accepted:**"));
+    assert!(readme.contains("Project status after CAP-012"));
+    assert!(readme.contains("baseline is protected CAP-012 merge"));
+    assert!(readme.contains("49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92"));
+    assert!(!readme.contains("CAP-012 candidate—not accepted"));
+    assert!(!readme.contains("baseline is protected CAP-011 merge"));
 
     let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
     assert!(audit.contains(
@@ -156,13 +161,16 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-011 compiler-capability merge"));
+    assert!(audit.contains("protected CAP-012 compiler-capability merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(audit.contains("CAP-010 accepted: required-only CopyData trait-bound static dispatch"));
     assert!(!audit.contains("CAP-010 local candidate"));
     assert!(audit.contains("CAP-011 accepted: generic fixed-window algorithms"));
     assert!(!audit.contains("CAP-011 local candidate"));
+    assert!(audit.contains("CAP-012 accepted: nonescaping projected CopyData call loans"));
+    assert!(audit.contains("selected Milestone 2 exit gate"));
+    assert!(!audit.contains("CAP-012 candidate only"));
     assert!(audit.contains("selected-profile row is therefore `STABLE`"));
 
     let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
@@ -175,6 +183,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("Accepted CAP-010 advances the founding preference for traits and generics")
     );
     assert!(alignment.contains("Accepted CAP-011 advances the founding generic-data-"));
+    assert!(
+        alignment
+            .contains("Accepted CAP-012 advances the founding ownership-and-borrowing direction")
+    );
+    assert!(alignment.contains("satisfy the roadmap's selected Milestone 2 exit gate"));
+    assert!(alignment.contains("Aero remains\na Minimal Prototype"));
+    assert!(!alignment.contains("Projected borrowing, reference-target dynamic writes"));
+    assert!(!alignment.contains("close the remaining Milestone 2 exit half"));
 
     let project_state = repository_file("PROJECT_STATE.md");
     assert!(project_state.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
@@ -189,6 +205,11 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("CAP-011 accepted: fixed-capacity generic CopyData container algorithms")
     );
     assert!(!project_state.contains("CAP-011 candidate:"));
+    assert!(project_state.contains("CAP-012 accepted: nonescaping projected CopyData call loans"));
+    assert!(project_state.contains("#46 merged it as accepted master"));
+    assert!(project_state.contains("49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92"));
+    assert!(project_state.contains("selected Milestone 2 exit gate"));
+    assert!(!project_state.contains("CAP-012 candidate (not accepted)"));
 
     let matrix = repository_file("SPEC_IMPLEMENTATION_MATRIX.md");
     assert!(matrix.contains("Accepted CAP-009 adds an explicitly selected `stable-scalar-v0`"));
@@ -199,15 +220,24 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     ));
     assert!(matrix.contains("| STABLE |"));
     assert!(
-        matrix.contains("Latest accepted compiler-capability master is protected CAP-011 merge")
+        matrix.contains("Latest accepted compiler-capability master is protected CAP-012 merge")
     );
     assert!(matrix.contains("Accepted CAP-011 composes the existing generic-struct"));
+    assert!(matrix.contains("Nonescaping projected CopyData call loans (accepted `CAP-012`)"));
+    assert!(
+        !matrix.contains("Latest accepted compiler-capability master is protected CAP-011 merge")
+    );
+    assert!(!matrix.contains("CAP-012 is a candidate, not an accepted row"));
 
     let roadmap = repository_file("Roadmap.md");
     assert!(roadmap.contains("CAP-010 is an accepted Milestone 2 capability"));
     assert!(!roadmap.contains("CAP-010 is a local green Milestone 2 candidate"));
     assert!(roadmap.contains("CAP-011 is an accepted Milestone 2 capability"));
     assert!(!roadmap.contains("CAP-011 is the current local Milestone 2 candidate"));
+    assert!(roadmap.contains("CAP-012 is an accepted Milestone 2 capability"));
+    assert!(roadmap.contains("selected Milestone 2 exit gate is met"));
+    assert!(!roadmap.contains("CAP-012 is the current candidate, not accepted capability"));
+    assert!(!roadmap.contains("The milestone remains open because no"));
 
     let conformance = repository_file("CONFORMANCE_PLAN.md");
     assert!(
@@ -215,6 +245,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("Accepted CAP-010 adds one required-only trait-dispatch conformance slice")
     );
     assert!(conformance.contains("Accepted CAP-011 passes focused 4/4"));
+    assert!(conformance.contains("accepted CAP-012 projected-call-loan slice"));
+    assert!(conformance.contains(
+        "Accepted CAP-012 adds one nonescaping projected CopyData call-loan conformance slice"
+    ));
     assert!(readme.contains(
         "General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));

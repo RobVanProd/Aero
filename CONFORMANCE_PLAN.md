@@ -66,6 +66,18 @@
   mandatory. Pinned Linux/Windows native gates must execute `int` and `char`
   specializations and reject the complete lower/upper-bound read/write product at
   `-O0` and `-O2`. This is not general generic or dynamic collection conformance.
+- The accepted CAP-012 projected-call-loan slice must retain one shared projected-
+  place classifier across assignment, semantic admission, and raw checked admission.
+  Positive evidence covers every finite nonempty field/tuple/fixed-array path,
+  literal and once-evaluated checked runtime selectors, recursive CopyData leaves,
+  immutable and mutable loans, multiple roots, immutable projections from by-value
+  CopyData parameters, owner reuse, modules, and the representative application.
+  Negative evidence covers excluded roots, mutability/type mismatches, complete-root
+  conflicts, selectors, temporaries, and stored aliases. Nine independent verifier
+  mutations must reject root/source/type/mutability/call-operand/end corruption, and
+  pinned Linux/Windows `-O0`/`-O2` gates must execute the product and reject both
+  runtime-bounds failure directions. This is not stored-reference, general alias,
+  lifetime/drop, ABI, or memory-safety conformance.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,
@@ -95,9 +107,8 @@
 
 ## Real-program progression
 
-The release suite will grow through: a basic CLI program; functions and
-recursion; structs and enums; pattern matching; a generic data structure; an
-ownership-intensive program; file processing; a small parser/interpreter; a CPU
+The release suite has reached bounded generic-data-structure and ownership-intensive
+telemetry stages. It will continue through file processing, a small parser/interpreter, a CPU
 numerical workload; then real vector, matrix, and tensor accelerator workloads
 after their runtime contracts exist.
 
@@ -133,6 +144,19 @@ nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
+
+Accepted CAP-012 adds one nonescaping projected CopyData call-loan conformance slice.
+Positive evidence composes immutable and mutable nested field/tuple/fixed-array loans,
+checked runtime selectors, multiple roots, recursive CopyData leaves, immutable
+projections from by-value CopyData parameters, owner reuse, modules, and the
+representative telemetry application. Semantic
+and raw checked routes share the place classifier; exact checked identities and nine
+corruption mutations prove root/source/type/mutability/call-lifecycle integrity before
+LLVM. Focused 3/3, representative 3/3, the 242-library/35-binary complete gate, all
+candidate-head results, protected PR #46 merge `49bcdfc3`, and exact merge-head
+CI/Rust CI/CodeQL pass, including pinned LLVM/Clang 22 native `-O0`/`-O2` execution.
+This is a bounded `PARTIAL` ownership slice, not stored references, general aliasing,
+lifetimes/drop, stable ABI, or memory-safety conformance.
 
 Accepted CAP-011 passes focused 4/4, representative 3/3, its private identity
 mismatch control, check/doc/format/diff, and the complete repository gate with 241
