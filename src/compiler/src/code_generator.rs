@@ -1124,10 +1124,22 @@ impl CodeGenerator {
                 | Inst::CheckedCopyStructArrayAlloca { .. }
                 | Inst::CheckedCopyStructArrayElementPtr { .. } => None,
                 Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
-                | Inst::CheckedOwnedPlaceAssignment { ty, .. }
-                    if matches!(ty, LogicalType::Int | LogicalType::Bool) =>
+                    if Self::exact_i32_profile_type(ty, ProfileTypeUse::MutableBinding) =>
                 {
                     None
+                }
+                Inst::CheckedOwnedPlaceAssignment { ty, .. }
+                    if Self::exact_i32_profile_type(ty, ProfileTypeUse::OwnedAssignment) =>
+                {
+                    None
+                }
+                Inst::CheckedOwnedPlaceAssignment { ty, .. }
+                    if matches!(
+                        classify_profile_logical_type(ty),
+                        ProfileTypeShape::ExactI32Array { .. }
+                    ) =>
+                {
+                    Some("profile-excluded whole-array owned-place assignment")
                 }
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::unsupported_exact_i32_profile_instruction(body)
@@ -1602,8 +1614,9 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable owned-place alloca")
                     };
-                    let copy_type = if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int)
-                    {
+                    let copy_type = if self.language_profile.admits_exact_i32_array(ty) {
+                        self.profile_copy_data_type_to_llvm(ty)
+                    } else if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int) {
                         "i32".to_string()
                     } else {
                         Self::reference_pointee_to_llvm(ty)
@@ -3362,7 +3375,16 @@ mod tests {
 
     use super::*;
     use crate::ir::{BlockMetadata, Function, FunctionMetadata, FunctionSignature, Inst, Value};
+    use crate::{IrGenerator, parse_with_locations, try_tokenize_with_locations};
     use std::collections::{BTreeMap, HashMap};
+
+    fn checked_ir_from_source(source: &str) -> CheckedIr {
+        let tokens = try_tokenize_with_locations(source, None).expect("test source should lex");
+        let ast = parse_with_locations(tokens).expect("test source should parse");
+        IrGenerator::new()
+            .try_generate_ir(ast)
+            .expect("test source should enter verified checked IR")
+    }
 
     #[test]
     fn recursive_copy_data_types_lower_to_exact_private_llvm_types() {
@@ -3463,6 +3485,77 @@ mod tests {
     }
 
     #[test]
+    fn exact_i32_profile_lowers_mutable_flat_array_production_through_the_copydata_mapper() {
+        let checked = checked_ir_from_source(
+            "fn produce() -> [int; 2] { let mut output: [i32; 2] = [1, 2]; output[0] = 3; return output; } fn main() -> int { return 0; }",
+        );
+
+        let llvm = CodeGenerator::new()
+            .try_generate_code_with_profile(checked, LanguageProfile::ExactI32ArrayV0)
+            .expect("exact mutable flat-array checked IR should reach LLVM");
+
+        for anchor in [
+            "define [2 x i32] @produce()",
+            "alloca [2 x i32], align 8",
+            "store [2 x i32]",
+            "getelementptr inbounds [2 x i32]",
+            "store i32 3",
+            "load [2 x i32]",
+            "ret [2 x i32]",
+        ] {
+            assert!(
+                llvm.contains(anchor),
+                "exact mutable-array LLVM omitted `{anchor}`:\n{llvm}"
+            );
+        }
+        for forbidden in ["double", "fptosi", "sitofp"] {
+            assert!(
+                !llvm.contains(forbidden),
+                "exact mutable-array LLVM leaked `{forbidden}`:\n{llvm}"
+            );
+        }
+    }
+
+    #[test]
+    fn exact_i32_profile_rejects_verified_mutable_owner_topology_corruption() {
+        let cases = [
+            (
+                "nested mutable array owner",
+                "fn main() -> int { let mut output: [[int; 1]; 1] = [[1]]; return 0; }",
+            ),
+            (
+                "non-Int mutable array owner",
+                "fn main() -> int { let mut output: [bool; 2] = [1 < 2, 2 < 3]; return 0; }",
+            ),
+        ];
+
+        for (label, source) in cases {
+            let error = CodeGenerator::new()
+                .try_generate_code_with_profile(
+                    checked_ir_from_source(source),
+                    LanguageProfile::ExactI32ArrayV0,
+                )
+                .expect_err("unsupported mutable owner topology must fail before emission");
+            assert!(
+                matches!(
+                    &error,
+                    CodeGenerationError::LanguageProfileContract {
+                        profile: LanguageProfile::ExactI32ArrayV0,
+                        ..
+                    }
+                ),
+                "{label} was rejected at the wrong boundary: {error}"
+            );
+            assert!(
+                error
+                    .to_string()
+                    .contains("instruction outside the exact i32 fixed-array profile"),
+                "{label} escaped the mutable-owner topology guard: {error}"
+            );
+        }
+    }
+
+    #[test]
     fn exact_i32_profile_rejects_verified_legacy_array_instructions_before_emission() {
         let raw = HashMap::from([(
             "main".to_string(),
@@ -3513,7 +3606,7 @@ mod tests {
                 "profile-excluded division instruction",
             ),
             (
-                "mutable array place",
+                "whole-array owned-place assignment",
                 vec![
                     Inst::CheckedCopyStructArrayAlloca {
                         result: Value::Reg(0),
@@ -3546,9 +3639,17 @@ mod tests {
                         },
                     },
                     Inst::Store(Value::Reg(4), Value::Reg(3)),
+                    Inst::CheckedOwnedPlaceAssignment {
+                        target: Value::Reg(4),
+                        value: Value::Reg(3),
+                        ty: LogicalType::Array {
+                            element: Box::new(LogicalType::Int),
+                            count: 2,
+                        },
+                    },
                     Inst::Return(Value::ImmInt(0)),
                 ],
-                "instruction outside the exact i32 fixed-array profile",
+                "profile-excluded whole-array owned-place assignment",
             ),
         ];
 

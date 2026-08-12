@@ -1,6 +1,7 @@
 use compiler::{
-    CompilerOptions, IrGenerator, LanguageProfile, SemanticAnalyzer, check_file, check_program,
-    compile_file, compile_program, parse_with_locations, try_tokenize_with_locations,
+    CompilerOptions, IrGenerator, LanguageProfile, LogicalType, SemanticAnalyzer, check_file,
+    check_program, compile_file, compile_program, parse_with_locations,
+    try_tokenize_with_locations,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,11 @@ const NEGATIVE_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_index.aero");
 const EQUAL_TO_COUNT_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_index.aero");
+const NEGATIVE_RUNTIME_WRITE_INDEX: &str =
+    include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_write_index.aero");
+const EQUAL_TO_COUNT_RUNTIME_WRITE_INDEX: &str = include_str!(
+    "../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_write_index.aero"
+);
 
 const IMMUTABLE_ARRAY_VALUE_COMPOSITION: &str = r#"
 fn transform(values: [int; 3]) -> [i32; 3] {
@@ -55,6 +61,56 @@ fn main() -> int {
 }
 "#;
 
+const MUTABLE_ARRAY_RESULT_PRODUCTION: &str = r#"
+fn seed() -> [int; 4] {
+    return [3, 5, 7, 9];
+}
+
+fn from_literal() -> [i32; 2] {
+    let mut output: [int; 2] = [10, 20];
+    output[0] = output[0] + 1;
+    return output;
+}
+
+fn from_identifier(source: [int; 4]) -> [i32; 4] {
+    let mut output: [i32; 4] = source;
+    let mut index: int = 0;
+    let mut delta: int = 0;
+    while index < 4 {
+        output[index] = source[index] * 2 + delta;
+        index = index + 1;
+        delta = delta + 1;
+    }
+    return output;
+}
+
+fn from_call() -> [int; 4] {
+    let mut output = seed();
+    output[3] = output[3] + 1;
+    return output;
+}
+
+fn score(values: [int; 4]) -> int {
+    return values[0] + values[1] + values[2] + values[3];
+}
+
+fn main() -> int {
+    let source: [i32; 4] = seed();
+    let looped: [int; 4] = from_identifier(source);
+    let literal = from_literal();
+    let called = from_call();
+    let consumed: int = score(looped);
+    if source[0] == 3 && source[3] == 9
+        && looped[0] == 6 && looped[1] == 11
+        && looped[2] == 16 && looped[3] == 21
+        && literal[0] == 11 && literal[1] == 20
+        && called[3] == 10 && consumed == 54 {
+        return 91;
+    }
+    return 1;
+}
+"#;
+
 fn exact_options() -> CompilerOptions {
     CompilerOptions {
         language_profile: LanguageProfile::ExactI32ArrayV0,
@@ -64,17 +120,28 @@ fn exact_options() -> CompilerOptions {
 
 fn reference_kernel() -> i32 {
     let source: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
-    let mut left = source;
-    left[0] = left[0].wrapping_add(1);
+    let mut transformed = source;
+    for lane in &mut transformed {
+        *lane = lane.wrapping_add(1);
+    }
     let right: [i32; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
-    let result = left
+    let result = transformed
         .into_iter()
         .zip(right)
-        .fold(2_147_483_000_i32, |accumulator, (left, right)| {
+        .fold(2_147_483_001_i32, |accumulator, (left, right)| {
             accumulator.wrapping_add(left.wrapping_mul(right))
         });
-    assert_eq!(source[0], 127, "Copy-array source must remain readable");
-    assert_eq!(left[0], 128, "returned transform must change one lane");
+    assert_eq!(
+        source,
+        [127, 1_073_741_824, -128, 64, -64, 7, -3, 11],
+        "Copy-array source must remain readable in every lane"
+    );
+    assert_eq!(
+        transformed,
+        [128, 1_073_741_825, -127, 65, -63, 8, -2, 12],
+        "returned mutable transform must update every lane"
+    );
+    assert_eq!(result, 2035, "mutable array-result kernel oracle drifted");
     result
 }
 
@@ -145,6 +212,61 @@ fn occurrences(haystack: &str, needle: &str) -> usize {
     haystack.match_indices(needle).count()
 }
 
+fn workflow_named_step<'a>(workflow: &'a str, name: &str) -> &'a str {
+    let header = format!("    - name: {name}");
+    assert_eq!(
+        occurrences(workflow, &header),
+        1,
+        "workflow must contain exactly one `{header}`"
+    );
+    let start = workflow.find(&header).expect("unique workflow step header");
+    let remaining = &workflow[start..];
+    let end = remaining[header.len()..]
+        .find("\n    - name:")
+        .map_or(remaining.len(), |offset| header.len() + offset);
+    &remaining[..end]
+}
+
+fn linux_bounds_loop_names(step: &str) -> Vec<&str> {
+    let header = "for bounds_file in ";
+    assert_eq!(
+        occurrences(step, header),
+        1,
+        "Linux step bounds loop drifted"
+    );
+    let list = step
+        .split_once(header)
+        .expect("Linux bounds loop header")
+        .1
+        .split_once("; do")
+        .expect("Linux bounds loop terminator")
+        .0;
+    list.split_whitespace()
+        .filter(|token| *token != "\\")
+        .collect()
+}
+
+fn windows_bounds_loop_names(step: &str) -> Vec<&str> {
+    let header = "foreach ($boundsFile in @(";
+    assert_eq!(
+        occurrences(step, header),
+        1,
+        "Windows step bounds loop drifted"
+    );
+    let list = step
+        .split_once(header)
+        .expect("Windows bounds loop header")
+        .1
+        .split_once(")) {")
+        .expect("Windows bounds loop terminator")
+        .0;
+    list.split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(|name| name.trim_matches('"'))
+        .collect()
+}
+
 fn llvm_body_without_public_route_headers(llvm: &str) -> Vec<&str> {
     llvm.lines()
         .filter(|line| {
@@ -210,6 +332,116 @@ fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) 
         );
         cursor = address + address_anchor.len();
     }
+}
+
+fn dynamic_array_gep_scopes<'a>(llvm: &'a str, aggregate: &str) -> Vec<(&'a str, usize, &'a str)> {
+    let address_anchor = format!("getelementptr inbounds {aggregate}");
+    llvm.match_indices(&address_anchor)
+        .filter_map(|(address, _)| {
+            let line_start = llvm[..address]
+                .rfind('\n')
+                .map_or(0, |position| position + 1);
+            let line_end = llvm[address..]
+                .find('\n')
+                .map_or(llvm.len(), |position| address + position);
+            let line = &llvm[line_start..line_end];
+            if !line.contains(", i64 %reg") {
+                return None;
+            }
+            let pointer = line
+                .split_once(" = ")
+                .map(|(pointer, _)| pointer.trim())
+                .expect("dynamic array pointer definition");
+            let function_start = llvm[..line_start]
+                .rfind("\ndefine ")
+                .map(|position| position + 1)
+                .expect("dynamic array GEP enclosing function start");
+            let function_end = llvm[line_end..]
+                .find("\n}")
+                .map(|position| line_end + position + 2)
+                .expect("dynamic array GEP enclosing function end");
+            Some((
+                pointer,
+                line_start - function_start,
+                &llvm[function_start..function_end],
+            ))
+        })
+        .collect()
+}
+
+fn assert_guarded_dynamic_array_reads_and_writes(
+    llvm: &str,
+    aggregate: &str,
+    expected_reads: usize,
+    expected_writes: usize,
+) {
+    let dynamic_geps = dynamic_array_gep_scopes(llvm, aggregate);
+    assert_eq!(
+        dynamic_geps.len(),
+        expected_reads + expected_writes,
+        "expected {expected_reads} dynamic read GEP(s) and {expected_writes} dynamic write GEP(s) for {aggregate}:\n{llvm}"
+    );
+
+    let mut loads = 0;
+    let mut stores = 0;
+    for (pointer, definition, function) in dynamic_geps {
+        let load = format!("load i32, i32* {pointer}, align 4");
+        let store_prefix = "store i32 ";
+        let store_target = format!("i32* {pointer}, align 4");
+        let load_positions = function
+            .match_indices(&load)
+            .map(|(position, _)| position)
+            .collect::<Vec<_>>();
+        let store_positions = function
+            .match_indices(&store_target)
+            .filter_map(|(position, _)| {
+                let line_start = function[..position].rfind('\n').map_or(0, |line| line + 1);
+                let line_end = function[position..]
+                    .find('\n')
+                    .map_or(function.len(), |line| position + line);
+                function[line_start..line_end]
+                    .contains(store_prefix)
+                    .then_some(position)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            load_positions.len() + store_positions.len(),
+            1,
+            "guarded pointer {pointer} must feed exactly one scalar read or write:\n{llvm}"
+        );
+        assert!(
+            load_positions
+                .iter()
+                .chain(store_positions.iter())
+                .all(|position| *position > definition),
+            "guarded pointer {pointer} was consumed before its GEP"
+        );
+        loads += load_positions.len();
+        stores += store_positions.len();
+    }
+    assert_eq!(
+        (loads, stores),
+        (expected_reads, expected_writes),
+        "dynamic GEP consumers diverged for {aggregate}:\n{llvm}"
+    );
+}
+
+fn assert_single_dynamic_array_store_value(llvm: &str, aggregate: &str, value: i32) {
+    let dynamic_geps = dynamic_array_gep_scopes(llvm, aggregate);
+    assert_eq!(
+        dynamic_geps.len(),
+        1,
+        "expected one dynamic array store GEP"
+    );
+    let (pointer, definition, function) = dynamic_geps[0];
+    let store = format!("store i32 {value}, i32* {pointer}, align 4");
+    let store_position = function
+        .find(&store)
+        .unwrap_or_else(|| panic!("dynamic pointer {pointer} omitted exact `{store}`:\n{llvm}"));
+    assert!(
+        store_position > definition,
+        "dynamic array store consumed {pointer} before its GEP"
+    );
 }
 
 #[test]
@@ -403,6 +635,347 @@ fn general_checked_pipeline_already_owns_the_complete_immutable_array_value_clas
 }
 
 #[test]
+fn general_pipeline_already_owns_initialized_mutable_array_result_production() {
+    let tokens = try_tokenize_with_locations(MUTABLE_ARRAY_RESULT_PRODUCTION, None)
+        .expect("mutable array-result production control should lex");
+    let ast =
+        parse_with_locations(tokens).expect("mutable array-result production control should parse");
+
+    let checked = IrGenerator::new()
+        .try_generate_ir(ast.clone())
+        .expect("raw-AST checked admission should already own initialized array mutation");
+    let exact_array_four = LogicalType::Array {
+        element: Box::new(LogicalType::Int),
+        count: 4,
+    };
+    let from_identifier = &checked.metadata().functions["from_identifier"];
+    assert_eq!(
+        from_identifier.signature.parameters,
+        vec![("source".to_string(), exact_array_four.clone())],
+        "raw checked metadata must retain the exact Array<Int, 4> input identity"
+    );
+    assert_eq!(
+        from_identifier.signature.result, exact_array_four,
+        "raw checked metadata must retain the exact Array<Int, 4> result identity"
+    );
+    let output_place = from_identifier
+        .places
+        .values()
+        .find(|place| place.name.as_deref() == Some("output"))
+        .expect("raw checked metadata must retain the mutable output place");
+    assert_eq!(
+        output_place.pointee, from_identifier.signature.result,
+        "mutable output place and returned array must share one logical identity"
+    );
+    assert!(
+        from_identifier
+            .results
+            .values()
+            .any(|result| result == &from_identifier.signature.result),
+        "raw checked metadata must retain an Array<Int, 4> produced value"
+    );
+    let checked_debug = format!("{checked:#?}");
+    for marker in [
+        "CheckedMutableOwnedPlaceAlloca",
+        "CheckedOwnedPlaceAssignment",
+        "element: Int",
+        "count: 4",
+    ] {
+        assert!(
+            checked_debug.contains(marker),
+            "raw checked IR omitted mutable array-result marker `{marker}`:\n{checked_debug}"
+        );
+    }
+
+    let mut analyzer = SemanticAnalyzer::new();
+    analyzer
+        .analyze(ast)
+        .expect("general semantics should already own initialized array mutation and return");
+
+    let implicit = compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, CompilerOptions::default())
+        .expect("experimental control should compile mutable array-result production");
+    let explicit = compile_program(
+        MUTABLE_ARRAY_RESULT_PRODUCTION,
+        CompilerOptions {
+            language_profile: LanguageProfile::Experimental,
+            ..CompilerOptions::default()
+        },
+    )
+    .expect("explicit experimental control should compile mutable array-result production");
+    assert_eq!(implicit, explicit);
+    for anchor in [
+        "define [2 x double] @from_literal()",
+        "define [4 x double] @from_identifier([4 x double]",
+        "define [4 x double] @from_call()",
+        "alloca [2 x double], align 8",
+        "alloca [4 x double], align 8",
+        "store [2 x double]",
+        "load [2 x double]",
+        "store [4 x double]",
+        "load [4 x double]",
+        "store double",
+        "ret [4 x double]",
+        "call i32 @score([4 x double]",
+    ] {
+        assert!(
+            implicit.contains(anchor),
+            "experimental control omitted `{anchor}`:\n{implicit}"
+        );
+    }
+    for forbidden in ["[2 x i32]", "[4 x i32]"] {
+        assert!(
+            !implicit.contains(forbidden),
+            "experimental mutable-owner storage leaked `{forbidden}`:\n{implicit}"
+        );
+    }
+}
+
+#[test]
+fn exact_profile_admits_initialized_mutable_array_result_production() {
+    let mut failures = Vec::new();
+
+    if let Err(error) = check_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        if !error.starts_with("Language Profile Error: exact-i32-array-v0 rejects ") {
+            failures.push(format!(
+                "exact source check crossed the pre-semantic boundary: {error}"
+            ));
+        }
+        failures.push(format!(
+            "exact source check rejected mutable array-result production: {error}"
+        ));
+    }
+
+    match compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        Err(error) => failures.push(format!(
+            "exact source compilation rejected mutable array-result production: {error}"
+        )),
+        Ok(first) => {
+            let second = compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options())
+                .expect("a second exact mutable array-result compilation should remain admitted");
+            assert_eq!(
+                first, second,
+                "exact mutable array-result LLVM must be deterministic"
+            );
+            for anchor in [
+                "define [2 x i32] @from_literal()",
+                "define [4 x i32] @from_identifier([4 x i32] %aero.arg.source)",
+                "define [4 x i32] @from_call()",
+                "store [4 x i32]",
+                "store i32",
+                "ret [4 x i32]",
+                "call i32 @score([4 x i32]",
+            ] {
+                assert!(
+                    first.contains(anchor),
+                    "exact mutable array-result LLVM omitted `{anchor}`:\n{first}"
+                );
+            }
+            for forbidden in ["double", "fptosi", "sitofp", " nsw ", " nuw "] {
+                assert!(
+                    !first.contains(forbidden),
+                    "exact mutable array-result LLVM leaked `{forbidden}`:\n{first}"
+                );
+            }
+            assert_dynamic_guard_sequences(&first, "[4 x i32]", 2);
+            assert_guarded_dynamic_array_reads_and_writes(&first, "[4 x i32]", 1, 1);
+        }
+    }
+
+    let workspace = TestWorkspace::new("mutable-array-result-production-red");
+    let source = workspace.path("main.aero");
+    fs::write(&source, MUTABLE_ARRAY_RESULT_PRODUCTION)
+        .expect("write mutable array-result production source");
+    let llvm = workspace.path("mutable-array-result.ll");
+
+    let check = run_cli(
+        &workspace,
+        &[
+            Path::new("check"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if !check.status.success() {
+        failures.push(format!(
+            "public check rejected mutable array-result production: {}",
+            combined_output(&check)
+        ));
+    }
+
+    let build = run_cli(
+        &workspace,
+        &[
+            Path::new("build"),
+            &source,
+            Path::new("-o"),
+            &llvm,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if !build.status.success() {
+        assert!(
+            !llvm.exists(),
+            "a rejected exact mutable array-result build must not leave an LLVM artifact"
+        );
+        failures.push(format!(
+            "public build rejected mutable array-result production: {}",
+            combined_output(&build)
+        ));
+    } else if !llvm.is_file() {
+        failures.push("public build admitted the source but omitted its LLVM artifact".to_string());
+    }
+
+    let run = run_cli(
+        &workspace,
+        &[
+            Path::new("run"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if run.status.code() != Some(91) {
+        failures.push(format!(
+            "public run did not preserve the source Copy and consume the returned result (status={:?}): {}",
+            run.status.code(),
+            combined_output(&run)
+        ));
+    }
+
+    assert!(
+        failures.is_empty(),
+        "CAP-019 mutable exact-array result production is not complete:\n{}",
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn mutable_array_result_production_retains_profile_separation_boundaries() {
+    let exact_rejections = [
+        (
+            "immutable assignment root",
+            "fn main() -> int { let values: [int; 2] = [1, 2]; values[0] = 3; return values[0]; }",
+            "projected assignment targets rooted in immutable exact-array bindings",
+        ),
+        (
+            "wrong-count initializer",
+            "fn seed() -> [int; 2] { return [1, 2]; } fn bad() -> [i32; 3] { let mut values: [int; 3] = seed(); return values; } fn main() -> int { return 0; }",
+            "array literal counts that differ from their annotations",
+        ),
+        (
+            "non-Int initializer",
+            "fn bad() -> [int; 2] { let mut values: [i32; 2] = [1 < 2, 2 < 3]; return values; } fn main() -> int { return 0; }",
+            "array literal elements other than exact Int expressions",
+        ),
+        (
+            "nested initializer",
+            "fn main() -> int { let mut values: [[int; 1]; 1] = [[1]]; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "mutable alias initializer",
+            "fn main() -> int { let mut source: [int; 2] = [1, 2]; let mut alias: [i32; 2] = source; return alias[0]; }",
+            "mutable exact-array values as initializer sources",
+        ),
+        (
+            "inferred mutable alias initializer",
+            "fn main() -> int { let mut source: [int; 2] = [1, 2]; let mut alias = source; return alias[0]; }",
+            "mutable exact-array values as initializer sources",
+        ),
+        (
+            "uninitialized mutable array",
+            "fn main() -> int { let mut values: [int; 2]; return 0; }",
+            "uninitialized bindings",
+        ),
+        (
+            "array-valued element store",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; values[0] = [3, 4]; return values[0]; }",
+            "array values in exact integer expressions",
+        ),
+        (
+            "non-Int runtime selector",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let selector: bool = 1 < 2; values[selector] = 3; return values[0]; }",
+            "non-Int values in exact integer expressions",
+        ),
+        (
+            "non-Int stored value",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let flag: bool = 1 < 2; values[0] = flag; return values[0]; }",
+            "non-Int values in exact integer expressions",
+        ),
+        (
+            "array reference escape",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let view = &mut values; values[0] = 3; return values[0]; }",
+            "reference expressions",
+        ),
+        (
+            "whole-array reassignment",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; values = [3, 4]; return values[0]; }",
+            "array writes",
+        ),
+        (
+            "recursive array transform",
+            "fn bad(source: [int; 1]) -> [i32; 1] { let mut output: [int; 1] = source; output[0] = output[0] + 1; return bad(output); } fn main() -> int { return 0; }",
+            "recursive function call cycles",
+        ),
+    ];
+
+    match check_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        Err(error) => assert_eq!(
+            error, "Language Profile Error: exact-i32-array-v0 rejects mutable array bindings",
+            "only the known CAP-019 red barrier may defer the prospective exclusion matrix"
+        ),
+        Ok(()) => {
+            for (label, source, expected) in exact_rejections {
+                let error = check_program(source, exact_options())
+                    .expect_err("excluded mutable exact-array topology must fail closed");
+                assert!(
+                    error.starts_with("Language Profile Error: exact-i32-array-v0 rejects "),
+                    "{label} crossed the profile boundary: {error}"
+                );
+                assert!(
+                    error.contains(expected),
+                    "{label}: expected `{expected}`, got: {error}"
+                );
+                assert!(
+                    !error.contains("Semantic Analysis Error")
+                        && !error.contains("IR Generation Error"),
+                    "{label} reached a later compiler phase: {error}"
+                );
+            }
+        }
+    }
+
+    let result_only = "fn make() -> [int; 1] { return [1]; } fn main() -> int { return 0; }";
+    assert_eq!(
+        check_program(
+            result_only,
+            CompilerOptions {
+                language_profile: LanguageProfile::StableScalarV0,
+                ..CompilerOptions::default()
+            }
+        ),
+        Err("Language Profile Error: stable-scalar-v0 rejects function result types".to_string())
+    );
+
+    let mutation_only =
+        "fn main() -> int { let mut values: [int; 2] = [1, 2]; values[0] = 3; return values[0]; }";
+    assert_eq!(
+        check_program(
+            mutation_only,
+            CompilerOptions {
+                language_profile: LanguageProfile::StableScalarV0,
+                ..CompilerOptions::default()
+            }
+        ),
+        Err(
+            "Language Profile Error: stable-scalar-v0 rejects binding annotation types".to_string()
+        )
+    );
+}
+
+#[test]
 fn exact_profile_admits_the_complete_immutable_array_value_composition_class() {
     check_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
         .expect("exact profile should admit every frozen immutable array value placement");
@@ -474,11 +1047,6 @@ fn exact_array_value_composition_retains_topology_and_mutability_separation() {
             "array literal elements other than exact Int expressions",
         ),
         (
-            "mutable returned binding",
-            "fn make() -> [int; 1] { return [1]; } fn main() -> int { let mut values = make(); return values[0]; }",
-            "mutable array bindings",
-        ),
-        (
             "aggregate process result",
             "fn main() -> [int; 1] { return [1]; }",
             "entrypoints other than exact `fn main() -> int`",
@@ -503,19 +1071,19 @@ fn exact_array_value_composition_retains_topology_and_mutability_separation() {
 }
 
 #[test]
-fn exact_profile_emits_one_guarded_i32_array_lane() {
+fn exact_profile_emits_guarded_mutable_i32_array_kernel() {
     let llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
         .expect("exact fixed-array kernel should compile");
 
     for anchor in [
         "define i32 @dot_with_bias([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right, i32 %aero.arg.bias)",
-        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)",
         "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
         "alloca [8 x i32], align 8",
         "store [8 x i32]",
         "load [8 x i32]",
         "call i32 @dot_with_bias([8 x i32]",
-        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @increment_each_lane([8 x i32]",
         "call [8 x i32] @forward_array([8 x i32]",
         "ret [8 x i32]",
         "load i32",
@@ -550,7 +1118,8 @@ fn exact_profile_emits_one_guarded_i32_array_lane() {
         );
     }
 
-    assert_dynamic_guard_sequences(&llvm, "[8 x i32]", 2);
+    assert_dynamic_guard_sequences(&llvm, "[8 x i32]", 4);
+    assert_guarded_dynamic_array_reads_and_writes(&llvm, "[8 x i32]", 3, 1);
 }
 
 #[test]
@@ -630,14 +1199,9 @@ fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
             "function parameter types",
         ),
         (
-            "mutable array",
-            "fn main() -> int { let mut values: [int; 1] = [1]; return values[0]; }",
-            "mutable array bindings",
-        ),
-        (
             "array write",
             "fn main() -> int { let values: [int; 1] = [1]; values[0] = 2; return 0; }",
-            "projected or indirect assignment targets",
+            "projected assignment targets rooted in immutable exact-array bindings",
         ),
         (
             "array comparison",
@@ -691,94 +1255,220 @@ fn exact_profile_preserves_compile_time_bounds_rejection_and_runtime_guards() {
         assert!(error.contains("outside 0..2"), "{label}: {error}");
     }
 
-    for source in [NEGATIVE_RUNTIME_INDEX, EQUAL_TO_COUNT_RUNTIME_INDEX] {
+    for (label, source) in [
+        ("negative read", NEGATIVE_RUNTIME_INDEX),
+        ("equal-to-count read", EQUAL_TO_COUNT_RUNTIME_INDEX),
+    ] {
+        check_program(source, exact_options())
+            .unwrap_or_else(|error| panic!("{label} runtime trap specimen should check: {error}"));
         let llvm = compile_program(source, exact_options())
             .expect("runtime bounds-failure specimen should lower to a guard");
         assert_dynamic_guard_sequences(&llvm, "[2 x i32]", 1);
+        assert_guarded_dynamic_array_reads_and_writes(&llvm, "[2 x i32]", 1, 0);
+    }
+
+    for (label, source) in [
+        ("negative write", NEGATIVE_RUNTIME_WRITE_INDEX),
+        ("equal-to-count write", EQUAL_TO_COUNT_RUNTIME_WRITE_INDEX),
+    ] {
+        check_program(source, exact_options())
+            .unwrap_or_else(|error| panic!("{label} runtime trap specimen should check: {error}"));
+        let llvm = compile_program(source, exact_options()).unwrap_or_else(|error| {
+            panic!("{label} runtime trap specimen should compile: {error}")
+        });
+        assert_dynamic_guard_sequences(&llvm, "[2 x i32]", 1);
+        assert_guarded_dynamic_array_reads_and_writes(&llvm, "[2 x i32]", 0, 1);
+        assert_single_dynamic_array_store_value(&llvm, "[2 x i32]", 9);
     }
 }
 
 #[test]
 fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
     let workflow = include_str!("../../../.github/workflows/rust.yml");
-    for step in [
+    let linux = workflow_named_step(
+        workflow,
         "Test exact i32 fixed-array CPU profile at O0 and O2",
+    );
+    let windows = workflow_named_step(
+        workflow,
         "Test exact i32 fixed-array CPU profile on Windows at O0 and O2",
-    ] {
-        assert_eq!(workflow.matches(step).count(), 1, "missing unique `{step}`");
-    }
-    for anchor in [
-        "examples/fixed_int_array_v0/",
-        "wrapping_edges.aero",
-        "runtime_fail/",
+    );
+    let expected_bounds = [
         "negative_index.aero",
         "equal_to_count_index.aero",
-        "--language-profile exact-i32-array-v0",
-        "--require-llvm-verifier",
-        "opt-22 -passes=verify",
-        "llc-22 -verify-machineinstrs",
-        "clang-22 -O0",
-        "clang-22 -O2",
-        "& \"$llvmBin\\opt.exe\" -passes=verify",
-        "& \"$llvmBin\\llc.exe\" -verify-machineinstrs",
-        "& \"$llvmBin\\clang.exe\" -O0",
-        "& \"$llvmBin\\clang.exe\" -O2",
-    ] {
-        assert!(workflow.contains(anchor), "workflow omitted `{anchor}`");
+        "negative_write_index.aero",
+        "equal_to_count_write_index.aero",
+    ];
+    assert_eq!(linux_bounds_loop_names(linux), expected_bounds.to_vec());
+    assert_eq!(windows_bounds_loop_names(windows), expected_bounds.to_vec());
+
+    for (os, step) in [("Linux", linux), ("Windows", windows)] {
+        for anchor in [
+            "examples/fixed_int_array_v0/",
+            "wrapping_edges.aero",
+            "runtime_fail/",
+            "--language-profile exact-i32-array-v0",
+            "--require-llvm-verifier",
+            "define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)",
+            "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
+            "call [8 x i32] @increment_each_lane([8 x i32]",
+            "call [8 x i32] @forward_array([8 x i32]",
+            "ret [8 x i32]",
+        ] {
+            assert!(step.contains(anchor), "{os} exact step omitted `{anchor}`");
+        }
+        for bounds_name in expected_bounds {
+            assert_eq!(
+                occurrences(step, bounds_name),
+                1,
+                "{os} exact step must run `{bounds_name}` exactly once"
+            );
+        }
+        for guard_identity in [
+            r"\k<index>, [0-9]+",
+            r"\k<lower>, \k<upper>",
+            r"br i1 \k<inbounds>",
+            r"%aero\.bounds\.trap\.\k<place>",
+            r"sext i32 \k<index> to i64",
+            r"\k<aggregate>\* %ptr",
+            r"i64 \k<extended>\r?$",
+        ] {
+            assert!(
+                step.contains(guard_identity),
+                "{os} exact step lost guard identity link `{guard_identity}`"
+            );
+        }
+        assert!(
+            !step.contains("icmp sge i32|icmp slt i32|sext i32|llvm\\.trap"),
+            "{os} exact step must not mistake unlinked IR fragments for a bounds proof"
+        );
     }
 
-    assert!(
-        !workflow
-            .contains("upper_line=\"$(grep -n -m1 -F 'icmp slt i32' \"${llvm}\" | cut -d: -f1)\""),
-        "Linux must search for an array upper guard only after its lower guard"
-    );
-    assert_eq!(
-        workflow
-            .matches("icmp sge i32|icmp slt i32|sext i32|llvm\\.trap")
-            .count(),
-        0,
-        "ordinary signed comparisons are not sufficient evidence of dynamic bounds IR"
-    );
-    for identity_linked_anchor in [
-        "guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
-        "grep -Pzo -- \"${guard_block_pattern}\" \"${llvm}\"",
-        "test \"${guard_count}\" -eq 2",
-        "$guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
-        "$guardMatches = [regex]::Matches($llvmText, $guardPattern)",
-        "$guardMatches.Count -ne 2",
-    ] {
-        assert_eq!(
-            workflow.matches(identity_linked_anchor).count(),
+    for (anchor, expected) in [
+        ("opt-22 -passes=verify", 2),
+        ("llc-22 -verify-machineinstrs", 2),
+        ("clang-22 -O0", 1),
+        ("clang-22 -O2", 1),
+        ("if [ \"${name}\" = kernel ]; then", 1),
+        (
+            "kernel_mutation_pattern='(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32",
             1,
-            "workflow must retain one identity-linked proof anchor `{identity_linked_anchor}`"
-        );
-    }
-    for shared_identity_link in [
-        r"\k<index>, [0-9]+",
-        r"\k<lower>, \k<upper>",
-        r"br i1 \k<inbounds>",
-        r"%aero\.bounds\.trap\.\k<place>",
-        r"sext i32 \k<index> to i64",
-        r"\k<aggregate>\* %ptr",
-        r"i64 \k<extended>\r?$",
+        ),
+        (
+            "(?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \\[8 x i32\\]",
+            1,
+        ),
+        ("i32\\* \\k<kernel_target>, align 4", 1),
+        (
+            r"(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$",
+            1,
+        ),
+        (
+            "kernel_mutation_count=\"$(grep -Pzo -- \"${kernel_mutation_pattern}\" \"${llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${kernel_mutation_count}\" -eq 1", 1),
+        (
+            "guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "guard_count=\"$(grep -Pzo -- \"${guard_block_pattern}\" \"${llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${guard_count}\" -eq 4", 1),
+        ("if [[ \"${bounds_case}\" == *_write_index ]]; then", 1),
+        (
+            "bounds_write_pattern='(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \\[2 x i32\\]",
+            1,
+        ),
+        ("store i32 9, i32\\* \\k<bounds_write_target>, align 4", 1),
+        (
+            "bounds_write_count=\"$(grep -Pzo -- \"${bounds_write_pattern}\" \"${bounds_llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${bounds_write_count}\" -eq 1", 1),
     ] {
         assert_eq!(
-            workflow.matches(shared_identity_link).count(),
-            2,
-            "Linux and Windows must both retain identity link `{shared_identity_link}`"
+            occurrences(linux, anchor),
+            expected,
+            "Linux exact step must contain `{anchor}` exactly {expected} time(s)"
         );
     }
-    for composition_anchor in [
-        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
-        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
-        "call [8 x i32] @offset_first_lane([8 x i32]",
-        "call [8 x i32] @forward_array([8 x i32]",
-        "ret [8 x i32]",
+    assert!(
+        !linux.contains("test \"${guard_count}\" -eq 2"),
+        "Linux exact step retained the former two-guard kernel contract"
+    );
+    assert!(
+        !linux
+            .contains("upper_line=\"$(grep -n -m1 -F 'icmp slt i32' \"${llvm}\" | cut -d: -f1)\""),
+        "Linux exact step must identity-link its lower and upper guard predicates"
+    );
+
+    for (anchor, expected) in [
+        ("& \"$llvmBin\\opt.exe\" -passes=verify", 2),
+        ("& \"$llvmBin\\llc.exe\" -verify-machineinstrs", 2),
+        ("& \"$llvmBin\\clang.exe\" -O0", 1),
+        ("& \"$llvmBin\\clang.exe\" -O2", 1),
+        ("if ($specimen.Name -ceq \"kernel\") {", 1),
+        (
+            "$kernelMutationPattern = '(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \\[8 x i32\\]",
+            1,
+        ),
+        ("i32\\* \\k<kernel_target>, align 4", 1),
+        (
+            r"(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$",
+            1,
+        ),
+        (
+            "$kernelMutationMatches = [regex]::Matches($llvmText, $kernelMutationPattern)",
+            1,
+        ),
+        ("$kernelMutationMatches.Count -ne 1", 1),
+        (
+            "$guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "$guardMatches = [regex]::Matches($llvmText, $guardPattern)",
+            1,
+        ),
+        ("$guardMatches.Count -ne 4", 1),
+        (
+            "$boundsCase.EndsWith(\"_write_index\", [System.StringComparison]::Ordinal)",
+            1,
+        ),
+        (
+            "$boundsWritePattern = '(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \\[2 x i32\\]",
+            1,
+        ),
+        ("store i32 9, i32\\* \\k<bounds_write_target>, align 4", 1),
+        (
+            "$boundsWriteMatches = [regex]::Matches($boundsText, $boundsWritePattern)",
+            1,
+        ),
+        ("$boundsWriteMatches.Count -ne 1", 1),
     ] {
         assert_eq!(
-            workflow.matches(composition_anchor).count(),
-            2,
-            "Linux and Windows must both retain array-value composition anchor `{composition_anchor}`"
+            occurrences(windows, anchor),
+            expected,
+            "Windows exact step must contain `{anchor}` exactly {expected} time(s)"
         );
     }
+    assert!(
+        !windows.contains("$guardMatches.Count -ne 2"),
+        "Windows exact step retained the former two-guard kernel contract"
+    );
 }

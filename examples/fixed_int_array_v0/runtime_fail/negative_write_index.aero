@@ -1,0 +1,12 @@
+fn write_lane(values: [int; 2], index: int) -> [i32; 2] {
+    let mut output: [i32; 2] = values;
+    output[index] = 9;
+    return output;
+}
+
+fn main() -> int {
+    let source: [int; 2] = [7, 8];
+    let index: int = -1;
+    let output = write_lane(source, index);
+    return output[0];
+}
