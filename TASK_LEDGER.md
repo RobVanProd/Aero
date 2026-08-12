@@ -171,6 +171,30 @@
   the divergent subsystem. File size or helper duplication alone would not justify
   this task; the observed alias-identity conflict does.
 
+### CAP-013 exact red checkpoint
+
+- Before any production compiler mutation, focused command cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test
+  specialization_architecture_tests -- --nocapture runs 1/6 green and 5/6 red.
+  The existing generic-function canonicalization control passes and emits only
+  aero.generic.identity<int>. Independent int-struct, float-struct, Window
+  algorithm, generic-enum transport/Match, and trait-signature specimens all
+  strictly parse but fail through semantic analysis, semantic-independent raw
+  checked admission, and public compilation.
+- The struct/container diagnostics report exact mismatches Box<int> versus
+  Box<i32>, Box<float> versus Box<f64>, and Window<int> versus Window<i32>. The
+  enum diagnostic reports Sample<int> versus Sample<i32>. Trait declaration and
+  implementation methods using int/i32 report that the implementation does not
+  match the exact trait signature. Semantic and raw routes differ only in their
+  established parameter/argument wording, and the public route carries the
+  established semantic phase prefix.
+- This red independently proves each source-visible drift shape rather than
+  allowing one earlier mismatch to mask the rest. Exactly the focused test target
+  and this red checkpoint record changed after the authorization commit. No
+  production source, representative example, workflow, project-truth claim,
+  dependency, release, benchmark, external artifact, quarantined stash, or
+  user/app-owned untracked content changed.
+
 ## CAP-012 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-012-ACCEPTANCE-SYNC`, authorized bounded
