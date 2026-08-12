@@ -1,5 +1,176 @@
 # Aero Task Ledger
 
+## CAP-013 - canonical specialization identity and phase authority
+
+- Date/task/status: 2026-08-11, CAP-013, authorized red-first compiler,
+  architecture, and representative-program capability from exact accepted public
+  master d67158f0bfbc786cca84282b2fa55a029681ffb3 on
+  agent/cap-013-specialization-authority. The tracked baseline is clean and the
+  exact repository-root ./tools/test.sh gate passes before task mutation.
+  User/app-owned untracked tmp/ and .codex-remote-attachments/ remain outside the
+  task. Quarantined stash 7db10ed3173b1479f7ebff679a8fbca29e516bb6 must not be
+  applied, dropped, or treated as evidence.
+- Milestone-gap audit: the selected Milestone 0 stable-scalar exit, bounded
+  Milestone 1 representative-application exit, and selected Milestone 2
+  CAP-011/CAP-012 exit product are accepted; Aero remains a Minimal Prototype.
+  The next credible product path is Milestone 3 CPU data computation. Before
+  beginning that workload, a read-only audit found that its compile-time
+  specialization foundation already disagrees about the identity of primitive
+  aliases. Primitive authority defines int/i32 and float/f64 as the same logical
+  types. Generic functions canonicalize those aliases, while generic structs,
+  generic enums, fixed-capacity generic containers, and trait declaration/impl
+  matching retain or compare raw spellings. This is an active cross-capability
+  correctness and composition defect, not a file-size or nearby-topology argument.
+- Fresh post-CAP-012 ranking: scores are 1--5; higher Risk and Evidence mean
+  safer, more proportional bounded delivery. A correctness prerequisite may rank
+  above a larger workload when building that workload first would deepen the
+  divergent subsystem.
+
+  | Rank | Gap | Useful programs | Roadmap | Leverage | Correctness | Risk | Evidence | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Canonical specialization identity and one shared phase authority, delivered through executable alias interoperability | 4 | 5 | 5 | 5 | 4 | 5 | 28 |
+  | 2 | Exact fixed-width integer fixed-array CPU reference kernel | 5 | 5 | 5 | 5 | 3 | 4 | 27 |
+  | 3 | Fixed-capacity character-array parser/interpreter application | 4 | 4 | 4 | 4 | 4 | 4 | 24 |
+
+  Rank 1 is selected because observed source-visible identity drift crosses the
+  previously recorded promotion threshold and affects CAP-004, CAP-006, CAP-010,
+  and CAP-011. It establishes one seam before Milestone 3 needs specialization
+  again. Rank 2 is the next product target: carry CAP-009 exact wrapping i32 into
+  explicitly profiled nonempty fixed arrays and execute a bounded CPU reference
+  kernel without claiming packed int8, stable aggregate ABI, performance, or
+  general tensors. Rank 3 would make Aero interpret bounded character data using
+  arrays, control flow, structs, functions, and Result without inventing runtime
+  String or I/O semantics. Positive namespaces, runtime text, and file I/O remain
+  strategically important but are not implementation-ready: lookup/visibility/
+  collision/cycle rules, text ownership/UTF-8/drop/ABI, and file path/buffer/error
+  semantics are not frozen and must not be invented.
+- Before/after real-program delta and explicit destination: before CAP-013, one
+  Aero program cannot reliably pass Wrapper<i32> where Wrapper<int> is expected,
+  transport or match an enum specialized with one alias where the equivalent
+  alias is declared, or implement a trait method with i32 where its declaration
+  uses int, despite primitive authority treating each pair as one type. Different
+  generic features manufacture different private identities for the same logical
+  application. After CAP-013, int/i32 and float/f64 compose across generic structs,
+  generic enums, generic functions, fixed-capacity Window-style containers, and
+  bounded CopyData trait signatures; each equivalent application produces exactly
+  one deterministic feature-tagged specialization identity. The representative
+  telemetry application must mix aliases across those boundaries and still execute
+  its complete workflow. This is the architecture prerequisite; the explicit next
+  destination remains the ranked fixed-width CPU array kernel.
+- Mechanism: introduce one shared SpecializationTypeKey authority for canonical
+  recursive CopyData type identity and one shared specialization phase
+  orchestrator. The key maps int/i32 to one Int identity and float/f64 to one Float
+  identity, preserves Bool and Char as distinct logical types, recursively preserves
+  tuple order and arity, array element and count, and exact user/private named-type
+  identity, and provides deterministic framing/decoding and source-symbol
+  validation. Feature tags keep struct, enum, function, and trait private namespaces
+  collision-free. Semantic analysis and semantic-independent checked admission
+  invoke the same deterministic struct -> enum -> function plan, including the
+  existing post-function concrete-struct materialization step. Existing verifier
+  and backend wrapper APIs consume the resulting canonical identities.
+- Frozen positive class: canonical primitive alias equivalence applies only where
+  the accepted recursive CopyData specialization contracts already admit the type.
+  Equivalent int/i32 and float/f64 spellings must share identity through concrete
+  generic-struct construction/annotation/field use, generic-enum construction/
+  transport/exhaustive Match, generic-function inference and explicit signatures,
+  fixed-capacity generic container calls, and trait declaration/implementation/call
+  signatures. Normalization is deterministic and idempotent, source declaration
+  order does not change identity, and semantic and raw checked routes produce the
+  same specialized AST. Existing feature-specific diagnostics and template removal
+  remain deterministic.
+- Frozen negative boundary: Char never aliases Int merely because both may lower to
+  i32; Bool, distinct user-defined names, tuple order/arity, array counts, struct
+  field names/order/types, enum variant names/order/payloads, function signatures,
+  trait targets, and feature namespaces remain distinct. No nested-generic enum,
+  generic impl target, generic-to-generic call, new reference specialization,
+  dynamic collection, String transport, generic closure, associated type, broader
+  trait, allocator/drop, layout/ABI/FFI, accelerator, performance, release,
+  stability, or language-completion behavior is authorized. Compiler-private
+  identities are not a public source syntax or stable ABI. Forged, malformed,
+  noncanonical, wrong-feature, or schema/signature-mismatched private payloads fail
+  before trusted IR.
+- Architectural boundary: the shared authority owns identity, equivalence, framing,
+  source-symbol validation, and phase order only. Generic-struct, generic-enum,
+  generic-function, and trait modules retain their already frozen template
+  validation, policy-specific substitution restrictions, constructor/pattern
+  rewriting, trait-Self handling, and diagnostics. The generic-function module
+  remains the single parametric body classifier, and CAP-011 continues to hand
+  generic-struct algorithms to it. No general permissive substitution engine or
+  fifth feature-specific classifier may be introduced.
+- Assumptions and evidence: primitive_contract.rs already defines the logical alias
+  pairs. generic_function_contract.rs canonicalizes them before specialization.
+  generic_struct_contract.rs and generic_enum_contract.rs currently encode raw
+  display spelling into private identity, while copydata_trait_dispatch.rs compares
+  raw named annotations before logical helper identity. semantic_analyzer.rs and
+  ir_generator.rs duplicate the same phase sequence, and generic-function
+  specialization performs the required second struct materialization internally.
+  Twenty-one focused accepted generic/trait tests pass at the base, but none covers
+  mixed aliases. The complete repository baseline passes; therefore the new focused
+  regression is authoritative for the missing composition rather than inherited
+  build damage.
+- Measurement and red-first proof: before production mutation, add one focused
+  specialization-architecture test target that strictly parses mixed-alias generic
+  struct, enum, function/container, and trait programs and proves the current
+  semantic, raw checked-admission, and public routes fail or split identity.
+  Preserve the exact red candidate before implementation. Green evidence must prove
+  exactly one canonical specialization per logical type, semantic/raw parity,
+  idempotent repeated normalization, unchanged accepted same-spelling behavior, and
+  source-level check/build/run execution. Negative separation covers Char versus
+  Int, Bool, user names, tuple order/arity, array counts, field/variant/signature
+  changes, unsupported references/nested applications, malformed framing, wrong
+  feature tags, and schema/signature corruption. The representative telemetry
+  program must use mixed aliases across at least two specialization capabilities
+  and preserve its exact output and exit 91 through checked IR, verified LLVM, and
+  pinned Linux/Windows LLVM 22 -O0/-O2 execution.
+- Failure modes and detection: over-canonicalization could conflate Char and Int or
+  user names with primitives; under-canonicalization could retain duplicate
+  specializations; phase drift could leave templates, duplicate definitions, or
+  make semantic/raw routes disagree; a permissive shared substitute could broaden
+  excluded semantics; weak framing could accept forged identities; renamed backend
+  symbols could collide or duplicate LLVM definitions. Focused alias/separation
+  matrices, identity-count assertions, route parity, repeated normalization,
+  corruption controls, existing generic suites, LLVM verification, native optimized/
+  unoptimized comparison, and the complete gate detect these failures.
+- Allowed files and recovery: authorization is limited to TASK_LEDGER.md; one new
+  src/compiler/src/specialization_contract.rs; src/compiler/src/lib.rs;
+  src/compiler/src/generic_struct_contract.rs;
+  src/compiler/src/generic_enum_contract.rs;
+  src/compiler/src/generic_function_contract.rs;
+  src/compiler/src/copydata_trait_dispatch.rs;
+  src/compiler/src/semantic_analyzer.rs; src/compiler/src/ir_generator.rs; one new
+  src/compiler/tests/specialization_architecture_tests.rs; directly affected
+  existing generic/trait/representative/system-gate tests;
+  examples/representative_telemetry/; and existing Linux/Windows representative
+  workflow anchors only if the current gate cannot express the specimen. After the
+  exact candidate is green, only directly affected project-truth records may
+  describe candidate status. The rollback boundary is this bounded branch/PR. No
+  direct checked-IR schema or code-generator edit, release, package, benchmark,
+  protection change, external artifact, direct-master write, quarantined stash, or
+  user/app-owned untracked mutation is authorized.
+- Decision threshold: merge only if the mixed-alias program capability executes end
+  to end; one shared canonical identity authority and one shared phase plan replace
+  the proven duplication without broadening policy; all invalid programs stop before
+  trusted IR; verifier-facing private identities are canonical and corruption-
+  controlled; the representative application becomes meaningfully richer; ordinary
+  functions, references, enums/Match, aggregates, modules, trait dispatch, generic
+  algorithms, stable profile, CAP-001--012, and all recorded exclusions remain
+  unchanged; focused, formatting, Clippy, docs, complete repository, all public
+  exact-head, pinned LLVM 22 Linux/Windows native, protected merge, and merge-head
+  gates pass. Candidate status and public acceptance remain separate.
+- Strategic value and what would change our mind: this converts five partially
+  divergent specialization features into one coherent identity/order subsystem,
+  removes a real composition defect, and prevents the ranked CPU workload from
+  adding another classifier or identity rule. Stop and re-rank if mixed-alias
+  programs already produce exactly one identity on all trusted routes; if canonical
+  identity requires inventing new source semantics, a stable ABI, or direct checked-
+  IR/backend changes; if preserving accepted feature exclusions requires a general
+  permissive substitution engine; if the task cannot remain within pre-semantic
+  elaboration plus its two admission entrypoints; if the representative program
+  cannot show an executable capability delta; or if new evidence shows the exact
+  fixed-width CPU kernel can be delivered safely without touching or depending on
+  the divergent subsystem. File size or helper duplication alone would not justify
+  this task; the observed alias-identity conflict does.
+
 ## CAP-012 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-012-ACCEPTANCE-SYNC`, authorized bounded
