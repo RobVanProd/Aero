@@ -37,10 +37,11 @@
   nongeneric parameters, identifier call transport, direct admitted scalar indexing,
   exact wrapping `i32` storage/arithmetic, signed pre-GEP bounds traps, and the
   tracked exits 91/93. Keep `stable-scalar-v0` frozen and keep broad integers and
-  fixed arrays partial. Preserve exclusions for array results/writes, neighboring
-  aggregate shapes, general modules/imports, constants, references, generics/traits,
-  closures, I/O, allocation/drop, accelerators, ABI/layout, performance, tensors,
-  safety, stability, releases, and language completion. Preserve all historical
+  fixed arrays partial. Preserve CAP-014 profile exclusions for array results/writes,
+  neighboring aggregate shapes, general modules/imports, constant or surrounding
+  aggregate/reference use, generics/traits, closures, I/O, allocation/drop,
+  accelerators, ABI/layout, performance, tensors, safety, stability, releases, and
+  language completion. Preserve all historical
   authorization, red, failed-candidate, correction, and acceptance chronology.
 - Allowed files and architecture boundary: only `TASK_LEDGER.md`,
   `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
@@ -68,6 +69,49 @@
   affected claim or leave next-task selection explicitly pending rather than inventing
   semantics. Strategically, this restores one source of truth and forces the next
   task upward toward the best real-program payoff after CAP-014.
+
+### CAP-014 accepted-master sync local green checkpoint
+
+- Scope and truth result: the live candidate changes exactly the nine authorized
+  record/claim files and no compiler production, example, workflow, dependency,
+  release, benchmark, or external-artifact surface. Every current truth document now
+  identifies protected CAP-014 merge
+  `ca09ebe3c1b981339c8bf56b360e62208ac900e1`, corrected candidate
+  `226279dd174f26dc3cd1c7573798955bfe789f78`, and shared tree
+  `448e1c2ff397012804b886b904aa43bec63f2d37`; candidate and merge-head public run
+  identities are retained exactly. Historical CAP-014 first-candidate failure and
+  correction chronology remains unchanged and is not counted as acceptance.
+- Capability boundary: all surfaces describe only the distinct CPU-only
+  `exact-i32-array-v0` profile and bind its exact matrix row to `END_TO_END`. Broad
+  integers/fixed arrays remain `PARTIAL`; `stable-scalar-v0` remains Aero's only
+  `STABLE` profile; Aero remains a Minimal Prototype. Exclusions for constants,
+  aggregates, and references are explicitly scoped to use within CAP-014's profile,
+  preserving already accepted bounded capabilities elsewhere.
+- Strategic next action: the consumed fixed-array-kernel target is removed from every
+  current-next claim. The ranked next action is `CAP-015-READINESS`, not automatic
+  implementation: freeze one exact embedded ASCII `[char; N]` grammar/result and
+  probe the complete parser/interpreter program first. A green experimental probe
+  becomes a representative gate and triggers reranking; a red isolated to one
+  established at-most-two-phase class may be separately authorized; profile fusion,
+  semantic invention, or wider architecture requires a stop and decision. Positive
+  module/import resolution remains second under a separately frozen namespace/graph
+  contract, and runtime file-byte acquisition remains third and stopped on unfrozen
+  path/byte/buffer/error/ownership/drop/platform semantics. CAP-013 remains the shared
+  specialization architecture; no new specialization refactor is selected without
+  observed drift.
+- Local evidence: exact claim assertions pass 8/8, `cargo fmt --check` and
+  `git diff --check` pass, the complete repository `./tools/test.sh` gate passes 259
+  library tests plus every integration/CLI/doc/format/correctness-Clippy target, and
+  `cargo doc --locked --no-deps` succeeds with only pre-existing warnings. Independent
+  read-only review verified the exact identities, run conclusions, tense, exclusions,
+  ranking, and nine-file scope; its two proof-quality findings (admitted-versus-
+  executed wording and a classification assertion not originally bound to the exact
+  CAP-014 row) were corrected before this checkpoint.
+- Candidate/acceptance boundary and recovery: this is a local green synchronization
+  candidate, not yet accepted project-truth integration. The branch is the complete
+  rollback boundary. Publish only the immutable commit produced from this exact tree,
+  require exact-head public checks and protected integration, then verify merge-head
+  workflows and rendered PR metadata before beginning `CAP-015-READINESS`.
 
 ## CAP-014 - exact fixed-width integer fixed-array CPU reference kernel
 

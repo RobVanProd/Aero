@@ -2,13 +2,32 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-013 merge
-`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`. Exact candidate
-`1ecf0831149b99abd55e3d0a48d06eecaa8099b6` and the merge have identical tree
-`627582e27613803949c82ecfa52915ba55db2f0f`; candidate push/PR CI
-`31562192900`/`31562195772`, Rust/Windows LLVM 22 `31562195887`, CodeQL
-`31562193465`, protected integration, merge-head CI `31562387501`, Rust/Windows
-LLVM 22 `31562387504`, and CodeQL `31562387066` pass.
+Latest accepted compiler-capability master is protected CAP-014 merge
+`ca09ebe3c1b981339c8bf56b360e62208ac900e1`. Corrected candidate
+`226279dd174f26dc3cd1c7573798955bfe789f78` and the merge have identical tree
+`448e1c2ff397012804b886b904aa43bec63f2d37`; candidate push/PR CI
+`31570455915`/`31570461500`, Rust CI `31570461524`, and CodeQL `31570456382`
+pass. Protected integration and exact merge-head CI `31570823665`, Rust CI
+`31570823712`, and CodeQL `31570823073` also pass, including stable
+`94032246048`, nightly `94032246051`, and pinned Windows LLVM 22
+`94032246011`. PR #50 retains the failed first-candidate chronology separately;
+none of that red evidence is counted as acceptance.
+
+Accepted CAP-014 adds the distinct CPU-only `exact-i32-array-v0` profile for
+one flat fixed-width integer-array workload. It admits `[int; N]`/`[i32; N]`
+with `1 <= N <= i32::MAX`, explicitly annotated immutable literal locals,
+by-value nongeneric parameters, identifier call transport, and direct indexing
+by admitted scalar integer expressions. The selected lane uses exact wrapping
+LLVM `i32`; every dynamic index is checked with signed lower/upper bounds and
+traps before GEP address formation, then is sign-extended for the GEP. The
+tracked kernel exits 91, the wrapping-edge specimen exits 93, and negative and
+equal-to-count controls trap under the pinned Linux and Windows LLVM/Clang 22
+public/O0/O2 gates. The selected-profile row is `END_TO_END`; broad integers and
+fixed arrays remain `PARTIAL`, and `stable-scalar-v0` remains the only `STABLE`
+profile. Within this profile, array results or writes, neighboring aggregate shapes,
+modules/imports, constant or reference use, generics/traits, closures, I/O, allocation/drop,
+accelerators, ABI/layout, performance, SIMD, tensors, safety, releases, and
+language completion remain outside CAP-014.
 
 Accepted CAP-013 gives already admitted specialization features one recursive
 canonical type-key, alias-equivalence predicate, private framing contract, and shared
@@ -119,6 +138,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |
+| Selected CPU-only `exact-i32-array-v0` profile (accepted `CAP-014`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |
 | Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |
 | Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -520,7 +540,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted | P | P | PARTIAL |
+| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/trap gates | P | P | PARTIAL |
 | ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
 | Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |

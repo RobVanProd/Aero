@@ -89,6 +89,23 @@
   permutation, representative execution, and pinned Linux/Windows LLVM 22 O0/O2
   evidence remain mandatory. This is not general generic/trait, reference
   specialization, collection, ABI/layout, allocation/drop, or stability conformance.
+- The accepted CAP-014 `exact-i32-array-v0` slice must retain one shared profile
+  authority for both source and checked logical array roles and an independent
+  fail-closed backend instruction boundary. Positive evidence must cover flat
+  `[int; N]`/`[i32; N]` with `1 <= N <= i32::MAX`, explicitly annotated immutable
+  literal locals, by-value nongeneric parameters, identifier call transport, direct
+  scalar indexing, the exit-91 kernel, and the exit-93 wrapping specimen. Negative
+  evidence must exhaust the excluded array result/write/construction/element/profile/
+  target families and preserve exact `stable-scalar-v0` rejection plus experimental
+  byte parity. LLVM-shape evidence must require `[N x i32]`, wrapping `mul`/`add`
+  without `nsw`/`nuw`, and no aggregate `double`, conversion, vector, or excluded
+  checked instruction. Every dynamic access must have one identity-linked signed
+  lower/upper guard, trap branch before GEP, and `sext i32`; constant indexes must add
+  no dynamic guard. Negative and equal-to-count runtime controls must trap. Public
+  library and CLI `check`/verified-`build`/`run`, external LLVM verification, machine
+  verification, and native `-O0`/`-O2` execution are required on pinned Linux and
+  Windows LLVM/Clang 22. This is selected-profile conformance only, not broad array,
+  ABI/layout, SIMD, tensor, performance, accelerator, safety, or stability conformance.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,
@@ -119,11 +136,18 @@
 ## Real-program progression
 
 The release suite has reached bounded generic-data-structure, ownership-intensive,
-and canonical-specialization telemetry stages. It will continue with an exact
-fixed-width integer fixed-array CPU reference kernel, then a fixed-capacity
-parser/interpreter; runtime file acquisition follows only after its path/buffer/error/
-ownership contracts are frozen. Real vector, matrix, and tensor accelerator workloads
-follow after their runtime contracts exist.
+canonical-specialization telemetry, and exact fixed-width integer fixed-array CPU
+kernel stages. `CAP-015-READINESS` is the next action, not automatic implementation:
+freeze one exact ASCII grammar/result for a bounded embedded-data `[char; N]` parser/
+interpreter and run the complete program as a red probe without widening
+`exact-i32-array-v0`. If it is already green, install it as a representative gate and
+rerank; if exactly one established at-most-two-phase capability class blocks it, close
+that class; if profile fusion, semantic invention, or wider architecture is required,
+stop for a decision. Positive module/import name resolution follows only after its
+namespace, visibility, collision, cycle, graph, and cache semantics are separately
+frozen. Runtime file-byte acquisition remains blocked until its path, buffer, error,
+ownership, and platform contracts are frozen. Real vector, matrix, and tensor
+accelerator workloads follow only after their runtime contracts exist.
 
 ## Platform matrix
 
@@ -157,6 +181,22 @@ nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
+
+Accepted CAP-014 adds one selected `exact-i32-array-v0` conformance lane. Its
+CPU-only profile admits the exact flat fixed-array source class and rejects the full
+complement before trusted backend emission; exact wrapping `i32` storage/arithmetic,
+two identity-linked signed bounds blocks in the kernel, trap-before-GEP order, and
+zero dynamic guards in the constant-index wrapping specimen are mechanically checked.
+Focused 11/11, the complete 259-library plus integration/CLI/doc/format/Clippy gate,
+the exit-91 kernel, exit-93 wrapping specimen, and both bounds-trap controls pass.
+Corrected candidate `226279dd174f26dc3cd1c7573798955bfe789f78`, protected PR
+#50 merge `ca09ebe3c1b981339c8bf56b360e62208ac900e1`, and shared tree
+`448e1c2ff397012804b886b904aa43bec63f2d37` are exact. Candidate push/PR CI
+`31570455915`/`31570461500`, Rust CI `31570461524`, CodeQL `31570456382`, and
+merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073` pass,
+including pinned Linux stable/nightly and Windows LLVM 22 public/O0/O2 execution.
+This selected lane is `END_TO_END`; broad integer/fixed-array rows remain `PARTIAL`,
+and `stable-scalar-v0` remains the only `STABLE` profile.
 
 Accepted CAP-013 adds one canonical specialization identity/order conformance slice
 across already admitted generic structs, enums, functions, fixed-capacity containers,
