@@ -4,6 +4,50 @@ Last updated: 2026-08-12 (America/New_York)
 
 ## Current objective
 
+### CAP-015 accepted: embedded character-record representative integration
+
+Accepted CAP-015 enriches the existing M1-001 representative telemetry application
+with one exact embedded-data path. The maintained program interprets the fixed
+`[char; 10]` record `T=<digit><digit>;H=<digit><digit>;`, returns the first
+unexpected character through `Result<int, char>`, and computes
+`temperature * 2 + humidity` on success. Canonical input `T=17;H=08;` produces 42;
+the application materially uses that value as its third calibration sensor while
+retaining exact stdout `telemetry score: 91` and exit 91. Boundary inputs produce 0
+and 297, all ten malformed positions return the exact offending character, and three
+multi-error controls preserve left-to-right first-error precedence.
+
+CAP-015 changes no compiler production or language-profile code. The tracked
+integration consumes already accepted experimental character identity, fixed-array
+reads with pre-address bounds guards, concrete `Result` transport and exhaustive
+`Match`, direct modules, and the canonical checked-program pipeline. Raw and semantic
+checked metadata retain `char`, `[char; 10]`, and `Result<int, char>`; public and
+library parser-function LLVM agree; each of the ten dynamic reads binds its own
+lower/upper predicates, conjunction, branch, trap/safe blocks, conversion, and
+`[10 x i32]` GEP; and equality-only ASCII decoding introduces no character-to-
+numeric conversion. Both `stable-scalar-v0` and `exact-i32-array-v0` continue to
+reject the module-free parser specimen.
+
+Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f` and protected PR #52
+merge `b62696272f293f9f378f8a368cc818fcb8ef1074` share tree
+`27f359bc5ca90212a06ce73b71759cac0533c1f0`. Candidate push/PR CI
+`31597830488`/`31598146528`, Rust CI `31598146473`, and CodeQL `31598144554`
+pass. Exact merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
+`31598633803` pass, including stable, nightly, pinned Windows LLVM/Clang 22, public
+`check`/verified `build`/`run`, LLVM and machine verification, native `-O0`/`-O2`
+output/exit 91, and clean negative/equal-to-count bounds traps.
+
+CAP-014 remains Aero's latest accepted compiler/profile capability and first bounded
+Milestone 3 CPU computation slice.
+CAP-015 is the latest accepted project integration checkpoint and enriches the existing representative `END_TO_END` row only; it adds no
+parser, grammar, profile, feature, stability, or conformance row.
+General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
+input, and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
+bounded Unicode scalar `char` remains `PARTIAL`.
+General error propagation, variable-width input, dynamic collections, allocation/
+drop, I/O, public ABI, safety, performance, releases, and language completion also
+remain outside the accepted claim. Current accepted public master is CAP-015 project integration
+at protected merge `b62696272f293f9f378f8a368cc818fcb8ef1074`.
+
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
 Accepted CAP-014 is Aero's first bounded Milestone 3 CPU computation slice. The
@@ -41,8 +85,8 @@ generics/traits, closures, dynamic collections, allocation/drop, I/O, accelerato
 and non-CPU target pairing remain rejected. The profile does not stabilize aggregate layout, callable ABI,
 serialization, packages, SIMD, quantization, tensors, performance, safety, Aero as a
 whole, or release eligibility. Aero remains a Minimal Prototype in correctness
-recovery. Current accepted public master is CAP-014. No new implementation may begin
-until this accepted-truth synchronization is green and protected-integrated.
+recovery. CAP-014 remains the latest accepted compiler/profile capability beneath
+the accepted CAP-015 project-integration checkpoint.
 
 ### CAP-013 accepted: canonical specialization identity and phase authority
 
@@ -2954,27 +2998,45 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Do not begin another implementation until this bounded CAP-014 accepted-truth
-synchronization is green and protected-integrated. The post-CAP-014 ranking is:
+Do not begin CAP-016 implementation until this bounded CAP-015 accepted-truth
+synchronization is green and protected-integrated. The post-CAP-015 order begins with
+`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation, followed by
+typed `Result` propagation and runtime byte/file acquisition.
 
-1. `CAP-015-READINESS`, not automatic implementation: freeze an exact ASCII grammar
-   and result contract for the bounded embedded-data fixed-capacity `[char; N]`
-   parser/interpreter. The specimen may already compile experimentally, so run the
-   complete representative program as a red probe against accepted behavior. If it
-   is already green, install the representative gate and rerank without changing the
-   compiler. If it is red only on one established class spanning at most two compiler
-   phases, separately authorize and close that class. Stop for a decision if it
-   requires unfrozen semantics, profile fusion, or any widening of
-   `exact-i32-array-v0`.
-2. A separately frozen positive module/import/name-resolution architecture covering
-   namespace, visibility, collision, graph, cycle, and cache behavior before any
-   positive path is admitted.
-3. Runtime file-byte acquisition, which remains stopped pending path, byte, buffer,
-   error, ownership/drop, and platform semantics.
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
+| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
-File I/O is not authorized by this ranking. Do not default to neighboring
-specialization/reference topologies, releases/packages/benchmarks, force-pushes, or
-deletion of retained integration work.
+`Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
+lower evidence cost. Module readiness ranks first because ordinary Aero programs
+currently may collect direct `mod` files, but positive `import`/`use` paths are
+rejected and flattening erases the namespace and visibility distinctions needed for
+trustworthy multi-file composition. After the eventual bounded capability, a real
+acyclic multi-file program should be able to import public values, functions, and
+types with deterministic qualified/unqualified lookup, collision handling, and
+specialization identity. Readiness must first freeze namespace, visibility,
+collision, graph/cycle, source-path, cache, diagnostic, and private-identity
+contracts, then run a red probe. Stop rather than remove a guard if the design would
+retain erased visibility, ambiguous flattened names, unqualified specialization
+identities, order-dependent lookup, unfrozen cycle behavior, more than two compiler
+phases, or another feature-specific specialization classifier.
+
+Typed `Result` propagation ranks second. Before it, accepted concrete `Result`
+values can be constructed, transported, and exhaustively matched, but a fallible
+ordinary call chain must manually destructure at each boundary. The destination is a
+bounded, identity-preserving propagation path that lets a useful multi-function
+program forward the exact typed error without false success; its syntax, control
+flow, ownership, conversion, and diagnostic contracts remain to be frozen.
+
+Runtime byte/file acquisition ranks third. Before it, CAP-015 can interpret only a
+source-embedded fixed character record; afterward, the representative ingestion path
+could acquire external bytes into a bounded owned buffer and feed a typed parser and
+CPU computation. File I/O is not authorized by this ranking and remains stopped until
+path, byte, buffer/count, error, ownership/drop, platform, and determinism contracts
+are frozen. Do not default to neighboring specialization/reference topologies,
+releases/packages/benchmarks, force-pushes, or deletion of retained integration work.
 
 ## Unauthorized actions
 

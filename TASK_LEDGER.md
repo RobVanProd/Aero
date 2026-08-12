@@ -34,9 +34,10 @@
   `31598633803` pass, including compiler `94120212134`, stable `94120211600`,
   nightly `94120211628`, Windows LLVM 22 `94120211634`, analysis jobs
   `94120215436`/`94120215489`/`94120215540`, and exact-SHA default-branch
-  analyses actions `1607576253`, Python `1607576720`, and Rust `1607581887`
-  with no analysis warnings. PR #52 now renders `Accepted status` with exact
-  identities, passing evidence, correction chronology, and exclusions.
+  analyses actions `1607576253`, Python `1607576720`, and Rust `1607581887`.
+  Pre-existing Actions warning alert #4 remains open at the merge head; it predates
+  CAP-015, and no new CAP-015 alert surfaced. PR #52 now renders `Accepted status`
+  with exact identities, passing evidence, correction chronology, and exclusions.
 - Frozen wording and classification: CAP-014 remains Aero's latest accepted
   compiler/profile capability and first Milestone 3 CPU slice. CAP-015 is the
   latest accepted project integration checkpoint. It enriches only the existing
@@ -84,6 +85,23 @@
   that positive modules require unfrozen namespace/visibility/cycle semantics would
   change the decision and trigger correction or reranking rather than claim
   broadening.
+- Local green record-sync checkpoint: the exact claim-contract target passes 8/8;
+  the complete repository-root `./tools/test.sh` gate passes with 259 library tests
+  plus every integration/binary target, formatting, correctness Clippy, and doc tests;
+  explicit `cargo doc --locked --no-deps`, formatting, and diff hygiene pass. Two
+  independent read-only audits report no remaining P0-P3 finding on the settled
+  nine-file tree. The review corrections bind each CAP-014/CAP-015 evidence block to
+  its local passing conclusion, require one ordered 23/22/21 ranking, preserve every
+  before/after/stop/change-mind decision, reject stale readiness regardless of case or
+  Markdown, and permit exactly one case-insensitive CAP-015 matrix classification:
+  the enriched M1-001 row. The product exclusion now truthfully preserves accepted
+  compile-time String slices and CORE-072's bounded Unicode scalar `char` as
+  `PARTIAL` while excluding general-purpose text parsing, runtime Strings, runtime
+  ingestion, file input, and Unicode text encoding/normalization. The rendered PR
+  #52 metadata was corrected to retain pre-existing Actions warning alert #4 while
+  stating accurately that no new CAP-015 alert surfaced. Public sync-candidate and
+  protected merge evidence remain pending; do not describe this local checkpoint as
+  accepted synchronization.
 
 ## CAP-015-READINESS - bounded embedded character-record parser/interpreter probe
 

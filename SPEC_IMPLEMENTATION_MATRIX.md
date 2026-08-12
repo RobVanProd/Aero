@@ -2,6 +2,34 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
+Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f` precedes the latest
+accepted project-integration master. Latest accepted project-integration master is
+protected CAP-015 merge `b62696272f293f9f378f8a368cc818fcb8ef1074`; candidate and merge share tree
+`27f359bc5ca90212a06ce73b71759cac0533c1f0`. Candidate push/PR CI
+`31597830488`/`31598146528`, Rust CI `31598146473`, CodeQL `31598144554`, and
+merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` pass.
+CAP-015 changes no compiler production or language-profile code. It enriches only the
+existing M1-001 `END_TO_END` representative application with exact embedded grammar
+`T=<digit><digit>;H=<digit><digit>;`, canonical result 42, boundary results 0 and 297,
+all ten malformed positions, three first-error controls, and negative/equal-to-count
+bounds traps. No CAP-015 parser, grammar, profile, feature, stability, or conformance
+row is added, and neighboring component rows are not promoted.
+General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
+input, and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
+bounded Unicode scalar `char` remains `PARTIAL`.
+
+The fresh post-CAP-015 capability-gap order is:
+
+| Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
+| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+Higher risk/evidence favorability means safer and cheaper delivery. CAP-016 begins
+with architecture/readiness and a red probe; file acquisition remains stopped until
+path, byte, bounded-buffer, error, ownership/drop, and platform contracts are frozen.
+
 Latest accepted compiler-capability master is protected CAP-014 merge
 `ca09ebe3c1b981339c8bf56b360e62208ac900e1`. Corrected candidate
 `226279dd174f26dc3cd1c7573798955bfe789f78` and the merge have identical tree
@@ -346,18 +374,27 @@ Dynamic/computed indexes, projected borrows, partial moves, enum/non-Copy subpla
 alias analysis, NLL/lifetime/drop, public layout/ABI/FFI, accelerators, and memory-safety
 claims remain absent; the row therefore remains `PARTIAL`.
 
-Accepted `M1-001` adds no new source grammar or type topology.
-It freezes a representative scalar subset over already accepted constructs, tracks a
-three-file telemetry application and three-case compile-fail corpus, and closes one
-shared CPU-backend contract: numeric `print!`/`println!` values remain LLVM `double`
-arguments under an explicit `i32 (i8*, ...)` variadic call type. Local public
-`check`/verified `build`/`run`, independent LLVM and machine verification, exact
-Windows `-O0`/`-O2` stdout/stderr/exit 91, focused 3/3, and the complete
-218-library/32-binary root gate pass. Exact candidate `e7a74e6` passed all nine
-exact-head checks, protected PR #19 merged it as `d7d1c768`, and all three post-merge
-workflows pass. The representative application/conformance-subset workflow below is
-therefore `END_TO_END`; each component language row remains `PARTIAL`, and no row is
-`STABLE`.
+Accepted `M1-001` adds no new source grammar or type topology. It freezes a
+representative scalar subset over already accepted constructs and closes one shared
+CPU-backend contract: numeric `print!`/`println!` values remain LLVM `double`
+arguments under an explicit `i32 (i8*, ...)` variadic call type. Its original focused
+3/3 and complete 218-library/32-binary root gate passed; exact candidate `e7a74e6`
+passed all nine exact-head checks, protected PR #19 merged it as `d7d1c768`, and all
+three post-merge workflows passed. Accepted CAP-015 enriches that same application
+rather than adding a feature row: the tracked
+four-file telemetry program interprets literal `[char; 10]` record grammar
+`T=<digit><digit>;H=<digit><digit>;`, materially uses canonical result 42, proves
+boundary results 0 and 297, and preserves exact output/exit 91. All ten first-
+malformed positions, three first-error precedence controls, and negative/equal-to-
+count parser-index traps pass. Raw and semantic checked metadata retain `char`,
+`[char; 10]`, and `Result<int, char>`; public/library LLVM agree; and pinned Linux and
+Windows LLVM/Clang 22 verified `-O0`/`-O2` gates pass. The representative
+application/conformance-subset row below remains `END_TO_END`; component language
+rows remain `PARTIAL`, and no row is newly `STABLE`. CAP-015 changes no compiler
+production or language-profile code. General-purpose text parsing, runtime Strings,
+serialization, runtime ingestion, file input, and Unicode text encoding/normalization
+remain unsupported; accepted CORE-072's bounded Unicode scalar `char` remains
+`PARTIAL`.
 
 Accepted CAP-001 closes one fixed-array read false-success without adding a data topology.
 Every nonconstant semantic `int` index into the existing admitted nonempty recursive
@@ -531,7 +568,7 @@ evidence is not general Windows or stable ABI support.
 | Module resolver | Y | P | Resolved source | P | P | Y | EXPERIMENTAL |
 | Registry | Y | — | Local search and dry-run plans; live transport quarantined | Y | N | Y | EXPERIMENTAL |
 | Conformance command | Y | P | 3 cases + 4 deterministic checks | P | P | P | EXPERIMENTAL |
-| Representative scalar application/conformance subset (`M1-001`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |
+| Representative scalar application/conformance subset (`M1-001`, enriched by accepted `CAP-015`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |
 | Package lock/reproducible resolution | P | ? | ? | ? | ? | P | DESIGNED |
 
 ## Backend summary

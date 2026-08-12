@@ -32,6 +32,32 @@ allocation/drop, I/O, accelerators, and non-CPU target pairing remain rejected. 
 does not stabilize ABI/layout, serialization, packages, SIMD, tensor/quantized
 infrastructure, performance, safety, Aero as a whole, or Milestone 3 completion.
 
+CAP-015 is accepted as a bounded representative application integration checkpoint.
+It enriches the existing M1-001 telemetry application with one exact embedded
+`[char; 10]` record, `T=<digit><digit>;H=<digit><digit>;`, whose guarded reads,
+equality-only decimal classification, explicit `Result<int, char>`, and exhaustive
+`Match` produce canonical value 42 and feed that value materially into the established
+exact-output/exit-91 computation. The gate also retains boundary results 0 and 297,
+all ten first-malformed-position identities, three first-error precedence controls,
+and negative/equal-to-count trap-before-access specimens across public and pinned
+Linux/Windows LLVM/Clang 22 `-O0`/`-O2` routes.
+CAP-015 changes no compiler production or language-profile code.
+CAP-014 remains Aero's latest accepted compiler/profile capability and first Milestone
+3 CPU slice; CAP-015 is the latest
+accepted project integration checkpoint and only enriches the existing M1-001
+`END_TO_END` application evidence. Both named profiles continue to reject the parser.
+General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
+input, and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
+bounded Unicode scalar `char` remains `PARTIAL`.
+
+Exact candidate `dd9b1710abebf2f2318582cf94568c2f9a30ca8f`, protected PR #52
+merge `b62696272f293f9f378f8a368cc818fcb8ef1074`, and shared tree
+`27f359bc5ca90212a06ce73b71759cac0533c1f0` are immutable. Candidate push/PR CI
+`31597830488`/`31598146528`, Rust CI `31598146473`, CodeQL `31598144554`, and
+merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` all pass.
+This evidence does not add a CAP-015 parser, grammar, feature, profile, stability, or
+conformance row and does not promote any neighboring component capability.
+
 CAP-013 is an accepted cross-capability architecture and executable-composition
 checkpoint. It promotes the prior specialization watch only because concrete drift
 was observed: primitive aliases could be rejected across generic/trait boundaries or
@@ -44,19 +70,15 @@ Focused, corruption, complete-root, pinned LLVM 22 O0/O2, exact candidate, prote
 PR #48 merge `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`, and exact merge-head gates
 pass. This does not complete generics or traits.
 
-The post-CAP-014 ranking now controls task selection. First is
-`CAP-015-READINESS`, not automatic implementation: freeze an exact ASCII grammar and
-result contract for a bounded embedded-data fixed-capacity `[char; N]` parser/
-interpreter. The specimen may already compile experimentally, so probe the complete
-representative program against accepted behavior. A green probe adds only the
-representative gate and triggers a reranking; a red isolated to one established class
-of at most two compiler phases may be separately authorized and closed. Unfrozen
-semantics, profile fusion, or any widening of `exact-i32-array-v0` requires a stop and
-decision. Second is a separately frozen positive module/import/name-resolution
-architecture; third is runtime file-byte acquisition. Runtime acquisition remains
-blocked until path, byte, buffer, error, ownership/drop, and platform semantics are
-frozen, so file I/O remains stopped. No new implementation may begin until this
-bounded CAP-014 accepted-truth synchronization is green and protected-integrated.
+The post-CAP-015 ranking now controls task selection. First is
+`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation: freeze and red-
+probe positive module/import/name-resolution architecture before admitting a source
+path. Second is typed `Result` propagation across ordinary call chains. Third is
+runtime byte/file acquisition into a bounded owned buffer. The exact scored ranking,
+real-program deltas, and stop conditions appear below. Runtime acquisition remains
+stopped until path, byte, buffer, error, ownership/drop, and platform semantics are
+frozen; a failed module readiness probe must trigger an architecture decision, not a
+guard removal or invented namespace behavior.
 
 CAP-012 is an accepted Milestone 2 capability. It closes the remaining selected exit
 half by letting the representative telemetry program call ordinary
@@ -397,9 +419,9 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 | Roadmap area | Met | Partial | Open |
 |---|---|---|---|
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes; accepted CAP-009 classifies and executes the selected `stable-scalar-v0` subset as `STABLE`. | The wider compiler, component feature rows, experimental default, ABI, ownership, modules, aggregates, and release surface remain unstabilized. | Milestone 0 exit is met; preserve the selected profile while ranking the next broad real-program capability. |
-| Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
+| Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. Accepted CAP-015 enriches that same application with exact embedded-character interpretation through guarded reads and typed `Result`, materially composed into the unchanged exit-91 oracle. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`; CAP-015 adds no parser or profile row. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, accepted CAP-008 nonbinding enum wildcards, accepted CAP-010 required-only CopyData trait dispatch, accepted CAP-011 fixed-capacity generic container algorithms, accepted CAP-012 projected call loans, and accepted CAP-013 canonical bounded-specialization identity/phase authority have executable slices. CAP-011 and CAP-012 satisfy the selected generic-data-structure plus ownership-intensive-program exit product. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards; CAP-010 adds one verifier-bound static-dispatch class; CAP-011 and CAP-012 close only the selected exit gate; CAP-013 closes alias/identity/phase drift without adding general semantics. | The selected Milestone 2 exit gate is met. General collections and generic operations, broader traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and ordinary-program breadth remain higher-milestone capability work. |
-| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence. | It is one private named profile over flat integer arrays; ingestion, parsing, errors, collections, streaming, quantization/tensors, resource measurement, and accelerator execution remain open. | The milestone exit is not met. Run the ranked embedded-data parser readiness contract/probe only after CAP-014 truth is synchronized; keep runtime file acquisition stopped until its semantics are frozen. |
+| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence. | The CPU lane remains one private named profile over flat integer arrays. CAP-015's embedded-literal evidence belongs only to M1-001 representative integration; runtime ingestion, file input, general parsing, broader error propagation, collections, streaming, quantization/tensors, resource measurement, and accelerator execution remain open. | The milestone exit is not met. Follow the post-CAP-015 ranking, beginning with module-resolution readiness; keep runtime file acquisition stopped until its semantics are frozen. |
 
 Accepted CAP-009 closes the selected-stable-subset portion of the Milestone 0 row with
 protected exact-head and merge-head evidence. It does not promote neighboring
@@ -586,30 +608,54 @@ application through checked IR, verified LLVM, and pinned Linux/Windows native
 execution. The selected exit gate is met; general ownership, generics, collections,
 layout/ABI/destruction, and the broader milestone ambitions remain partial.
 
-### Post-CAP-014 ranking
+### Post-CAP-015 ranking
 
-The first Milestone 3 CPU slice is accepted, but this record synchronization must be
-accepted before another implementation starts. The next ranked capability gaps are:
+CAP-015 consumed the embedded-record readiness question without changing the compiler:
+the accepted behavior was already sufficient, so the representative gate was enriched
+and the project reranked. Scores are 1--5 with higher better; `Risk` and `Evidence` are
+delivery favorability, so 5 means lower implementation risk or lower evidence cost.
 
-1. `CAP-015-READINESS`, not automatic implementation: freeze the bounded embedded-
-   data fixed-capacity `[char; N]` parser/interpreter's exact ASCII grammar and result
-   contract, then run the complete representative program as a red probe against
-   accepted experimental behavior. If it is already green, install the representative
-   gate and rerank without changing the compiler. If it is red only on one established
-   class spanning at most two compiler phases, separately authorize and close that
-   class. Stop for a decision if it requires unfrozen semantics, profile fusion, or
-   any widening of `exact-i32-array-v0`.
-2. A separately frozen positive module/import/name-resolution architecture covering
-   namespace, visibility, collisions, graph order, cycles, and cache identity.
-3. Runtime file-byte acquisition, blocked pending path, byte, buffer, error,
-   ownership/drop, and platform semantics.
+| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | `CAP-016-MODULE-RESOLUTION-READINESS`: positive module/import/name resolution | 5 | 4 | 5 | 5 | 2 | 2 | 23 |
+| 2 | Typed `Result` propagation across ordinary call chains | 4 | 4 | 4 | 5 | 2 | 3 | 22 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
-This ranking does not authorize file I/O or presume that the compiler needs a parser
-change. It keeps file acquisition explicitly stopped and selects a readiness proof
-that cannot invent missing runtime contracts. Evidence that the parser cannot produce
-a useful typed result within the existing ownership/aggregate boundary, or that
-module architecture is a prerequisite for representative integration, would change
-the order.
+1. `CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation. Before the
+   destination capability, ordinary programs cannot use explicit positive `import` or
+   `use` resolution to organize reusable APIs under defined namespaces and visibility;
+   the existing direct-module flattening does not supply that contract. After the
+   eventual bounded vertical slice, one frozen multi-file program should resolve an
+   explicitly imported name deterministically through source, checked IR, verified
+   LLVM, and native execution. Readiness must first freeze namespace roots, file-to-
+   module mapping, visibility/export rules, qualified and unqualified lookup,
+   shadowing/collisions, dependency order, cycles, diagnostics/spans, cache identity,
+   and specialization identity. Stop if the probe requires silently removing the
+   shared fail-closed guard, erasing visibility, accepting ambiguous lookup, inventing
+   cycle behavior, or crossing the authorized architecture boundary.
+2. typed `Result` propagation across ordinary call chains. Before this capability,
+   each fallible layer must manually inspect and reconstruct `Result` with exhaustive
+   `Match`; a useful parser/service pipeline cannot concisely forward its first typed
+   error. After a separately frozen slice, an admitted ordinary call chain should
+   return the unchanged error and continue the success value under independently
+   verified control flow. Stop unless propagation syntax, early-return behavior,
+   exact success/error compatibility, ownership effects, source spans, and interaction
+   with explicit `Match` are frozen without generalizing carriers or generics by
+   accident.
+3. runtime byte/file acquisition into a bounded owned buffer. Before this capability,
+   Aero can interpret only source-embedded characters, not acquire external workload
+   bytes. After its eventual bounded slice, a real CPU workload should obtain a
+   size-bounded owned buffer, report acquisition failure through a frozen typed error,
+   and hand validated data to computation. This work remains stopped until path and
+   byte identities, buffer capacity/initialization, partial reads, EOF, error mapping,
+   ownership/drop, runtime linkage, sandboxing, and Linux/Windows behavior are frozen.
+
+The ranking favors broad composition and the shortest credible path to normal Aero
+programs; it does not authorize any of the three implementations. Evidence that module
+semantics cannot be bounded without a package architecture, that explicit `Match`
+already serves the target error workflow better than propagation, or that a safe
+platform-neutral byte source must precede filesystem paths would change the order and
+require a fresh scored decision.
 
 ## Milestone 3 - Aero-native AI/ML infrastructure flagship
 
