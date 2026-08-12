@@ -124,6 +124,44 @@
   bounds, workflow, and neighboring-family controls all remain green. No production,
   example, workflow, cumulative-truth, dependency, protection, or GitHub state changed.
 
+### CAP-018 implementation checkpoint
+
+- The red class is green in the live pre-candidate worktree without crossing the stop
+  boundary. Production changes remain confined to `language_profile.rs`: the shared
+  profile role policy now admits exact-array results, function result shapes are
+  collected beside parameter shapes, and one recursive exact-profile value classifier
+  owns literal/identifier/ordinary-call roots across return, inferred/annotated
+  binding, call argument, and index-object placement. Unannotated `UnknownScalar` is
+  never promoted to Int or Bool by exact expression classification; declared scalar
+  annotations/results remain provisional to canonical semantic validation. The signed
+  minimum spelling is admitted only while classifying an exact array element. A
+  deliberately separate compatibility traversal preserves the accepted
+  `stable-scalar-v0` source policy without learning any array topology.
+- The maintained N=8 application now performs a real immutable transform: it returns
+  an `[i32; 8]` whose first lane is offset, forwards that returned aggregate through a
+  second ordinary function, feeds it to the dot-plus-bias kernel, proves the original
+  Copy source remains readable, and retains exit 91 with independent arithmetic result
+  2035. The existing Linux and Windows LLVM 22 O0/O2 steps now require both exact
+  aggregate-return definitions, both calls, and an exact aggregate return in addition
+  to their physical-lane, guard, verifier, machine, execution, and trap controls.
+- Focused settled-worktree evidence is green: profile authority units 12/12; complete
+  fixed-array profile integration 14/14; stable-profile regression 10/10; and focused
+  backend role/admission controls 4/4. Three independent read-only reviews identified
+  and then verified closure of stable diagnostic drift, signed-minimum leakage,
+  unproved-scalar-to-Int manufacture, stale result-role expectations, and missing
+  forward/cycle controls. This is candidate evidence only: formatting, Clippy, docs,
+  the complete repository gate, exact pinned native execution, and public workflows
+  remain required before any accepted capability or cumulative-truth change.
+- Repository-gate chronology on the settled pre-candidate tree: the first literal
+  `./tools/test.sh` invocation inherited Cargo into Git Bash but not the cached pinned
+  LLVM directories, so its full-test phase stopped when the externally verified
+  fixed-array target could not discover `opt`; this was an environment qualification
+  failure, not a compiler/test failure. The exact root command rerun with the cached
+  LLVM/Clang 22.1.8 directories prepended passed formatting, all-target/all-feature
+  correctness Clippy, the complete unit/integration suite, and doc-tests. A separate
+  `cargo doc --locked --no-deps` passed. Existing repository warnings remain warnings;
+  no test, lint level, verifier requirement, or source contract was weakened.
+
 ## CAP-017-RESULT-PROPAGATION-READINESS - typed ordinary-call-chain error forwarding
 
 - Date/task/status: 2026-08-12, `CAP-017-RESULT-PROPAGATION-READINESS`,

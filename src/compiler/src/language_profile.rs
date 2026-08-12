@@ -1,4 +1,4 @@
-use crate::ast::{AstNode, BinaryOp, Block, Expression, Statement, Type};
+use crate::ast::{AstNode, BinaryOp, Block, Expression, Statement, Type, UnaryOp};
 use crate::ir::LogicalType;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -83,13 +83,11 @@ pub(crate) enum ProfileTypeUse {
 pub(crate) fn profile_type_shape_is_admitted(
     profile: LanguageProfile,
     shape: ProfileTypeShape,
-    usage: ProfileTypeUse,
+    _usage: ProfileTypeUse,
 ) -> bool {
     match shape {
         ProfileTypeShape::Int | ProfileTypeShape::Bool => true,
-        ProfileTypeShape::ExactI32Array { .. } => {
-            profile == LanguageProfile::ExactI32ArrayV0 && usage != ProfileTypeUse::Result
-        }
+        ProfileTypeShape::ExactI32Array { .. } => profile == LanguageProfile::ExactI32ArrayV0,
         ProfileTypeShape::Unsupported => false,
     }
 }
@@ -184,17 +182,39 @@ fn profile_named_error(profile: LanguageProfile, feature: &str) -> String {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BindingShape {
-    ScalarOrUnknown,
-    ExactI32Array { count: usize },
+enum ProfileValueShape {
+    Known(ProfileTypeShape),
+    UnknownScalar,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProfileValueContext {
+    General,
+    ExactArrayElement,
+}
+
+impl ProfileValueShape {
+    fn known(shape: ProfileTypeShape) -> Self {
+        Self::Known(shape)
+    }
+
+    fn exact_array(self) -> Option<usize> {
+        match self {
+            Self::Known(ProfileTypeShape::ExactI32Array { count }) => Some(count),
+            Self::Known(ProfileTypeShape::Int | ProfileTypeShape::Bool)
+            | Self::Known(ProfileTypeShape::Unsupported)
+            | Self::UnknownScalar => None,
+        }
+    }
 }
 
 struct ProfileValidator {
     profile: LanguageProfile,
     functions: BTreeSet<String>,
     function_parameter_shapes: BTreeMap<String, Vec<ProfileTypeShape>>,
+    function_result_shapes: BTreeMap<String, ProfileTypeShape>,
     calls: BTreeMap<String, BTreeSet<String>>,
-    binding_scopes: Vec<BTreeMap<String, BindingShape>>,
+    binding_scopes: Vec<BTreeMap<String, ProfileValueShape>>,
 }
 
 impl ProfileValidator {
@@ -203,6 +223,7 @@ impl ProfileValidator {
             profile,
             functions: BTreeSet::new(),
             function_parameter_shapes: BTreeMap::new(),
+            function_result_shapes: BTreeMap::new(),
             calls: BTreeMap::new(),
             binding_scopes: Vec::new(),
         };
@@ -219,7 +240,10 @@ impl ProfileValidator {
         for node in ast {
             match node {
                 AstNode::Statement(Statement::Function {
-                    name, parameters, ..
+                    name,
+                    parameters,
+                    return_type,
+                    ..
                 }) => {
                     if !self.functions.insert(name.clone()) {
                         return Err(
@@ -233,6 +257,13 @@ impl ProfileValidator {
                             .iter()
                             .map(|parameter| classify_profile_ast_type(&parameter.param_type))
                             .collect(),
+                    );
+                    self.function_result_shapes.insert(
+                        name.clone(),
+                        return_type
+                            .as_ref()
+                            .map(classify_profile_ast_type)
+                            .unwrap_or(ProfileTypeShape::Unsupported),
                     );
                 }
                 AstNode::Statement(statement) => {
@@ -289,7 +320,7 @@ impl ProfileValidator {
                 .map(|parameter| {
                     (
                         parameter.name.clone(),
-                        binding_shape_for_type(&parameter.param_type),
+                        ProfileValueShape::known(classify_profile_ast_type(&parameter.param_type)),
                     )
                 })
                 .collect();
@@ -323,54 +354,102 @@ impl ProfileValidator {
                 type_annotation,
                 value,
             } => {
-                if let Some(annotation) = type_annotation {
+                let annotation_shape = if let Some(annotation) = type_annotation {
                     self.validate_type(
                         annotation,
                         ProfileTypeUse::Binding,
                         "binding annotation types",
                     )?;
-                }
+                    Some(classify_profile_ast_type(annotation))
+                } else {
+                    None
+                };
                 let Some(value) = value else {
                     return Err(self.error("uninitialized bindings"));
                 };
-                let shape = type_annotation
-                    .as_ref()
-                    .map(binding_shape_for_type)
-                    .unwrap_or(BindingShape::ScalarOrUnknown);
-                match shape {
-                    BindingShape::ExactI32Array { count } => {
+                let value_shape = self.classify_value(function, value)?;
+                let stored_shape = match annotation_shape {
+                    Some(expected @ ProfileTypeShape::ExactI32Array { count }) => {
                         if *mutable {
                             return Err(self.error("mutable array bindings"));
                         }
-                        self.validate_array_initializer(value, count)?;
+                        self.require_exact_array_shape(
+                            value_shape,
+                            count,
+                            "array literal counts that differ from their annotations",
+                        )?;
+                        ProfileValueShape::known(expected)
                     }
-                    BindingShape::ScalarOrUnknown => {
-                        self.validate_expression(function, value)?;
+                    Some(expected @ (ProfileTypeShape::Int | ProfileTypeShape::Bool)) => {
+                        if value_shape.exact_array().is_some() {
+                            return Err(self.error("array values in scalar bindings"));
+                        }
+                        ProfileValueShape::known(expected)
                     }
+                    Some(ProfileTypeShape::Unsupported) => {
+                        unreachable!("validated binding annotations have admitted profile types")
+                    }
+                    None => {
+                        if value_shape.exact_array().is_some() && *mutable {
+                            return Err(self.error("mutable array bindings"));
+                        }
+                        value_shape
+                    }
+                };
+                if self.profile != LanguageProfile::ExactI32ArrayV0
+                    && stored_shape.exact_array().is_some()
+                {
+                    return Err(self.error("array expressions"));
                 }
                 self.binding_scopes
                     .last_mut()
                     .expect("validated function body retains a binding scope")
-                    .insert(name.clone(), shape);
+                    .insert(name.clone(), stored_shape);
                 Ok(())
             }
             Statement::Assignment { target, value } => {
                 let Expression::Identifier(target_name) = target else {
                     return Err(self.error("projected or indirect assignment targets"));
                 };
-                if self.is_array_binding(target_name) {
+                if self
+                    .binding_shape(target_name)
+                    .and_then(ProfileValueShape::exact_array)
+                    .is_some()
+                {
                     return Err(self.error("array writes"));
                 }
-                self.validate_expression(function, value)
+                let value_shape = self.classify_value(function, value)?;
+                if value_shape.exact_array().is_some() {
+                    return Err(self.error("array values in scalar assignments"));
+                }
+                Ok(())
             }
             Statement::Return(value) => {
                 if let Some(value) = value {
-                    self.validate_expression(function, value)?;
+                    let expected = self
+                        .function_result_shapes
+                        .get(function)
+                        .copied()
+                        .unwrap_or(ProfileTypeShape::Unsupported);
+                    let actual = self.classify_value(function, value)?;
+                    if let ProfileTypeShape::ExactI32Array { count } = expected {
+                        self.require_exact_array_shape(
+                            actual,
+                            count,
+                            "array value source count mismatch",
+                        )?;
+                    } else if actual.exact_array().is_some() {
+                        return Err(self.error("array values returned from scalar functions"));
+                    }
                 }
                 Ok(())
             }
             Statement::Expression(Expression::FunctionCall { name, arguments }) => {
-                self.validate_call(function, name, arguments)
+                let result = self.classify_call(function, name, arguments)?;
+                if result.exact_array().is_some() {
+                    return Err(self.error("effect-free array-result calls"));
+                }
+                Ok(())
             }
             Statement::Expression(expression) => {
                 self.validate_expression(function, expression)?;
@@ -419,18 +498,40 @@ impl ProfileValidator {
         function: &str,
         expression: &Expression,
     ) -> Result<(), String> {
+        let shape = self.classify_value(function, expression)?;
+        if shape.exact_array().is_some() {
+            Err(self.error("array identifiers outside direct call transport or index reads"))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn classify_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+    ) -> Result<ProfileValueShape, String> {
+        if self.profile == LanguageProfile::StableScalarV0 {
+            return self.classify_stable_scalar_value(function, expression);
+        }
+        self.classify_exact_value(function, expression, ProfileValueContext::General)
+    }
+
+    /// Preserve the accepted stable-scalar-v0 source policy byte-for-behavior.
+    ///
+    /// CAP-018 needs stronger value identity only for exact-array composition.
+    /// Stable scalar programs continue to defer operand type equality to the
+    /// semantic analyzer, exactly as they did before the array-value classifier.
+    fn classify_stable_scalar_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+    ) -> Result<ProfileValueShape, String> {
         match expression {
             Expression::IntegerLiteral(value) => i32::try_from(*value)
-                .map(|_| ())
+                .map(|_| ProfileValueShape::UnknownScalar)
                 .map_err(|_| self.error("integer literals outside the signed i32 range")),
-            Expression::Identifier(name) => {
-                if self.is_array_binding(name) {
-                    Err(self
-                        .error("array identifiers outside direct call transport or index reads"))
-                } else {
-                    Ok(())
-                }
-            }
+            Expression::Identifier(_) => Ok(ProfileValueShape::UnknownScalar),
             Expression::Binary {
                 op, left, right, ..
             } => {
@@ -439,36 +540,31 @@ impl ProfileValidator {
                     BinaryOp::Divide => return Err(self.error("division expressions")),
                     BinaryOp::Modulo => return Err(self.error("remainder expressions")),
                 }
-                self.validate_expression(function, left)?;
-                self.validate_expression(function, right)
+                self.classify_stable_scalar_value(function, left)?;
+                self.classify_stable_scalar_value(function, right)?;
+                Ok(ProfileValueShape::UnknownScalar)
             }
             Expression::FunctionCall { name, arguments } => {
-                self.validate_call(function, name, arguments)
+                self.classify_call(function, name, arguments)
             }
             Expression::Comparison { left, right, .. } => {
-                self.validate_expression(function, left)?;
-                self.validate_expression(function, right)
+                self.classify_stable_scalar_value(function, left)?;
+                self.classify_stable_scalar_value(function, right)?;
+                Ok(ProfileValueShape::UnknownScalar)
             }
             Expression::Logical { left, right, .. } => {
                 if expression_contains_call(left) || expression_contains_call(right) {
                     return Err(self.error("function calls inside logical operands"));
                 }
-                self.validate_expression(function, left)?;
-                self.validate_expression(function, right)
+                self.classify_stable_scalar_value(function, left)?;
+                self.classify_stable_scalar_value(function, right)?;
+                Ok(ProfileValueShape::UnknownScalar)
             }
-            Expression::Unary { operand, .. } => self.validate_expression(function, operand),
-            Expression::IndexAccess { object, index } => {
-                if self.profile != LanguageProfile::ExactI32ArrayV0 {
-                    return Err(self.error(expression_feature(expression)));
-                }
-                let Expression::Identifier(array_name) = object.as_ref() else {
-                    return Err(self.error("projected array index objects"));
-                };
-                if !self.is_array_binding(array_name) {
-                    return Err(self.error("index reads from non-array identifiers"));
-                }
-                self.validate_expression(function, index)
+            Expression::Unary { operand, .. } => {
+                self.classify_stable_scalar_value(function, operand)?;
+                Ok(ProfileValueShape::UnknownScalar)
             }
+            Expression::IndexAccess { .. } => Err(self.error(expression_feature(expression))),
             Expression::FloatLiteral(_)
             | Expression::CharacterLiteral(_)
             | Expression::StringLiteral(_)
@@ -489,12 +585,139 @@ impl ProfileValidator {
         }
     }
 
-    fn validate_call(
+    fn classify_exact_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+        context: ProfileValueContext,
+    ) -> Result<ProfileValueShape, String> {
+        match expression {
+            Expression::IntegerLiteral(value) => i32::try_from(*value)
+                .map(|_| ProfileValueShape::known(ProfileTypeShape::Int))
+                .map_err(|_| self.error("integer literals outside the signed i32 range")),
+            Expression::Identifier(name) => Ok(self
+                .binding_shape(name)
+                .unwrap_or(ProfileValueShape::UnknownScalar)),
+            Expression::Binary {
+                op, left, right, ..
+            } => {
+                match op {
+                    BinaryOp::Add | BinaryOp::Subtract | BinaryOp::Multiply => {}
+                    BinaryOp::Divide => return Err(self.error("division expressions")),
+                    BinaryOp::Modulo => return Err(self.error("remainder expressions")),
+                }
+                self.require_int_value(function, left, context)?;
+                self.require_int_value(function, right, context)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Int))
+            }
+            Expression::FunctionCall { name, arguments } => {
+                self.classify_call(function, name, arguments)
+            }
+            Expression::Comparison { left, right, .. } => {
+                self.require_scalar_value(function, left)?;
+                self.require_scalar_value(function, right)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Bool))
+            }
+            Expression::Logical { left, right, .. } => {
+                if expression_contains_call(left) || expression_contains_call(right) {
+                    return Err(self.error("function calls inside logical operands"));
+                }
+                self.require_bool_value(function, left)?;
+                self.require_bool_value(function, right)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Bool))
+            }
+            Expression::Unary {
+                op: UnaryOp::Negate,
+                operand,
+            } => {
+                if context == ProfileValueContext::ExactArrayElement
+                    && let Expression::IntegerLiteral(value) = operand.as_ref()
+                    && (0..=i64::from(i32::MAX) + 1).contains(value)
+                {
+                    return Ok(ProfileValueShape::known(ProfileTypeShape::Int));
+                }
+                self.require_int_value(function, operand, context)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Int))
+            }
+            Expression::Unary {
+                op: UnaryOp::Not,
+                operand,
+            } => {
+                self.require_bool_value(function, operand)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Bool))
+            }
+            Expression::ArrayLiteral(elements) => {
+                if self.profile != LanguageProfile::ExactI32ArrayV0 {
+                    return Err(self.error("array expressions"));
+                }
+                let count = elements.len();
+                if !(1..=i32::MAX as usize).contains(&count) {
+                    return Err(self.error("array value source count outside the profile boundary"));
+                }
+                for element in elements {
+                    let shape = self
+                        .classify_exact_value(
+                            function,
+                            element,
+                            ProfileValueContext::ExactArrayElement,
+                        )
+                        .map_err(|error| {
+                            if error == self.error("integer literals outside the signed i32 range")
+                            {
+                                self.error("array elements other than exact signed i32 literals")
+                            } else {
+                                error
+                            }
+                        })?;
+                    if shape != ProfileValueShape::known(ProfileTypeShape::Int) {
+                        return Err(
+                            self.error("array literal elements other than exact Int expressions")
+                        );
+                    }
+                }
+                Ok(ProfileValueShape::known(ProfileTypeShape::ExactI32Array {
+                    count,
+                }))
+            }
+            Expression::IndexAccess { object, index } => {
+                if self.profile != LanguageProfile::ExactI32ArrayV0 {
+                    return Err(self.error(expression_feature(expression)));
+                }
+                let object_shape = self.classify_value(function, object)?;
+                if object_shape.exact_array().is_none() {
+                    return Err(self.error("index reads from non-array values"));
+                }
+                self.require_int_value(function, index, ProfileValueContext::General)?;
+                Ok(ProfileValueShape::known(ProfileTypeShape::Int))
+            }
+            Expression::ArrayRepeat { .. } if self.profile == LanguageProfile::ExactI32ArrayV0 => {
+                Err(self.error("array bindings without direct literal initializers"))
+            }
+            Expression::FloatLiteral(_)
+            | Expression::CharacterLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::MethodCall { .. }
+            | Expression::Print { .. }
+            | Expression::Println { .. }
+            | Expression::ArrayRepeat { .. }
+            | Expression::FieldAccess { .. }
+            | Expression::TupleLiteral(_)
+            | Expression::TupleIndex { .. }
+            | Expression::StructLiteral { .. }
+            | Expression::EnumVariant { .. }
+            | Expression::Match { .. }
+            | Expression::Borrow { .. }
+            | Expression::Deref(_)
+            | Expression::Closure { .. } => Err(self.error(expression_feature(expression))),
+        }
+    }
+
+    fn classify_call(
         &mut self,
         function: &str,
         callee: &str,
         arguments: &[Expression],
-    ) -> Result<(), String> {
+    ) -> Result<ProfileValueShape, String> {
         let parameter_shapes = self
             .function_parameter_shapes
             .get(callee)
@@ -505,7 +728,12 @@ impl ProfileValidator {
                 Some(ProfileTypeShape::ExactI32Array { count })
                     if self.profile == LanguageProfile::ExactI32ArrayV0 =>
                 {
-                    self.validate_array_transport(argument, *count)?;
+                    let actual = self.classify_value(function, argument)?;
+                    self.require_exact_array_shape(
+                        actual,
+                        *count,
+                        "array call arguments with mismatched counts",
+                    )?;
                 }
                 _ => self.validate_expression(function, argument)?,
             }
@@ -516,7 +744,99 @@ impl ProfileValidator {
                 .expect("validated function retains a call-graph node")
                 .insert(callee.to_string());
         }
-        Ok(())
+        let result = self
+            .function_result_shapes
+            .get(callee)
+            .copied()
+            .filter(|shape| *shape != ProfileTypeShape::Unsupported)
+            .map(ProfileValueShape::known)
+            .unwrap_or(ProfileValueShape::UnknownScalar);
+        if self.profile == LanguageProfile::StableScalarV0 {
+            Ok(ProfileValueShape::UnknownScalar)
+        } else {
+            Ok(result)
+        }
+    }
+
+    fn require_scalar_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+    ) -> Result<ProfileValueShape, String> {
+        let shape = self.classify_value(function, expression)?;
+        if shape.exact_array().is_some() {
+            Err(self.error("array identifiers outside direct call transport or index reads"))
+        } else {
+            Ok(shape)
+        }
+    }
+
+    fn require_int_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+        context: ProfileValueContext,
+    ) -> Result<(), String> {
+        match self.classify_exact_value(function, expression, context)? {
+            ProfileValueShape::Known(ProfileTypeShape::Int) => Ok(()),
+            ProfileValueShape::Known(ProfileTypeShape::Bool) => {
+                Err(self.error("non-Int values in exact integer expressions"))
+            }
+            ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { .. }) => {
+                Err(self.error("array values in exact integer expressions"))
+            }
+            ProfileValueShape::Known(ProfileTypeShape::Unsupported) => {
+                Err(self.error("unsupported values in exact integer expressions"))
+            }
+            ProfileValueShape::UnknownScalar => {
+                Err(self.error("unproved values in exact integer expressions"))
+            }
+        }
+    }
+
+    fn require_bool_value(
+        &mut self,
+        function: &str,
+        expression: &Expression,
+    ) -> Result<(), String> {
+        match self.classify_exact_value(function, expression, ProfileValueContext::General)? {
+            ProfileValueShape::Known(ProfileTypeShape::Bool) => Ok(()),
+            ProfileValueShape::Known(ProfileTypeShape::Int) => {
+                Err(self.error("non-Bool values in logical expressions"))
+            }
+            ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { .. }) => {
+                Err(self.error("array values in logical expressions"))
+            }
+            ProfileValueShape::Known(ProfileTypeShape::Unsupported) => {
+                Err(self.error("unsupported values in logical expressions"))
+            }
+            ProfileValueShape::UnknownScalar => {
+                Err(self.error("unproved values in logical expressions"))
+            }
+        }
+    }
+
+    fn require_exact_array_shape(
+        &self,
+        actual: ProfileValueShape,
+        expected_count: usize,
+        mismatch_feature: &str,
+    ) -> Result<(), String> {
+        match actual {
+            ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { count })
+                if count == expected_count =>
+            {
+                Ok(())
+            }
+            ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { .. }) => {
+                Err(self.error(mismatch_feature))
+            }
+            ProfileValueShape::Known(ProfileTypeShape::Int | ProfileTypeShape::Bool)
+            | ProfileValueShape::Known(ProfileTypeShape::Unsupported)
+            | ProfileValueShape::UnknownScalar => {
+                Err(self.error("array value source has non-array type"))
+            }
+        }
     }
 
     fn reject_call_cycles(&self) -> Result<(), String> {
@@ -571,78 +891,11 @@ impl ProfileValidator {
         }
     }
 
-    fn validate_array_initializer(
-        &self,
-        initializer: &Expression,
-        expected_count: usize,
-    ) -> Result<(), String> {
-        let Expression::ArrayLiteral(elements) = initializer else {
-            return Err(self.error("array bindings without direct literal initializers"));
-        };
-        if elements.len() != expected_count {
-            return Err(self.error("array literal counts that differ from their annotations"));
-        }
-        if !elements.iter().all(is_exact_signed_i32_literal) {
-            return Err(self.error("array elements other than exact signed i32 literals"));
-        }
-        Ok(())
-    }
-
-    fn validate_array_transport(
-        &self,
-        argument: &Expression,
-        expected_count: usize,
-    ) -> Result<(), String> {
-        let Expression::Identifier(name) = argument else {
-            return Err(self.error("array call arguments other than direct identifiers"));
-        };
-        match self.binding_shape(name) {
-            Some(BindingShape::ExactI32Array { count }) if count == expected_count => Ok(()),
-            Some(BindingShape::ExactI32Array { .. }) => {
-                Err(self.error("array call arguments with mismatched counts"))
-            }
-            Some(BindingShape::ScalarOrUnknown) | None => {
-                Err(self.error("array call arguments from non-array identifiers"))
-            }
-        }
-    }
-
-    fn binding_shape(&self, name: &str) -> Option<BindingShape> {
+    fn binding_shape(&self, name: &str) -> Option<ProfileValueShape> {
         self.binding_scopes
             .iter()
             .rev()
             .find_map(|scope| scope.get(name).copied())
-    }
-
-    fn is_array_binding(&self, name: &str) -> bool {
-        matches!(
-            self.binding_shape(name),
-            Some(BindingShape::ExactI32Array { .. })
-        )
-    }
-}
-
-fn binding_shape_for_type(ty: &Type) -> BindingShape {
-    match classify_profile_ast_type(ty) {
-        ProfileTypeShape::ExactI32Array { count } => BindingShape::ExactI32Array { count },
-        ProfileTypeShape::Int | ProfileTypeShape::Bool | ProfileTypeShape::Unsupported => {
-            BindingShape::ScalarOrUnknown
-        }
-    }
-}
-
-fn is_exact_signed_i32_literal(expression: &Expression) -> bool {
-    match expression {
-        Expression::IntegerLiteral(value) => i32::try_from(*value).is_ok(),
-        Expression::Unary {
-            op: crate::ast::UnaryOp::Negate,
-            operand,
-        } => matches!(
-            operand.as_ref(),
-            Expression::IntegerLiteral(value)
-                if (0..=i64::from(i32::MAX) + 1).contains(value)
-        ),
-        _ => false,
     }
 }
 
@@ -914,10 +1167,11 @@ mod tests {
     }
 
     #[test]
-    fn shared_profile_role_policy_owns_array_transport_and_result_exclusion() {
+    fn shared_profile_role_policy_owns_array_transport_and_results() {
         let exact_array = ProfileTypeShape::ExactI32Array { count: 8 };
         for usage in [
             ProfileTypeUse::Parameter,
+            ProfileTypeUse::Result,
             ProfileTypeUse::Binding,
             ProfileTypeUse::Value,
         ] {
@@ -927,11 +1181,6 @@ mod tests {
                 usage
             ));
         }
-        assert!(!profile_type_shape_is_admitted(
-            LanguageProfile::ExactI32ArrayV0,
-            exact_array,
-            ProfileTypeUse::Result
-        ));
         for profile in [
             LanguageProfile::Experimental,
             LanguageProfile::StableScalarV0,
@@ -975,6 +1224,7 @@ mod tests {
             "fn read(values: [int; 2], index: int) -> int { return values[index]; } fn main() -> int { let values: [int; 2] = [-2147483648, 2147483647]; return read(values, 1); }",
             "fn read(values: [i32; 1]) -> int { return values[0]; } fn main() -> int { let values: [i32; 1] = [-0]; return read(values); }",
             "fn main() -> int { let values: [int; 1] = [7]; let mut index: int = 0; while index < 1 { let value: int = values[index + 0]; index = index + 1; } return values[0]; }",
+            "fn forward(values: [int; 1]) -> [i32; 1] { return later(values); } fn main() -> int { let literal = [1]; let computed: [i32; 1] = [literal[0] + 1]; let annotated: [int; 1] = computed; let copied = annotated; let called = forward(copied); let taken: int = take([called[0] * 2]); let literal_index: int = [7][0]; if taken == 4 && literal_index == 7 { return 0; } return 1; } fn later(values: [i32; 1]) -> [int; 1] { return values; } fn take(values: [int; 1]) -> int { return values[0]; }",
         ] {
             validate_language_profile(&parsed(source), LanguageProfile::ExactI32ArrayV0)
                 .unwrap_or_else(|error| panic!("exact flat-array source was rejected: {error}"));
@@ -984,10 +1234,6 @@ mod tests {
     #[test]
     fn exact_i32_array_validator_rejects_every_neighboring_array_topology() {
         let rejected = [
-            (
-                "fn main() -> int { let values = [1]; return 0; }",
-                "array expressions",
-            ),
             (
                 "fn main() -> int { let values: [int; 2] = [1; 2]; return 0; }",
                 "array bindings without direct literal initializers",
@@ -1017,24 +1263,12 @@ mod tests {
                 "array literal counts that differ from their annotations",
             ),
             (
-                "fn main() -> int { let values: [int; 1] = [1 + 2]; return 0; }",
-                "array elements other than exact signed i32 literals",
-            ),
-            (
                 "fn main() -> int { let values: [int; 1] = [2147483648]; return 0; }",
                 "array elements other than exact signed i32 literals",
             ),
             (
                 "fn main() -> int { let values: [int; 1] = [-2147483649]; return 0; }",
                 "array elements other than exact signed i32 literals",
-            ),
-            (
-                "fn source(values: [int; 1]) -> int { let copy: [int; 1] = values; return copy[0]; } fn main() -> int { let values: [int; 1] = [1]; return source(values); }",
-                "array bindings without direct literal initializers",
-            ),
-            (
-                "fn values() -> [int; 1] { let value: [int; 1] = [1]; return value; } fn main() -> int { return 0; }",
-                "function result types",
             ),
             (
                 "fn main() -> int { let values: [int; 1] = [1]; values = [2]; return 0; }",
@@ -1049,24 +1283,16 @@ mod tests {
                 "projected or indirect assignment targets",
             ),
             (
-                "fn main() -> int { let values: [int; 1] = [1]; let copy = values; return 0; }",
-                "array identifiers outside direct call transport or index reads",
-            ),
-            (
-                "fn take(values: [int; 1]) -> int { return values[0]; } fn main() -> int { return take([1]); }",
-                "array call arguments other than direct identifiers",
-            ),
-            (
                 "fn take(values: [int; 2]) -> int { return values[0]; } fn main() -> int { let values: [int; 1] = [1]; return take(values); }",
                 "array call arguments with mismatched counts",
             ),
             (
                 "fn main() -> int { let value: int = 1; return value[0]; }",
-                "index reads from non-array identifiers",
+                "index reads from non-array values",
             ),
             (
                 "fn main() -> int { let values: [int; 1] = [1]; return values[0][0]; }",
-                "projected array index objects",
+                "index reads from non-array values",
             ),
             (
                 "fn main() -> int { let values: [int; 1] = [1]; values.len(); return 0; }",
@@ -1086,6 +1312,39 @@ mod tests {
                     feature
                 )),
                 "source should reject as `{feature}`: {source}"
+            );
+        }
+    }
+
+    #[test]
+    fn exact_i32_array_value_classifier_never_manufactures_int_identity() {
+        let rejected = [
+            (
+                "fn bad(flag: bool) -> [int; 1] { return [flag]; } fn main() -> int { return 0; }",
+                "array literal elements other than exact Int expressions",
+            ),
+            (
+                "fn flag() -> bool { return 1 < 2; } fn bad() -> [int; 1] { return [flag()]; } fn main() -> int { return 0; }",
+                "array literal elements other than exact Int expressions",
+            ),
+            (
+                "fn read(values: [int; 1], flag: bool) -> int { return values[flag]; } fn main() -> int { return 0; }",
+                "non-Int values in exact integer expressions",
+            ),
+            (
+                "fn bad() -> [int; 1] { return [missing + 1]; } fn main() -> int { return 0; }",
+                "unproved values in exact integer expressions",
+            ),
+        ];
+
+        for (source, feature) in rejected {
+            assert_eq!(
+                validate_language_profile(&parsed(source), LanguageProfile::ExactI32ArrayV0),
+                Err(profile_named_error(
+                    LanguageProfile::ExactI32ArrayV0,
+                    feature
+                )),
+                "source must fail closed without manufacturing Int: {source}"
             );
         }
     }
@@ -1150,6 +1409,14 @@ mod tests {
                 "fn recurse(value: int) -> int { return recurse(value); } fn main() -> int { return recurse(0); }",
                 "recursive function call cycles",
             ),
+            (
+                "fn recurse(values: [int; 1]) -> [int; 1] { return recurse(values); } fn main() -> int { return 0; }",
+                "recursive function call cycles",
+            ),
+            (
+                "fn left(values: [int; 1]) -> [int; 1] { return right(values); } fn right(values: [int; 1]) -> [int; 1] { return left(values); } fn main() -> int { return 0; }",
+                "recursive function call cycles",
+            ),
         ];
 
         for (source, feature) in rejected {
@@ -1170,6 +1437,24 @@ mod tests {
         assert_eq!(
             validate_language_profile(&parsed(source), LanguageProfile::StableScalarV0),
             Err(profile_error("binding annotation types"))
+        );
+    }
+
+    #[test]
+    fn stable_scalar_expression_policy_remains_byte_for_behavior() {
+        validate_language_profile(
+            &parsed("fn main() -> int { return (1 < 2) + 1; }"),
+            LanguageProfile::StableScalarV0,
+        )
+        .expect("stable profile must continue to defer scalar type equality to semantics");
+        assert_eq!(
+            validate_language_profile(
+                &parsed("fn main() -> int { return -2147483648; }"),
+                LanguageProfile::StableScalarV0,
+            ),
+            Err(profile_error(
+                "integer literals outside the signed i32 range"
+            ))
         );
     }
 

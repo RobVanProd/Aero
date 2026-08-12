@@ -63,13 +63,19 @@ fn exact_options() -> CompilerOptions {
 }
 
 fn reference_kernel() -> i32 {
-    let left: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
+    let source: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
+    let mut left = source;
+    left[0] = left[0].wrapping_add(1);
     let right: [i32; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
-    left.into_iter()
+    let result = left
+        .into_iter()
         .zip(right)
         .fold(2_147_483_000_i32, |accumulator, (left, right)| {
             accumulator.wrapping_add(left.wrapping_mul(right))
-        })
+        });
+    assert_eq!(source[0], 127, "Copy-array source must remain readable");
+    assert_eq!(left[0], 128, "returned transform must change one lane");
+    result
 }
 
 struct TestWorkspace {
@@ -208,7 +214,7 @@ fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) 
 
 #[test]
 fn fixed_int_array_profile_is_selectable_on_public_check() {
-    assert_eq!(reference_kernel(), 2027);
+    assert_eq!(reference_kernel(), 2035);
     let workspace = TestWorkspace::new("check-red");
     let source = write_program(&workspace);
     let output = run_cli(
@@ -455,7 +461,7 @@ fn exact_array_value_composition_retains_topology_and_mutability_separation() {
         (
             "repeat source",
             "fn bad() -> [int; 2] { return [1; 2]; } fn main() -> int { return 0; }",
-            "array value sources other than literals, identifiers, or ordinary calls",
+            "array bindings without direct literal initializers",
         ),
         (
             "wrong result count",
@@ -503,10 +509,15 @@ fn exact_profile_emits_one_guarded_i32_array_lane() {
 
     for anchor in [
         "define i32 @dot_with_bias([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right, i32 %aero.arg.bias)",
+        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
         "alloca [8 x i32], align 8",
         "store [8 x i32]",
         "load [8 x i32]",
         "call i32 @dot_with_bias([8 x i32]",
+        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @forward_array([8 x i32]",
+        "ret [8 x i32]",
         "load i32",
         "store i32",
         "mul i32",
@@ -544,7 +555,7 @@ fn exact_profile_emits_one_guarded_i32_array_lane() {
 
 #[test]
 fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
-    assert_eq!(reference_kernel(), 2027);
+    assert_eq!(reference_kernel(), 2035);
 
     let values = [i32::MAX, 1, 1_073_741_824, 2];
     let wrapped_add = values[0].wrapping_add(values[1]);
@@ -755,6 +766,19 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
             workflow.matches(shared_identity_link).count(),
             2,
             "Linux and Windows must both retain identity link `{shared_identity_link}`"
+        );
+    }
+    for composition_anchor in [
+        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
+        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @forward_array([8 x i32]",
+        "ret [8 x i32]",
+    ] {
+        assert_eq!(
+            workflow.matches(composition_anchor).count(),
+            2,
+            "Linux and Windows must both retain array-value composition anchor `{composition_anchor}`"
         );
     }
 }
