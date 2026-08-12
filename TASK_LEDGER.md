@@ -86,6 +86,59 @@
   or that another capability unlocks the representative workload sooner requires a
   fresh ranking rather than semantic invention.
 
+### CAP-017 readiness result - mandatory syntax and control-flow stop
+
+- Decision: `NO IMPLEMENTATION` under the authorized boundary. This is a completed
+  readiness result and immediate project-level rerank, not a blocked goal. Strict Aero
+  has no question-mark token, propagation AST, postfix parser production, or trusted
+  checked lowering. The repository's normative v1 design-target grammar already assigns
+  `?` to `logical_or ? expression : conditional`, while the founding PDFs do not define
+  error-propagation syntax. Choosing postfix `?`, `try!`, automatic conversion, or any
+  other spelling now would invent semantics and silently revise the design target.
+- Exact current behavior: the canonical two-layer `parse_digit(character)?` specimen
+  stops at its exact source location during strict lexing. `check_program`,
+  `compile_program`, and CLI `check`/`build`/`run` report the same unexpected-character
+  cause; parsing, semantic analysis, checked admission, and LLVM are unreachable; no
+  requested artifact survives. Six placement/type probes all stop at the same lexical
+  boundary. Recovery lexing is not trusted and dangerously erases `?`; it cannot be
+  used as evidence or an implementation path.
+- Positive control and real-program gap: the exact explicit-`Match` equivalent parses,
+  passes semantics and independent raw checked admission, and passes public in-memory
+  compile plus CLI `check`/`build`. It preserves the exact `char` error and continues
+  the `int` success value, confirming both that concrete `Result<int, char>` transport
+  works and that propagation would improve ordinary source ergonomics. That usability
+  benefit does not override the missing syntax/precedence/ownership authority.
+- Phase and architecture result: a useful implementation requires at least three
+  production phases: lexer/parser/AST with spans and precedence; one shared semantic
+  and raw-admission Result/ownership classification; and checked early-return CFG
+  lowering plus verifier proof. The current AST cannot express a parser-only desugaring:
+  `Match` arms contain expressions, `return` is a statement, carrier-valued Match
+  results are deliberately rejected, and checked Match lowering requires each arm to
+  assign and converge. Adding a new checked invariant would make this four phases.
+  The two-phase stop threshold is therefore exceeded before any production mutation.
+- Legacy-helper quarantine: `stdlib.rs::generate_question_mark_operator` remains old
+  unchecked compatibility IR with fixed registers, fixed labels, no caller, no
+  enclosing-function/error compatibility proof, and ambiguous reconstruction when
+  operand and enclosing success types differ. It is neither source semantics nor a
+  reusable lowering authority and must not be activated.
+- Frozen re-entry decision: CAP-017 may reopen only after an explicit language decision
+  selects propagation spelling, resolves the ternary disposition, freezes precedence,
+  associativity, malformed syntax and exact spans, chooses exact-error equality versus
+  conversion, defines supported expression contexts and ownership effects, and shows a
+  shared architecture that does not duplicate Result/CFG classification. A later red
+  matrix must cover two layers, two sequential sites, distinct first/second errors,
+  single evaluation, exact type separation, moved-use failures, semantic/raw/public
+  parity, CFG corruption, artifact hygiene, and representative malformed-input oracles.
+- Evidence-proportional continuation: do not publish a standalone records-only CAP-017
+  milestone or change cumulative accepted truth for this readiness result. Carry the
+  CAP-016 and CAP-017 records into the next executable branch and synchronize them once
+  with the next accepted capability. A fresh three-gap ranking is now required; the
+  leading candidate is exact-`i32` fixed-array function-result composition because the
+  broad experimental compiler already has checked by-value array returns and CAP-014's
+  profile deliberately excludes only that role. Implementation remains unauthorized
+  until the exact profile/backend phase count, complete topology, ABI evidence, and
+  representative CPU-program delta are independently audited.
+
 ## CAP-016-MODULE-RESOLUTION-READINESS - positive module/import/name-resolution architecture and red probe
 
 - Date/task/status: 2026-08-12, `CAP-016-MODULE-RESOLUTION-READINESS`, authorized
