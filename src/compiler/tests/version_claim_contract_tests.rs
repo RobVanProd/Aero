@@ -233,7 +233,10 @@ fn assert_bounded_acceptance_evidence(
 fn assert_post_cap018_ranking_table(document_name: &str, document: &str) {
     let rows = document
         .lines()
-        .filter_map(|line| table_cells(line).map(|cells| (table_line(line), cells)))
+        .enumerate()
+        .filter_map(|(source_index, line)| {
+            table_cells(line).map(|cells| (source_index, table_line(line), cells))
+        })
         .collect::<Vec<_>>();
     let mut indices = Vec::new();
     for expected in POST_CAP018_RANKING_ROWS {
@@ -241,8 +244,7 @@ fn assert_post_cap018_ranking_table(document_name: &str, document: &str) {
         let label = expected_cells[1];
         let matches = rows
             .iter()
-            .enumerate()
-            .filter(|(_, (_, cells))| {
+            .filter(|(_, _, cells)| {
                 cells
                     .get(1)
                     .is_some_and(|actual| actual.eq_ignore_ascii_case(label))
@@ -253,12 +255,12 @@ fn assert_post_cap018_ranking_table(document_name: &str, document: &str) {
             1,
             "{document_name} must contain one unambiguous ranking row for {label}"
         );
-        let (index, (actual, _)) = matches[0];
+        let (source_index, actual, _) = matches[0];
         assert_eq!(
             *actual, expected,
             "{document_name} changes the rank, scores, or total for {label}"
         );
-        indices.push(index);
+        indices.push(*source_index);
     }
     assert!(
         indices.windows(2).all(|pair| pair[1] == pair[0] + 1),
@@ -357,11 +359,19 @@ fn assert_cap018_boundaries(document_name: &str, document: &str) {
         "cap-018 adds a new profile",
         "cap-018 is a new profile",
         "cap-018 is a separate profile",
+        "cap-018 remains a candidate",
+        "cap-018 is not accepted",
+        "cap-018 remains unaccepted",
         "cap-014 is not the profile origin",
         "cap-014 is no longer the profile origin",
+        "cap-014 is the latest accepted compiler/profile capability",
+        "cap-014 remains the latest accepted compiler/profile capability",
+        "latest accepted compiler/profile capability is cap-014",
         "cap-015 changes compiler production",
         "cap-015 changes language-profile code",
         "cap-015 widens `exact-i32-array-v0`",
+        "cap-016 is accepted",
+        "cap-017 is accepted",
         "cap-016 is an accepted capability",
         "cap-017 is an accepted capability",
         "cap-016 and cap-017 are accepted capabilities",
