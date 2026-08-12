@@ -1099,6 +1099,7 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedTupleFieldPtr { result, .. }
         | Inst::CheckedImmutableBorrow { result, .. }
         | Inst::CheckedMutableBorrow { result, .. }
+        | Inst::CheckedProjectedBorrow { result, .. }
         | Inst::CheckedImmutableReferenceParameter { result, .. }
         | Inst::CheckedMutableReferenceParameter { result, .. } => Some(result),
         _ => None,
@@ -1239,10 +1240,12 @@ struct FunctionVerifier<'a> {
     projection_parents: BTreeMap<PlaceId, PlaceId>,
     immutable_enum_owner_places: BTreeSet<PlaceId>,
     mutable_owned_places: BTreeSet<PlaceId>,
+    projected_owned_roots: BTreeSet<PlaceId>,
     match_result_places: BTreeSet<PlaceId>,
     immutable_enum_reference_origins: BTreeMap<PlaceId, PlaceId>,
     immutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
+    projected_reference_roots: BTreeMap<PlaceId, (PlaceId, PlaceId, bool)>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
     dominators: Vec<BTreeSet<usize>>,
     infer_bool_places: bool,
@@ -1271,10 +1274,12 @@ impl<'a> FunctionVerifier<'a> {
             projection_parents: BTreeMap::new(),
             immutable_enum_owner_places: BTreeSet::new(),
             mutable_owned_places: BTreeSet::new(),
+            projected_owned_roots: BTreeSet::new(),
             match_result_places: BTreeSet::new(),
             immutable_enum_reference_origins: BTreeMap::new(),
             immutable_reference_origins: BTreeMap::new(),
             mutable_reference_origins: BTreeMap::new(),
+            projected_reference_roots: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
             dominators,
             infer_bool_places,
@@ -1346,6 +1351,9 @@ impl<'a> FunctionVerifier<'a> {
     }
 
     fn mutable_reference_root_identity(&self, place: PlaceId) -> Option<PlaceId> {
+        if let Some((root, _, true)) = self.projected_reference_roots.get(&place) {
+            return Some(*root);
+        }
         let mut current = place;
         let mut seen = BTreeSet::new();
         while seen.insert(current) {
@@ -1364,13 +1372,18 @@ impl<'a> FunctionVerifier<'a> {
         let Some(definition) = self.place_definitions.get(&place) else {
             return false;
         };
-        matches!(
-            self.body.instructions[definition.position],
-            Inst::CheckedImmutableBorrow { .. } | Inst::CheckedImmutableReferenceParameter { .. }
-        )
+        match self.body.instructions[definition.position] {
+            Inst::CheckedImmutableBorrow { .. }
+            | Inst::CheckedImmutableReferenceParameter { .. } => true,
+            Inst::CheckedProjectedBorrow { mutable, .. } => !mutable,
+            _ => false,
+        }
     }
 
     fn immutable_reference_root_identity(&self, place: PlaceId) -> Option<PlaceId> {
+        if let Some((root, _, false)) = self.projected_reference_roots.get(&place) {
+            return Some(*root);
+        }
         let mut current = place;
         let mut seen = BTreeSet::new();
         while seen.insert(current) {
@@ -2251,6 +2264,17 @@ impl<'a> FunctionVerifier<'a> {
                             position: *position,
                         },
                     );
+                    if matches!(
+                        instruction,
+                        Inst::Alloca(..)
+                            | Inst::AllocaArray { .. }
+                            | Inst::CheckedCopyStructArrayAlloca { .. }
+                            | Inst::CheckedStructAlloca { .. }
+                            | Inst::CheckedTupleAlloca { .. }
+                            | Inst::CheckedMutableOwnedPlaceAlloca { .. }
+                    ) {
+                        self.projected_owned_roots.insert(id);
+                    }
                     if self.definitions.contains_key(&ResultId(id.0)) {
                         return Err(IrVerificationError::new(
                             &self.body.name,
@@ -2786,6 +2810,79 @@ impl<'a> FunctionVerifier<'a> {
                             self.mutable_reference_origins.insert(id, source_id);
                             (PlaceType::Known(pointee.clone()), None)
                         }
+                        Inst::CheckedProjectedBorrow {
+                            root,
+                            source,
+                            root_type,
+                            pointee,
+                            mutable,
+                            ..
+                        } => {
+                            let valid_pointee = if *mutable {
+                                valid_mutable_reference_pointee(pointee)
+                            } else {
+                                valid_immutable_reference_pointee(pointee)
+                            };
+                            let Some(root_id) = reg(root).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked projected borrow root",
+                                    ),
+                                ));
+                            };
+                            let Some(source_id) = reg(source).map(PlaceId) else {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                        "checked projected borrow source",
+                                    ),
+                                ));
+                            };
+                            let root_actual =
+                                self.places.get(&root_id).and_then(PlaceType::logical);
+                            let source_actual =
+                                self.places.get(&source_id).and_then(PlaceType::logical);
+                            if !valid_pointee
+                                || root_actual.as_ref() != Some(root_type)
+                                || source_actual.as_ref() != Some(pointee)
+                                || source_id == root_id
+                                || !self.projected_owned_roots.contains(&root_id)
+                                || self.projection_root_identity(source_id) != Some(root_id)
+                                || (*mutable && !self.mutable_owned_places.contains(&root_id))
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked projected borrow metadata does not bind root place {} to projected source place {} with pointee `{pointee}`",
+                                        root_id.0, source_id.0
+                                    )),
+                                ));
+                            }
+                            if self
+                                .projected_reference_roots
+                                .insert(id, (root_id, source_id, *mutable))
+                                .is_some()
+                            {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked projected reference place {} has duplicate root metadata",
+                                        id.0
+                                    )),
+                                ));
+                            }
+                            if *mutable {
+                                self.mutable_reference_origins.insert(id, source_id);
+                            } else {
+                                self.immutable_reference_origins.insert(id, source_id);
+                            }
+                            (PlaceType::Known(pointee.clone()), None)
+                        }
                         Inst::CheckedImmutableReferenceParameter {
                             parameter, pointee, ..
                         } => {
@@ -3266,9 +3363,26 @@ impl<'a> FunctionVerifier<'a> {
         let mut active_mutable_owner_immutable_enum_sources = BTreeMap::<PlaceId, usize>::new();
         let mut active_mutable_references = BTreeSet::new();
         let mut active_mutable_sources = BTreeSet::new();
+        let mut active_projected_references = BTreeSet::new();
+        let mut called_projected_references = BTreeSet::new();
         for block_index in 0..self.blocks.len() {
             let instructions = self.blocks[block_index].instructions.clone();
             for (position, instruction) in instructions {
+                if !called_projected_references.is_empty()
+                    && !matches!(
+                        instruction,
+                        Inst::CheckedProjectedBorrowEnd { .. }
+                            | Inst::CheckedMutableBorrowEnd { .. }
+                    )
+                {
+                    return Err(self.error(
+                        block_index,
+                        IrVerificationErrorKind::MetadataMismatch(
+                            "projected call loans must end immediately after their call"
+                                .to_string(),
+                        ),
+                    ));
+                }
                 match instruction {
                     Inst::Add(_, left, right)
                     | Inst::Sub(_, left, right)
@@ -3779,6 +3893,27 @@ impl<'a> FunctionVerifier<'a> {
                                 })?;
                             }
                         }
+                        let projected_argument_sequence = arguments
+                            .iter()
+                            .filter_map(|argument| reg(argument).map(PlaceId))
+                            .filter(|place| self.projected_reference_roots.contains_key(place))
+                            .collect::<Vec<_>>();
+                        let projected_arguments = projected_argument_sequence
+                            .iter()
+                            .copied()
+                            .collect::<BTreeSet<_>>();
+                        if projected_argument_sequence.len() != projected_arguments.len()
+                            || projected_arguments != active_projected_references
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "every active projected loan must be consumed by exactly its adjacent call"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        called_projected_references.extend(projected_arguments);
                         if !mutable_call_arguments.is_empty() {
                             let mut mutable_roots = BTreeSet::new();
                             for (place, _, _) in &mutable_call_arguments {
@@ -3817,7 +3952,12 @@ impl<'a> FunctionVerifier<'a> {
                                 ));
                             }
 
-                            let borrow_start = position
+                            let has_projected_mutable_argument =
+                                mutable_call_arguments.iter().any(|(place, _, _)| {
+                                    self.projected_reference_roots.contains_key(place)
+                                });
+                            if !has_projected_mutable_argument {
+                                let borrow_start = position
                                 .checked_sub(mutable_call_arguments.len())
                                 .ok_or_else(|| {
                                     self.error(
@@ -3828,50 +3968,73 @@ impl<'a> FunctionVerifier<'a> {
                                         ),
                                     )
                                 })?;
-                            for (offset, (place, source, pointee)) in
-                                mutable_call_arguments.iter().enumerate()
-                            {
-                                let exact_borrow = matches!(
-                                    self.body.instructions.get(borrow_start + offset).copied(),
-                                    Some(Inst::CheckedMutableBorrow {
-                                        result: Value::Reg(result),
-                                        source: Value::Reg(origin),
-                                        pointee: borrow_pointee,
-                                    }) if PlaceId(*result) == *place
-                                        && PlaceId(*origin) == *source
-                                        && borrow_pointee == pointee
-                                );
-                                if !exact_borrow {
-                                    return Err(self.error(
+                                for (offset, (place, source, pointee)) in
+                                    mutable_call_arguments.iter().enumerate()
+                                {
+                                    let exact_borrow = matches!(
+                                        self.body.instructions.get(borrow_start + offset).copied(),
+                                        Some(Inst::CheckedMutableBorrow {
+                                            result: Value::Reg(result),
+                                            source: Value::Reg(origin),
+                                            pointee: borrow_pointee,
+                                        }) if PlaceId(*result) == *place
+                                            && PlaceId(*origin) == *source
+                                            && borrow_pointee == pointee
+                                    ) || matches!(
+                                        self.body.instructions.get(borrow_start + offset).copied(),
+                                        Some(Inst::CheckedProjectedBorrow {
+                                            result: Value::Reg(result),
+                                            source: Value::Reg(origin),
+                                            pointee: borrow_pointee,
+                                            mutable: true,
+                                            ..
+                                        }) if PlaceId(*result) == *place
+                                            && PlaceId(*origin) == *source
+                                            && borrow_pointee == pointee
+                                    );
+                                    if !exact_borrow {
+                                        return Err(self.error(
                                         block_index,
                                         IrVerificationErrorKind::MetadataMismatch(format!(
                                             "call mutable reference argument place {} is not in the exact ordered N-borrow/call window",
                                             place.0
                                         )),
                                     ));
+                                    }
                                 }
-                            }
-                            for (offset, (place, source, pointee)) in
-                                mutable_call_arguments.iter().rev().enumerate()
-                            {
-                                let exact_end = matches!(
-                                    self.body.instructions.get(position + 1 + offset).copied(),
-                                    Some(Inst::CheckedMutableBorrowEnd {
-                                        reference: Value::Reg(reference),
-                                        source: Value::Reg(origin),
-                                        pointee: end_pointee,
-                                    }) if PlaceId(*reference) == *place
-                                        && PlaceId(*origin) == *source
-                                        && end_pointee == pointee
-                                );
-                                if !exact_end {
-                                    return Err(self.error(
+                                for (offset, (place, source, pointee)) in
+                                    mutable_call_arguments.iter().rev().enumerate()
+                                {
+                                    let exact_end = matches!(
+                                        self.body.instructions.get(position + 1 + offset).copied(),
+                                        Some(Inst::CheckedMutableBorrowEnd {
+                                            reference: Value::Reg(reference),
+                                            source: Value::Reg(origin),
+                                            pointee: end_pointee,
+                                        }) if PlaceId(*reference) == *place
+                                            && PlaceId(*origin) == *source
+                                            && end_pointee == pointee
+                                    ) || matches!(
+                                        self.body.instructions.get(position + 1 + offset).copied(),
+                                        Some(Inst::CheckedProjectedBorrowEnd {
+                                            reference: Value::Reg(reference),
+                                            source: Value::Reg(origin),
+                                            pointee: end_pointee,
+                                            mutable: true,
+                                            ..
+                                        }) if PlaceId(*reference) == *place
+                                            && PlaceId(*origin) == *source
+                                            && end_pointee == pointee
+                                    );
+                                    if !exact_end {
+                                        return Err(self.error(
                                         block_index,
                                         IrVerificationErrorKind::MetadataMismatch(format!(
                                             "call mutable reference argument place {} is not in the exact reverse-N-end window",
                                             place.0
                                         )),
                                     ));
+                                    }
                                 }
                             }
                         }
@@ -4188,6 +4351,94 @@ impl<'a> FunctionVerifier<'a> {
                             }
                         }
                     }
+                    Inst::CheckedProjectedBorrow {
+                        result,
+                        root,
+                        source,
+                        root_type,
+                        pointee,
+                        mutable,
+                    } => {
+                        let Some(reference) = reg(result).map(PlaceId) else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                                    "checked projected borrow result",
+                                ),
+                            ));
+                        };
+                        let root = self.require_place(
+                            root,
+                            "checked projected borrow root",
+                            block_index,
+                            position,
+                        )?;
+                        let source = self.require_place(
+                            source,
+                            "checked projected borrow source",
+                            block_index,
+                            position,
+                        )?;
+                        let valid_pointee = if *mutable {
+                            valid_mutable_reference_pointee(pointee)
+                        } else {
+                            valid_immutable_reference_pointee(pointee)
+                        };
+                        let exact_static = self.projected_reference_roots.get(&reference)
+                            == Some(&(root, source, *mutable));
+                        let exact_types = self.places.get(&root).and_then(PlaceType::logical)
+                            == Some(root_type.clone())
+                            && self.places.get(&source).and_then(PlaceType::logical)
+                                == Some(pointee.clone())
+                            && self.places.get(&reference).and_then(PlaceType::logical)
+                                == Some(pointee.clone());
+                        if !valid_pointee
+                            || !exact_static
+                            || !exact_types
+                            || !self.projected_owned_roots.contains(&root)
+                            || self.projection_root_identity(source) != Some(root)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked projected borrow does not authenticate root place {}, source place {}, and reference place {}",
+                                    root.0, source.0, reference.0
+                                )),
+                            ));
+                        }
+                        if active_projected_references.iter().any(|active| {
+                            self.projected_reference_roots.get(active).is_some_and(
+                                |(active_root, _, active_mutable)| {
+                                    *active_root == root && (*mutable || *active_mutable)
+                                },
+                            )
+                        }) || !active_projected_references.insert(reference)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "projected call loans overlap at conservatively borrowed root place {}",
+                                    root.0
+                                )),
+                            ));
+                        }
+                        if *mutable {
+                            if !self.mutable_owned_places.contains(&root)
+                                || !initialized_mutable_places.contains(&root)
+                                || active_mutable_sources.contains(&root)
+                                || !active_mutable_references.insert(reference)
+                                || !active_mutable_sources.insert(root)
+                            {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked mutable projected borrow root place {} is not an initialized exclusive owner",
+                                        root.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
                     Inst::CheckedImmutableEnumMatchRead {
                         result,
                         reference,
@@ -4403,6 +4654,58 @@ impl<'a> FunctionVerifier<'a> {
                                 IrVerificationErrorKind::MetadataMismatch(format!(
                                     "checked mutable borrow end does not match active reference place {} and source place {}",
                                     reference.0, source.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedProjectedBorrowEnd {
+                        reference,
+                        root,
+                        source,
+                        root_type,
+                        pointee,
+                        mutable,
+                    } => {
+                        let reference = self.require_place(
+                            reference,
+                            "checked projected borrow end reference",
+                            block_index,
+                            position,
+                        )?;
+                        let root = self.require_place(
+                            root,
+                            "checked projected borrow end root",
+                            block_index,
+                            position,
+                        )?;
+                        let source = self.require_place(
+                            source,
+                            "checked projected borrow end source",
+                            block_index,
+                            position,
+                        )?;
+                        let exact = self.projected_reference_roots.get(&reference)
+                            == Some(&(root, source, *mutable))
+                            && self.places.get(&root).and_then(PlaceType::logical)
+                                == Some(root_type.clone())
+                            && self.places.get(&source).and_then(PlaceType::logical)
+                                == Some(pointee.clone())
+                            && self.places.get(&reference).and_then(PlaceType::logical)
+                                == Some(pointee.clone());
+                        let lifecycle = active_projected_references.remove(&reference)
+                            && called_projected_references.remove(&reference);
+                        let ended = if *mutable {
+                            active_mutable_references.remove(&reference)
+                                && active_mutable_sources.remove(&root)
+                        } else {
+                            true
+                        };
+                        if !exact || !lifecycle || !ended {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked projected borrow end does not match reference place {}, root place {}, and source place {}",
+                                    reference.0, root.0, source.0
                                 )),
                             ));
                         }
@@ -4838,6 +5141,15 @@ impl<'a> FunctionVerifier<'a> {
                 ),
             ));
         }
+        if !active_projected_references.is_empty() || !called_projected_references.is_empty() {
+            return Err(self.error(
+                0,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "projected call loans must be called and ended on every admitted path"
+                        .to_string(),
+                ),
+            ));
+        }
 
         if initialized_immutable_enum_places != self.immutable_enum_owner_places {
             return Err(self.error(
@@ -5169,6 +5481,15 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 | Inst::CheckedOwnedPlaceAssignment { ty, .. } => {
                     register_type(ty, schemas, enum_schemas)?;
                 }
+                Inst::CheckedProjectedBorrow {
+                    root_type, pointee, ..
+                }
+                | Inst::CheckedProjectedBorrowEnd {
+                    root_type, pointee, ..
+                } => {
+                    register_type(root_type, schemas, enum_schemas)?;
+                    register_type(pointee, schemas, enum_schemas)?;
+                }
                 Inst::CheckedImmutableEnumOwnerPlaceAlloca { schema, .. }
                 | Inst::CheckedImmutableEnumMatchRead { schema, .. }
                 | Inst::CheckedMutableEnumMatchRead { schema, .. }
@@ -5398,6 +5719,185 @@ mod tests {
             checked.metadata().functions["main"].signature.result,
             LogicalType::Int
         );
+    }
+
+    #[test]
+    fn projected_call_loans_reject_checked_ir_corruption() {
+        fn mutate_first(ir: &mut RawIr, mut action: impl FnMut(&mut Inst) -> bool) {
+            fn visit(
+                instructions: &mut [Inst],
+                changed: &mut bool,
+                action: &mut impl FnMut(&mut Inst) -> bool,
+            ) {
+                for instruction in instructions {
+                    if !*changed && action(instruction) {
+                        *changed = true;
+                        return;
+                    }
+                    match instruction {
+                        Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                            visit(body, changed, action);
+                            if *changed {
+                                return;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            let mut changed = false;
+            for function in ir.values_mut() {
+                visit(&mut function.body, &mut changed, &mut action);
+                if changed {
+                    break;
+                }
+            }
+            assert!(changed, "requested checked-IR corruption anchor was absent");
+        }
+
+        let source = r#"
+            struct Cell { value: int }
+            fn read_pair(left: &int, right: &int) -> int { *left + *right }
+            fn set(value: &mut int, replacement: int) -> int {
+                *value = replacement;
+                *value
+            }
+            fn main() -> int {
+                let mut cell = Cell { value: 4 };
+                let other = Cell { value: 2 };
+                let observed = read_pair(&cell.value, &other.value);
+                let changed = set(&mut cell.value, observed + 3);
+                cell.value + changed
+            }
+        "#;
+        let tokens = crate::lexer::try_tokenize_with_locations(source, None).expect("lex");
+        let ast = crate::parser::parse_with_locations(tokens).expect("parse");
+        let exact = crate::ir_generator::IrGenerator::new()
+            .try_generate_ir(ast)
+            .expect("generate and verify exact projected call loans")
+            .into_raw();
+        verify_ir(exact.clone()).expect("exact projected call loans must reverify");
+
+        let mut cases = Vec::new();
+
+        let mut wrong_root = exact.clone();
+        mutate_first(&mut wrong_root, |instruction| {
+            if let Inst::CheckedProjectedBorrow { root, source, .. } = instruction {
+                *root = source.clone();
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow root identity", wrong_root));
+
+        let mut wrong_source = exact.clone();
+        mutate_first(&mut wrong_source, |instruction| {
+            if let Inst::CheckedProjectedBorrow { root, source, .. } = instruction {
+                *source = root.clone();
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow source identity", wrong_source));
+
+        let mut wrong_root_type = exact.clone();
+        mutate_first(&mut wrong_root_type, |instruction| {
+            if let Inst::CheckedProjectedBorrow { root_type, .. } = instruction {
+                *root_type = LogicalType::Bool;
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow root type", wrong_root_type));
+
+        let mut wrong_pointee = exact.clone();
+        mutate_first(&mut wrong_pointee, |instruction| {
+            if let Inst::CheckedProjectedBorrow { pointee, .. } = instruction {
+                *pointee = LogicalType::Bool;
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow pointee", wrong_pointee));
+
+        let mut wrong_mutability = exact.clone();
+        mutate_first(&mut wrong_mutability, |instruction| {
+            if let Inst::CheckedProjectedBorrow { mutable, .. } = instruction {
+                *mutable = !*mutable;
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow mutability", wrong_mutability));
+
+        let mut raw_call_operand = exact.clone();
+        mutate_first(&mut raw_call_operand, |instruction| {
+            if let Inst::Call {
+                function,
+                arguments,
+                ..
+            } = instruction
+                && function == "read_pair"
+            {
+                arguments[0] = Value::ImmInt(0);
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected reference call operand", raw_call_operand));
+
+        let mut duplicate_call_operand = exact.clone();
+        mutate_first(&mut duplicate_call_operand, |instruction| {
+            if let Inst::Call {
+                function,
+                arguments,
+                ..
+            } = instruction
+                && function == "read_pair"
+            {
+                arguments[1] = arguments[0].clone();
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("duplicate projected call operand", duplicate_call_operand));
+
+        let mut wrong_end_source = exact.clone();
+        mutate_first(&mut wrong_end_source, |instruction| {
+            if let Inst::CheckedProjectedBorrowEnd { root, source, .. } = instruction {
+                *source = root.clone();
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow end source", wrong_end_source));
+
+        let mut missing_end = exact.clone();
+        mutate_first(&mut missing_end, |instruction| {
+            if matches!(instruction, Inst::CheckedProjectedBorrowEnd { .. }) {
+                *instruction = Inst::Add(Value::Reg(31), Value::ImmInt(1), Value::ImmInt(2));
+                true
+            } else {
+                false
+            }
+        });
+        cases.push(("projected borrow lifecycle", missing_end));
+
+        for (label, candidate) in cases {
+            assert!(
+                verify_ir(candidate).is_err(),
+                "{label} corruption passed checked-IR verification"
+            );
+        }
     }
 
     #[test]

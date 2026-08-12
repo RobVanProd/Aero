@@ -1,0 +1,14 @@
+struct Reading { value: int }
+
+fn observe(value: &int) -> int {
+    *value
+}
+
+fn main() -> int {
+    let values = [Reading { value: 10 }, Reading { value: 20 }];
+    let zero = 0;
+    let index = zero - 1;
+    let selected = observe(&values[index].value);
+    println!("unreachable projected negative index: {}", selected);
+    0
+}

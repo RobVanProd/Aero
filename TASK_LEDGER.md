@@ -58,7 +58,7 @@
 - Mechanism: factor the already accepted projected-place resolution into one shared
   deterministic CopyData place classifier consumed by direct projected assignment
   and immediate reference-call admission. It must resolve the root identity,
-  mutability/initialization/ownership facts, exact leaf type/logical identity,
+  local-owner origin and mutability/initialization/ownership facts, exact leaf type/logical identity,
   ordered field/tuple/array path, and independently checked array-selector contracts.
   The existing reference-call authority then applies its one call-window loan and
   conflict predicate to that resolved place. Semantic analysis and semantic-
@@ -67,12 +67,13 @@
 - Frozen positive class: inside an admitted ordinary nongeneric function, an
   immediate argument to an admitted ordinary nongeneric reference-parameter call may
   be `&place` or `&mut place`, where `place` has a direct initialized local CopyData
-  root followed by any finite nonempty combination of named-struct fields, supported
+  owner root followed by any finite nonempty combination of named-struct fields, supported
   tuple elements, and nonempty fixed-array elements. Array selectors may be admitted
   nonnegative constants or existing checked runtime `int` expressions and are
   evaluated exactly once in source order. The leaf must exactly equal the parameter
-  pointee. Mutable loans require a mutable, owned root; immutable loans require an
-  owned or compatibly immutably borrowed root. The complete root is conservatively
+  pointee. Mutable loans require a mutable, owned local-binding root; immutable loans
+  require an owned local-binding root, including an initialized by-value CopyData
+  parameter, or a compatibly immutably borrowed local-binding root. The complete root is conservatively
   loaned for the call, so two mutable projections of one root, or a mutable projection
   plus any other argument mentioning that root, remain conflicting even when paths
   appear disjoint. The loan begins after prior argument effects and selector checks,
@@ -81,7 +82,7 @@
   hand-enumerated topology list.
 - Frozen negative boundary: no stored projected reference binding, reference result,
   escape, return, aggregate/enum/container storage, reference field, reference-to-
-  reference, reborrow through a projected reference, parameter/global root, temporary
+  reference, reborrow through a projected reference, reference-parameter/global root, temporary
   root, call-result root, partial move, disjoint-field alias claim, method/trait/generic
   call expansion, generic projected loan, dynamic collection/slice/string/resource
   pointee, zero-length index, unchecked selector, selector side-effect duplication,
@@ -89,6 +90,15 @@
   stable layout/ABI/FFI, accelerator, performance, release, stability, or general
   memory-safety claim is authorized. Parser-retained excluded forms fail before
   checked IR.
+- Pre-candidate class correction: the initial negative boundary said “parameter”
+  although the positive rule said any direct initialized local CopyData owner. An
+  ordinary by-value CopyData parameter is an initialized immutable owned local
+  binding under the accepted function contract. Immutable immediate projection from
+  that owner requires no new alias, escape, lifetime, layout, or call ABI semantics;
+  mutable projection remains impossible because parameters are immutable, and
+  reference parameters remain excluded. The exhaustive matrix therefore includes
+  by-value parameter observation. This correction is amended before candidate
+  publication instead of being deferred as a neighboring topology task.
 - Assumptions and evidence: the founding ownership material defines immutable and
   exclusive mutable borrowing and lexical/call-bounded use; accepted whole-owner
   loans already enforce exact CopyData pointees, root ownership, pairwise mutable
@@ -172,6 +182,65 @@
   public pipeline routing. Exactly one focused test and this checkpoint record changed;
   no production compiler, representative example, workflow, project-truth claim,
   dependency, external repository, or user-owned untracked content changed.
+
+### CAP-012 local candidate checkpoint
+
+- Implementation summary: one shared projected CopyData place classifier now owns
+  local-owner origin, initialization and mutability facts, recursive field/tuple/fixed-
+  array path identity, exact root/leaf types, and checked selectors for both assignment
+  and immediate call loans. The established reference-call authority applies the
+  conservative whole-root conflict and call-window rules. Semantic analysis and raw
+  checked admission use the same classifier, and lowering uses the same typed address
+  builder as projected assignment rather than adding a topology-specific lowering
+  catalog.
+- Trusted-boundary evidence: checked IR records each projected loan's result, complete
+  owner root, typed projected source, root and pointee types, mutability, and explicit
+  end. Independent verification proves owned-local provenance, the exact projection
+  chain and selector guards, call argument identity and uniqueness, conflict freedom,
+  adjacent lifecycle, and owner reuse before trusted LLVM may lower the typed pointer.
+  The corruption control passes 1/1 while rejecting nine independent mutations to
+  root, source, root type, pointee, mutability, raw call operand identity/duplication,
+  end source, and end presence.
+- Executable and negative evidence: the focused target passes 3/3 across the complete
+  admitted selector/nesting/recursive-CopyData/signature class, semantic/raw/public
+  parity, owner reuse, by-value parameter observation, and ten fail-closed source
+  groups. Updated existing reference targets retain their unrelated exclusions. The
+  representative telemetry application passes 3/3 with ordinary helpers reading
+  `batch.sensors[index].value` and updating `batch.meta.0`, preserving exact output
+  and exit 91. Linux and Windows pinned-LLVM workflow contracts now include immutable
+  negative-index and mutable upper-bound projected-loan runtime failures at `-O0` and
+  `-O2`.
+- Commands and status: `cargo fmt -- --check`, focused verifier corruption, focused
+  projected-loan integration, representative integration, affected reference and
+  assignment compatibility targets, and `cargo doc --locked --no-deps` pass. A prior
+  implementation tree passed the complete repository-root `./tools/test.sh` gate with
+  242 library tests, 35 CLI tests, every integration target, and doc tests. Because
+  candidate records and the final duplicate-operand verifier control were then added,
+  the exact candidate content still requires a fresh complete root gate before commit
+  or publication; this paragraph does not claim that future result.
+- Files changed: the shared projected-place/reference contracts; semantic admission;
+  checked IR, generation, independent verification, and LLVM generation; focused and
+  directly superseded reference expectations; the representative telemetry program
+  and two runtime-failure fixtures; exact workflow anchors; this authorization record;
+  and candidate-only project-state, capability, matrix, roadmap, and README notices.
+  No dependency, package, release, benchmark claim, protection setting, external
+  repository, accepted-master identity, quarantined stash, or user/app-owned untracked
+  content changed.
+- Remaining uncertainty, risks, and recovery: public exact-head CI, pinned LLVM/Clang
+  22 native `-O0`/`-O2` execution, protected integration, and exact merge-head evidence
+  remain unavailable, so accepted capability remains CAP-011. Stored or escaping
+  references, partial moves, disjoint-projection alias reasoning, generic/method/trait
+  call expansion, dynamic collections, lifetimes/NLL/drop, ABI, safety, and stability
+  remain excluded. The clean rollback boundary is this bounded branch/PR. Any exact-
+  tree gate failure, semantic/raw disagreement, verifier bypass, or behavior outside
+  the frozen class stops publication and is corrected on this branch.
+- Recommended next action: run the complete exact-content root gate, stage only the
+  authorized semantic diff despite Windows line-ending noise, commit and publish one
+  bounded CAP-012 PR, then require all public and pinned native evidence before normal
+  protected merge. Only after post-merge gates pass may a separate record-only sync
+  change candidate wording to accepted master. The specialization architecture remains
+  a ranked near-term subsystem watch and is promoted on observed drift, a second
+  feature-specific body classifier, or a multi-capability blocker—not file size alone.
 
 ## CAP-011 accepted-master project-truth synchronization
 

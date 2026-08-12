@@ -26,11 +26,11 @@ fn main() -> int {
         batch.sensors[sensor_index].value = window_get(calibration, sensor_index);
         sensor_index = sensor_index + 1;
     }
-    batch.meta.0 = 4;
+    let metadata = replace_int(&mut batch.meta.0, 4);
     batch.meta.1 = 2 > 1;
 
     let first_sensor_index = 0;
-    let observed = read_policy_value(batch.sensors[first_sensor_index], 0);
+    let observed = read_int(&batch.sensors[first_sensor_index].value);
     let observed_ref = &observed;
     let bias = read_policy_value(batch, 0);
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
@@ -55,7 +55,7 @@ fn main() -> int {
     let marker_sample: Sample<char> = Sample::Present(marker.value);
     let accepted_delta: Result<int, char> = validate_delta(sample_reading_value(delta_sample), sample_marker_is_a(marker_sample, marker_valid));
     let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
-    total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
+    total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta) + metadata - 4;
     if batch.meta.1 {
         total = total + 12;
     } else {
@@ -144,6 +144,15 @@ fn read_policy_value<T: PolicyValue>(value: T, bias: int) -> int {
 
 fn add_bias(target: &mut int, observed: &int, bias: int) -> int {
     *target = *target + *observed + bias;
+    *target
+}
+
+fn read_int(value: &int) -> int {
+    *value
+}
+
+fn replace_int(target: &mut int, replacement: int) -> int {
+    *target = replacement;
     *target
 }
 
@@ -273,6 +282,39 @@ const UPPER_BOUND_INDEX_SOURCE: &str = r#"fn main() -> int {
     let index = count;
     let selected = values[index];
     println!("unreachable upper-bound index: {}", selected);
+    0
+}
+"#;
+
+const PROJECTED_NEGATIVE_INDEX_SOURCE: &str = r#"struct Reading { value: int }
+
+fn observe(value: &int) -> int {
+    *value
+}
+
+fn main() -> int {
+    let values = [Reading { value: 10 }, Reading { value: 20 }];
+    let zero = 0;
+    let index = zero - 1;
+    let selected = observe(&values[index].value);
+    println!("unreachable projected negative index: {}", selected);
+    0
+}
+"#;
+
+const PROJECTED_UPPER_BOUND_INDEX_SOURCE: &str = r#"struct Reading { value: int }
+
+fn replace(value: &mut int, replacement: int) -> int {
+    *value = replacement;
+    *value
+}
+
+fn main() -> int {
+    let mut values = [Reading { value: 10 }, Reading { value: 20 }];
+    let count = 2;
+    let index = count;
+    let selected = replace(&mut values[index].value, 41);
+    println!("unreachable projected upper-bound index: {}", selected);
     0
 }
 "#;
@@ -493,6 +535,8 @@ fn representative_scalar_application_is_composed_and_portable() {
         for anchor in [
             "define i32 @main()",
             "define i32 @add_bias(",
+            "define i32 @read_int(",
+            "define i32 @replace_int(",
             "define i32 @decision_score(",
             "define i32 @reading_value(",
             "%\"aero.struct.Reading<int>\" = type",
@@ -595,6 +639,14 @@ fn representative_scalar_application_is_composed_and_portable() {
             UPPER_BOUND_INDEX_SOURCE,
         ),
         (
+            "runtime_fail/projected_negative_index.aero",
+            PROJECTED_NEGATIVE_INDEX_SOURCE,
+        ),
+        (
+            "runtime_fail/projected_upper_bound_index.aero",
+            PROJECTED_UPPER_BOUND_INDEX_SOURCE,
+        ),
+        (
             "runtime_fail/negative_write_index.aero",
             NEGATIVE_WRITE_INDEX_SOURCE,
         ),
@@ -659,6 +711,8 @@ fn representative_scalar_application_is_composed_and_portable() {
                 "generic_upper_bound_index.aero",
                 "generic_negative_write_index.aero",
                 "generic_upper_bound_write_index.aero",
+                "projected_negative_index.aero",
+                "projected_upper_bound_index.aero",
                 "runtime bounds failure corpus passed at O0 and O2",
                 "Test representative telemetry application on Windows at O0 and O2",
             ] {

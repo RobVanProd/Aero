@@ -4,6 +4,30 @@ Last updated: 2026-08-11 (America/New_York)
 
 ## Current objective
 
+### CAP-012 candidate (not accepted): nonescaping projected CopyData call loans
+
+The CAP-012 branch candidate composes the accepted finite projected-place and
+call-bounded reference authorities so ordinary nongeneric helpers can immediately
+observe or update a nested field/tuple/fixed-array CopyData place. One shared place
+classifier owns root facts, recursive path/type identity, and checked selectors for
+both projected assignment and call loans; semantic analysis and independent checked
+admission consume that classifier. Checked IR carries the complete owner root,
+projected source, exact logical types, mutability, and explicit call-end lifecycle for
+independent verification before LLVM.
+
+The telemetry application candidate now reads
+`batch.sensors[index].value` and updates `batch.meta.0` through ordinary reference
+helpers while retaining exact output/exit 91. Focused 3/3, representative 3/3,
+surrounding reference/assignment suites, nine verifier-corruption mutations, format,
+correctness Clippy, 242 library tests, 35 CLI tests, every integration target, and doc
+tests pass locally. Pinned LLVM 22 Linux/Windows native and public exact-head evidence
+remain pending, so this is not accepted master and does not yet close Milestone 2.
+
+Stored or escaping references, reference results/fields/containers, partial moves,
+disjoint-projection alias claims, generic/method/trait call expansion, dynamic
+collections, lifetimes/NLL/drop/unsafe, stable ABI, safety, and stability remain
+outside the candidate. Current accepted public master remains CAP-011.
+
 ### CAP-011 accepted: fixed-capacity generic CopyData container algorithms
 
 Accepted CAP-011 composes generic structs, generic

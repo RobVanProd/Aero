@@ -121,6 +121,17 @@ pub enum Inst {
         source: Value,
         pointee: LogicalType,
     },
+    /// Verified immediate call-only alias of a typed field/tuple/fixed-array place.
+    /// `root` is the complete local owner conservatively loaned for the call;
+    /// `source` is the independently typed projected place passed to the callee.
+    CheckedProjectedBorrow {
+        result: Value,
+        root: Value,
+        source: Value,
+        root_type: LogicalType,
+        pointee: LogicalType,
+        mutable: bool,
+    },
     /// Verified whole-value write through a checked mutable-reference alias.
     CheckedMutableDereferenceAssignment {
         target: Value,
@@ -132,6 +143,15 @@ pub enum Inst {
         reference: Value,
         source: Value,
         pointee: LogicalType,
+    },
+    /// Verified end of one immediate projected call loan.
+    CheckedProjectedBorrowEnd {
+        reference: Value,
+        root: Value,
+        source: Value,
+        root_type: LogicalType,
+        pointee: LogicalType,
+        mutable: bool,
     },
     /// Verified read-only place binding for an immutable Copy-data-reference parameter.
     CheckedImmutableReferenceParameter {

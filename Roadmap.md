@@ -12,6 +12,17 @@ The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
 
+CAP-012 is the current candidate, not accepted capability. It targets the remaining
+Milestone 2 exit half by letting the representative telemetry program call ordinary
+helpers over nested CopyData state through immediate, conservatively root-scoped
+immutable and mutable loans. The candidate shares projected-place classification with
+assignment and adds independently verified checked-IR loan identity/lifecycle plus
+Linux/Windows runtime-bounds fixtures. Local complete gates pass; the milestone does
+not close unless exact public candidate, pinned LLVM 22 native, protected integration,
+and merge-head evidence also pass. Stored/escaping references, general alias
+reasoning/lifetimes, generic reference-call expansion, and general ownership remain
+out of scope.
+
 CAP-011 is an accepted Milestone 2 capability selected by the post-CAP-010 gap
 ranking. It turns earlier generic-definition, whole-value specialization, fixed-array,
 bounds-check, and projected-mutation primitives into one reusable fixed-capacity

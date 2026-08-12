@@ -13,11 +13,11 @@ fn main() -> int {
         batch.sensors[sensor_index].value = window_get(calibration, sensor_index);
         sensor_index = sensor_index + 1;
     }
-    batch.meta.0 = 4;
+    let metadata = replace_int(&mut batch.meta.0, 4);
     batch.meta.1 = 2 > 1;
 
     let first_sensor_index = 0;
-    let observed = read_policy_value(batch.sensors[first_sensor_index], 0);
+    let observed = read_int(&batch.sensors[first_sensor_index].value);
     let observed_ref = &observed;
     let bias = read_policy_value(batch, 0);
     let mut total = batch.sensors[1].value + batch.sensors[2].value;
@@ -42,7 +42,7 @@ fn main() -> int {
     let marker_sample: Sample<char> = Sample::Present(marker.value);
     let accepted_delta: Result<int, char> = validate_delta(sample_reading_value(delta_sample), sample_marker_is_a(marker_sample, marker_valid));
     let rejected_delta: Result<int, char> = validate_delta(8, 4 < 3);
-    total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta);
+    total = total + resolved_delta(accepted_delta) + resolved_delta(rejected_delta) + metadata - 4;
     if batch.meta.1 {
         total = total + 12;
     } else {

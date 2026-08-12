@@ -1,0 +1,15 @@
+struct Reading { value: int }
+
+fn replace(value: &mut int, replacement: int) -> int {
+    *value = replacement;
+    *value
+}
+
+fn main() -> int {
+    let mut values = [Reading { value: 10 }, Reading { value: 20 }];
+    let count = 2;
+    let index = count;
+    let selected = replace(&mut values[index].value, 41);
+    println!("unreachable projected upper-bound index: {}", selected);
+    0
+}

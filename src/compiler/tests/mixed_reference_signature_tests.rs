@@ -77,6 +77,7 @@ fn rejection_in_all_trust_phases(source: &str) -> Vec<String> {
 fn complete_mixed_reference_source() -> &'static str {
     r#"
 struct Packet { value: int, ready: bool }
+struct Row { value: int }
 enum State { Idle, Count(int) }
 
 fn mutable_first(target: &mut int, observed: &int) -> int {
@@ -163,10 +164,17 @@ fn main() -> int {
     let truth = 2 > 1;
     let mut flag = 1 > 2;
     set_from(&mut flag, &truth);
+    let mut projected_target = Row { value: 3 };
+    let projected_observed = Row { value: 5 };
+    let projected = mutable_first(
+        &mut projected_target.value,
+        &projected_observed.value
+    );
 
     if flag && first == 3 && middle == 8 && last == 17
         && forwarded_result == 27 && aggregate == 22 && enum_result == 11
-        && total == 27 && target_packet.ready && left == 2 && right == 3 {
+        && total == 27 && target_packet.ready && left == 2 && right == 3
+        && projected == 8 && projected_target.value == 8 {
         return 88;
     }
     1
@@ -246,6 +254,10 @@ fn complete_mixed_exclusive_shared_reference_class_is_checked_and_executable() {
     assert!(
         debug.matches("CheckedMutableReferenceParameter").count() >= 7,
         "checked IR lost mutable-reference binders: {debug}"
+    );
+    assert!(
+        debug.matches("CheckedProjectedBorrow").count() >= 2,
+        "checked IR lost mixed projected-reference loans: {debug}"
     );
     for anchor in [
         "define i32 @mutable_first(",
@@ -347,16 +359,6 @@ fn mixed_reference_exclusions_fail_closed_in_every_trust_phase() {
                 "no binding for",
                 "not an initialized local binding",
             ],
-        ),
-        (
-            "projected mutable source",
-            "struct Row { value: int } fn bad(target: &mut int, observed: &int) -> int { *target + *observed } fn main() -> int { let mut row = Row { value: 1 }; let observed = 2; bad(&mut row.value, &observed) }",
-            &["requires an identifier place"],
-        ),
-        (
-            "projected immutable source",
-            "struct Row { value: int } fn bad(target: &mut int, observed: &int) -> int { *target + *observed } fn main() -> int { let mut target = 1; let row = Row { value: 2 }; bad(&mut target, &row.value) }",
-            &["requires an identifier place"],
         ),
     ];
 
