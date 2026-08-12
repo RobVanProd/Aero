@@ -135,6 +135,26 @@
   publication and receives the same explicit correction treatment rather than being
   hidden.
 
+### CAP-014 accepted-master sync evidence-contract hardening
+
+- Observed issue: a fresh reviewer of the corrected published head found that the
+  prose carried the exact candidate, shared tree, seven workflow IDs, passing
+  conclusions, and CAP-015 -> modules -> file-byte ranking, but the claim contract
+  asserted only selected headlines and the merge SHA. Evidence identity or successor
+  order could therefore drift without failing the focused record gate.
+- Correction: define the complete CAP-014 evidence set in
+  `version_claim_contract_tests.rs` and require it, followed by an explicit passing
+  conclusion, across all seven cumulative truth documents. Require the six current
+  planning surfaces to preserve CAP-015 readiness before module/import semantics and
+  module/import semantics before runtime file-byte acquisition. Bind exclusion scope
+  directly to the CAP-014-profile wording in the five primary capability surfaces.
+- Boundary and decision threshold: this is test/record hardening only; it changes no
+  compiler behavior or accepted capability. Preserve published commits and add one
+  transparent correction. Rerun focused claims, formatting, diff hygiene, and the
+  complete root gate, then require the reviewer that found the gap to report no
+  remaining blocker before opening the PR. Count only the final corrected head in
+  public evidence.
+
 ## CAP-014 - exact fixed-width integer fixed-array CPU reference kernel
 
 - Date/task/status: 2026-08-12, `CAP-014`, authorized red-first executable

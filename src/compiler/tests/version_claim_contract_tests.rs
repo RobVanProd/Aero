@@ -5,6 +5,19 @@ use std::process::{Command, Output};
 
 const PACKAGE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const CAP014_ACCEPTANCE_EVIDENCE: [&str; 10] = [
+    "226279dd174f26dc3cd1c7573798955bfe789f78",
+    "ca09ebe3c1b981339c8bf56b360e62208ac900e1",
+    "448e1c2ff397012804b886b904aa43bec63f2d37",
+    "31570455915",
+    "31570461500",
+    "31570461524",
+    "31570456382",
+    "31570823665",
+    "31570823712",
+    "31570823073",
+];
+
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
@@ -13,6 +26,38 @@ fn repository_file(path: &str) -> String {
     let full_path = repository_root().join(path);
     fs::read_to_string(&full_path)
         .unwrap_or_else(|error| panic!("could not read {}: {error}", full_path.display()))
+}
+
+fn assert_cap014_acceptance_evidence(document_name: &str, document: &str) {
+    let mut evidence_end = 0;
+    for identity in CAP014_ACCEPTANCE_EVIDENCE {
+        let position = document
+            .find(identity)
+            .unwrap_or_else(|| panic!("{document_name} is missing CAP-014 evidence {identity}"));
+        evidence_end = evidence_end.max(position + identity.len());
+    }
+    assert!(
+        document[evidence_end..].contains("pass"),
+        "{document_name} does not state that the complete CAP-014 evidence passed"
+    );
+}
+
+fn assert_post_cap014_successor_order(document_name: &str, document: &str) {
+    let normalized = document.to_ascii_lowercase();
+    let readiness = normalized
+        .find("cap-015-readiness")
+        .unwrap_or_else(|| panic!("{document_name} is missing CAP-015-READINESS"));
+    let after_readiness = &normalized[readiness..];
+    let modules = after_readiness
+        .find("module/import")
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked module/import gap"));
+    let file_bytes = after_readiness
+        .find("runtime file-byte acquisition")
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked file-byte gap"));
+    assert!(
+        modules < file_bytes,
+        "{document_name} does not preserve CAP-015 -> modules -> file-byte ordering"
+    );
 }
 
 fn run_aero(args: &[&str]) -> Output {
@@ -335,6 +380,32 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
     assert!(conformance.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    for (document_name, document) in [
+        ("README.md", readme.as_str()),
+        ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
+        ("FRAMEWORK_ALIGNMENT.md", alignment.as_str()),
+        ("PROJECT_STATE.md", project_state.as_str()),
+        ("SPEC_IMPLEMENTATION_MATRIX.md", matrix.as_str()),
+        ("Roadmap.md", roadmap.as_str()),
+        ("CONFORMANCE_PLAN.md", conformance.as_str()),
+    ] {
+        assert_cap014_acceptance_evidence(document_name, document);
+    }
+    for (document_name, document) in [
+        ("README.md", readme.as_str()),
+        ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
+        ("FRAMEWORK_ALIGNMENT.md", alignment.as_str()),
+        ("PROJECT_STATE.md", project_state.as_str()),
+        ("Roadmap.md", roadmap.as_str()),
+        ("CONFORMANCE_PLAN.md", conformance.as_str()),
+    ] {
+        assert_post_cap014_successor_order(document_name, document);
+    }
+    assert!(readme.contains("Within this profile, array results and writes"));
+    assert!(audit.contains("Within this profile, array results"));
+    assert!(project_state.contains("Within this profile, array results"));
+    assert!(matrix.contains("Within this profile, array results or writes"));
+    assert!(roadmap.contains("Within this profile, array results"));
     assert!(readme.contains(
         "General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
