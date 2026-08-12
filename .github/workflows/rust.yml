@@ -1288,6 +1288,16 @@ jobs:
             echo "exact-i32-array-v0 ${name} leaked an excluded representation or overflow promise"
             exit 1
           fi
+          if [ "${name}" = kernel ]; then
+            for anchor in \
+              'define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)' \
+              'define [8 x i32] @forward_array([8 x i32] %aero.arg.values)' \
+              'call [8 x i32] @offset_first_lane([8 x i32]' \
+              'call [8 x i32] @forward_array([8 x i32]' \
+              'ret [8 x i32]'; do
+              grep -Fq "${anchor}" "${llvm}"
+            done
+          fi
           if [ "${dynamic_bounds}" = yes ]; then
             guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'
             guard_count="$(grep -Pzo -- "${guard_block_pattern}" "${llvm}" | tr -cd '\000' | wc -c)"
@@ -2337,6 +2347,19 @@ jobs:
           }
           if ($llvmText -match 'double|fptosi|sitofp| nsw | nuw | x i8\]|<[^>]* x i32>') {
             throw "Windows exact-i32-array-v0 $($specimen.Name) leaked an excluded representation or overflow promise"
+          }
+          if ($specimen.Name -ceq "kernel") {
+            foreach ($anchor in @(
+              "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+              "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
+              "call [8 x i32] @offset_first_lane([8 x i32]",
+              "call [8 x i32] @forward_array([8 x i32]",
+              "ret [8 x i32]"
+            )) {
+              if (-not $llvmText.Contains($anchor)) {
+                throw "Windows exact-i32-array-v0 kernel omitted immutable array-value anchor $anchor"
+              }
+            }
           }
           if ($specimen.Dynamic) {
             $guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'

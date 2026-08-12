@@ -1,5 +1,6 @@
 use compiler::{
-    CompilerOptions, LanguageProfile, check_file, check_program, compile_file, compile_program,
+    CompilerOptions, IrGenerator, LanguageProfile, SemanticAnalyzer, check_file, check_program,
+    compile_file, compile_program, parse_with_locations, try_tokenize_with_locations,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,42 @@ const NEGATIVE_RUNTIME_INDEX: &str =
 const EQUAL_TO_COUNT_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_index.aero");
 
+const IMMUTABLE_ARRAY_VALUE_COMPOSITION: &str = r#"
+fn transform(values: [int; 3]) -> [i32; 3] {
+    return [values[0] * 2, values[1] + 3, values[2] - 1];
+}
+
+fn identity(values: [i32; 3]) -> [int; 3] {
+    return values;
+}
+
+fn return_call(values: [int; 3]) -> [i32; 3] {
+    return identity(values);
+}
+
+fn score(values: [int; 3]) -> int {
+    return values[0] + values[1] + values[2];
+}
+
+fn main() -> int {
+    let source = [2, 3, 4];
+    let computed = transform(source);
+    let annotated: [i32; 3] = return_call(computed);
+    let alias: [int; 3] = annotated;
+    let copied = alias;
+    let nested_score: int = score(identity(transform(source)));
+    let literal_score: int = score([7, 8, 9]);
+    let call_index: int = transform(source)[0];
+    let literal_index: int = [10, 11, 12][1];
+    if source[0] == 2 && copied[1] == 6 && annotated[2] == 3
+        && nested_score == 13 && literal_score == 24
+        && call_index == 4 && literal_index == 11 {
+        return 91;
+    }
+    return 1;
+}
+"#;
+
 fn exact_options() -> CompilerOptions {
     CompilerOptions {
         language_profile: LanguageProfile::ExactI32ArrayV0,
@@ -26,13 +63,19 @@ fn exact_options() -> CompilerOptions {
 }
 
 fn reference_kernel() -> i32 {
-    let left: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
+    let source: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
+    let mut left = source;
+    left[0] = left[0].wrapping_add(1);
     let right: [i32; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
-    left.into_iter()
+    let result = left
+        .into_iter()
         .zip(right)
         .fold(2_147_483_000_i32, |accumulator, (left, right)| {
             accumulator.wrapping_add(left.wrapping_mul(right))
-        })
+        });
+    assert_eq!(source[0], 127, "Copy-array source must remain readable");
+    assert_eq!(left[0], 128, "returned transform must change one lane");
+    result
 }
 
 struct TestWorkspace {
@@ -171,7 +214,7 @@ fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) 
 
 #[test]
 fn fixed_int_array_profile_is_selectable_on_public_check() {
-    assert_eq!(reference_kernel(), 2027);
+    assert_eq!(reference_kernel(), 2035);
     let workspace = TestWorkspace::new("check-red");
     let source = write_program(&workspace);
     let output = run_cli(
@@ -265,6 +308,20 @@ fn stable_scalar_profile_still_rejects_the_array_kernel() {
     )
     .expect_err("stable-scalar-v0 must retain its frozen array exclusion");
     assert!(error.contains("Language Profile Error: stable-scalar-v0 rejects"));
+
+    let result_only = "fn make() -> [int; 1] { return [1]; } fn main() -> int { return 0; }";
+    let error = compile_program(
+        result_only,
+        CompilerOptions {
+            language_profile: LanguageProfile::StableScalarV0,
+            ..CompilerOptions::default()
+        },
+    )
+    .expect_err("stable-scalar-v0 must reject array results independently of parameters");
+    assert_eq!(
+        error,
+        "Language Profile Error: stable-scalar-v0 rejects function result types"
+    );
 }
 
 #[test]
@@ -308,16 +365,159 @@ fn exact_profile_is_shared_by_source_and_file_library_routes() {
 }
 
 #[test]
+fn general_checked_pipeline_already_owns_the_complete_immutable_array_value_class() {
+    let tokens = try_tokenize_with_locations(IMMUTABLE_ARRAY_VALUE_COMPOSITION, None)
+        .expect("immutable array composition control should lex");
+    let ast =
+        parse_with_locations(tokens).expect("immutable array composition control should parse");
+    IrGenerator::new()
+        .try_generate_ir(ast.clone())
+        .expect("independent raw checked admission should already own immutable array composition");
+    let mut analyzer = SemanticAnalyzer::new();
+    let (_, analyzed) = analyzer
+        .analyze(ast)
+        .expect("general semantics should already own immutable array composition");
+    let checked = IrGenerator::new()
+        .try_generate_ir(analyzed)
+        .expect("checked IR should already own immutable array composition");
+    let metadata = format!("{:#?}", checked.metadata());
+    for anchor in [
+        "\"transform\": FunctionMetadata",
+        "\"identity\": FunctionMetadata",
+        "element: Int",
+        "count: 3",
+    ] {
+        assert!(
+            metadata.contains(anchor),
+            "checked metadata omitted array-composition identity `{anchor}`:\n{metadata}"
+        );
+    }
+
+    let llvm = compile_program(
+        IMMUTABLE_ARRAY_VALUE_COMPOSITION,
+        CompilerOptions::default(),
+    )
+    .expect("experimental control should retain general immutable array composition");
+    assert!(llvm.contains("define [3 x double] @transform("));
+    assert!(llvm.contains("call [3 x double] @identity("));
+}
+
+#[test]
+fn exact_profile_admits_the_complete_immutable_array_value_composition_class() {
+    check_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should admit every frozen immutable array value placement");
+    let first = compile_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should lower immutable array value composition");
+    let second = compile_program(IMMUTABLE_ARRAY_VALUE_COMPOSITION, exact_options())
+        .expect("exact profile should lower deterministically");
+    assert_eq!(
+        first, second,
+        "exact immutable-array LLVM must be deterministic"
+    );
+
+    for anchor in [
+        "define [3 x i32] @transform([3 x i32] %aero.arg.values)",
+        "define [3 x i32] @identity([3 x i32] %aero.arg.values)",
+        "define [3 x i32] @return_call([3 x i32] %aero.arg.values)",
+        "call [3 x i32] @transform([3 x i32]",
+        "call [3 x i32] @identity([3 x i32]",
+        "call [3 x i32] @return_call([3 x i32]",
+        "store [3 x i32]",
+        "load [3 x i32]",
+        "ret [3 x i32]",
+        "getelementptr inbounds [3 x i32]",
+    ] {
+        assert!(
+            first.contains(anchor),
+            "missing exact composition anchor `{anchor}`:\n{first}"
+        );
+    }
+    for forbidden in ["[3 x double]", "fptosi", "sitofp", " nsw ", " nuw "] {
+        assert!(
+            !first.contains(forbidden),
+            "exact array value composition leaked `{forbidden}`:\n{first}"
+        );
+    }
+}
+
+#[test]
+fn exact_array_value_composition_retains_topology_and_mutability_separation() {
+    let cases = [
+        (
+            "zero result",
+            "fn bad() -> [int; 0] { return []; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "nested result",
+            "fn bad() -> [[int; 1]; 1] { return [[1]]; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "non-int result",
+            "fn bad() -> [bool; 1] { return [1 < 2]; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "repeat source",
+            "fn bad() -> [int; 2] { return [1; 2]; } fn main() -> int { return 0; }",
+            "array bindings without direct literal initializers",
+        ),
+        (
+            "wrong result count",
+            "fn bad() -> [int; 3] { return [1, 2]; } fn main() -> int { return 0; }",
+            "array value source count mismatch",
+        ),
+        (
+            "non-int computed element",
+            "fn bad() -> [int; 1] { return [1 < 2]; } fn main() -> int { return 0; }",
+            "array literal elements other than exact Int expressions",
+        ),
+        (
+            "mutable returned binding",
+            "fn make() -> [int; 1] { return [1]; } fn main() -> int { let mut values = make(); return values[0]; }",
+            "mutable array bindings",
+        ),
+        (
+            "aggregate process result",
+            "fn main() -> [int; 1] { return [1]; }",
+            "entrypoints other than exact `fn main() -> int`",
+        ),
+    ];
+
+    for (label, source, expected) in cases {
+        let error = check_program(source, exact_options())
+            .expect_err("excluded exact-array value topology must fail closed");
+        assert!(
+            error.starts_with("Language Profile Error: exact-i32-array-v0 rejects "),
+            "{label} escaped profile admission: {error}"
+        );
+        assert!(
+            error.contains(expected),
+            "{label}: wrong diagnostic: {error}"
+        );
+        assert!(
+            !error.contains("Semantic Analysis Error") && !error.contains("IR Generation Error")
+        );
+    }
+}
+
+#[test]
 fn exact_profile_emits_one_guarded_i32_array_lane() {
     let llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
         .expect("exact fixed-array kernel should compile");
 
     for anchor in [
         "define i32 @dot_with_bias([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right, i32 %aero.arg.bias)",
+        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
         "alloca [8 x i32], align 8",
         "store [8 x i32]",
         "load [8 x i32]",
         "call i32 @dot_with_bias([8 x i32]",
+        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @forward_array([8 x i32]",
+        "ret [8 x i32]",
         "load i32",
         "store i32",
         "mul i32",
@@ -355,7 +555,7 @@ fn exact_profile_emits_one_guarded_i32_array_lane() {
 
 #[test]
 fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
-    assert_eq!(reference_kernel(), 2027);
+    assert_eq!(reference_kernel(), 2035);
 
     let values = [i32::MAX, 1, 1_073_741_824, 2];
     let wrapped_add = values[0].wrapping_add(values[1]);
@@ -395,11 +595,6 @@ fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
 fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
     let cases = [
         (
-            "inferred array",
-            "fn main() -> int { let values = [1]; return 0; }",
-            "array expressions",
-        ),
-        (
             "repeat array",
             "fn main() -> int { let values: [int; 2] = [1; 2]; return 0; }",
             "array bindings without direct literal initializers",
@@ -433,11 +628,6 @@ fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
             "user-defined element",
             "fn take(values: [Widget; 1]) -> int { return 0; } fn main() -> int { return 0; }",
             "function parameter types",
-        ),
-        (
-            "array result",
-            "fn values() -> [int; 1] { let item: [int; 1] = [1]; return item; } fn main() -> int { return 0; }",
-            "function result types",
         ),
         (
             "mutable array",
@@ -576,6 +766,19 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
             workflow.matches(shared_identity_link).count(),
             2,
             "Linux and Windows must both retain identity link `{shared_identity_link}`"
+        );
+    }
+    for composition_anchor in [
+        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
+        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @forward_array([8 x i32]",
+        "ret [8 x i32]",
+    ] {
+        assert_eq!(
+            workflow.matches(composition_anchor).count(),
+            2,
+            "Linux and Windows must both retain array-value composition anchor `{composition_anchor}`"
         );
     }
 }

@@ -1,5 +1,497 @@
 # Aero Task Ledger
 
+## CAP-018-EXACT-ARRAY-VALUE-COMPOSITION - immutable array-producing CPU pipeline
+
+- Date/task/status: 2026-08-12, `CAP-018-EXACT-ARRAY-VALUE-COMPOSITION`, authorized
+  red-first vertical slice on `agent/cap-018-exact-array-value-composition`. Its exact
+  base is docs-only head `1d813aa515b035959394030f6b3f4178f939e29f`, descended
+  from accepted master `7e6b231ff2955d94f2b51a7a69aff01a88de103c` through the
+  completed CAP-016 and CAP-017 readiness records only; compiler behavior still equals
+  accepted master. User/app-owned `.codex-remote-attachments/` and `tmp/` remain outside
+  scope. Quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  must not be applied, dropped, or treated as evidence.
+- Fresh post-stop ranking and selection rule: higher scores are favorable, including
+  lower implementation risk and lower evidence cost. Module/import resolution and
+  typed Result propagation retain high eventual value but do not rank as executable
+  candidates after CAP-016/CAP-017 proved mandatory semantic/architecture stops.
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Immutable exact-`i32` fixed-array value/result composition | 5 | 5 | 5 | 4 | 4 | 4 | 27 |
+  | 2 | Mutable exact-`i32` array production through guarded writes plus results | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+  | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+  Rank 1 is selected because it closes a named CAP-014/Milestone-3 exclusion using
+  accepted Copy-array semantics and one existing profile authority, while producing a
+  materially richer CPU program now. Rank 2 is the explicit destination for general
+  loop-driven transforms but crosses mutation/ownership/backend proof. Rank 3 remains
+  stopped on path, byte, buffer, error, drop, platform, and unsafe-boundary decisions.
+- Real-program delta and strategic destination: before this task, an
+  `exact-i32-array-v0` helper can consume an immutable `[int; N]` and return a scalar,
+  but it cannot construct, transform, return, bind, forward, immediately compose, or
+  directly index an immutable exact array result. Callers must own every literal and
+  cannot form an array-producing CPU stage. Afterward, one ordinary nongeneric function
+  can compute an exact fixed array from existing inputs, return it by value, preserve
+  the original Copy source, pass the result through one or more ordinary calls, and
+  feed it into the accepted dot-plus-bias kernel. The maintained N=8 program must
+  transform at least one lane and materially consume the returned value; an identity-
+  only round trip does not meet the decision threshold.
+- Frozen complete class and one shared predicate: the only admitted logical array is
+  the existing flat nonempty `Array<Int, N>` class for `1 <= N <= i32::MAX`, with
+  `int`/`i32` alias identity. Its immutable value-source roots are exhaustively
+  `ArrayLiteral`, an exact-array `Identifier`, or an ordinary named acyclic nongeneric
+  `FunctionCall` whose declared result has the same exact shape. Apply one shared,
+  context-aware value classifier to every admitted placement: explicit function
+  return; inferred or explicitly annotated immutable binding; immediate or identifier
+  ordinary-call argument; and identifier/literal/call index object. Array-literal
+  elements may be any recursively classified profile-admitted exact-Int scalar
+  expression, including guarded array reads and wrapping add/subtract/multiply; semantic
+  typing remains the final authority for exact element and count equality. Do not add
+  separate guards for return, binding, call, or indexing.
+- Frozen exclusions and preservation: retain profile-wide rejection of implicit tail
+  expressions, recursion, generic functions, modules/imports, structs/enums/tuples,
+  references, closures, traits, formatting, division/remainder, constants, arrays from
+  repeats, zero/oversized/nested/non-Int arrays, heterogeneous or wrong-count literals,
+  mutable bindings, whole/projected writes, comparison, iteration, method use, and
+  array-returning `main`. Preserve `stable-scalar-v0` byte-for-behavior and do not alter
+  the broad experimental compiler. Do not add output parameters, mutable-reference
+  array transport, heap/collection/tensor/SIMD/GPU behavior, external linkage, a stable
+  Aero/C ABI, a layout or performance claim, or another specialization classifier.
+- Mechanism and assumptions: extend `ProfileTypeUse::Result` admission for the existing
+  exact shape, record function result shapes beside parameter shapes, distinguish
+  profile expression results as exact Int, Bool, exact array, or unsupported, and make
+  one immutable array-value classifier recursively verify source roots, elements,
+  arguments, results, and counts. Existing semantic analysis, checked IR generation,
+  verifier, and LLVM already accept general Copy-array results. The backend renders an
+  admitted exact logical array as private `[N x i32]` and reuses the same role predicate;
+  no production edit outside `language_profile.rs` is expected or authorized initially.
+- Evidence for assumptions: CORE-046 already accepts exact logical Copy-array parameter/
+  result identity, fresh returned Copy values, forwarding, checked metadata, verifier
+  corruption controls, LLVM aggregate define/call/return, and native execution in the
+  experimental lane. Task-local probes show all ten value forms—computed literal,
+  identifier and call returns; inferred/annotated bindings; nested transport; direct
+  call/literal arguments; and direct call/literal indexing—pass raw semantics, checked
+  admission, and experimental source compilation. Count, heterogeneous-element, and
+  out-of-bounds controls fail closed. Exact-profile public routes currently reject
+  deterministically at `function result types` before semantics and leave no artifact;
+  the existing array-input/scalar-result control remains green as `[N x i32]`.
+- Measurement and acceptance threshold: commit one complete red matrix before
+  production. Green requires exact source/profile diagnostics and semantic/raw/public
+  parity; one shared-classifier unit matrix; logical checked metadata for array results,
+  calls, bindings, and preserved source ownership; existing return-count corruption
+  controls plus any genuinely new independent invariant; deterministic LLVM containing
+  exact `[8 x i32]` definitions, calls, loads/stores, and returns with no double lane;
+  original-source and transformed-result oracles; public `check`, externally verified
+  `build`, and `run`; `opt` verification, `llc -verify-machineinstrs`, Clang/LLVM 22
+  Linux and Windows O0/O2 execution; exact exit/output/trap behavior; stable-profile and
+  experimental controls; full `./tools/test.sh`, formatting, Clippy, docs, and every
+  public exact-head workflow. Cumulative truth changes only after protected integration
+  and fresh merge-head gates.
+- Failure modes and detection: a partial change could admit result types while leaving
+  binding/chaining red; classify Bool as Int; accept wrong counts, nested/repeat arrays,
+  or mutable use; evaluate elements/calls more than once; return a place rather than a
+  copied aggregate; invalidate the original source; split `int`/`i32`; disagree across
+  source and backend policy; emit `[N x double]`; mismatch caller/callee physical types;
+  miscompile target aggregate returns; or imply stable ABI/performance. Detect these
+  with every root/placement pair, reverse aliases, separation negatives, source-reuse
+  sentinels, checked identity/corruption controls, LLVM signature/call/return absence
+  checks, two-build hashes, cross-OS O0/O2 oracles, and failure artifact hygiene.
+- Initially allowed files, rollback, and stop conditions: this authorization may first
+  add or amend only `TASK_LEDGER.md` and one committed red/control matrix in
+  `src/compiler/tests/fixed_int_array_profile_tests.rs`. After the red is independently
+  confirmed, production is limited to `src/compiler/src/language_profile.rs`; the
+  executable product may amend `examples/fixed_int_array_v0/main.aero` and the existing
+  exact-array Linux/Windows step in `.github/workflows/rust.yml`, plus only directly
+  coupled static workflow-contract tests if necessary. The authorization commit is the
+  clean rollback boundary. Stop and rerank if the complete class needs a semantic,
+  checked-IR, verifier, or backend production edit; exceeds two compiler phases; needs
+  mutable arrays/references or a public ABI decision; cannot preserve exact source
+  ownership; diverges across Linux/Windows; or cannot make the CPU program richer than
+  an identity round trip. Evidence that an expression-result classifier duplicates
+  semantic typing rather than enforcing profile policy, or that rank 2 safely closes
+  the useful transform class with comparable scope, would change our mind before merge.
+
+### CAP-018 red checkpoint
+
+- The committed red matrix covers the complete frozen root/placement class in
+  `fixed_int_array_profile_tests.rs`. General semantic analysis, independent checked
+  admission, metadata, and the experimental `[3 x double]` control are green for the
+  composed program. With the cached qualified LLVM 22 verifier on `PATH`, the focused
+  target is 12 passed / 2 intentionally failed: the positive exact-profile class stops
+  at the existing `function result types` exclusion, and the separation matrix first
+  observes the same header-level mask before its source-root diagnostics can become
+  reachable. Existing exact public check/build/run, stable separation, wrapping,
+  bounds, workflow, and neighboring-family controls all remain green. No production,
+  example, workflow, cumulative-truth, dependency, protection, or GitHub state changed.
+
+### CAP-018 implementation checkpoint
+
+- The red class is green in the live pre-candidate worktree without crossing the stop
+  boundary. Production changes remain confined to `language_profile.rs`: the shared
+  profile role policy now admits exact-array results, function result shapes are
+  collected beside parameter shapes, and one recursive exact-profile value classifier
+  owns literal/identifier/ordinary-call roots across return, inferred/annotated
+  binding, call argument, and index-object placement. Unannotated `UnknownScalar` is
+  never promoted to Int or Bool by exact expression classification; declared scalar
+  annotations/results remain provisional to canonical semantic validation. The signed
+  minimum spelling is admitted only while classifying an exact array element. A
+  deliberately separate compatibility traversal preserves the accepted
+  `stable-scalar-v0` source policy without learning any array topology.
+- The maintained N=8 application now performs a real immutable transform: it returns
+  an `[i32; 8]` whose first lane is offset, forwards that returned aggregate through a
+  second ordinary function, feeds it to the dot-plus-bias kernel, proves the original
+  Copy source remains readable, and retains exit 91 with independent arithmetic result
+  2035. The existing Linux and Windows LLVM 22 O0/O2 steps now require both exact
+  aggregate-return definitions, both calls, and an exact aggregate return in addition
+  to their physical-lane, guard, verifier, machine, execution, and trap controls.
+- Focused settled-worktree evidence is green: profile authority units 12/12; complete
+  fixed-array profile integration 14/14; stable-profile regression 10/10; and focused
+  backend role/admission controls 4/4. Three independent read-only reviews identified
+  and then verified closure of stable diagnostic drift, signed-minimum leakage,
+  unproved-scalar-to-Int manufacture, stale result-role expectations, and missing
+  forward/cycle controls. This is candidate evidence only: formatting, Clippy, docs,
+  the complete repository gate, exact pinned native execution, and public workflows
+  remain required before any accepted capability or cumulative-truth change.
+- Repository-gate chronology on the settled pre-candidate tree: the first literal
+  `./tools/test.sh` invocation inherited Cargo into Git Bash but not the cached pinned
+  LLVM directories, so its full-test phase stopped when the externally verified
+  fixed-array target could not discover `opt`; this was an environment qualification
+  failure, not a compiler/test failure. The exact root command rerun with the cached
+  LLVM/Clang 22.1.8 directories prepended passed formatting, all-target/all-feature
+  correctness Clippy, the complete unit/integration suite, and doc-tests. A separate
+  `cargo doc --locked --no-deps` passed. Existing repository warnings remain warnings;
+  no test, lint level, verifier requirement, or source contract was weakened.
+
+## CAP-017-RESULT-PROPAGATION-READINESS - typed ordinary-call-chain error forwarding
+
+- Date/task/status: 2026-08-12, `CAP-017-RESULT-PROPAGATION-READINESS`,
+  authorized bounded architecture enumeration and task-local executable probe on
+  `agent/cap-017-result-propagation`. Its base is exact accepted CAP-015 truth-sync
+  master `7e6b231ff2955d94f2b51a7a69aff01a88de103c`, followed only by the three
+  CAP-016 ledger/readiness commits `9a8af5e242920352dfbcdd4e3af07961f56998f6`,
+  `10071a0`, and `c9f276d`; no compiler behavior has changed. CAP-016 completed a
+  mandatory architecture stop and reranked this capability first. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside the task; quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Real-program delta and strategic destination: accepted CAP-003 and CAP-015 let Aero
+  construct, transport, replace, return, and exhaustively `Match` exact concrete
+  recursive-CopyData `Result<T, E>` values. Today every fallible function layer must
+  manually match, reconstruct `Err`, and continue the `Ok` payload, making an ordinary
+  parser/service/kernel preparation pipeline verbose and easy to miswire. The eventual
+  bounded capability must let a multi-function Aero program forward the first exact
+  typed error unchanged while continuing the success value into useful computation,
+  then execute both success and error paths under the representative system gate. A
+  readiness-only finding is not capability completion; if implementation is safe, the
+  same bounded task must end in executable integration rather than rejection-only work.
+- Architecture class to enumerate before semantics freeze: identify the intended source
+  syntax and exact source span; operand and enclosing-function type contracts; success
+  payload extraction; error variant identity and unchanged early return; exact error-
+  type equality versus conversion; CopyData/ownership movement and post-propagation use;
+  expression precedence and admitted operand contexts; interaction with explicit
+  `Match`, loops, branches, calls, return, arrays/structs/tuples, references, carriers,
+  generics, traits, closures, modules, and profiles; checked-IR control-flow identity;
+  verifier corruption boundaries; LLVM/native lowering; and public diagnostic/artifact
+  behavior. Enumerate every shape as required for the first useful slice, explicitly
+  rejected, or preserved/quarantined. Do not implement one placement at a time.
+- Existing evidence and non-authority boundary: project truth explicitly records
+  question-mark propagation as unsupported and ranks typed `Result` propagation next.
+  `stdlib.rs` contains a legacy `generate_question_mark_operator` helper over the old
+  public compatibility IR, but no accepted source parser, typed checked-IR, verifier,
+  or backend path calls it. Treat that helper as a design clue and potential false-
+  success risk, never as semantics or evidence. The founding PDFs do not define error-
+  propagation syntax. Accepted concrete carrier normalization, enum schemas, exhaustive
+  Match, ordinary function calls/returns, ownership flow, checked verification, and
+  representative execution are assumptions to verify, not permission to generalize
+  carriers, generics, or error conversion.
+- CEO/engineering decision test - mechanism, evidence, and measurement: first trace the
+  current lexer/parser/AST, carrier normalizer, semantic enum/function/ownership paths,
+  independent checked admission/IR/verifier, codegen, and public routes. Build one
+  task-local source matrix outside the repository that proves the current first failure
+  and that the fully explicit `Match` control executes. A credible implementation must
+  use one phase-neutral propagation contract or one deterministic pre-semantic
+  elaboration authority shared by semantic and raw checked routes; it must not call the
+  legacy unchecked helper. Success requires exact unchanged-`Err` and continued-`Ok`
+  oracles across at least two ordinary call layers, semantic/raw/public parity, checked-
+  IR verification and corruption controls for any new invariant, deterministic LLVM,
+  public `check`/externally verified `build`/`run`, pinned LLVM/Clang 22 O0/O2 execution
+  on Linux and Windows, no-failure-artifact controls, and meaningful enrichment of the
+  maintained representative application.
+- Failure modes and detection: propagation could invert variants, extract the wrong
+  payload, fabricate a convenient scalar, convert or drop the error, continue after an
+  error, early-return from the wrong function, double-use a moved result/payload, accept
+  mismatched error types, bypass expected return typing, create invalid merge/control-
+  flow IR, collide labels across multiple sites, call an unchecked legacy lowering,
+  lose the operator span, or silently broaden nested/generic/reference carriers. Detect
+  these with distinct success/error sentinels, two sequential sites, nested-call and
+  conditional controls, exact type-separation negatives, moved-use negatives, semantic
+  and raw-checked parity, metadata/CFG assertions, corrupted branch/payload/return
+  controls, LLVM identity/order checks, O0/O2 comparison, and exact artifact hygiene.
+- Initial allowed files and stop conditions: before classification, only this
+  `TASK_LEDGER.md` authorization may change. Read-only repository/history/workflow/PDF
+  inspection and task-local external probes are permitted. Stop and rerank rather than
+  invent semantics if no existing authority justifies the syntax; if exact early-return,
+  error compatibility, ownership, precedence, or span behavior remains ambiguous; if a
+  safe slice needs general carriers/generics/references/closures, new ABI/drop behavior,
+  more than two compiler phases, or a feature-specific duplicate enum/function/CFG
+  classifier; or if explicit `Match` already provides the target real program without a
+  material usability delta. Amend this record before any committed red or production,
+  example, workflow, state/claim, dependency, release, benchmark, protection, or
+  external-artifact mutation.
+- Recovery, decision threshold, and what would change our mind: this branch and this
+  authorization commit are the rollback boundary. Proceed only if source/history plus
+  the task-local probe support one unambiguous bounded contract, at most two production
+  compiler phases, and an executable representative delta. Evidence that a parser-only
+  postfix surface plus shared elaboration can safely reuse existing Match/return
+  contracts favors implementation; evidence that propagation requires a new general
+  CFG/ownership/enum architecture, that the legacy helper encodes incompatible behavior,
+  or that another capability unlocks the representative workload sooner requires a
+  fresh ranking rather than semantic invention.
+
+### CAP-017 readiness result - mandatory syntax and control-flow stop
+
+- Decision: `NO IMPLEMENTATION` under the authorized boundary. This is a completed
+  readiness result and immediate project-level rerank, not a blocked goal. Strict Aero
+  has no question-mark token, propagation AST, postfix parser production, or trusted
+  checked lowering. The repository's normative v1 design-target grammar already assigns
+  `?` to `logical_or ? expression : conditional`, while the founding PDFs do not define
+  error-propagation syntax. Choosing postfix `?`, `try!`, automatic conversion, or any
+  other spelling now would invent semantics and silently revise the design target.
+- Exact current behavior: the canonical two-layer `parse_digit(character)?` specimen
+  stops at its exact source location during strict lexing. `check_program`,
+  `compile_program`, and CLI `check`/`build`/`run` report the same unexpected-character
+  cause; parsing, semantic analysis, checked admission, and LLVM are unreachable; no
+  requested artifact survives. Six placement/type probes all stop at the same lexical
+  boundary. Recovery lexing is not trusted and dangerously erases `?`; it cannot be
+  used as evidence or an implementation path.
+- Positive control and real-program gap: the exact explicit-`Match` equivalent parses,
+  passes semantics and independent raw checked admission, and passes public in-memory
+  compile plus CLI `check`/`build`. It preserves the exact `char` error and continues
+  the `int` success value, confirming both that concrete `Result<int, char>` transport
+  works and that propagation would improve ordinary source ergonomics. That usability
+  benefit does not override the missing syntax/precedence/ownership authority.
+- Phase and architecture result: a useful implementation requires at least three
+  production phases: lexer/parser/AST with spans and precedence; one shared semantic
+  and raw-admission Result/ownership classification; and checked early-return CFG
+  lowering plus verifier proof. The current AST cannot express a parser-only desugaring:
+  `Match` arms contain expressions, `return` is a statement, carrier-valued Match
+  results are deliberately rejected, and checked Match lowering requires each arm to
+  assign and converge. Adding a new checked invariant would make this four phases.
+  The two-phase stop threshold is therefore exceeded before any production mutation.
+- Legacy-helper quarantine: `stdlib.rs::generate_question_mark_operator` remains old
+  unchecked compatibility IR with fixed registers, fixed labels, no caller, no
+  enclosing-function/error compatibility proof, and ambiguous reconstruction when
+  operand and enclosing success types differ. It is neither source semantics nor a
+  reusable lowering authority and must not be activated.
+- Frozen re-entry decision: CAP-017 may reopen only after an explicit language decision
+  selects propagation spelling, resolves the ternary disposition, freezes precedence,
+  associativity, malformed syntax and exact spans, chooses exact-error equality versus
+  conversion, defines supported expression contexts and ownership effects, and shows a
+  shared architecture that does not duplicate Result/CFG classification. A later red
+  matrix must cover two layers, two sequential sites, distinct first/second errors,
+  single evaluation, exact type separation, moved-use failures, semantic/raw/public
+  parity, CFG corruption, artifact hygiene, and representative malformed-input oracles.
+- Evidence-proportional continuation: do not publish a standalone records-only CAP-017
+  milestone or change cumulative accepted truth for this readiness result. Carry the
+  CAP-016 and CAP-017 records into the next executable branch and synchronize them once
+  with the next accepted capability. A fresh three-gap ranking is now required; the
+  leading candidate is exact-`i32` fixed-array function-result composition because the
+  broad experimental compiler already has checked by-value array returns and CAP-014's
+  profile deliberately excludes only that role. Implementation remains unauthorized
+  until the exact profile/backend phase count, complete topology, ABI evidence, and
+  representative CPU-program delta are independently audited.
+
+## CAP-016-MODULE-RESOLUTION-READINESS - positive module/import/name-resolution architecture and red probe
+
+- Date/task/status: 2026-08-12, `CAP-016-MODULE-RESOLUTION-READINESS`, authorized
+  bounded architecture enumeration and task-local red probe from exact accepted
+  master `7e6b231ff2955d94f2b51a7a69aff01a88de103c` (tree
+  `498beb0d0f741d8d277798471dc5e5997535d347`) on
+  `agent/cap-016-module-resolution-readiness`. Protected PR #53 accepted the
+  CAP-015 project-truth synchronization with ordered parents prior accepted master
+  `b62696272f293f9f378f8a368cc818fcb8ef1074` then candidate
+  `3887ec1b591707da984e1b846a382ff3e06cd1c0`. Fresh merge-head CI
+  `31603287355`, Rust CI `31603287488`, and CodeQL `31603287341` pass,
+  including compiler job `94135757470`, nightly/stable/Windows LLVM 22 jobs
+  `94135757988`/`94135758325`/`94135758096`, CodeQL
+  Actions/Python/Rust jobs `94135761902`/`94135762009`/`94135761972`, and
+  exact default-branch analyses `1607865668`/`1607867361`/`1607874743`.
+  GitHub emits the aggregate CodeQL check for the PR candidate rather than this
+  default-branch push; pre-existing Actions alert #4 remains open and no new
+  synchronization alert surfaced. PR #53 renders exact accepted status. User/app-
+  owned `.codex-remote-attachments/` and `tmp/` remain outside the task, and
+  quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be
+  applied, dropped, or treated as evidence.
+- Governing ranking and real-program delta: the synchronized post-CAP-015 decision
+  ranks positive module/import/name resolution first at 23, typed `Result`
+  propagation second at 22, and runtime byte/file acquisition third at 21. Before
+  CAP-016, Aero can collect a bounded root-level direct-module file graph and flatten
+  its declarations for compilation, but maintained programs cannot explicitly bind
+  reusable module APIs through a truthful namespace/visibility contract; `use` is
+  retained only as parsed-but-unsupported syntax. An eventual positive slice must let
+  one ordinary multi-file Aero program deliberately name and reuse a module API while
+  preserving deterministic identity, privacy, diagnostics, checked IR, LLVM, and
+  native behavior. This readiness task itself changes no executable capability; it
+  exists to prevent invented or feature-local import semantics before that vertical
+  slice is authorized.
+- Mechanism and complete architecture class: enumerate one module system rather than
+  one syntax shape at a time. Trace and reconcile (1) namespace roots and the mapping
+  from source files to module identity; (2) declaration visibility and the meaning of
+  `pub`; (3) qualified and explicitly imported lookup; (4) direct and aliased import
+  syntax, with glob and re-export policy stated explicitly; (5) duplicate, ambiguous,
+  local-shadow, and source-order behavior; (6) nested-module, missing-file, duplicate-
+  file, graph-order, recursion, and cycle handling; (7) canonical cache and diagnostic
+  identity with source spans; and (8) canonical generic-struct/function/enum/trait
+  specialization identity for qualified declarations. Audit lexer/parser/AST,
+  module collection, semantic binding, checked admission/IR/verifier, LLVM naming,
+  public library/CLI routes, cache behavior, workflows, and the representative
+  application. Produce one exhaustive disposition table: required for the first
+  useful slice, explicitly rejected, or preserved for later work.
+- Assumptions and present evidence: accepted CORE-070 supplies file-aware compilation
+  and bounded root-level `mod x;` collection; CORE-071 preserves `use` syntax while
+  failing closed before checked IR; CORE-081 gives the CLI one canonical compiler
+  module graph; CAP-013 gives generic specializations shared canonical CopyData
+  identity and phase order. Current cumulative records report flattened module lookup,
+  erased or unfrozen source visibility, and unqualified specialization identities as
+  risks, not as positive semantics. The founding PDFs and roadmap motivate modular
+  reusable programs, but do not implement or authorize any lookup rule. The audit must
+  verify every assumption against source and tests before freezing the implementation
+  contract.
+- CEO/engineering decision test - measurement and evidence: success for readiness is
+  an evidence-backed architecture map, one smallest useful target-program contract,
+  a complete admitted/rejected/preserved topology matrix, and a task-local source
+  probe that is red for the intended missing behavior on semantic, raw checked,
+  public library, and CLI `check`/`build`/`run` routes without producing a trusted
+  artifact. The probe must demonstrate the real-program delta rather than only another
+  argument ordering. The later behavior candidate must begin from a committed red,
+  use one shared name-resolution authority consumed by semantic and independent
+  checked admission, retain canonical specialization identity, execute through the
+  representative Linux/Windows native gate, and add corruption controls only for a
+  genuinely new checked invariant.
+- Failure modes and detection: guard removal or AST flattening could make private names
+  globally visible, bind a same-spelled declaration from the wrong file, accept
+  ambiguous imports by source order, create different identities across semantic/raw
+  routes, split generic specializations by spelling or module path, let a cycle recurse
+  indefinitely, key caches to unstable paths, lose source filenames/spans, or permit an
+  invalid program to reach LLVM. Detect each through paired same-name modules,
+  private/public separation, qualified/imported/local-shadow controls, reversed source
+  order, duplicate and missing files, cycles/nesting, canonical identity assertions,
+  semantic/raw/public parity, no-artifact negatives, checked-IR verification, LLVM
+  symbol/absence checks, O0/O2 native execution, and Linux/Windows workflow evidence.
+- Initial allowed files and stop boundary: before the architecture and probe are
+  classified, only this `TASK_LEDGER.md` authorization may change. Read-only source,
+  test, workflow, Git history, GitHub, and founding-document inspection is permitted;
+  probe files and generated evidence must live in a task-local directory outside the
+  repository. No parser, AST, resolver, semantic, checked-IR, verifier, codegen, cache,
+  example, workflow, state document, dependency, release, benchmark, protection, or
+  external-artifact mutation is authorized yet. Amend this same authorization before
+  adding a committed red test or any production file.
+- Recovery, decision threshold, strategic value, and what would change our mind: this
+  branch and the authorization commit are the rollback boundary. Proceed to a behavior
+  task only if the smallest useful contract is unambiguous, closes one exhaustively
+  enumerated class under shared authority, requires at most two compiler phases, and
+  can end in a composed executable program rather than rejection-only evidence. Stop
+  and rerank if useful positive modules require package management, external crates,
+  separate compilation/ABI, recursive graph semantics, glob/re-export policy, a new
+  runtime ownership rule, more than two compiler phases, or another feature-specific
+  specialization classifier. Evidence that typed `Result` propagation unlocks the
+  representative workload sooner, that current flattening already supplies the useful
+  program without false identity, or that a shared specialization/name authority must
+  be designed first would change the decision and move CAP-016 behind the higher-
+  leverage architecture task rather than broadening semantics.
+
+### CAP-016 readiness result - mandatory architecture stop and rerank
+
+- Decision: `NO IMPLEMENTATION` under the authorized boundary. This is a completed
+  readiness result and strategic rerank, not a blocked project goal. The founding PDF
+  defines only top-level dotted `import identifier(.identifier)* [as identifier];` and
+  says the frontend resolves names; neither founding document defines item visibility,
+  qualified lookup, import shadowing/collisions, cycles, file/module identity, glob or
+  re-export behavior, or migration from flattened compilation. The repository's
+  design-only language documents contain aspirations but explicitly are not executable
+  implementation evidence. Choosing Rust-like rules now would invent Aero semantics.
+- Exhaustive current architecture: the accepted collector resolves only root-level
+  `mod x;` through file-first `x.aero` then `x/mod.aero`, parses each file with its
+  filename, rejects a top-level nested `mod`, and appends every direct-module AST to one
+  root AST. Functions, structs, enums, traits, calls, checked function maps, LLVM
+  symbols, and generic struct/enum/function/trait specialization identities are global
+  and unqualified. Constants alone normalize per source. `use` direct/alias/glob and
+  founding `import` direct/alias shapes remain parsed with locations but reject through
+  one shared semantic/checked-admission cause. `pub` survives only on `ModDecl`; the
+  parser erases it from functions, structs, enums, and traits. General qualified calls
+  and types are not AST-representable; `X::Y` in expression position denotes an enum
+  variant. Cache V1 intentionally frames exact root bytes plus ordered direct-module
+  name/candidate/source without host-root paths.
+- Migration evidence: 43 tracked example roots contain `mod`; all 111 tracked Aero
+  example files contain zero Aero `pub`, `use`, or `import` declarations. CAP-015's
+  representative telemetry program and existing native gates rely on unqualified
+  cross-file calls/types, and accepted tests explicitly require non-`pub` module
+  functions to remain unqualified-callable across root/module/module directions.
+  Keeping flattening while accepting imports would make visibility false; enforcing
+  privacy/imports would regress accepted programs; enabling a source-dependent
+  namespace mode would invent an implicit compatibility profile.
+- Phase and specialization result: a truthful minimum crosses at least five compiler
+  phases: parser/AST provenance and visibility; module graph/elaboration and binding;
+  semantic plus shared specialization qualification; independent checked identity and
+  verifier proof; and collision-free LLVM naming. Cache/compiler-service migration is
+  an additional surface. CAP-013's shared primitive-alias identity does not carry a
+  module qualifier, and inserting feature-local qualification into each generic system
+  would recreate the exact classifier proliferation risk. The task therefore exceeds
+  the two-phase stop threshold before production mutation.
+- Complete topology disposition: the eventual first slice requires one canonical entry
+  root/direct-child identity, preserved file-first physical mapping, default-private
+  declarations plus explicit exports, one selected top-level named direct/alias import
+  syntax, deterministic module-local/imported lookup and collisions, finite acyclic
+  graph diagnostics, root-relative canonical cache/diagnostic identity, qualification
+  before the one shared specialization plan, verifier-bound resolved symbols, and
+  collision-free private LLVM names. Initially reject implicit flattening in that mode,
+  private imports, unimported cross-file access, source-order winners, duplicate module/
+  export/alias identity, glob/list/group/local imports, `pub use/import`, re-exports,
+  nested modules, cycles, undeclared files, forged raw checked names, and stable-profile
+  widening. Preserve package/external roots, separate compilation/ABI, LSP/doc semantic
+  integration, overloading, recursive graphs, and cross-module generic capability for a
+  later explicitly authorized migration architecture.
+- Task-local red evidence: canonical `mod sensor; use sensor::read;` plus public
+  `sensor.aero::read` rejects consistently at `main.aero:2:1` through raw semantics,
+  independent checked admission, `check_file`, `compile_file`, and CLI
+  `check`/`build`/`run`; no requested LLVM or native artifact survives. Direct alias and
+  both founding-import shapes retain their distinct shared rejections. A qualified
+  `sensor::read()` is parsed as an enum variant and rejects as an unknown enum. Public
+  and private flattened `read` controls both pass, while two same-named module
+  functions reject in the global function registry. Existing containment tests pass
+  13/13 and the flattened direct-module control passes 1/1. Probe evidence remains
+  outside the repository under the task-local system temp directory.
+- Newly enumerated false-success boundary: a function/block-local `mod missing;` is
+  accepted by the common statement parser, missed by the root-only collector, and then
+  silently ignored by semantic analysis and checked admission/lowering. This is a real
+  invalid-program false success within the same incomplete module/provenance class.
+  Do not add a lone parser or semantic guard: `ModDecl` lacks a source location and raw
+  checked AST construction must also fail closed, so a trustworthy repair participates
+  in the broader shared provenance/placement architecture and exceeds the current
+  phase boundary. Keep it explicit and reopen it with the module migration task.
+- Evidence-proportional synchronization boundary: do not publish a standalone
+  records-only CAP-016 milestone or mutate cumulative truth merely to describe this
+  readiness result. Accepted `master` truth remains the CAP-015 synchronization until
+  a later executable candidate is green. Carry these immutable readiness commits into
+  the next typed-`Result` capability branch, authorize and classify that task in this
+  ledger first, and synchronize `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and their exact claim tests once, only after the
+  executable candidate passes. That final synchronization must record CAP-016 as a
+  completed readiness stop without a capability/profile/matrix promotion, retain
+  modules/imports/visibility as `PARSED_ONLY`, expose the local-`mod` false-success,
+  and identify the actual next accepted capability. No production, example, workflow,
+  dependency, release, benchmark, protection, or external-artifact change is
+  authorized by CAP-016 itself.
+- What changes the decision: an explicit module RFC/migration contract that chooses the
+  executable syntax, privacy and shadow rules, flattened-program migration/versioning,
+  canonical qualified specialization identity, cache/diagnostic identity, and a shared
+  provenance-aware AST elaboration authority can reopen CAP-016. Until then, the next
+  ranked executable direction is typed `Result` propagation across ordinary call
+  chains. Its readiness must independently freeze syntax, unchanged-error early return,
+  exact type/ownership compatibility, spans, and explicit-`Match` interaction before
+  any behavior mutation; runtime byte/file acquisition remains third and stopped.
+
 ## CAP-015 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-015-ACCEPTANCE-SYNC`, authorized bounded
