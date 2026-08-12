@@ -1,8 +1,18 @@
 # Aero Specification-to-Implementation Matrix
 
-Latest accepted compiler/profile master is protected CAP-018 merge
-`c49ff17cab7fc0e8d4f552a71499929135c16c61`, tree
-`3073c881c883984f53fcde2f0b205acbec760145`.
+Latest accepted compiler/profile master is protected CAP-019 merge.
+
+Exact CAP-019 reviewed candidate
+`f2955bedd22708041e36ee90c65c4f08c443d740`, shared candidate/merge tree
+`c520729e7b081087bbe431e97d937fb77f519b37`, accepted base and first merge parent
+`84916e124752b8e7d228855a0969cd9eab8dba26`, and protected PR #56 merge
+`6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4` whose second parent is that candidate
+are immutable. Candidate push/PR CI `31627264709`/`31627385522`, Rust CI
+`31627385563`, CodeQL `31627405516`, and aggregate `94217394313`; merge-head
+CI/Rust CI/CodeQL `31627880853`/`31627880924`/`31627880812`, exact merge jobs
+`94218938557`/`94218938794`/`94218938835`/`94218939033`/`94218943455`/
+`94218943514`/`94218943605`, and default-branch Actions/Python/Rust analyses
+`1609396076`/`1609396442`/`1609401493` all pass.
 
 Exact CAP-018 candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
 `3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
@@ -13,15 +23,24 @@ default-branch Actions/Python/Rust analyses `1608636029`/`1608636345`/`160864478
 also pass.
 
 Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
-widens that same profile with immutable exact-array results rather than creating
-another profile. The admitted flat nonempty exact-`Int` value class now composes
-literal, identifier, and acyclic ordinary-call sources through returns, inferred or
-annotated immutable bindings, ordinary-call arguments, and index objects. The N=8
-application preserves source lane 127, produces lane 128, computes 2035, and exits 91
-under public and pinned Linux/Windows LLVM/Clang 22 `-O0`/`-O2` routes. Mutable array
-bindings/results, loop production, selected-profile writes, recursion,
-zero/repeat/nested/non-Int arrays, general arrays, stable ABI/layout, and performance
-remain excluded.
+remains its immutable exact-array result-composition checkpoint; accepted CAP-019
+widens that same profile with fully initialized mutable owned locals, direct projected
+element writes, and returned flat-array values rather than creating another profile.
+Accepted CAP-019 widens the existing flat nonempty exact-`Int` class to a fully
+initialized mutable owned local whose initializer is an admitted literal, immutable
+exact-array identifier, or acyclic ordinary call of the same count, plus direct
+`local[index] = exact_int_value` projected writes. The maintained eight-lane
+application copies an immutable input, increments every lane in a guarded loop,
+returns the whole array by value, feeds it into the accepted CPU kernel, preserves all
+eight source lanes, produces result `2035`, and exits `91`; Linux and Windows retain
+read traps and add negative/equal-to-count write traps under verified LLVM/Clang 22
+`-O0`/`-O2` routes. The single selected `exact-i32-array-v0` row remains
+`END_TO_END`; broad integer and fixed-array support remains `PARTIAL`;
+`stable-scalar-v0` remains Aero's only `STABLE` profile. CAP-019 does not admit general
+mutable arrays, uninitialized or partial arrays, mutable parameters/results/aliases,
+references or escaping places, whole-array reassignment,
+zero/recursive/nested/repeat/non-Int arrays, stable aggregate ABI/layout, general
+parsing/string/file behavior, GPU execution, performance, or safety.
 
 Latest accepted project-integration master is protected CAP-015 merge
 `b62696272f293f9f378f8a368cc818fcb8ef1074`. Exact candidate
@@ -31,8 +50,8 @@ CAP-015 project-integration checkpoint. Protected merge
 `27f359bc5ca90212a06ce73b71759cac0533c1f0`. Candidate push/PR CI
 `31597830488`/`31598146528`, Rust CI `31598146473`, CodeQL `31598144554`, and
 merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` pass.
-CAP-015 remains the accepted M1-001 representative-integration checkpoint.
-CAP-015 changes no compiler production or language-profile code. It enriches only the existing
+CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
+changes no compiler production or language-profile code. It enriches only the existing
 M1-001 `END_TO_END` representative application with exact embedded grammar
 `T=<digit><digit>;H=<digit><digit>;`, canonical result 42, boundary results 0 and 297,
 all ten malformed positions, three first-error controls, and negative/equal-to-count
@@ -43,31 +62,27 @@ text encoding/normalization remain unsupported; accepted CORE-072's bounded Unic
 scalar `char` remains `PARTIAL`.
 
 CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted
-capabilities; neither adds a profile or matrix row. CAP-013 remains the shared
-specialization identity and phase authority, and CAP-018 adds no specialization
+capabilities; neither adds a profile or matrix row. CAP-013 remains the single shared
+specialization identity/phase authority; CAP-018 and CAP-019 add no specialization
 classifier.
 
-The fresh post-CAP-018 capability-gap order is:
+The fresh post-CAP-019 capability-gap order is:
 
 | Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
-| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
+| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
+| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
 | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
-Higher risk/evidence favorability means safer and cheaper delivery. Rank 1 would add a
-guarded loop-produced flat-array transform returned into the accepted CPU kernel; stop
-if that needs partial/uninitialized-array semantics, escaping references, stable ABI,
-a new checked-IR contract, or duplicated guards. Evidence that the recursive shape
-authority can safely subsume it at comparable scope and risk would combine or replace
-the task. Rank 2 would add one bounded nonempty recursive exact-`i32`/2D matrix pipeline
-under a shared source/physical shape authority; stop on unfrozen depth/product bounds,
-rank-specific classifiers, new ownership, or ABI requirements, and defer it if rank 1
-already expresses the useful workload clearly. Rank 3 would add bounded owned external
-bytes, but remains stopped on path/byte identity, capacity and initialized count,
-partial-read/EOF, typed error, ownership/drop, linkage, sandboxing, determinism, and
-Linux/Windows contracts; a safer caller-provided or embedded byte source would reorder
-the decision.
+Higher risk/evidence favorability means safer and cheaper delivery. Rank 1 is a
+zero-production flat 2x3-by-3 matrix-vector product gate over the accepted profile;
+stop if the application needs new semantics, compiler production, unchecked linearized
+indexing, partial arrays, ABI/layout, profile exceptions, or duplicated guards. Rank 2
+authorizes only recursive-shape readiness and a red probe, with implementation stopped
+until one canonical source/physical shape and every bound, placement, mutation, alias,
+and identity decision are frozen inside two phases. Rank 3 remains a strategic gap,
+not an authorizable implementation, until its runtime and cross-platform contracts are
+frozen.
 
 CAP-014's originating compiler-capability master is protected merge
 `ca09ebe3c1b981339c8bf56b360e62208ac900e1`. Corrected candidate
@@ -91,11 +106,13 @@ tracked kernel exits 91, the wrapping-edge specimen exits 93, and negative and
 equal-to-count controls trap under the pinned Linux and Windows LLVM/Clang 22
 public/O0/O2 gates. The selected-profile row is `END_TO_END`; broad integers and
 fixed arrays remain `PARTIAL`, and `stable-scalar-v0` remains the only `STABLE`
-profile. CAP-018 closes the immutable array-result limitation in this same selected
-profile. Mutable array bindings/results and writes, neighboring aggregate shapes,
-modules/imports, constant or reference use, generics/traits, closures, I/O, allocation/drop,
-accelerators, ABI/layout, performance, SIMD, tensors, safety, releases, and
-language completion remain outside CAP-014.
+profile. CAP-018 adds immutable array-result composition in this same selected profile,
+and CAP-019 adds its bounded initialized mutable-local, projected-write, and by-value
+result class. Recursive or nested arrays, mutable parameters or aliases, references,
+whole-array replacement, neighboring aggregate shapes, modules/imports, constant use,
+generics/traits, closures, I/O, allocation/drop, accelerators, ABI/layout, performance,
+SIMD, tensors, safety, releases, and language completion remain outside the cumulative
+selected lane.
 
 Accepted CAP-013 gives already admitted specialization features one recursive
 canonical type-key, alias-equivalence predicate, private framing contract, and shared
@@ -206,7 +223,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |
-| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |
+| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |
 | Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |
 | Booleans | Y | Y | Y | — | P | — | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Unicode characters | Y | Y | Y | — | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
@@ -617,7 +634,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/trap gates widened by CAP-018 immutable result composition | P | P | PARTIAL |
+| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, and CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps | P | P | PARTIAL |
 | ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
 | Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |

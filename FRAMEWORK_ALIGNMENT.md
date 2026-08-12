@@ -59,14 +59,59 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-Accepted CAP-018 advances the founding high-performance and data-pipeline direction by
-turning CAP-014's input-only exact-array kernel into an immutable array-producing
-pipeline. Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted
-CAP-018 widens that same profile with immutable exact-array results rather than
-creating another profile. Ordinary acyclic nongeneric functions can now construct,
-return, immutably bind, forward, pass, and index exact flat arrays from literal,
-identifier, or call roots. The maintained N=8 program preserves source lane 127,
-produces lane 128, computes 2035, and retains exit 91 under public and pinned
+The latest accepted compiler/profile head and tree are the protected CAP-019 merge
+and shared tree identified once in the acceptance evidence paragraph below.
+
+Accepted CAP-019 advances the founding high-performance and data-pipeline direction
+by making the selected exact-array CPU lane produce a loop-transformed owned result.
+Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
+remains its immutable exact-array result-composition checkpoint; accepted CAP-019
+widens that same profile with fully initialized mutable owned locals, direct projected
+element writes, and returned flat-array values rather than creating another profile.
+
+Accepted CAP-019 widens the existing flat nonempty exact-`Int` class to a fully
+initialized mutable owned local whose initializer is an admitted literal, immutable
+exact-array identifier, or acyclic ordinary call of the same count, plus direct
+`local[index] = exact_int_value` projected writes.
+
+The maintained eight-lane application copies an immutable input, increments every
+lane in a guarded loop, returns the whole array by value, feeds it into the accepted
+CPU kernel, preserves all eight source lanes, produces result `2035`, and exits `91`;
+Linux and Windows retain read traps and add negative/equal-to-count write traps under
+verified LLVM/Clang 22 `-O0`/`-O2` routes.
+
+Exact CAP-019 reviewed candidate `f2955bedd22708041e36ee90c65c4f08c443d740`,
+shared candidate/merge tree `c520729e7b081087bbe431e97d937fb77f519b37`,
+accepted base and first merge parent `84916e124752b8e7d228855a0969cd9eab8dba26`,
+and protected PR #56 merge `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4`
+whose second parent is that candidate are immutable. Candidate push/PR/Rust/CodeQL
+runs `31627264709`, `31627385522`, `31627385563`, and `31627405516`, plus candidate
+aggregate check `94217394313`; merge-head CI/Rust/CodeQL runs `31627880853`,
+`31627880924`, and `31627880812`; merge-head compiler, Windows, nightly, stable,
+Actions CodeQL, Python CodeQL, and Rust CodeQL jobs `94218938557`, `94218938794`,
+`94218938835`, `94218939033`, `94218943455`, `94218943514`, and `94218943605`; and
+default-branch Actions/Python/Rust analyses `1609396076`, `1609396442`, and
+`1609401493` all pass.
+
+The single selected `exact-i32-array-v0` row remains `END_TO_END`; broad integer and
+fixed-array support remains `PARTIAL`; `stable-scalar-v0` remains Aero's only `STABLE`
+profile.
+
+CAP-019 does not admit general mutable arrays, uninitialized or partial arrays,
+mutable parameters/results/aliases, references or escaping places, whole-array
+reassignment, zero/recursive/nested/repeat/non-Int arrays, stable aggregate
+ABI/layout, general parsing/string/file behavior, GPU execution, performance, or
+safety.
+
+CAP-013 remains the single shared specialization identity/phase authority; CAP-018
+and CAP-019 add no specialization classifier.
+
+Accepted CAP-018 advances the founding high-performance and data-pipeline direction
+and remains the immutable result-composition checkpoint within the same profile. At
+that checkpoint, ordinary acyclic nongeneric functions gained immutable
+construction, return, binding, forwarding, argument transport, and indexing from
+literal, identifier, or call roots. Its maintained N=8 program preserved source lane
+127, produced lane 128, computed 2035, and retained exit 91 under public and pinned
 Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution.
 
 Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
@@ -75,10 +120,9 @@ Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
 `31614934307`/`31614994226`, Rust CI `31614994253`, CodeQL `31614991761`, and
 merge-head CI/Rust CI/CodeQL `31615467151`/`31615467115`/`31615465499` pass. Exact
 default-branch Actions/Python/Rust analyses `1608636029`/`1608636345`/`1608644785`
-also pass. Mutable bindings/results and writes, loop-produced results, recursion,
-nested/general arrays, stable ABI/layout, accelerators, performance, safety, and
-stability remain outside this selected-profile advance. Broad arrays remain `PARTIAL`;
-`stable-scalar-v0` remains the only `STABLE` profile.
+also pass. CAP-019 subsequently closes the bounded initialized-local, direct-write,
+and returned-value delta while leaving recursive/general arrays, stable ABI/layout,
+accelerators, performance, safety, and stability outside the selected profile.
 
 Accepted CAP-014 advances the founding high-performance and data-pipeline direction
 with a truthful CPU reference workload rather than a syntax-only array claim. The
@@ -113,9 +157,10 @@ value 42 is materially consumed by the established computation, while boundary v
 negative/equal-to-count trap specimens preserve exact behavior under public and pinned
 Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution.
 CAP-015 remains the accepted M1-001 representative-integration checkpoint.
-CAP-015 changes no compiler production or language-profile code. CAP-018 is the latest
-accepted compiler/profile capability and widens CAP-014's first Milestone 3 CPU slice;
-CAP-015 enriches only the existing M1-001 `END_TO_END` evidence. Both named profiles
+CAP-015 changes no compiler production or language-profile code. CAP-019 is the
+current accepted compiler/profile capability and widens CAP-014's first Milestone 3
+CPU slice after CAP-018's immutable-result checkpoint; CAP-015 enriches only the
+existing M1-001 `END_TO_END` evidence. Both named profiles
 continue to reject the parser.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file input,
 and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
@@ -130,29 +175,23 @@ This evidence adds no CAP-015 parser, grammar, profile, conformance row, stabili
 general ingestion claim.
 
 CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted
-capabilities; neither adds a profile or matrix row. CAP-013 remains the shared
-specialization authority.
+capabilities; neither adds a profile or matrix row.
+
+Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first.
 
 | Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
-| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
+| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
+| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
 | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
-Mutable loop-produced exact-`i32` flat-array results rank first.
-The post-CAP-018 successor order is mutable loop-produced exact-`i32` flat-array
-results, then a bounded nonempty recursive exact-`i32` array / 2D matrix pipeline
+The post-CAP-019 successor order is the flat-buffer exact-`i32` 2D matrix-vector CPU
+product gate, then recursive exact-`i32` array / 2D matrix readiness and red probe
 under one shared recursive shape authority, then runtime byte/file acquisition into a
-bounded owned buffer. Rank 1 would enable a guarded loop-produced transform returned
-into the accepted CPU kernel; stop on partial/uninitialized semantics, escaping
-references, new checked-IR contracts, stable ABI, or duplicate guards, and combine it
-if one recursive authority safely subsumes the class. Rank 2 would enable a trusted
-2D computation; stop on unfrozen depth/product bounds, rank-specific classifiers, new
-ownership, or ABI requirements, and defer it if flat indexing already serves the
-workload. Rank 3 would enable external workload bytes but remains stopped on path/byte
-identity, capacity/initialized count, partial-read/EOF, typed errors, ownership/drop,
-linkage, sandboxing, determinism, and platform contracts; a safer caller-provided or
-embedded source would change the order.
+bounded owned buffer. Rank 1 should prove a row-major matrix-shaped workload through
+already accepted flat-array semantics. Rank 2 authorizes readiness and a red probe,
+not recursive-array implementation. Rank 3 remains a strategic gap until its path,
+buffer, error, ownership, runtime, determinism, and platform contracts are frozen.
 
 Accepted CAP-013 advances the founding generic and compile-time monomorphization
 direction by making already-admitted specialization features coherent rather than by
@@ -745,7 +784,7 @@ claim.
 |---|---|---|
 | Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-071 preserves Rust-like `use` syntax only for future work and rejects it before checked IR; accepted CORE-080 similarly preserves the founding dotted `import` syntax with a distinct AST identity and rejects it through the same shared authority. Accepted CORE-072 preserves exact Unicode-character identity across the existing recursive CopyData execution surface under one primitive authority and a pinned native exit-197 gate. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze import/name-resolution semantics before any positive path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners. Accepted CORE-073–077 add acyclic reinitialization, owned Match results, and balanced loop restoration. Accepted CORE-079 adds convergent `Owned`/`Moved`/`MaybeMoved` direct-enum loop headers/exits under shared source/admission classification and independent verifier proof. Accepted CORE-083–089 compose enum reference behavior and mixed/multiple reference callable signatures. Accepted CORE-090 admits exact static projected writes through arbitrary finite field/tuple/fixed-array paths over mutable owned CopyData roots under one shared classifier. Accepted CAP-001 guards runtime fixed-array reads before conversion or address formation, accepted CAP-002 guards runtime indexes in the same mutable direct-owner projected write class before effects or memory access, and accepted CAP-012 admits immediate call-only immutable/mutable loans over those nested CopyData places with conservative complete-root conflicts. Stored/escaping projected references, reference-target dynamic writes, partial moves, disjoint alias reasoning, reference results, free enum dereference/transport, enum aggregate storage, stable reference ABI, general non-enum CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Rank the post-Milestone-2 real-program blockers; promote shared ownership architecture only when it unlocks multiple useful programs or closes a serious correctness boundary |
-| Structs, arrays, enums, traits, and Match | The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`. CAP-013 retains one canonical specialization identity/phase authority. CAP-014 created the selected `exact-i32-array-v0` CPU lane, and CAP-018 widens that same lane with immutable flat-array construction, results, bindings, call transport, and indexing without promoting broad arrays. CAP-015 remains M1-001 representative integration only. General generic operations/error propagation, nested/general arrays, mutable selected-profile array results/writes, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Follow the post-CAP-018 order: first mutable loop-produced exact-`i32` flat-array results, then one bounded recursive exact-array/2D matrix authority; keep runtime byte/file acquisition blocked until its path, buffer, error, ownership, and platform contracts exist. |
+| Structs, arrays, enums, traits, and Match | The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`. CAP-013 retains one canonical specialization identity/phase authority. CAP-014 created the selected `exact-i32-array-v0` CPU lane, CAP-018 widened it with immutable flat-array result composition, and CAP-019 now adds fully initialized mutable owned locals, direct projected element writes, and returned flat-array values without promoting broad arrays. CAP-015 remains M1-001 representative integration only. General generic operations/error propagation, recursive/nested/general arrays, mutable parameters/results/aliases, whole-array reassignment, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Follow the post-CAP-019 order: first the flat-buffer exact-`i32` 2D matrix-vector CPU product gate, then recursive exact-array/2D matrix readiness; keep runtime byte/file acquisition blocked until its path, buffer, error, ownership, and platform contracts exist. |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist. Pinned Linux LLVM 22 execution and bounded Windows x86_64 MSVC system evidence are accepted through CORE-078; CAP-014 additionally proves an exact wrapping `i32` flat-array lane with signed trap-before-GEP guards under public/O0/O2 execution. Typed-IR invariants and verification remain incomplete. | Retain exact object/link/runtime gates on each supported platform and extend only with separately frozen contracts |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |

@@ -5,21 +5,71 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-018 compiler/profile merge
-`c49ff17cab7fc0e8d4f552a71499929135c16c61`, tree
-`3073c881c883984f53fcde2f0b205acbec760145`.
+protected CAP-019 compiler/profile merge and its accepted tree, with the exact
+immutable identities recorded once in the evidence paragraph below.
+
+### CAP-019 accepted: initialized mutable exact-array production
+
+Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
+remains its immutable exact-array result-composition checkpoint; accepted CAP-019
+widens that same profile with fully initialized mutable owned locals, direct projected
+element writes, and returned flat-array values rather than creating another profile.
+
+Accepted CAP-019 widens the existing flat nonempty exact-`Int` class to a fully
+initialized mutable owned local whose initializer is an admitted literal, immutable
+exact-array identifier, or acyclic ordinary call of the same count, plus direct
+`local[index] = exact_int_value` projected writes. Semantic analysis and checked IR
+remain unchanged; the bounded profile authority and its private physical mapping own
+the admitted source class and exact `[N x i32]` storage.
+
+The maintained eight-lane application copies an immutable input, increments every
+lane in a guarded loop, returns the whole array by value, feeds it into the accepted
+CPU kernel, preserves all eight source lanes, produces result `2035`, and exits `91`;
+Linux and Windows retain read traps and add negative/equal-to-count write traps under
+verified LLVM/Clang 22 `-O0`/`-O2` routes.
+
+Exact CAP-019 reviewed candidate `f2955bedd22708041e36ee90c65c4f08c443d740`,
+shared candidate/merge tree `c520729e7b081087bbe431e97d937fb77f519b37`,
+accepted base and first merge parent `84916e124752b8e7d228855a0969cd9eab8dba26`,
+and protected PR #56 merge `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4`
+whose second parent is that candidate are immutable. Candidate push/PR/Rust/CodeQL
+runs `31627264709`, `31627385522`, `31627385563`, and `31627405516`, plus candidate
+aggregate check `94217394313`; merge-head CI/Rust/CodeQL runs `31627880853`,
+`31627880924`, and `31627880812`; merge-head compiler, Windows, nightly, stable,
+Actions CodeQL, Python CodeQL, and Rust CodeQL jobs `94218938557`, `94218938794`,
+`94218938835`, `94218939033`, `94218943455`, `94218943514`, and `94218943605`; and
+default-branch Actions/Python/Rust analyses `1609396076`, `1609396442`, and
+`1609401493` all pass.
+
+The single selected `exact-i32-array-v0` row remains `END_TO_END`; broad integer and
+fixed-array support remains `PARTIAL`; `stable-scalar-v0` remains Aero's only `STABLE`
+profile.
+
+CAP-019 does not admit general mutable arrays, uninitialized or partial arrays,
+mutable parameters/results/aliases, references or escaping places, whole-array
+reassignment, zero/recursive/nested/repeat/non-Int arrays, stable aggregate
+ABI/layout, general parsing/string/file behavior, GPU execution, performance, or
+safety.
+
+CAP-013 remains the single shared specialization identity/phase authority; CAP-018
+and CAP-019 add no specialization classifier.
+
+CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
+changes no compiler production or language-profile code.
+
+CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted
+capabilities; neither adds a profile or matrix row.
 
 ### CAP-018 accepted: immutable exact-array value/result composition
 
-Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
-widens that same profile with immutable exact-array results rather than creating
-another profile. Ordinary nongeneric functions may now construct,
-return, bind, forward, pass, and index immutable exact flat `[int; N]`/`[i32; N]`
-values for `1 <= N <= i32::MAX`. One shared recursive exact-value classifier owns
-the complete admitted root set--literal, exact-array identifier, and ordinary named
-acyclic call--across explicit results, inferred/annotated bindings, call arguments,
-and literal/call/identifier index objects. Semantic analysis, checked IR, independent
-verification, and LLVM production were already capable and remain unchanged.
+Accepted CAP-018 is the immutable result-composition checkpoint within the profile
+created by CAP-014. Ordinary nongeneric functions gained construction, return,
+binding, forwarding, argument transport, and indexing for immutable exact flat
+`[int; N]`/`[i32; N]` values with `1 <= N <= i32::MAX`. One shared recursive
+exact-value classifier owns literal, immutable exact-array identifier, and ordinary
+named acyclic call roots across the admitted placements. Semantic analysis, checked
+IR, independent verification, and LLVM production were already capable and remained
+unchanged.
 
 The maintained eight-lane source-to-native gate now transforms lane 127 to 128 in a
 returned array, forwards that value through another ordinary helper, computes 2035 in
@@ -37,21 +87,11 @@ merge-head CI/Rust/CodeQL runs `31615467151`, `31615467115`, and `31615465499`
 pass; default-branch Actions/Python/Rust analyses `1608636029`, `1608636345`, and
 `1608644785` pass.
 
-CAP-014 remains the profile origin and first bounded Milestone 3 CPU slice; CAP-018
-is the latest accepted compiler/profile capability. CAP-015 remains the accepted
-M1-001 representative-integration checkpoint. CAP-015 changes no compiler production
-or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture
-stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013 remains
-the shared specialization identity and phase authority, and CAP-018 adds no
-specialization classifier. The named profile
-remains `END_TO_END`; broad integers and fixed arrays remain `PARTIAL`; only
-`stable-scalar-v0` is `STABLE`.
-
-Mutable array production, recursion, empty/repeat/nested/non-integer arrays,
-projected writes, modules/imports, constants, surrounding aggregate/reference use,
-methods, generics/traits, closures, collections, allocation/drop, I/O, accelerators,
-stable aggregate layout or callable ABI, performance, safety, releases, and language
-completion remain excluded.
+CAP-014 remains the profile origin and first bounded Milestone 3 CPU slice. CAP-018
+remains the immutable result-composition checkpoint, and accepted CAP-019 is the
+current compiler/profile capability. CAP-019 closes only the bounded initialized-local,
+projected-write, and returned-value delta described above; the broader exclusions and
+experimental classifications remain current.
 
 ### CAP-015 accepted: embedded character-record representative integration
 
@@ -86,9 +126,10 @@ pass. Exact merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
 public-route, external LLVM, machine-verification, native `-O0`/`-O2`, exact-output,
 and clean runtime-trap evidence.
 
-CAP-014 remains the exact-array profile origin; accepted CAP-018 is the latest
-compiler/profile capability. CAP-015 remains the latest separately classified M1-001
-project integration checkpoint and enriches only the existing M1-001
+CAP-014 remains the exact-array profile origin; accepted CAP-019 is the current
+compiler/profile capability, with CAP-018 retained as its immutable-result
+predecessor. CAP-015 remains the latest separately classified M1-001 project
+integration checkpoint and enriches only the existing M1-001
 `END_TO_END` row. It creates no parser/grammar/profile/conformance row and promotes
 no component feature.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file
@@ -98,31 +139,21 @@ General error propagation,
 variable-width inputs, dynamic collections, allocation/drop, I/O, public ABI,
 safety, performance, releases, and whole-language completion remain excluded.
 
-CAP-016 and CAP-017 are completed architecture stops, not automatic implementation
-successors.
-The post-CAP-018 order begins with mutable loop-produced exact-`i32` flat-array results:
+The post-CAP-019 order begins with the flat-buffer exact-`i32` 2D matrix-vector CPU
+product gate:
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
-| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
+| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
+| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
 | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
 
 `Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
-lower evidence cost. Rank 1 would add initialized mutable flat arrays, guarded
-runtime-indexed loop writes, returned-value identity, and consumption by the accepted
-CPU kernel while preserving wrapping, bounds-trap, initialization, and source-owner
-oracles. Stop for new mutation/partial-initialization semantics, reference escape,
-stable ABI/layout, more than the profile/backend phase pair, duplicated guards, or an
-unavoidable new IR/verifier contract. A recursive authority that safely subsumes the
-same result at comparable scope/risk would change the decision.
-
-Rank 2 would add one bounded nonempty recursive exact-`i32`/2D matrix class under a
-canonical recursive shape authority, checked multidimensional bounds, and a composed
-native CPU kernel. Stop for unfrozen depth/product bounds, divergent source/physical
-shape identity, stable ABI or new ownership requirements, or rank-specific topology
-guards. Clear expression through rank 1 plus flat indexing would defer it; safe
-subsumption of rank 1 would combine the slices.
+lower evidence cost. Rank 1 is a flat-buffer exact-`i32` 2D matrix-vector CPU product
+gate that should compose CAP-019's mutable returned arrays with row-major guarded
+indexing without new language or compiler production semantics. Rank 2 is recursive
+exact-`i32` array / 2D matrix readiness and red probe only; it must freeze one shared
+recursive shape authority before any implementation is authorized.
 
 Rank 3 would add size-bounded external bytes, a frozen typed acquisition failure, and
 a handoff into parsing and CPU computation. It is not authorizable until path/byte
@@ -160,8 +191,10 @@ all pass.
 The accepted class remains bounded and experimental outside its named profile.
 Accepted CAP-018 subsequently admits immutable exact array results rooted in
 literals, identifiers, or ordinary acyclic calls across result, binding,
-call-argument, and index-object placements in this same profile. Empty/repeat/nested
-arrays, recursion, projected or mutable array writes, non-integer elements, struct/tuple/enum or reference use,
+call-argument, and index-object placements in this same profile. Accepted CAP-019
+then adds the bounded fully initialized mutable-local, direct element-write, and
+returned-value class. Empty/repeat/nested arrays, recursion, non-integer elements,
+struct/tuple/enum or reference use,
 modules/imports, constants, methods, generics/traits, closures, dynamic collections,
 allocation/drop, I/O, accelerators, and non-CPU target pairing remain rejected.
 Aggregate layout, callable
@@ -171,9 +204,10 @@ Prototype in correctness recovery. CAP-013 remains accepted as the canonical
 specialization identity and phase authority; CAP-014 neither duplicates nor reopens
 it.
 
-CAP-014 remains the compiler/profile origin beneath accepted CAP-018; CAP-015 remains
-the separate representative-integration checkpoint. CAP-018 changes only the bounded
-immutable result-composition exclusion stated above.
+CAP-014 remains the compiler/profile origin beneath accepted CAP-018 and CAP-019;
+CAP-015 remains the separate representative-integration checkpoint. CAP-018 is the
+immutable result-composition checkpoint, and CAP-019 is the bounded initialized
+mutable-local/result checkpoint stated above.
 
 ### CAP-013 accepted: canonical specialization identity and phase authority
 
