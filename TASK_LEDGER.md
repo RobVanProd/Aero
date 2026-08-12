@@ -1,5 +1,116 @@
 # Aero Task Ledger
 
+## CAP-018-EXACT-ARRAY-VALUE-COMPOSITION - immutable array-producing CPU pipeline
+
+- Date/task/status: 2026-08-12, `CAP-018-EXACT-ARRAY-VALUE-COMPOSITION`, authorized
+  red-first vertical slice on `agent/cap-018-exact-array-value-composition`. Its exact
+  base is docs-only head `1d813aa515b035959394030f6b3f4178f939e29f`, descended
+  from accepted master `7e6b231ff2955d94f2b51a7a69aff01a88de103c` through the
+  completed CAP-016 and CAP-017 readiness records only; compiler behavior still equals
+  accepted master. User/app-owned `.codex-remote-attachments/` and `tmp/` remain outside
+  scope. Quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  must not be applied, dropped, or treated as evidence.
+- Fresh post-stop ranking and selection rule: higher scores are favorable, including
+  lower implementation risk and lower evidence cost. Module/import resolution and
+  typed Result propagation retain high eventual value but do not rank as executable
+  candidates after CAP-016/CAP-017 proved mandatory semantic/architecture stops.
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Immutable exact-`i32` fixed-array value/result composition | 5 | 5 | 5 | 4 | 4 | 4 | 27 |
+  | 2 | Mutable exact-`i32` array production through guarded writes plus results | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+  | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+  Rank 1 is selected because it closes a named CAP-014/Milestone-3 exclusion using
+  accepted Copy-array semantics and one existing profile authority, while producing a
+  materially richer CPU program now. Rank 2 is the explicit destination for general
+  loop-driven transforms but crosses mutation/ownership/backend proof. Rank 3 remains
+  stopped on path, byte, buffer, error, drop, platform, and unsafe-boundary decisions.
+- Real-program delta and strategic destination: before this task, an
+  `exact-i32-array-v0` helper can consume an immutable `[int; N]` and return a scalar,
+  but it cannot construct, transform, return, bind, forward, immediately compose, or
+  directly index an immutable exact array result. Callers must own every literal and
+  cannot form an array-producing CPU stage. Afterward, one ordinary nongeneric function
+  can compute an exact fixed array from existing inputs, return it by value, preserve
+  the original Copy source, pass the result through one or more ordinary calls, and
+  feed it into the accepted dot-plus-bias kernel. The maintained N=8 program must
+  transform at least one lane and materially consume the returned value; an identity-
+  only round trip does not meet the decision threshold.
+- Frozen complete class and one shared predicate: the only admitted logical array is
+  the existing flat nonempty `Array<Int, N>` class for `1 <= N <= i32::MAX`, with
+  `int`/`i32` alias identity. Its immutable value-source roots are exhaustively
+  `ArrayLiteral`, an exact-array `Identifier`, or an ordinary named acyclic nongeneric
+  `FunctionCall` whose declared result has the same exact shape. Apply one shared,
+  context-aware value classifier to every admitted placement: explicit function
+  return; inferred or explicitly annotated immutable binding; immediate or identifier
+  ordinary-call argument; and identifier/literal/call index object. Array-literal
+  elements may be any recursively classified profile-admitted exact-Int scalar
+  expression, including guarded array reads and wrapping add/subtract/multiply; semantic
+  typing remains the final authority for exact element and count equality. Do not add
+  separate guards for return, binding, call, or indexing.
+- Frozen exclusions and preservation: retain profile-wide rejection of implicit tail
+  expressions, recursion, generic functions, modules/imports, structs/enums/tuples,
+  references, closures, traits, formatting, division/remainder, constants, arrays from
+  repeats, zero/oversized/nested/non-Int arrays, heterogeneous or wrong-count literals,
+  mutable bindings, whole/projected writes, comparison, iteration, method use, and
+  array-returning `main`. Preserve `stable-scalar-v0` byte-for-behavior and do not alter
+  the broad experimental compiler. Do not add output parameters, mutable-reference
+  array transport, heap/collection/tensor/SIMD/GPU behavior, external linkage, a stable
+  Aero/C ABI, a layout or performance claim, or another specialization classifier.
+- Mechanism and assumptions: extend `ProfileTypeUse::Result` admission for the existing
+  exact shape, record function result shapes beside parameter shapes, distinguish
+  profile expression results as exact Int, Bool, exact array, or unsupported, and make
+  one immutable array-value classifier recursively verify source roots, elements,
+  arguments, results, and counts. Existing semantic analysis, checked IR generation,
+  verifier, and LLVM already accept general Copy-array results. The backend renders an
+  admitted exact logical array as private `[N x i32]` and reuses the same role predicate;
+  no production edit outside `language_profile.rs` is expected or authorized initially.
+- Evidence for assumptions: CORE-046 already accepts exact logical Copy-array parameter/
+  result identity, fresh returned Copy values, forwarding, checked metadata, verifier
+  corruption controls, LLVM aggregate define/call/return, and native execution in the
+  experimental lane. Task-local probes show all ten value forms—computed literal,
+  identifier and call returns; inferred/annotated bindings; nested transport; direct
+  call/literal arguments; and direct call/literal indexing—pass raw semantics, checked
+  admission, and experimental source compilation. Count, heterogeneous-element, and
+  out-of-bounds controls fail closed. Exact-profile public routes currently reject
+  deterministically at `function result types` before semantics and leave no artifact;
+  the existing array-input/scalar-result control remains green as `[N x i32]`.
+- Measurement and acceptance threshold: commit one complete red matrix before
+  production. Green requires exact source/profile diagnostics and semantic/raw/public
+  parity; one shared-classifier unit matrix; logical checked metadata for array results,
+  calls, bindings, and preserved source ownership; existing return-count corruption
+  controls plus any genuinely new independent invariant; deterministic LLVM containing
+  exact `[8 x i32]` definitions, calls, loads/stores, and returns with no double lane;
+  original-source and transformed-result oracles; public `check`, externally verified
+  `build`, and `run`; `opt` verification, `llc -verify-machineinstrs`, Clang/LLVM 22
+  Linux and Windows O0/O2 execution; exact exit/output/trap behavior; stable-profile and
+  experimental controls; full `./tools/test.sh`, formatting, Clippy, docs, and every
+  public exact-head workflow. Cumulative truth changes only after protected integration
+  and fresh merge-head gates.
+- Failure modes and detection: a partial change could admit result types while leaving
+  binding/chaining red; classify Bool as Int; accept wrong counts, nested/repeat arrays,
+  or mutable use; evaluate elements/calls more than once; return a place rather than a
+  copied aggregate; invalidate the original source; split `int`/`i32`; disagree across
+  source and backend policy; emit `[N x double]`; mismatch caller/callee physical types;
+  miscompile target aggregate returns; or imply stable ABI/performance. Detect these
+  with every root/placement pair, reverse aliases, separation negatives, source-reuse
+  sentinels, checked identity/corruption controls, LLVM signature/call/return absence
+  checks, two-build hashes, cross-OS O0/O2 oracles, and failure artifact hygiene.
+- Initially allowed files, rollback, and stop conditions: this authorization may first
+  add or amend only `TASK_LEDGER.md` and one committed red/control matrix in
+  `src/compiler/tests/fixed_int_array_profile_tests.rs`. After the red is independently
+  confirmed, production is limited to `src/compiler/src/language_profile.rs`; the
+  executable product may amend `examples/fixed_int_array_v0/main.aero` and the existing
+  exact-array Linux/Windows step in `.github/workflows/rust.yml`, plus only directly
+  coupled static workflow-contract tests if necessary. The authorization commit is the
+  clean rollback boundary. Stop and rerank if the complete class needs a semantic,
+  checked-IR, verifier, or backend production edit; exceeds two compiler phases; needs
+  mutable arrays/references or a public ABI decision; cannot preserve exact source
+  ownership; diverges across Linux/Windows; or cannot make the CPU program richer than
+  an identity round trip. Evidence that an expression-result classifier duplicates
+  semantic typing rather than enforcing profile policy, or that rank 2 safely closes
+  the useful transform class with comparable scope, would change our mind before merge.
+
 ## CAP-017-RESULT-PROPAGATION-READINESS - typed ordinary-call-chain error forwarding
 
 - Date/task/status: 2026-08-12, `CAP-017-RESULT-PROPAGATION-READINESS`,
