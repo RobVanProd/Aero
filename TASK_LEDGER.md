@@ -56,6 +56,80 @@
   before/after, stop, and change-of-decision clauses in Roadmap. Do not promote a
   completed readiness stop or strategic gap into an executable implementation
   without its unresolved semantics being frozen.
+- Frozen post-CAP-020 ranking (all six scores use 1-to-5 and higher is always
+  favorable, including risk and evidence cost):
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+  | 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+  | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+
+  CAP-020 satisfies the prior decision trigger to defer recursive-array syntax:
+  flat encoding now demonstrably serves the target matvec workload. Rank 1 is a
+  zero-production application/product gate over accepted constructs, not a
+  tensor type, binary-ingestion, quantization, inference-completion,
+  performance, or ABI claim. Rank 2 and rank 3 authorize readiness and red
+  probes only, not implementation. CAP-016 module migration and CAP-017 Result
+  propagation remain completed `NO IMPLEMENTATION` stops because no RFC,
+  grammar, namespace, visibility, propagation-syntax, or CFG decision changed.
+- Frozen post-CAP-020 Roadmap decision clauses, in required order:
+
+  1. Before rank 1, accepted CAP-020 executes one directly initialized
+     2x3-by-3 flat matvec, but no maintained Aero-native product validates and
+     decodes a source-embedded tensor-shaped record or composes that result into
+     a second numerical stage. After rank 1, one fixed `[int; 17]` record with
+     exact header `[2, 3, 1]` and flat input/weight/bias payload must be
+     validated, decoded through guarded reads and fully initialized flat-array
+     writes, consumed by the accepted 2x3 matvec and a second exact-Int affine
+     scoring stage, preserve and reread every source lane, and produce
+     independent ordinary and wrapping oracles plus exact public and native
+     sentinel 91.
+  2. Stop and rerank rank 1 if the exact `[int; 17]` product needs any compiler
+     production change, new language or profile rule, partial or uninitialized
+     array state, unchecked indexing, new arithmetic or quantization semantics,
+     stable layout or ABI, or duplicated guard or type authority.
+  3. Evidence that the complete record-to-score program is not expressible
+     solely through accepted CAP-020 semantics, is only a restatement of the
+     single matvec, or cannot define independent record, header, source, result,
+     and wrapping oracles changes rank 1; clean zero-production execution makes
+     runtime acquisition, not recursive syntax, the next hard boundary.
+  4. Before rank 2, Aero computations consume only source-embedded fixed data and
+     no trusted source program acquires external bytes. After rank 2 readiness,
+     a task-local cross-platform probe and architecture map must locate the first
+     failure and freeze path and byte identity, capacity and initialized count,
+     partial-read and EOF behavior, typed error mapping, ownership and drop,
+     runtime linkage, sandboxing and determinism, and Linux and Windows behavior,
+     either yielding one bounded implementation contract within two compiler
+     phases or an explicit mandatory stop without claiming I/O capability.
+  5. Stop rank 2 before implementation if any contract item remains unfrozen, if
+     allocation, drop, or runtime ABI must be invented, if platform behavior
+     cannot be made equivalent and observable, if a useful slice crosses more
+     than two compiler phases, or if invalid acquisition can reach trusted IR or
+     backend generation without typed failure.
+  6. Evidence that a caller-provided bounded byte slice or source-embedded record
+     feeds the flagship boundary sooner without filesystem or runtime semantics
+     would defer rank 2 implementation; an explicit runtime RFC plus a probe
+     demonstrating one shared cross-platform ownership and error authority
+     within the phase limit would permit later implementation ranking.
+  7. Before rank 3, CAP-020 proves the target 2D matvec through flat `[int; 6]`
+     storage while `exact-i32-array-v0` deliberately rejects nested arrays.
+     After rank 3 readiness, only if it is reopened, a task-local
+     `[[int; 3]; 2]` red probe and topology map must freeze depth,
+     dimension-product bounds, value placements, nested mutation and alias
+     rules, and nested-versus-flat physical identity under one source and
+     physical shape authority, or record a mandatory stop without claiming
+     recursive arrays.
+  8. Stop rank 3 before implementation while flat encoding serves the target
+     workload, or if any recursive-shape decision remains unfrozen, admission
+     and lowering cannot share one canonical shape, the slice exceeds two
+     compiler phases, or it requires stable aggregate layout or ABI, aliases, or
+     rank-specific classifiers.
+  9. Evidence of a concrete workload that flat buffers materially obscure,
+     together with an explicit bounded shape decision and a probe proving one
+     shared source and physical authority within two phases, would restore
+     recursive arrays to implementation ranking; CAP-020's clean flat execution
+     otherwise keeps them deferred.
 - Allowed files and writer boundaries: exactly `TASK_LEDGER.md`, `README.md`,
   `CURRENT_CAPABILITY_AUDIT.md`, `FRAMEWORK_ALIGNMENT.md`, `PROJECT_STATE.md`,
   `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `CONFORMANCE_PLAN.md`, and
