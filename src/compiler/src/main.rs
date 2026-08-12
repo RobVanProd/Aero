@@ -209,13 +209,13 @@ fn create_run_artifact_paths(
 
 impl BuildConfig {
     fn validate_language_profile_target(&self) -> Result<(), String> {
-        if self.language_profile == LanguageProfile::StableScalarV0
+        if self.language_profile != LanguageProfile::Experimental
             && (self.target != BuildTarget::Cpu || self.gpu_arch.is_some())
         {
-            return Err(
-                "Language Profile Error: stable-scalar-v0 requires --target cpu without --gpu"
-                    .to_string(),
-            );
+            return Err(format!(
+                "Language Profile Error: {} requires --target cpu without --gpu",
+                self.language_profile.as_str()
+            ));
         }
         Ok(())
     }
@@ -1441,7 +1441,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
     let usage = || {
         format!(
-            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0>]",
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]",
             args.first().map(String::as_str).unwrap_or("aero")
         )
     };
@@ -1484,13 +1484,13 @@ fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String
 
 fn build_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0>]"
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]"
     )
 }
 
 fn run_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0>]"
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]"
     )
 }
 
@@ -2110,7 +2110,7 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!(
-        "    --language-profile <experimental|stable-scalar-v0>  Select the compiler-enforced source profile"
+        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>  Select the compiler-enforced source profile"
     );
     println!();
     println!("EXECUTION BOUNDARIES:");
@@ -2334,67 +2334,71 @@ mod tests {
 
     #[test]
     fn language_profile_option_is_shared_by_check_build_and_run_parsers() {
-        let check = vec![
-            "aero".to_string(),
-            "check".to_string(),
-            "main.aero".to_string(),
-            "--language-profile".to_string(),
-            "stable-scalar-v0".to_string(),
-        ];
-        let (check_input, check_profile) = parse_check_args(&check).expect("check args");
-        assert_eq!(check_input, "main.aero");
-        assert_eq!(check_profile, LanguageProfile::StableScalarV0);
+        for (name, expected) in [
+            ("stable-scalar-v0", LanguageProfile::StableScalarV0),
+            ("exact-i32-array-v0", LanguageProfile::ExactI32ArrayV0),
+        ] {
+            let check = vec![
+                "aero".to_string(),
+                "check".to_string(),
+                "main.aero".to_string(),
+                "--language-profile".to_string(),
+                name.to_string(),
+            ];
+            let (check_input, check_profile) = parse_check_args(&check).expect("check args");
+            assert_eq!(check_input, "main.aero");
+            assert_eq!(check_profile, expected);
 
-        let build = vec![
-            "aero".to_string(),
-            "build".to_string(),
-            "main.aero".to_string(),
-            "-o".to_string(),
-            "main.ll".to_string(),
-            "--language-profile".to_string(),
-            "stable-scalar-v0".to_string(),
-        ];
-        let (_, _, build_config) = parse_build_args(&build).expect("build args");
-        assert_eq!(
-            build_config.language_profile,
-            LanguageProfile::StableScalarV0
-        );
+            let build = vec![
+                "aero".to_string(),
+                "build".to_string(),
+                "main.aero".to_string(),
+                "-o".to_string(),
+                "main.ll".to_string(),
+                "--language-profile".to_string(),
+                name.to_string(),
+            ];
+            let (_, _, build_config) = parse_build_args(&build).expect("build args");
+            assert_eq!(build_config.language_profile, expected);
 
-        let run = vec![
-            "aero".to_string(),
-            "run".to_string(),
-            "--language-profile".to_string(),
-            "stable-scalar-v0".to_string(),
-            "main.aero".to_string(),
-        ];
-        let (run_input, run_config) = parse_run_args(&run).expect("run args");
-        assert_eq!(run_input, "main.aero");
-        assert_eq!(run_config.language_profile, LanguageProfile::StableScalarV0);
+            let run = vec![
+                "aero".to_string(),
+                "run".to_string(),
+                "--language-profile".to_string(),
+                name.to_string(),
+                "main.aero".to_string(),
+            ];
+            let (run_input, run_config) = parse_run_args(&run).expect("run args");
+            assert_eq!(run_input, "main.aero");
+            assert_eq!(run_config.language_profile, expected);
+        }
     }
 
     #[test]
-    fn stable_scalar_profile_has_distinct_cache_identity_without_changing_default_keys() {
+    fn exact_profiles_have_distinct_cache_identity_without_changing_default_keys() {
         let experimental = BuildConfig::default();
         let stable = BuildConfig {
             language_profile: LanguageProfile::StableScalarV0,
             ..BuildConfig::default()
         };
+        let exact_array = BuildConfig {
+            language_profile: LanguageProfile::ExactI32ArrayV0,
+            ..BuildConfig::default()
+        };
         let source = "fn main() -> int { return 0; }";
 
-        assert_ne!(
-            compilation_cache_key(source, &experimental, None),
-            compilation_cache_key(source, &stable, None)
-        );
-        assert_ne!(
-            compilation_cache_key(source, &experimental, Some(b"module-frame")),
-            compilation_cache_key(source, &stable, Some(b"module-frame"))
-        );
+        for modules in [None, Some(b"module-frame".as_slice())] {
+            let experimental_key = compilation_cache_key(source, &experimental, modules);
+            let stable_key = compilation_cache_key(source, &stable, modules);
+            let exact_array_key = compilation_cache_key(source, &exact_array, modules);
+            assert_ne!(experimental_key, stable_key);
+            assert_ne!(experimental_key, exact_array_key);
+            assert_ne!(stable_key, exact_array_key);
+        }
     }
 
     #[test]
-    fn stable_scalar_profile_rejects_every_accelerator_selector_in_build_and_run() {
-        let expected =
-            "Language Profile Error: stable-scalar-v0 requires --target cpu without --gpu";
+    fn exact_profiles_reject_every_accelerator_selector_in_build_and_run() {
         let cases = [
             vec![
                 "aero",
@@ -2438,17 +2442,29 @@ mod tests {
             ],
         ];
 
-        for arguments in cases {
-            let arguments = arguments
-                .into_iter()
-                .map(str::to_string)
-                .collect::<Vec<_>>();
-            let error = if arguments[1] == "build" {
-                parse_build_args(&arguments).expect_err("stable build selector must fail")
-            } else {
-                parse_run_args(&arguments).expect_err("stable run selector must fail")
-            };
-            assert_eq!(error, expected);
+        for profile in ["stable-scalar-v0", "exact-i32-array-v0"] {
+            for mut arguments in cases.clone() {
+                let profile_index = arguments
+                    .iter()
+                    .position(|argument| *argument == "stable-scalar-v0")
+                    .expect("profile argument");
+                arguments[profile_index] = profile;
+                let arguments = arguments
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<Vec<_>>();
+                let error = if arguments[1] == "build" {
+                    parse_build_args(&arguments).expect_err("exact build selector must fail")
+                } else {
+                    parse_run_args(&arguments).expect_err("exact run selector must fail")
+                };
+                assert_eq!(
+                    error,
+                    format!(
+                        "Language Profile Error: {profile} requires --target cpu without --gpu"
+                    )
+                );
+            }
         }
     }
 

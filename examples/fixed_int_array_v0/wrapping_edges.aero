@@ -1,0 +1,16 @@
+fn verify_array_lane_edges(values: [int; 4]) -> int {
+    let wrapped_add: int = values[0] + values[1];
+    let wrapped_sub: int = wrapped_add - values[1];
+    let wrapped_mul: int = values[2] * values[3];
+    let wrapped_neg: int = -wrapped_add;
+
+    if wrapped_add < 0 && wrapped_sub > 0 && wrapped_mul < 0 && wrapped_neg < 0 {
+        return 93;
+    }
+    return 1;
+}
+
+fn main() -> int {
+    let values: [int; 4] = [2147483647, 1, 1073741824, 2];
+    return verify_array_lane_edges(values);
+}

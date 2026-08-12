@@ -34,7 +34,7 @@
   profile inherits the existing stable-scalar-v0 scalar function, call, control-flow,
   comparison, logical, and wrapping `int`/`bool` contract, including its division,
   remainder, recursion, effect, and entrypoint exclusions. It additionally admits
-  only nonempty flat `[int; N]`/`[i32; N]` values with `N > 0`: exact signed-i32
+  only flat `[int; N]`/`[i32; N]` values with `1 <= N <= i32::MAX`: exact signed-i32
   literal array construction in explicitly annotated initialized local bindings,
   by-value nongeneric function parameters, identifier transport to calls, and direct
   identifier indexing by an already-admitted scalar integer expression. Array
@@ -98,7 +98,9 @@
   `src/compiler/src/code_generator.rs`, and CLI routing/help/cache assertions in
   `src/compiler/src/main.rs`; `src/compiler/tests/fixed_int_array_profile_tests.rs`,
   existing stable-profile/CLI/claim tests only where exact separation or help text
-  requires them; `examples/fixed_int_array_v0/**`; `.github/workflows/rust.yml`; and,
+  requires them; `src/compiler/tests/windows_native_system_gate_tests.rs` only to
+  account for CAP-014's additional expected-nonzero Windows control group;
+  `examples/fixed_int_array_v0/**`; `.github/workflows/rust.yml`; and,
   only after the exact candidate is green, the mandatory project-truth documents and
   their assertions. No dependency, package, release, benchmark, accelerator,
   claim-verification, registry, or external artifact file is authorized.
@@ -117,7 +119,12 @@
   converged on selector spelling `exact-i32-array-v0`, which states the physical
   integer contract and avoids implying generic fixed-array support. They also
   converged on required explicit local array annotations and the complete structural
-  count class `N > 0`, with eight lanes only in the representative proof. Those
+  signed-index count class `1 <= N <= i32::MAX`, with eight lanes only in the
+  representative proof. The upper bound is the exact representability boundary of
+  the profile's signed-i32 runtime index and prevents source-admitted arrays whose
+  target size cannot be proven by the pinned LLVM/native gate; this pre-candidate
+  correction supersedes the earlier bare `N > 0` wording without changing any
+  accepted public behavior. Those
   refinements replace the earlier local `fixed-int-array-v0` spelling before any
   production behavior edit or publication; every other boundary above is unchanged.
 - Red checkpoint: the tracked eight-lane wrapping dot-product-plus-bias specimen and public
@@ -129,6 +136,25 @@
   experimental compilation is byte-identical with `[8 x double]` and no
   `[8 x i32]`. No parser, semantic, checked-IR, verifier, backend, CLI, workflow, or
   project-truth production file has changed at this checkpoint.
+- Local implementation checkpoint, not accepted public behavior: the distinct selector,
+  shared source/checked-logical shape and role authority, fail-closed exact-profile
+  checked-IR instruction admission, profile-aware `i32` physical map, signed bounds-before-
+  GEP path, CPU-only CLI/cache routing, four tracked executable/runtime specimens, and
+  mirrored Linux/Windows LLVM 22 workflow gates are implemented without parser, semantic,
+  IR-generator, or verifier production edits. The settled focused matrix passes 11/11;
+  exact profile/backend unit controls pass 7/7 including the shared role matrix and
+  verified corruption rejections; CLI routing passes 35/35; frozen stable profile passes
+  10/10; and existing experimental fixed-array transport/index/assignment controls pass
+  12/12. Formatting, diff hygiene, and Clippy with `-D clippy::correctness` pass.
+  Independent read-only review reports P0/P1/P2/P3 none. The first complete root-gate
+  attempt reached the final Windows workflow contract and correctly exposed that CAP-014
+  adds a fifteenth expected-nonzero control group; the authorized uniqueness assertion now
+  records 15 and passes 1/1. After LF-normalizing that two-line assertion change, diff
+  hygiene and independent delta review are clean, the complete root `./tools/test.sh` gate
+  passes on the corrected worktree, and `cargo doc --locked --no-deps` passes with only
+  pre-existing warnings. This checkpoint remains mutable and non-acceptance evidence:
+  create one immutable candidate and repeat pinned LLVM/native and public workflow evidence
+  at its exact SHA.
 
 ## CAP-013 accepted-master project-truth synchronization
 

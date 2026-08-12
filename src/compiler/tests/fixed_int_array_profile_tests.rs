@@ -1,4 +1,6 @@
-use compiler::{CompilerOptions, LanguageProfile, compile_program};
+use compiler::{
+    CompilerOptions, LanguageProfile, check_file, check_program, compile_file, compile_program,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -9,6 +11,19 @@ static NEXT_TEMP_ID: AtomicU64 = AtomicU64::new(0);
 
 const FIXED_INT_ARRAY_PROGRAM: &str =
     include_str!("../../../examples/fixed_int_array_v0/main.aero");
+const FIXED_INT_ARRAY_WRAPPING_EDGES: &str =
+    include_str!("../../../examples/fixed_int_array_v0/wrapping_edges.aero");
+const NEGATIVE_RUNTIME_INDEX: &str =
+    include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_index.aero");
+const EQUAL_TO_COUNT_RUNTIME_INDEX: &str =
+    include_str!("../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_index.aero");
+
+fn exact_options() -> CompilerOptions {
+    CompilerOptions {
+        language_profile: LanguageProfile::ExactI32ArrayV0,
+        ..CompilerOptions::default()
+    }
+}
 
 fn reference_kernel() -> i32 {
     let left: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
@@ -83,6 +98,77 @@ fn combined_output(output: &Output) -> String {
     )
 }
 
+fn occurrences(haystack: &str, needle: &str) -> usize {
+    haystack.match_indices(needle).count()
+}
+
+fn llvm_body_without_public_route_headers(llvm: &str) -> Vec<&str> {
+    llvm.lines()
+        .filter(|line| {
+            !line.starts_with("target datalayout = ")
+                && !line.starts_with("target triple = ")
+                && !line.starts_with("; aero.graph_compilation")
+        })
+        .collect()
+}
+
+fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) {
+    for anchor in ["icmp sge i32", "call void @llvm.trap()", "sext i32"] {
+        assert_eq!(
+            occurrences(llvm, anchor),
+            expected,
+            "expected {expected} exact dynamic-array occurrences of `{anchor}`:\n{llvm}"
+        );
+    }
+
+    let mut cursor = 0;
+    for _ in 0..expected {
+        let lower = llvm[cursor..]
+            .find("icmp sge i32")
+            .map(|offset| cursor + offset)
+            .expect("signed lower guard");
+        let upper = llvm[lower..]
+            .find("icmp slt i32")
+            .map(|offset| lower + offset)
+            .expect("signed upper guard");
+        let conjunction = llvm[upper..]
+            .find("and i1")
+            .map(|offset| upper + offset)
+            .expect("combined bounds predicate");
+        let branch = llvm[conjunction..]
+            .find("br i1")
+            .map(|offset| conjunction + offset)
+            .expect("guard branch");
+        let trap = llvm[branch..]
+            .find("call void @llvm.trap()")
+            .map(|offset| branch + offset)
+            .expect("trap branch");
+        let safe = llvm[trap..]
+            .find("aero.bounds.safe.")
+            .map(|offset| trap + offset)
+            .expect("safe label");
+        let extension = llvm[safe..]
+            .find("sext i32")
+            .map(|offset| safe + offset)
+            .expect("post-guard sign extension");
+        let address_anchor = format!("getelementptr inbounds {aggregate}");
+        let address = llvm[extension..]
+            .find(&address_anchor)
+            .map(|offset| extension + offset)
+            .expect("post-guard array address");
+        assert!(
+            lower < upper
+                && upper < conjunction
+                && conjunction < branch
+                && branch < trap
+                && trap < safe
+                && safe < extension
+                && extension < address
+        );
+        cursor = address + address_anchor.len();
+    }
+}
+
 #[test]
 fn fixed_int_array_profile_is_selectable_on_public_check() {
     assert_eq!(reference_kernel(), 2027);
@@ -124,6 +210,26 @@ fn fixed_int_array_profile_is_selectable_on_public_build() {
         output.status.success() && llvm.is_file(),
         "exact-i32-array-v0 build is absent or omitted LLVM:\n{}",
         combined_output(&output)
+    );
+    let public_llvm = fs::read_to_string(&llvm).expect("public build must write readable LLVM");
+    for route_header in [
+        "; aero.graph_compilation=enabled",
+        "; aero.graph_compilation.execution_scope=internal-scalar-helper",
+        "; aero.graph_compilation.device_execution=false",
+        "; aero.graph_compilation.backend=cpu",
+        "; aero.graph_compilation.executable_fusion=true",
+    ] {
+        assert!(
+            public_llvm.lines().any(|line| line == route_header),
+            "public build omitted route header `{route_header}`"
+        );
+    }
+    let library_llvm = compile_file(&source, exact_options())
+        .expect("file library route should emit the same exact LLVM");
+    assert_eq!(
+        llvm_body_without_public_route_headers(&public_llvm),
+        llvm_body_without_public_route_headers(&library_llvm),
+        "public and library routes must have byte-identical LLVM bodies after the public route applies its documented graph and host-target framing"
     );
 }
 
@@ -177,4 +283,249 @@ fn experimental_profile_retains_the_legacy_double_array_lane() {
     assert_eq!(implicit, explicit);
     assert!(implicit.contains("[8 x double]"));
     assert!(!implicit.contains("[8 x i32]"));
+}
+
+#[test]
+fn exact_profile_is_shared_by_source_and_file_library_routes() {
+    check_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
+        .expect("source check should admit the exact fixed-array kernel");
+    let source_llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
+        .expect("source compile should emit the exact fixed-array kernel");
+
+    let workspace = TestWorkspace::new("library-route-parity");
+    let source = write_program(&workspace);
+    check_file(&source, exact_options()).expect("file check should share exact admission");
+    let file_llvm = compile_file(&source, exact_options())
+        .expect("file compile should share exact physical lowering");
+    assert_eq!(source_llvm, file_llvm);
+
+    fs::write(&source, "mod missing; fn main() -> int { return 0; }")
+        .expect("write unresolved module attempt");
+    assert_eq!(
+        check_file(&source, exact_options()).expect_err("profile must precede module resolution"),
+        "Language Profile Error: exact-i32-array-v0 rejects module declarations"
+    );
+}
+
+#[test]
+fn exact_profile_emits_one_guarded_i32_array_lane() {
+    let llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
+        .expect("exact fixed-array kernel should compile");
+
+    for anchor in [
+        "define i32 @dot_with_bias([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right, i32 %aero.arg.bias)",
+        "alloca [8 x i32], align 8",
+        "store [8 x i32]",
+        "load [8 x i32]",
+        "call i32 @dot_with_bias([8 x i32]",
+        "load i32",
+        "store i32",
+        "mul i32",
+        "add i32",
+        "icmp sge i32",
+        "icmp slt i32",
+        "sext i32",
+        "getelementptr inbounds [8 x i32]",
+        "declare void @llvm.trap()",
+        "ret i32",
+    ] {
+        assert!(
+            llvm.contains(anchor),
+            "missing exact-array anchor `{anchor}`:\n{llvm}"
+        );
+    }
+    for forbidden in [
+        "[8 x double]",
+        "double",
+        "fptosi",
+        "sitofp",
+        " nsw ",
+        " nuw ",
+        "[8 x i8]",
+        "<8 x i32>",
+    ] {
+        assert!(
+            !llvm.contains(forbidden),
+            "exact fixed-array LLVM leaked forbidden representation `{forbidden}`:\n{llvm}"
+        );
+    }
+
+    assert_dynamic_guard_sequences(&llvm, "[8 x i32]", 2);
+}
+
+#[test]
+fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
+    assert_eq!(reference_kernel(), 2027);
+
+    let values = [i32::MAX, 1, 1_073_741_824, 2];
+    let wrapped_add = values[0].wrapping_add(values[1]);
+    let wrapped_sub = wrapped_add.wrapping_sub(values[1]);
+    let wrapped_mul = values[2].wrapping_mul(values[3]);
+    let wrapped_neg = wrapped_add.wrapping_neg();
+    assert_eq!(
+        if wrapped_add < 0 && wrapped_sub > 0 && wrapped_mul < 0 && wrapped_neg < 0 {
+            93
+        } else {
+            1
+        },
+        93
+    );
+
+    for source in [FIXED_INT_ARRAY_PROGRAM, FIXED_INT_ARRAY_WRAPPING_EDGES] {
+        let llvm = compile_program(source, exact_options())
+            .expect("exact fixed-array arithmetic specimen should compile");
+        for forbidden in ["double", "fptosi", "sitofp", " nsw ", " nuw "] {
+            assert!(
+                !llvm.contains(forbidden),
+                "wrapping proof leaked `{forbidden}`"
+            );
+        }
+    }
+}
+
+#[test]
+fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
+    let cases = [
+        (
+            "inferred array",
+            "fn main() -> int { let values = [1]; return 0; }",
+            "array expressions",
+        ),
+        (
+            "repeat array",
+            "fn main() -> int { let values: [int; 2] = [1; 2]; return 0; }",
+            "array bindings without direct literal initializers",
+        ),
+        (
+            "empty array",
+            "fn main() -> int { let values: [int; 0] = []; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "array count above the signed i32 profile boundary",
+            "fn take(values: [int; 2147483648]) -> int { return 0; } fn main() -> int { return 0; }",
+            "function parameter types",
+        ),
+        (
+            "nested array",
+            "fn main() -> int { let values: [[int; 1]; 1] = [[1]]; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "non-int element",
+            "fn main() -> int { let values: [bool; 1] = [true]; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "char element",
+            "fn main() -> int { let values: [char; 1] = ['a']; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "user-defined element",
+            "fn take(values: [Widget; 1]) -> int { return 0; } fn main() -> int { return 0; }",
+            "function parameter types",
+        ),
+        (
+            "array result",
+            "fn values() -> [int; 1] { let item: [int; 1] = [1]; return item; } fn main() -> int { return 0; }",
+            "function result types",
+        ),
+        (
+            "mutable array",
+            "fn main() -> int { let mut values: [int; 1] = [1]; return values[0]; }",
+            "mutable array bindings",
+        ),
+        (
+            "array write",
+            "fn main() -> int { let values: [int; 1] = [1]; values[0] = 2; return 0; }",
+            "projected or indirect assignment targets",
+        ),
+        (
+            "array comparison",
+            "fn main() -> int { let values: [int; 1] = [1]; if values == values { return 1; } return 0; }",
+            "array identifiers outside direct call transport or index reads",
+        ),
+        (
+            "wrong literal count",
+            "fn main() -> int { let values: [int; 1] = [1, 2]; return 0; }",
+            "array literal counts that differ from their annotations",
+        ),
+        (
+            "wrong transport count",
+            "fn take(values: [int; 2]) -> int { return values[0]; } fn main() -> int { let values: [int; 1] = [1]; return take(values); }",
+            "array call arguments with mismatched counts",
+        ),
+        (
+            "out-of-range lane literal",
+            "fn main() -> int { let values: [int; 1] = [2147483648]; return 0; }",
+            "array elements other than exact signed i32 literals",
+        ),
+    ];
+
+    for (name, source, expected) in cases {
+        let error = match check_program(source, exact_options()) {
+            Ok(()) => panic!("{name} unexpectedly entered exact checked IR"),
+            Err(error) => error,
+        };
+        assert!(
+            error.starts_with("Language Profile Error: exact-i32-array-v0 rejects "),
+            "{name} escaped pre-semantic profile admission: {error}"
+        );
+        assert!(
+            error.contains(expected),
+            "{name}: wrong diagnostic: {error}"
+        );
+        assert!(
+            !error.contains("Semantic Analysis Error") && !error.contains("IR Generation Error")
+        );
+    }
+}
+
+#[test]
+fn exact_profile_preserves_compile_time_bounds_rejection_and_runtime_guards() {
+    for (label, index) in [("negative", "-1"), ("equal", "2"), ("above", "3")] {
+        let source = format!(
+            "fn main() -> int {{ let values: [int; 2] = [10, 20]; return values[{index}]; }}"
+        );
+        let error = compile_program(&source, exact_options())
+            .expect_err("constant out-of-bounds exact array index must reject");
+        assert!(error.contains("outside 0..2"), "{label}: {error}");
+    }
+
+    for source in [NEGATIVE_RUNTIME_INDEX, EQUAL_TO_COUNT_RUNTIME_INDEX] {
+        let llvm = compile_program(source, exact_options())
+            .expect("runtime bounds-failure specimen should lower to a guard");
+        assert_dynamic_guard_sequences(&llvm, "[2 x i32]", 1);
+    }
+}
+
+#[test]
+fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
+    let workflow = include_str!("../../../.github/workflows/rust.yml");
+    for step in [
+        "Test exact i32 fixed-array CPU profile at O0 and O2",
+        "Test exact i32 fixed-array CPU profile on Windows at O0 and O2",
+    ] {
+        assert_eq!(workflow.matches(step).count(), 1, "missing unique `{step}`");
+    }
+    for anchor in [
+        "examples/fixed_int_array_v0/",
+        "wrapping_edges.aero",
+        "runtime_fail/",
+        "negative_index.aero",
+        "equal_to_count_index.aero",
+        "--language-profile exact-i32-array-v0",
+        "--require-llvm-verifier",
+        "opt-22 -passes=verify",
+        "llc-22 -verify-machineinstrs",
+        "clang-22 -O0",
+        "clang-22 -O2",
+        "& \"$llvmBin\\opt.exe\" -passes=verify",
+        "& \"$llvmBin\\llc.exe\" -verify-machineinstrs",
+        "& \"$llvmBin\\clang.exe\" -O0",
+        "& \"$llvmBin\\clang.exe\" -O2",
+    ] {
+        assert!(workflow.contains(anchor), "workflow omitted `{anchor}`");
+    }
 }
