@@ -49,6 +49,69 @@ fn main() -> int {
 }
 "#;
 
+const MIXED_ALIAS_RECURSIVE_ARRAY: &str = r#"
+struct Box<T> { value: T }
+
+fn sum(value: Box<[int; 2]>) -> int {
+    value.value[0] + value.value[1]
+}
+
+fn main() -> int {
+    let value: Box<[i32; 2]> = Box { value: [40, 2] };
+    sum(value)
+}
+"#;
+
+const MIXED_ALIAS_RECURSIVE_TUPLE: &str = r#"
+struct Box<T> { value: T }
+
+fn sum(value: Box<(int, float)>) -> int {
+    if value.value.1 > 1.0 {
+        return value.value.0 + 2;
+    }
+    0
+}
+
+fn main() -> int {
+    let value: Box<(i32, f64)> = Box { value: (40, 1.5) };
+    sum(value)
+}
+"#;
+
+const ALIAS_IDENTITY_UNIQUENESS: &str = r#"
+struct Box<T> { value: T }
+
+enum Sample<T> {
+    Present(T),
+    Missing,
+}
+
+fn score_int(value: Sample<int>) -> int {
+    match value {
+        Sample::Present(number) => number,
+        Sample::Missing => 0,
+    }
+}
+
+fn score_i32(value: Sample<i32>) -> int {
+    match value {
+        Sample::Present(number) => number,
+        Sample::Missing => 0,
+    }
+}
+
+fn main() -> int {
+    let canonical_box: Box<int> = Box { value: 20 };
+    let alias_box: Box<i32> = Box { value: 20 };
+    let canonical_sample: Sample<int> = Sample::Present(1);
+    let alias_sample: Sample<i32> = Sample::Present(1);
+    canonical_box.value
+        + alias_box.value
+        + score_int(canonical_sample)
+        + score_i32(alias_sample)
+}
+"#;
+
 const MIXED_ALIAS_ENUM: &str = r#"
 enum Sample<T> {
     Present(T),
@@ -172,6 +235,49 @@ fn primitive_aliases_compose_through_generic_window_algorithms() {
         assert!(
             !llvm.contains(split_identity),
             "alias spelling split specialization identity {split_identity:?}:\n{llvm}"
+        );
+    }
+}
+
+#[test]
+fn primitive_aliases_canonicalize_recursively_through_arrays() {
+    let llvm = assert_all_trusted_routes_compile(MIXED_ALIAS_RECURSIVE_ARRAY);
+    assert!(
+        llvm.contains("Box<[int;2]>"),
+        "canonical recursive-array specialization is absent:\n{llvm}"
+    );
+    assert!(
+        !llvm.contains("Box<[i32;2]>"),
+        "recursive array alias split specialization identity:\n{llvm}"
+    );
+}
+
+#[test]
+fn primitive_aliases_canonicalize_recursively_through_tuples() {
+    let llvm = assert_all_trusted_routes_compile(MIXED_ALIAS_RECURSIVE_TUPLE);
+    assert!(
+        llvm.contains("Box<(int,float)>"),
+        "canonical recursive-tuple specialization is absent:\n{llvm}"
+    );
+    assert!(
+        !llvm.contains("Box<(i32,f64)>"),
+        "recursive tuple aliases split specialization identity:\n{llvm}"
+    );
+}
+
+#[test]
+fn alias_spellings_produce_one_struct_and_enum_specialization_identity() {
+    let llvm = assert_all_trusted_routes_compile(ALIAS_IDENTITY_UNIQUENESS);
+    for canonical in ["Box<int>", "Sample<int>"] {
+        assert!(
+            llvm.contains(canonical),
+            "canonical specialization identity {canonical:?} is absent:\n{llvm}"
+        );
+    }
+    for duplicate in ["Box<i32>", "Sample<i32>"] {
+        assert!(
+            !llvm.contains(duplicate),
+            "alias spelling emitted duplicate specialization {duplicate:?}:\n{llvm}"
         );
     }
 }
