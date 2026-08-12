@@ -1,5 +1,91 @@
 # Aero Task Ledger
 
+## CAP-017-RESULT-PROPAGATION-READINESS - typed ordinary-call-chain error forwarding
+
+- Date/task/status: 2026-08-12, `CAP-017-RESULT-PROPAGATION-READINESS`,
+  authorized bounded architecture enumeration and task-local executable probe on
+  `agent/cap-017-result-propagation`. Its base is exact accepted CAP-015 truth-sync
+  master `7e6b231ff2955d94f2b51a7a69aff01a88de103c`, followed only by the three
+  CAP-016 ledger/readiness commits `9a8af5e242920352dfbcdd4e3af07961f56998f6`,
+  `10071a0`, and `c9f276d`; no compiler behavior has changed. CAP-016 completed a
+  mandatory architecture stop and reranked this capability first. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside the task; quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Real-program delta and strategic destination: accepted CAP-003 and CAP-015 let Aero
+  construct, transport, replace, return, and exhaustively `Match` exact concrete
+  recursive-CopyData `Result<T, E>` values. Today every fallible function layer must
+  manually match, reconstruct `Err`, and continue the `Ok` payload, making an ordinary
+  parser/service/kernel preparation pipeline verbose and easy to miswire. The eventual
+  bounded capability must let a multi-function Aero program forward the first exact
+  typed error unchanged while continuing the success value into useful computation,
+  then execute both success and error paths under the representative system gate. A
+  readiness-only finding is not capability completion; if implementation is safe, the
+  same bounded task must end in executable integration rather than rejection-only work.
+- Architecture class to enumerate before semantics freeze: identify the intended source
+  syntax and exact source span; operand and enclosing-function type contracts; success
+  payload extraction; error variant identity and unchanged early return; exact error-
+  type equality versus conversion; CopyData/ownership movement and post-propagation use;
+  expression precedence and admitted operand contexts; interaction with explicit
+  `Match`, loops, branches, calls, return, arrays/structs/tuples, references, carriers,
+  generics, traits, closures, modules, and profiles; checked-IR control-flow identity;
+  verifier corruption boundaries; LLVM/native lowering; and public diagnostic/artifact
+  behavior. Enumerate every shape as required for the first useful slice, explicitly
+  rejected, or preserved/quarantined. Do not implement one placement at a time.
+- Existing evidence and non-authority boundary: project truth explicitly records
+  question-mark propagation as unsupported and ranks typed `Result` propagation next.
+  `stdlib.rs` contains a legacy `generate_question_mark_operator` helper over the old
+  public compatibility IR, but no accepted source parser, typed checked-IR, verifier,
+  or backend path calls it. Treat that helper as a design clue and potential false-
+  success risk, never as semantics or evidence. The founding PDFs do not define error-
+  propagation syntax. Accepted concrete carrier normalization, enum schemas, exhaustive
+  Match, ordinary function calls/returns, ownership flow, checked verification, and
+  representative execution are assumptions to verify, not permission to generalize
+  carriers, generics, or error conversion.
+- CEO/engineering decision test - mechanism, evidence, and measurement: first trace the
+  current lexer/parser/AST, carrier normalizer, semantic enum/function/ownership paths,
+  independent checked admission/IR/verifier, codegen, and public routes. Build one
+  task-local source matrix outside the repository that proves the current first failure
+  and that the fully explicit `Match` control executes. A credible implementation must
+  use one phase-neutral propagation contract or one deterministic pre-semantic
+  elaboration authority shared by semantic and raw checked routes; it must not call the
+  legacy unchecked helper. Success requires exact unchanged-`Err` and continued-`Ok`
+  oracles across at least two ordinary call layers, semantic/raw/public parity, checked-
+  IR verification and corruption controls for any new invariant, deterministic LLVM,
+  public `check`/externally verified `build`/`run`, pinned LLVM/Clang 22 O0/O2 execution
+  on Linux and Windows, no-failure-artifact controls, and meaningful enrichment of the
+  maintained representative application.
+- Failure modes and detection: propagation could invert variants, extract the wrong
+  payload, fabricate a convenient scalar, convert or drop the error, continue after an
+  error, early-return from the wrong function, double-use a moved result/payload, accept
+  mismatched error types, bypass expected return typing, create invalid merge/control-
+  flow IR, collide labels across multiple sites, call an unchecked legacy lowering,
+  lose the operator span, or silently broaden nested/generic/reference carriers. Detect
+  these with distinct success/error sentinels, two sequential sites, nested-call and
+  conditional controls, exact type-separation negatives, moved-use negatives, semantic
+  and raw-checked parity, metadata/CFG assertions, corrupted branch/payload/return
+  controls, LLVM identity/order checks, O0/O2 comparison, and exact artifact hygiene.
+- Initial allowed files and stop conditions: before classification, only this
+  `TASK_LEDGER.md` authorization may change. Read-only repository/history/workflow/PDF
+  inspection and task-local external probes are permitted. Stop and rerank rather than
+  invent semantics if no existing authority justifies the syntax; if exact early-return,
+  error compatibility, ownership, precedence, or span behavior remains ambiguous; if a
+  safe slice needs general carriers/generics/references/closures, new ABI/drop behavior,
+  more than two compiler phases, or a feature-specific duplicate enum/function/CFG
+  classifier; or if explicit `Match` already provides the target real program without a
+  material usability delta. Amend this record before any committed red or production,
+  example, workflow, state/claim, dependency, release, benchmark, protection, or
+  external-artifact mutation.
+- Recovery, decision threshold, and what would change our mind: this branch and this
+  authorization commit are the rollback boundary. Proceed only if source/history plus
+  the task-local probe support one unambiguous bounded contract, at most two production
+  compiler phases, and an executable representative delta. Evidence that a parser-only
+  postfix surface plus shared elaboration can safely reuse existing Match/return
+  contracts favors implementation; evidence that propagation requires a new general
+  CFG/ownership/enum architecture, that the legacy helper encodes incompatible behavior,
+  or that another capability unlocks the representative workload sooner requires a
+  fresh ranking rather than semantic invention.
+
 ## CAP-016-MODULE-RESOLUTION-READINESS - positive module/import/name-resolution architecture and red probe
 
 - Date/task/status: 2026-08-12, `CAP-016-MODULE-RESOLUTION-READINESS`, authorized
