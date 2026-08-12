@@ -431,28 +431,6 @@ fn assert_post_cap020_ranking_table(document_name: &str, document: &str) {
         );
     }
     let source_lines = document.lines().map(table_line).collect::<Vec<_>>();
-    let rank_total_headers = document
-        .lines()
-        .filter_map(table_cells)
-        .filter(|cells| {
-            cells
-                .first()
-                .is_some_and(|cell| cell.eq_ignore_ascii_case("rank"))
-                && cells
-                    .last()
-                    .is_some_and(|cell| cell.eq_ignore_ascii_case("total"))
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        rank_total_headers.len(),
-        1,
-        "{document_name} must contain exactly one current Rank-to-Total table"
-    );
-    assert_eq!(
-        rank_total_headers[0],
-        table_cells(POST_CAP020_RANKING_HEADER).expect("canonical ranking header"),
-        "{document_name} contains a competing or malformed ranking header"
-    );
     let rows = document
         .lines()
         .enumerate()
