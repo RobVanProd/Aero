@@ -349,6 +349,9 @@ fn general_checked_pipeline_already_owns_the_complete_immutable_array_value_clas
         .expect("immutable array composition control should lex");
     let ast =
         parse_with_locations(tokens).expect("immutable array composition control should parse");
+    IrGenerator::new()
+        .try_generate_ir(ast.clone())
+        .expect("independent raw checked admission should already own immutable array composition");
     let mut analyzer = SemanticAnalyzer::new();
     let (_, analyzed) = analyzer
         .analyze(ast)
