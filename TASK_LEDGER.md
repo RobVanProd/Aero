@@ -30,12 +30,12 @@
   wrapping without `nsw`/`nuw` and exit 93. This is the explicit Milestone 3
   destination, not another neighboring compiler topology.
 - Frozen source/profile semantics: add the distinct public selector
-  `fixed-int-array-v0`; do not widen or rename `stable-scalar-v0`. The new CPU-only
+  `exact-i32-array-v0`; do not widen or rename `stable-scalar-v0`. The new CPU-only
   profile inherits the existing stable-scalar-v0 scalar function, call, control-flow,
   comparison, logical, and wrapping `int`/`bool` contract, including its division,
   remainder, recursion, effect, and entrypoint exclusions. It additionally admits
-  only nonempty flat `[int; N]` values with `N > 0`: exact signed-i32 literal array
-  construction in local initialized bindings, optional exact `[int; N]` annotations,
+  only nonempty flat `[int; N]`/`[i32; N]` values with `N > 0`: exact signed-i32
+  literal array construction in explicitly annotated initialized local bindings,
   by-value nongeneric function parameters, identifier transport to calls, and direct
   identifier indexing by an already-admitted scalar integer expression. Array
   results, empty/repeat/nested arrays, projected or mutable array writes, bool/char/
@@ -113,6 +113,22 @@
   program is merely an isolated syntax demo rather than an array computation. Those
   findings would promote an architectural prerequisite or the ranked character-array
   parser instead of forcing this design.
+- Pre-production authorization correction: two independent read-only audits
+  converged on selector spelling `exact-i32-array-v0`, which states the physical
+  integer contract and avoids implying generic fixed-array support. They also
+  converged on required explicit local array annotations and the complete structural
+  count class `N > 0`, with eight lanes only in the representative proof. Those
+  refinements replace the earlier local `fixed-int-array-v0` spelling before any
+  production behavior edit or publication; every other boundary above is unchanged.
+- Red checkpoint: the tracked eight-lane wrapping dot-product-plus-bias specimen and public
+  route test compile as a test target from exact authorization `0ae52fc032cd90e757046bf24ed420785c73c404`.
+  Focused `fixed_int_array_profile_tests` is red exactly 3/5: public `check`, `build`,
+  and `run` each reject `exact-i32-array-v0` as an unsupported selector (run exits 2
+  instead of the independent-oracle 91). Both separation controls pass: unchanged
+  `stable-scalar-v0` rejects the complete array kernel, and implicit/explicit
+  experimental compilation is byte-identical with `[8 x double]` and no
+  `[8 x i32]`. No parser, semantic, checked-IR, verifier, backend, CLI, workflow, or
+  project-truth production file has changed at this checkpoint.
 
 ## CAP-013 accepted-master project-truth synchronization
 

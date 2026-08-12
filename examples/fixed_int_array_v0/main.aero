@@ -1,0 +1,19 @@
+fn dot_with_bias(left: [int; 8], right: [int; 8], bias: int) -> int {
+    let mut index: int = 0;
+    let mut accumulator: int = bias;
+    while index < 8 {
+        accumulator = accumulator + left[index] * right[index];
+        index = index + 1;
+    }
+    return accumulator;
+}
+
+fn main() -> int {
+    let activations: [int; 8] = [127, 1073741824, -128, 64, -64, 7, -3, 11];
+    let weights: [int; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
+    let result: int = dot_with_bias(activations, weights, 2147483000);
+    if result == 2027 {
+        return 91;
+    }
+    return 1;
+}
