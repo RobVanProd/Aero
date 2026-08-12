@@ -11,6 +11,15 @@ protected integration, merge-head CI `31546637614`, Rust CI `31546637544`, and
 CodeQL `31546636973` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
+CAP-012 is a candidate, not an accepted row. Its local tree composes immediate
+nonescaping immutable/mutable loans over recursive finite CopyData projections with
+ordinary nongeneric reference calls. Shared classification, checked root/source/type
+metadata, explicit loan endings, verifier corruption controls, the telemetry
+application, runtime bounds fixtures, formatting, correctness Clippy, and the complete
+242-library/35-binary/integration/doc gate pass locally. Public exact-head and pinned
+LLVM 22 results remain pending; accepted-master classifications below therefore do
+not rely on CAP-012.
+
 Accepted CAP-011 composes the existing generic-struct,
 generic-function, fixed-array, runtime-index, and projected-write rows into a bounded
 fixed-capacity `Window<T>` algorithm slice. Focused 4/4, representative 3/3, private
@@ -159,6 +168,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mixed exclusive/shared-reference signatures (`CORE-088` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Multiple exclusive-reference signatures (`CORE-089` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Static projected CopyData assignment (`CORE-090` accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
+| Nonescaping projected CopyData call loans (`CAP-012` candidate; not accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |

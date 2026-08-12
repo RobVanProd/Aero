@@ -1095,6 +1095,7 @@ impl SemanticAnalyzer {
             contract,
             arguments,
             |subject| self.local_reference_source_facts(subject),
+            |selector| self.infer_and_validate_expression_immutable(selector),
             &self.struct_registry,
             &self.enum_registry,
         )

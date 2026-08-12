@@ -159,6 +159,17 @@ aero lsp
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
 
+> **CAP-012 candidate—not accepted:** the current integration branch composes
+> immediate, nonescaping `&place` / `&mut place` arguments over nested finite
+> CopyData fields, tuples, and fixed arrays with ordinary nongeneric reference calls.
+> Shared classification, checked root/source/type/lifecycle metadata, verifier
+> corruption controls, a richer telemetry application, and the complete local gate
+> pass. Accepted public master remains CAP-011 until exact-head pinned LLVM 22,
+> protected integration, and merge-head evidence pass. This candidate does not add
+> stored references, reference results, partial moves, disjoint alias reasoning,
+> generic/method/trait call expansion, dynamic collections, lifetimes/drop, ABI,
+> safety, or stability.
+
 > **CAP-011 accepted:** protected master composes existing generic structs, fixed
 > arrays, runtime bounds guards, projected
 > mutation, and compile-time specialization into a reusable fixed-capacity

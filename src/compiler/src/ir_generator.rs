@@ -47,9 +47,12 @@ use crate::primitive_contract::PrimitiveKind;
 use crate::scalar_assignment::{
     CopyProjectionIndex, CopyProjectionStep, OwnedPlaceAssignmentDisposition,
     OwnedPlaceAssignmentTargetFacts, ProjectedCopyDataAssignmentDisposition,
+    ProjectedCopyDataPlaceContract, ProjectedCopyDataPlaceDisposition, ProjectedCopyDataPlaceUse,
     classify_owned_place_assignment, classify_projected_copydata_assignment,
     classify_projected_copydata_assignment_after_admission,
-    projected_copydata_assignment_array_selectors, resolve_owned_place_logical_type,
+    classify_projected_copydata_place_after_admission,
+    projected_copydata_assignment_array_selectors, projected_copydata_place_array_selectors,
+    resolve_owned_place_logical_type,
 };
 use crate::static_string_equality::{
     StaticStringEqualityDisposition, classify_static_string_equality,
@@ -150,6 +153,15 @@ struct StatementLoopLabels {
     exit: String,
 }
 
+#[derive(Clone)]
+struct ProjectedCallReferenceSource {
+    root: Value,
+    source: Value,
+    root_type: LogicalType,
+    pointee: LogicalType,
+    mutable: bool,
+}
+
 pub struct IrGenerator {
     functions: HashMap<String, Function>,
     #[allow(dead_code)]
@@ -158,6 +170,7 @@ pub struct IrGenerator {
     next_ptr: u32,
     symbol_table: HashMap<String, (Value, Ty)>, // Track both pointer and type
     mutable_reference_sources: HashMap<u32, Value>,
+    projected_call_reference_sources: HashMap<u32, ProjectedCallReferenceSource>,
     mutable_owner_immutable_enum_reference_sources: HashMap<u32, (Value, EnumSchema)>,
     immutable_owned_enum_places: HashMap<String, Value>,
     mutable_owned_enum_places: HashMap<String, Value>,
@@ -181,6 +194,7 @@ impl IrGenerator {
             next_ptr: 0,
             symbol_table: HashMap::new(),
             mutable_reference_sources: HashMap::new(),
+            projected_call_reference_sources: HashMap::new(),
             mutable_owner_immutable_enum_reference_sources: HashMap::new(),
             immutable_owned_enum_places: HashMap::new(),
             mutable_owned_enum_places: HashMap::new(),
@@ -252,6 +266,7 @@ impl IrGenerator {
         self.next_ptr = 0;
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.projected_call_reference_sources.clear();
         self.mutable_owner_immutable_enum_reference_sources.clear();
         self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
@@ -2010,6 +2025,17 @@ impl IrGenerator {
                         inside_admitted_function,
                     )
                 },
+                |selector| {
+                    Self::validate_expression(
+                        selector,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )
+                    .map_err(|error| error.to_string())
+                },
                 &program.structs,
                 &program.enums,
             )
@@ -3077,6 +3103,10 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedProjectedBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::CheckedImmutableReferenceParameter {
                     result: Value::Reg(register),
                     ..
@@ -3155,6 +3185,16 @@ impl IrGenerator {
                     Self::rewrite_place(result, &places);
                     Self::rewrite_place(source, &places);
                 }
+                Inst::CheckedProjectedBorrow {
+                    result,
+                    root,
+                    source,
+                    ..
+                } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(root, &places);
+                    Self::rewrite_place(source, &places);
+                }
                 Inst::CheckedMutableDereferenceAssignment { target, .. } => {
                     Self::rewrite_place(target, &places);
                 }
@@ -3165,6 +3205,16 @@ impl IrGenerator {
                     reference, source, ..
                 } => {
                     Self::rewrite_place(reference, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedProjectedBorrowEnd {
+                    reference,
+                    root,
+                    source,
+                    ..
+                } => {
+                    Self::rewrite_place(reference, &places);
+                    Self::rewrite_place(root, &places);
                     Self::rewrite_place(source, &places);
                 }
                 Inst::CheckedImmutableReferenceParameter { result, .. }
@@ -3758,6 +3808,74 @@ impl IrGenerator {
         place
     }
 
+    fn generate_projected_copydata_place(
+        &mut self,
+        contract: &ProjectedCopyDataPlaceContract,
+        array_selectors: &[Expression],
+        function: &mut Function,
+    ) -> (Value, Value) {
+        let (root_place, root_type) = self
+            .symbol_table
+            .get(&contract.root_name)
+            .expect("shared projected-place contract resolved its root")
+            .clone();
+        debug_assert_eq!(root_type, contract.root_type);
+        let mut place = root_place.clone();
+        for step in &contract.path {
+            place = match step {
+                CopyProjectionStep::StructField {
+                    receiver,
+                    field_index,
+                    field,
+                } => {
+                    let result = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::CheckedStructFieldPtr {
+                        result: result.clone(),
+                        base: place,
+                        struct_name: receiver.name.clone(),
+                        field_index: *field_index as u32,
+                        field_type: field.logical_type(),
+                    });
+                    result
+                }
+                CopyProjectionStep::TupleElement {
+                    receiver,
+                    index,
+                    element,
+                } => {
+                    debug_assert_eq!(&receiver.elements[*index], element);
+                    self.copy_tuple_field_ptr(place, receiver, *index, function)
+                }
+                CopyProjectionStep::ArrayElement {
+                    receiver,
+                    index,
+                    element,
+                } => {
+                    debug_assert!(matches!(
+                        receiver,
+                        Ty::Array(actual, _) if actual.as_ref() == element
+                    ));
+                    let index = match index {
+                        CopyProjectionIndex::Constant(index) => Value::ImmInt(*index as i64),
+                        CopyProjectionIndex::Runtime { selector_ordinal } => {
+                            let selector = array_selectors
+                                .get(*selector_ordinal)
+                                .expect("shared projected-place contract retained selector order")
+                                .clone();
+                            let (index, index_type) =
+                                self.generate_expression_ir(selector, function);
+                            debug_assert_eq!(index_type, Ty::Int);
+                            index
+                        }
+                    };
+                    self.fixed_copy_array_element_ptr(place, index, receiver, function)
+                }
+            };
+        }
+        (root_place, place)
+    }
+
     fn store_fixed_copy_array_value(
         &mut self,
         value: Value,
@@ -3959,77 +4077,13 @@ impl IrGenerator {
                     if let ProjectedCopyDataAssignmentDisposition::Supported(contract) = projected {
                         let array_selectors = array_selectors
                             .expect("supported projected assignment retains its selectors");
-                        let (mut target_place, root_type) = self
-                            .symbol_table
-                            .get(&contract.root_name)
-                            .expect("shared projected assignment contract resolved its root")
-                            .clone();
-                        debug_assert_eq!(root_type, contract.root_type);
-                        for step in contract.path {
-                            target_place = match step {
-                                CopyProjectionStep::StructField {
-                                    receiver,
-                                    field_index,
-                                    field,
-                                } => {
-                                    let result = Value::Reg(self.next_ptr);
-                                    self.next_ptr += 1;
-                                    current_function.body.push(Inst::CheckedStructFieldPtr {
-                                        result: result.clone(),
-                                        base: target_place,
-                                        struct_name: receiver.name,
-                                        field_index: field_index as u32,
-                                        field_type: field.logical_type(),
-                                    });
-                                    result
-                                }
-                                CopyProjectionStep::TupleElement {
-                                    receiver,
-                                    index,
-                                    element,
-                                } => {
-                                    debug_assert_eq!(receiver.elements[index], element);
-                                    self.copy_tuple_field_ptr(
-                                        target_place,
-                                        &receiver,
-                                        index,
-                                        current_function,
-                                    )
-                                }
-                                CopyProjectionStep::ArrayElement {
-                                    receiver,
-                                    index,
-                                    element,
-                                } => {
-                                    debug_assert!(matches!(
-                                        &receiver,
-                                        Ty::Array(actual, _) if actual.as_ref() == &element
-                                    ));
-                                    let index = match index {
-                                        CopyProjectionIndex::Constant(index) => {
-                                            Value::ImmInt(index as i64)
-                                        }
-                                        CopyProjectionIndex::Runtime { selector_ordinal } => {
-                                            let selector = array_selectors
-                                                .get(selector_ordinal)
-                                                .expect("shared contract retained selector order");
-                                            let (index, index_type) = self.generate_expression_ir(
-                                                (*selector).clone(),
-                                                current_function,
-                                            );
-                                            debug_assert_eq!(index_type, Ty::Int);
-                                            index
-                                        }
-                                    };
-                                    self.fixed_copy_array_element_ptr(
-                                        target_place,
-                                        index,
-                                        &receiver,
-                                        current_function,
-                                    )
-                                }
-                            };
-                        }
+                        let array_selectors =
+                            array_selectors.into_iter().cloned().collect::<Vec<_>>();
+                        let (_, target_place) = self.generate_projected_copydata_place(
+                            &contract,
+                            &array_selectors,
+                            current_function,
+                        );
                         let (assigned_value, assigned_type) =
                             self.generate_expression_ir(value, current_function);
                         debug_assert_eq!(assigned_type, contract.leaf_type);
@@ -4248,6 +4302,7 @@ impl IrGenerator {
         argument_order.extend(mutable_calls.iter().map(|(index, _)| *index));
         let mut arg_values = vec![None; pending_arguments.len()];
         let mut temporary_mutable_borrows = Vec::new();
+        let mut temporary_projected_borrows = Vec::new();
         let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
 
         for index in argument_order {
@@ -4274,6 +4329,14 @@ impl IrGenerator {
                 None
             };
             let (mut arg_value, arg_type) = self.generate_expression_ir(arg, function);
+            if let Value::Reg(reference_id) = &arg_value
+                && let Some(source) = self
+                    .projected_call_reference_sources
+                    .get(reference_id)
+                    .cloned()
+            {
+                temporary_projected_borrows.push((*reference_id, arg_value.clone(), source));
+            }
             if direct_mutable_owner_immutable_enum_borrow
                 && let Value::Reg(reference_id) = &arg_value
                 && let Some((source, schema)) = self
@@ -4338,6 +4401,17 @@ impl IrGenerator {
                 source,
                 pointee,
             });
+        }
+        for (id, reference, source) in temporary_projected_borrows.into_iter().rev() {
+            function.body.push(Inst::CheckedProjectedBorrowEnd {
+                reference,
+                root: source.root,
+                source: source.source,
+                root_type: source.root_type,
+                pointee: source.pointee,
+                mutable: source.mutable,
+            });
+            self.projected_call_reference_sources.remove(&id);
         }
         for (id, reference, source, schema) in temporary_mutable_owner_immutable_enum_borrows {
             function
@@ -4466,11 +4540,24 @@ impl IrGenerator {
                 }
                 // Calls without mutable parameters retain the ordinary lowering path.
                 let mut arg_values = Vec::new();
+                let mut temporary_projected_borrows = Vec::new();
                 let mut temporary_mutable_owner_immutable_enum_borrows = Vec::new();
                 for arg in arguments {
                     let direct_mutable_owner_immutable_enum_borrow =
                         matches!(&arg, Expression::Borrow { mutable: false, .. });
                     let (arg_value, arg_type) = self.generate_expression_ir(arg, function);
+                    if let Value::Reg(reference_id) = &arg_value
+                        && let Some(source) = self
+                            .projected_call_reference_sources
+                            .get(reference_id)
+                            .cloned()
+                    {
+                        temporary_projected_borrows.push((
+                            *reference_id,
+                            arg_value.clone(),
+                            source,
+                        ));
+                    }
                     if direct_mutable_owner_immutable_enum_borrow
                         && let Value::Reg(reference_id) = &arg_value
                         && let Some((source, schema)) = self
@@ -4490,6 +4577,17 @@ impl IrGenerator {
                 }
                 let (call_inst, result, return_type) = self.build_function_call(name, arg_values);
                 function.body.push(call_inst);
+                for (id, reference, source) in temporary_projected_borrows.into_iter().rev() {
+                    function.body.push(Inst::CheckedProjectedBorrowEnd {
+                        reference,
+                        root: source.root,
+                        source: source.source,
+                        root_type: source.root_type,
+                        pointee: source.pointee,
+                        mutable: source.mutable,
+                    });
+                    self.projected_call_reference_sources.remove(&id);
+                }
                 for (id, reference, source, schema) in
                     temporary_mutable_owner_immutable_enum_borrows
                 {
@@ -4751,8 +4849,76 @@ impl IrGenerator {
                 (result, elem_ty)
             }
             Expression::Borrow { expr, mutable } if self.checked_mode => {
+                if !matches!(expr.as_ref(), Expression::Identifier(_)) {
+                    let array_selectors = projected_copydata_place_array_selectors(&expr)
+                        .expect("checked projected call loan retained a valid place")
+                        .expect("checked non-identifier call loan is projected")
+                        .into_iter()
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let use_context = if mutable {
+                        ProjectedCopyDataPlaceUse::MutableCallLoan
+                    } else {
+                        ProjectedCopyDataPlaceUse::ImmutableCallLoan
+                    };
+                    let projected = classify_projected_copydata_place_after_admission(
+                        &expr,
+                        None,
+                        true,
+                        &self.struct_registry,
+                        use_context,
+                        |root| {
+                            self.symbol_table.get(root).map(|(_, ty)| {
+                                OwnedPlaceAssignmentTargetFacts {
+                                    ty: ty.clone(),
+                                    mutable: true,
+                                    initialized: true,
+                                    local: true,
+                                    ownership: OwnershipState::Owned,
+                                }
+                            })
+                        },
+                    );
+                    let ProjectedCopyDataPlaceDisposition::Supported(contract) = projected else {
+                        unreachable!(
+                            "checked projected call-loan admission escaped its shared classifier"
+                        )
+                    };
+                    let (root, source) = self.generate_projected_copydata_place(
+                        &contract,
+                        &array_selectors,
+                        function,
+                    );
+                    let result = Value::Reg(self.next_ptr);
+                    self.next_ptr += 1;
+                    function.body.push(Inst::CheckedProjectedBorrow {
+                        result: result.clone(),
+                        root: root.clone(),
+                        source: source.clone(),
+                        root_type: contract.root_logical_type.clone(),
+                        pointee: contract.leaf_logical_type.clone(),
+                        mutable,
+                    });
+                    let Value::Reg(reference_id) = result else {
+                        unreachable!("checked projected borrow uses a place identifier")
+                    };
+                    self.projected_call_reference_sources.insert(
+                        reference_id,
+                        ProjectedCallReferenceSource {
+                            root,
+                            source,
+                            root_type: contract.root_logical_type,
+                            pointee: contract.leaf_logical_type,
+                            mutable,
+                        },
+                    );
+                    return (
+                        Value::Reg(reference_id),
+                        Ty::Reference(Box::new(contract.leaf_type), mutable),
+                    );
+                }
                 let Expression::Identifier(name) = expr.as_ref() else {
-                    unreachable!("checked reference admission requires an identifier place")
+                    unreachable!("checked direct reference admission retained an identifier")
                 };
                 let (source, pointee) = self
                     .symbol_table
@@ -5088,6 +5254,7 @@ impl IrGenerator {
         // Save current state
         let saved_symbol_table = self.symbol_table.clone();
         let saved_mutable_reference_sources = self.mutable_reference_sources.clone();
+        let saved_projected_call_reference_sources = self.projected_call_reference_sources.clone();
         let saved_mutable_owner_immutable_enum_reference_sources =
             self.mutable_owner_immutable_enum_reference_sources.clone();
         let saved_immutable_owned_enum_places = self.immutable_owned_enum_places.clone();
@@ -5098,6 +5265,7 @@ impl IrGenerator {
         // Reset for function generation
         self.symbol_table.clear();
         self.mutable_reference_sources.clear();
+        self.projected_call_reference_sources.clear();
         self.mutable_owner_immutable_enum_reference_sources.clear();
         self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
@@ -5306,6 +5474,7 @@ impl IrGenerator {
         // Restore state
         self.symbol_table = saved_symbol_table;
         self.mutable_reference_sources = saved_mutable_reference_sources;
+        self.projected_call_reference_sources = saved_projected_call_reference_sources;
         self.mutable_owner_immutable_enum_reference_sources =
             saved_mutable_owner_immutable_enum_reference_sources;
         self.immutable_owned_enum_places = saved_immutable_owned_enum_places;

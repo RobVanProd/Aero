@@ -76,12 +76,48 @@ pub(crate) enum CopyProjectionIndex {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ProjectedCopyDataAssignmentContract {
+pub(crate) struct ProjectedCopyDataPlaceContract {
     pub(crate) root_name: String,
     pub(crate) root_type: Ty,
+    pub(crate) root_logical_type: LogicalType,
     pub(crate) leaf_type: Ty,
     pub(crate) leaf_logical_type: LogicalType,
     pub(crate) path: Vec<CopyProjectionStep>,
+}
+
+pub(crate) type ProjectedCopyDataAssignmentContract = ProjectedCopyDataPlaceContract;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProjectedCopyDataPlaceUse {
+    OwnedAssignment,
+    ImmutableCallLoan,
+    MutableCallLoan,
+}
+
+impl ProjectedCopyDataPlaceUse {
+    fn operation(self) -> &'static str {
+        match self {
+            Self::OwnedAssignment => "assignment",
+            Self::ImmutableCallLoan => "immutable call loan",
+            Self::MutableCallLoan => "mutable call loan",
+        }
+    }
+
+    fn copy_context(self) -> CopyPlaceExecutionContext {
+        match self {
+            Self::OwnedAssignment => CopyPlaceExecutionContext::AdmittedOwnedAssignment,
+            Self::ImmutableCallLoan => CopyPlaceExecutionContext::AdmittedImmutableReference,
+            Self::MutableCallLoan => CopyPlaceExecutionContext::AdmittedMutableReference,
+        }
+    }
+
+    fn requires_mutable_root(self) -> bool {
+        matches!(self, Self::OwnedAssignment | Self::MutableCallLoan)
+    }
+
+    fn is_assignment(self) -> bool {
+        self == Self::OwnedAssignment
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +126,8 @@ pub(crate) enum ProjectedCopyDataAssignmentDisposition {
     ExplicitlyRejected(String),
     PreserveExistingBehavior,
 }
+
+pub(crate) type ProjectedCopyDataPlaceDisposition = ProjectedCopyDataAssignmentDisposition;
 
 #[derive(Debug, Clone)]
 enum UnresolvedProjectionStep<'a> {
@@ -125,11 +163,11 @@ fn collect_projection_path<'a>(
     }
 }
 
-pub(crate) fn projected_copydata_assignment_array_selectors(
-    target: &Expression,
+pub(crate) fn projected_copydata_place_array_selectors(
+    place: &Expression,
 ) -> Result<Option<Vec<&Expression>>, String> {
     if !matches!(
-        target,
+        place,
         Expression::FieldAccess { .. }
             | Expression::TupleIndex { .. }
             | Expression::IndexAccess { .. }
@@ -138,7 +176,7 @@ pub(crate) fn projected_copydata_assignment_array_selectors(
     }
 
     let mut unresolved = Vec::new();
-    collect_projection_path(target, &mut unresolved)?;
+    collect_projection_path(place, &mut unresolved)?;
     Ok(Some(
         unresolved
             .into_iter()
@@ -149,6 +187,57 @@ pub(crate) fn projected_copydata_assignment_array_selectors(
             })
             .collect(),
     ))
+}
+
+pub(crate) fn projected_copydata_assignment_array_selectors(
+    target: &Expression,
+) -> Result<Option<Vec<&Expression>>, String> {
+    projected_copydata_place_array_selectors(target)
+}
+
+pub(crate) fn classify_projected_copydata_place<F>(
+    place: &Expression,
+    expected_leaf: &Ty,
+    array_selector_types: &[Ty],
+    inside_admitted_function: bool,
+    structs: &StructRegistry,
+    use_context: ProjectedCopyDataPlaceUse,
+    mut facts_for_root: F,
+) -> ProjectedCopyDataPlaceDisposition
+where
+    F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
+{
+    classify_projected_copydata_place_impl(
+        place,
+        Some(expected_leaf),
+        Some(array_selector_types),
+        inside_admitted_function,
+        structs,
+        use_context,
+        &mut facts_for_root,
+    )
+}
+
+pub(crate) fn classify_projected_copydata_place_after_admission<F>(
+    place: &Expression,
+    expected_leaf: Option<&Ty>,
+    inside_admitted_function: bool,
+    structs: &StructRegistry,
+    use_context: ProjectedCopyDataPlaceUse,
+    mut facts_for_root: F,
+) -> ProjectedCopyDataPlaceDisposition
+where
+    F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
+{
+    classify_projected_copydata_place_impl(
+        place,
+        expected_leaf,
+        None,
+        inside_admitted_function,
+        structs,
+        use_context,
+        &mut facts_for_root,
+    )
 }
 
 pub(crate) fn classify_projected_copydata_assignment<F>(
@@ -162,12 +251,13 @@ pub(crate) fn classify_projected_copydata_assignment<F>(
 where
     F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
 {
-    classify_projected_copydata_assignment_impl(
+    classify_projected_copydata_place_impl(
         target,
         Some(rhs),
         Some(array_selector_types),
         inside_admitted_function,
         structs,
+        ProjectedCopyDataPlaceUse::OwnedAssignment,
         &mut facts_for_root,
     )
 }
@@ -181,22 +271,24 @@ pub(crate) fn classify_projected_copydata_assignment_after_admission<F>(
 where
     F: FnMut(&str) -> Option<OwnedPlaceAssignmentTargetFacts>,
 {
-    classify_projected_copydata_assignment_impl(
+    classify_projected_copydata_place_impl(
         target,
         None,
         None,
         inside_admitted_function,
         structs,
+        ProjectedCopyDataPlaceUse::OwnedAssignment,
         &mut facts_for_root,
     )
 }
 
-fn classify_projected_copydata_assignment_impl<F>(
+fn classify_projected_copydata_place_impl<F>(
     target: &Expression,
-    rhs: Option<&Ty>,
+    expected_leaf: Option<&Ty>,
     array_selector_types: Option<&[Ty]>,
     inside_admitted_function: bool,
     structs: &StructRegistry,
+    use_context: ProjectedCopyDataPlaceUse,
     facts_for_root: &mut F,
 ) -> ProjectedCopyDataAssignmentDisposition
 where
@@ -211,10 +303,10 @@ where
         return ProjectedCopyDataAssignmentDisposition::PreserveExistingBehavior;
     }
     if !inside_admitted_function {
-        return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
-            "projected CopyData assignment is supported only inside admitted function bodies"
-                .to_string(),
-        );
+        return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
+            "projected CopyData {} is supported only inside admitted function bodies",
+            use_context.operation()
+        ));
     }
 
     let mut unresolved = Vec::new();
@@ -228,49 +320,67 @@ where
 
     let Some(facts) = facts_for_root(&root_name) else {
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment root `{root_name}` is not an initialized local binding"
+            "projected {} root `{root_name}` is not an initialized local binding",
+            use_context.operation()
         ));
     };
     if !facts.initialized {
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment root `{root_name}` must already be initialized"
+            "projected {} root `{root_name}` must already be initialized",
+            use_context.operation()
         ));
     }
-    if !facts.local || !facts.mutable {
+    if !facts.local || (use_context.requires_mutable_root() && !facts.mutable) {
+        let requirement = if use_context.requires_mutable_root() {
+            "a mutable local owned binding"
+        } else {
+            "a local owned binding"
+        };
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment root `{root_name}` must be a mutable local owned binding"
+            "projected {} root `{root_name}` must be {requirement}",
+            use_context.operation()
         ));
     }
-    match facts.ownership {
-        OwnershipState::Owned => {}
-        OwnershipState::Moved => {
-            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-                "cannot assign through moved value `{root_name}`"
-            ));
+    match (&facts.ownership, use_context) {
+        (OwnershipState::Owned, _)
+        | (OwnershipState::ImmutablyBorrowed(_), ProjectedCopyDataPlaceUse::ImmutableCallLoan) => {}
+        (OwnershipState::Moved, _) => {
+            let message = if use_context.is_assignment() {
+                format!("cannot assign through moved value `{root_name}`")
+            } else {
+                format!(
+                    "cannot create a projected {} through moved value `{root_name}`",
+                    use_context.operation()
+                )
+            };
+            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message);
         }
-        OwnershipState::MaybeMoved => {
+        (OwnershipState::MaybeMoved, _) => {
             return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
                 crate::ownership_flow::maybe_moved_diagnostic(&root_name),
             );
         }
-        OwnershipState::ImmutablyBorrowed(_) | OwnershipState::MutablyBorrowed => {
+        (OwnershipState::ImmutablyBorrowed(_), _) | (OwnershipState::MutablyBorrowed, _) => {
+            let message = if use_context.is_assignment() {
+                format!("cannot assign to a projection of `{root_name}` while it is borrowed")
+            } else {
+                format!(
+                    "cannot create a projected {} from `{root_name}` while it has a conflicting borrow",
+                    use_context.operation()
+                )
+            };
+            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(message);
+        }
+    };
+    let root = match classify_copy_place_type(&facts.ty, structs, use_context.copy_context()) {
+        CopyPlaceDisposition::Supported(contract) => contract,
+        CopyPlaceDisposition::ExplicitlyRejected(_) | CopyPlaceDisposition::Preserved => {
             return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-                "cannot assign to a projection of `{root_name}` while it is borrowed"
+                "projected {} root `{root_name}` is not admitted CopyData",
+                use_context.operation()
             ));
         }
-    }
-    if !matches!(
-        classify_copy_place_type(
-            &facts.ty,
-            structs,
-            CopyPlaceExecutionContext::AdmittedOwnedAssignment,
-        ),
-        CopyPlaceDisposition::Supported(_)
-    ) {
-        return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment root `{root_name}` is not admitted CopyData"
-        ));
-    }
+    };
 
     let mut current = facts.ty.clone();
     let mut path = Vec::with_capacity(unresolved.len());
@@ -333,14 +443,19 @@ where
                         if let Some(selector_types) = array_selector_types {
                             let Some(selector_type) = selector_types.get(selector_ordinal) else {
                                 return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
-                                    "projected CopyData assignment is missing an independently checked array selector type"
+                                    "projected CopyData place is missing an independently checked array selector type"
                                         .to_string(),
                                 );
                             };
                             if *selector_type != Ty::Int {
+                                let subject = if use_context.is_assignment() {
+                                    "projected CopyData assignment"
+                                } else {
+                                    "projected CopyData place"
+                                };
                                 return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
                                     format!(
-                                        "projected CopyData assignment array selector type mismatch: expected int, actual {selector_type}"
+                                        "{subject} array selector type mismatch: expected int, actual {selector_type}"
                                     ),
                                 );
                             }
@@ -358,7 +473,7 @@ where
                     } => {
                         if index < 0 {
                             return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
-                                "projected CopyData assignment array indexes require a nonnegative integer"
+                                "projected CopyData place array indexes require a nonnegative integer"
                                     .to_string(),
                             );
                         }
@@ -369,7 +484,7 @@ where
                     crate::struct_contract::CopyArrayIndexDisposition::PreserveExistingBehavior => {
                         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(
                             format!(
-                                "projected assignment array selector requires an admitted fixed array, found {current}"
+                                "projected CopyData place array selector requires an admitted fixed array, found {current}"
                             ),
                         );
                     }
@@ -388,20 +503,31 @@ where
     }
 
     let Some(leaf) = structs.resolve_copy_type(&current) else {
+        let subject = if use_context.is_assignment() {
+            "projected assignment"
+        } else {
+            "projected CopyData place"
+        };
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment leaf type {current} is not admitted CopyData"
+            "{subject} leaf type {current} is not admitted CopyData"
         ));
     };
-    if rhs.is_some_and(|rhs| current != *rhs) {
-        let rhs = rhs.expect("checked above");
+    if expected_leaf.is_some_and(|expected| current != *expected) {
+        let expected = expected_leaf.expect("checked above");
+        if use_context.is_assignment() {
+            return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
+                "projected assignment type mismatch: expected {current}, actual {expected}"
+            ));
+        }
         return ProjectedCopyDataAssignmentDisposition::ExplicitlyRejected(format!(
-            "projected assignment type mismatch: expected {current}, actual {rhs}"
+            "projected CopyData place type mismatch: expected {expected}, actual {current}"
         ));
     }
 
-    ProjectedCopyDataAssignmentDisposition::Supported(ProjectedCopyDataAssignmentContract {
+    ProjectedCopyDataAssignmentDisposition::Supported(ProjectedCopyDataPlaceContract {
         root_name,
         root_type: facts.ty,
+        root_logical_type: root.logical_type,
         leaf_type: current,
         leaf_logical_type: leaf.logical_type,
         path,

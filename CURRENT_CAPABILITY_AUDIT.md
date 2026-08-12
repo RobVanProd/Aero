@@ -8,6 +8,24 @@ Current accepted public master:
 protected CAP-011 compiler-capability merge
 `34b81eee1d598cbd00693f40301f1a4f72481d07`.
 
+### CAP-012 candidate only: nonescaping projected CopyData call loans
+
+The candidate branch admits immediate `&place` and `&mut place` arguments over the
+complete nonempty finite field/tuple/fixed-array projection class rooted in an
+initialized local CopyData owner. Runtime selectors reuse the existing once-evaluated
+bounds-guarded address authority. Mutable conflicts remain conservative at the
+complete-root identity, and every projected loan must be consumed by its adjacent
+ordinary call and ended before owner reuse.
+
+The classifier is shared with projected assignment; semantic and raw checked routes
+have parity coverage. New checked instructions bind root, projected source, exact
+logical types, mutability, and lifecycle, while corruption controls reject metadata,
+source, operand, duplication, and missing-end changes. Local focused, representative,
+compatibility, format, Clippy, complete 242-library/35-binary/integration/doc, and
+runtime-failure-corpus structure gates pass. Exact public candidate-head and pinned
+LLVM 22 native results are not yet available. Accepted capability remains CAP-011;
+CAP-012 is not public truth until protected integration and merge-head evidence pass.
+
 ### CAP-011 accepted: generic fixed-window algorithms
 
 Accepted CAP-011 closes the selected Milestone 2

@@ -1329,7 +1329,9 @@ jobs:
           generic_negative_index.aero \
           generic_upper_bound_index.aero \
           generic_negative_write_index.aero \
-          generic_upper_bound_write_index.aero; do
+          generic_upper_bound_write_index.aero \
+          projected_negative_index.aero \
+          projected_upper_bound_index.aero; do
           bounds_case="${bounds_file%.aero}"
           bounds_source="${runtime_fail_root}/${bounds_file}"
           bounds_llvm="${RUNNER_TEMP}/${bounds_case}.ll"
@@ -2286,7 +2288,9 @@ jobs:
           "generic_negative_index.aero",
           "generic_upper_bound_index.aero",
           "generic_negative_write_index.aero",
-          "generic_upper_bound_write_index.aero"
+          "generic_upper_bound_write_index.aero",
+          "projected_negative_index.aero",
+          "projected_upper_bound_index.aero"
         )) {
           $boundsCase = [System.IO.Path]::GetFileNameWithoutExtension($boundsFile)
           $boundsSource = Join-Path $runtimeFailRoot $boundsFile

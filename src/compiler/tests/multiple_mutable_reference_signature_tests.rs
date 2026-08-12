@@ -194,9 +194,17 @@ fn main() -> int {
     let mut left_flag = 1 > 2;
     let mut right_flag = 1 > 2;
     set_flags(&mut left_flag, &truth, &mut right_flag);
+    let mut projected_left = Row { value: 10 };
+    let mut projected_right = Row { value: 20 };
+    let projected = update_pair(
+        &mut projected_left.value,
+        &mut projected_right.value
+    );
     if pair == 6 && triple == 32 && forwarded == 17
         && left == 6 && right == 11 && third == 18 && mixed == 17
-        && rows == 19 && states == 11 && left_flag && right_flag {
+        && rows == 19 && states == 11 && left_flag && right_flag
+        && projected == 33 && projected_left.value == 11
+        && projected_right.value == 22 {
         return 89;
     }
     1
@@ -249,6 +257,10 @@ fn complete_multiple_exclusive_reference_class_is_checked_and_executable() {
     assert!(
         debug.matches("CheckedMutableReferenceParameter").count() >= 13,
         "multiple mutable binders were lost: {debug}"
+    );
+    assert!(
+        debug.matches("CheckedProjectedBorrow").count() >= 2,
+        "multiple projected mutable loans were lost: {debug}"
     );
     for anchor in [
         "define i32 @update_pair(",
@@ -311,11 +323,6 @@ fn multiple_exclusive_reference_exclusions_fail_closed_in_every_trust_phase() {
             "uninitialized owner",
             "fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { let mut left: int; let mut right = 2; bad(&mut left, &mut right) }",
             &["uninitialized variable", "not an initialized local binding"],
-        ),
-        (
-            "projected mutable source",
-            "struct Row { value: int } fn bad(left: &mut int, right: &mut int) -> int { *left + *right } fn main() -> int { let mut row = Row { value: 1 }; let mut right = 2; bad(&mut row.value, &mut right) }",
-            &["requires an identifier place"],
         ),
         (
             "explicit dereference reborrow",

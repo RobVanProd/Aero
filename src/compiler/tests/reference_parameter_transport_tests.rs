@@ -305,6 +305,14 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
             "fn inner(value: &int) -> int { *value } fn outer(value: &int) -> int { let alias = value; inner(alias) } fn main() -> int { let value = 5; outer(&value) }",
             vec!["define i32 @outer(double*", "call i32 @inner(double* %ptr"],
         ),
+        (
+            "projected field borrow argument",
+            "struct Row { value: int } fn read(value: &int) -> int { *value } fn main() -> int { let row = Row { value: 1 }; read(&row.value) }",
+            vec![
+                "getelementptr inbounds %aero.struct.Row",
+                "call i32 @read(double* %ptr",
+            ],
+        ),
     ] {
         failures.extend(expect_success(label, source, &required));
     }
@@ -427,11 +435,6 @@ fn immutable_scalar_reference_parameter_class_is_complete_checked_and_executable
         (
             "borrowed computation argument",
             "fn read(value: &int) -> int { *value } fn main() -> int { let value = 1; read(&(value + 1)) }",
-            "requires an identifier place",
-        ),
-        (
-            "borrowed field argument",
-            "struct Row { value: int } fn read(value: &int) -> int { *value } fn main() -> int { let row = Row { value: 1 }; read(&row.value) }",
             "requires an identifier place",
         ),
         (

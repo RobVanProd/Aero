@@ -304,6 +304,15 @@ impl CodeGenerator {
                 | Inst::CheckedMutableReferenceParameter { pointee, .. } => {
                     Self::collect_logical_struct_schema(pointee, schemas);
                 }
+                Inst::CheckedProjectedBorrow {
+                    root_type, pointee, ..
+                }
+                | Inst::CheckedProjectedBorrowEnd {
+                    root_type, pointee, ..
+                } => {
+                    Self::collect_logical_struct_schema(root_type, schemas);
+                    Self::collect_logical_struct_schema(pointee, schemas);
+                }
                 Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { schema, .. } => {
                     Self::collect_logical_struct_schema(&schema.logical_type(), schemas);
                 }
@@ -491,6 +500,16 @@ impl CodeGenerator {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
+                Inst::CheckedProjectedBorrow {
+                    result,
+                    root,
+                    source,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, root);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
                 Inst::CheckedImmutableEnumMatchRead {
                     result, reference, ..
                 }
@@ -507,6 +526,16 @@ impl CodeGenerator {
                     reference, source, ..
                 } => {
                     Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedProjectedBorrowEnd {
+                    reference,
+                    root,
+                    source,
+                    ..
+                } => {
+                    Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, root);
                     Self::bump_seed_from_value(&mut seed, source);
                 }
                 Inst::CheckedImmutableReferenceParameter { result, .. }
@@ -989,7 +1018,9 @@ impl CodeGenerator {
                 | Inst::CheckedImmutableEnumMatchRead { .. }
                 | Inst::CheckedMutableEnumMatchRead { .. }
                 | Inst::CheckedMutableBorrow { .. }
+                | Inst::CheckedProjectedBorrow { .. }
                 | Inst::CheckedMutableBorrowEnd { .. }
+                | Inst::CheckedProjectedBorrowEnd { .. }
                 | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { .. }
                 | Inst::CheckedImmutableReferenceParameter { .. }
                 | Inst::CheckedMutableReferenceParameter { .. }
@@ -2129,6 +2160,12 @@ impl CodeGenerator {
                     result,
                     source,
                     pointee,
+                }
+                | Inst::CheckedProjectedBorrow {
+                    result,
+                    source,
+                    pointee,
+                    ..
                 } => {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked scalar borrow result")
@@ -2191,6 +2228,7 @@ impl CodeGenerator {
                     ));
                 }
                 Inst::CheckedMutableBorrowEnd { .. }
+                | Inst::CheckedProjectedBorrowEnd { .. }
                 | Inst::CheckedMutableOwnerImmutableEnumBorrowEnd { .. } => {}
                 Inst::CheckedEnumParameter {
                     result,

@@ -57,6 +57,7 @@ fn rejection_in_all_trust_phases(source: &str) -> Vec<String> {
 fn complete_mixed_signature_source() -> &'static str {
     r#"
 struct Packet { value: int, ready: bool }
+struct Row { value: int }
 enum State { Idle, Count(int) }
 
 fn reference_first(value: &mut int, amount: int) -> int {
@@ -128,10 +129,12 @@ fn main() -> int {
     let state_result = replace_and_read_state(14, &mut state, 15);
     let mut flag = 1 > 2;
     set_flag(&mut flag, 1);
+    let mut row = Row { value: 1 };
+    let projected = reference_middle(1, &mut row.value, 2);
 
     if flag && changed.ready && first == 3 && middle == 10 && last == 21
         && aggregate == 46 && alias_result == 58 && packet_result == 25
-        && state_result == 29 && number == 58 {
+        && state_result == 29 && number == 58 && projected == 4 && row.value == 4 {
         return 87;
     }
     1
@@ -194,6 +197,7 @@ fn complete_mixed_mutable_reference_signature_class_is_executable() {
         "CheckedMutableReferenceParameter",
         "CheckedMutableDereferenceAssignment",
         "CheckedMutableEnumMatchRead",
+        "CheckedProjectedBorrow",
     ] {
         assert!(
             debug.contains(identity),
@@ -310,11 +314,6 @@ fn mixed_signature_exclusions_fail_closed_in_every_trust_phase() {
             "mutable alias reused as side argument",
             "fn add(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { let mut value = 1; let alias = &mut value; add(alias, *alias) }",
             &["non-mutable arguments must be independent of reference source `alias`"],
-        ),
-        (
-            "projected mutable source",
-            "struct Row { value: int } fn add(value: &mut int, amount: int) -> int { *value + amount } fn main() -> int { let mut row = Row { value: 1 }; add(&mut row.value, 2) }",
-            &["requires an identifier place"],
         ),
     ];
 
