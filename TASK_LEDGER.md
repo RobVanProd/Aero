@@ -113,6 +113,28 @@
   require exact-head public checks and protected integration, then verify merge-head
   workflows and rendered PR metadata before beginning `CAP-015-READINESS`.
 
+### CAP-014 accepted-master sync post-freeze chronology correction
+
+- Observed issue and boundary: after the first immutable synchronization commit
+  `e3b74ce71c79e9cc3f56885ae565b53f93b2ac9e` was pushed but before a PR was opened,
+  a fresh read-only audit found one P2 chronology error in
+  `CURRENT_CAPABILITY_AUDIT.md`: the retained “Work already attributable to Milestone
+  2” paragraph had been mechanically widened from accepted CAP-001 through CAP-013 to
+  CAP-014 even though every current truth surface correctly identifies CAP-014 as the
+  first Milestone 3 slice. This is a record defect only; no compiler behavior or
+  accepted CAP-014 claim changed.
+- Correction and detection: restore that historical Milestone 2 sentence to
+  CAP-001 through CAP-013 and bind both the required wording and the absence of the
+  CAP-014 misclassification in `version_claim_contract_tests.rs`. Because the first
+  commit is already published, do not amend, force-push, or rewrite it. Preserve the
+  correction as a transparent second commit and count only the corrected branch head
+  for PR evidence.
+- Decision threshold: rerun focused claims, formatting, diff hygiene, and the complete
+  root gate on the corrected head; require a fresh independent no-findings review
+  before opening the draft PR. Any further milestone-tense or identity mismatch stops
+  publication and receives the same explicit correction treatment rather than being
+  hidden.
+
 ## CAP-014 - exact fixed-width integer fixed-array CPU reference kernel
 
 - Date/task/status: 2026-08-12, `CAP-014`, authorized red-first executable

@@ -454,7 +454,7 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 and accepted CAP-001 through CAP-014 implemented substantial typed
+CORE-043 through CORE-090 and accepted CAP-001 through CAP-013 implemented substantial typed
 aggregate, enum/`Match`, CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
 not complete Milestone 2's broader ambitions: collections, general generic substitution, broader trait dispatch, general

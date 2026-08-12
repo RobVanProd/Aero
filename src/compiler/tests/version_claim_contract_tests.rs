@@ -189,6 +189,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(audit.contains("CAP-014 accepted: exact `i32` fixed-array CPU reference kernel"));
     assert!(audit.contains("The post-CAP-014 order begins with `CAP-015-READINESS`"));
     assert!(audit.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(audit.contains(
+        "CORE-043 through CORE-090 and accepted CAP-001 through CAP-013 implemented substantial typed"
+    ));
+    assert!(!audit.contains(
+        "CORE-043 through CORE-090 and accepted CAP-001 through CAP-014 implemented substantial typed"
+    ));
     assert!(audit.contains("selected Milestone 2 exit gate"));
     assert!(!audit.contains("CAP-012 candidate only"));
     assert!(!audit.contains("protected CAP-012 compiler-capability merge"));
