@@ -18,6 +18,19 @@ const CAP014_ACCEPTANCE_EVIDENCE: [&str; 10] = [
     "31570823073",
 ];
 
+const CAP015_ACCEPTANCE_EVIDENCE: [&str; 10] = [
+    "dd9b1710abebf2f2318582cf94568c2f9a30ca8f",
+    "b62696272f293f9f378f8a368cc818fcb8ef1074",
+    "27f359bc5ca90212a06ce73b71759cac0533c1f0",
+    "31597830488",
+    "31598146528",
+    "31598146473",
+    "31598144554",
+    "31598634185",
+    "31598634090",
+    "31598633803",
+];
+
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
 }
@@ -42,21 +55,36 @@ fn assert_cap014_acceptance_evidence(document_name: &str, document: &str) {
     );
 }
 
-fn assert_post_cap014_successor_order(document_name: &str, document: &str) {
-    let normalized = document.to_ascii_lowercase();
-    let readiness = normalized
-        .find("cap-015-readiness")
-        .unwrap_or_else(|| panic!("{document_name} is missing CAP-015-READINESS"));
-    let after_readiness = &normalized[readiness..];
-    let modules = after_readiness
-        .find("module/import")
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked module/import gap"));
-    let file_bytes = after_readiness
-        .find("runtime file-byte acquisition")
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked file-byte gap"));
+fn assert_cap015_acceptance_evidence(document_name: &str, document: &str) {
+    let mut evidence_end = 0;
+    for identity in CAP015_ACCEPTANCE_EVIDENCE {
+        let position = document
+            .find(identity)
+            .unwrap_or_else(|| panic!("{document_name} is missing CAP-015 evidence {identity}"));
+        evidence_end = evidence_end.max(position + identity.len());
+    }
     assert!(
-        modules < file_bytes,
-        "{document_name} does not preserve CAP-015 -> modules -> file-byte ordering"
+        document[evidence_end..].contains("pass"),
+        "{document_name} does not state that the complete CAP-015 evidence passed"
+    );
+}
+
+fn assert_post_cap015_successor_order(document_name: &str, document: &str) {
+    let normalized = document.to_ascii_lowercase();
+    let modules = normalized
+        .find("cap-016-module-resolution-readiness")
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked module-resolution gap"));
+    let result = normalized[modules..]
+        .find("typed `result` propagation")
+        .map(|offset| modules + offset)
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked Result gap"));
+    let file_bytes = normalized[result..]
+        .find("runtime byte/file acquisition")
+        .map(|offset| result + offset)
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked runtime byte/file gap"));
+    assert!(
+        modules < result && result < file_bytes,
+        "{document_name} does not preserve modules -> Result -> byte/file ordering"
     );
 }
 
@@ -194,10 +222,15 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains("**CAP-012 accepted:**"));
     assert!(readme.contains("**CAP-013 accepted:** protected master gives"));
     assert!(readme.contains("**CAP-014 accepted:** protected master now includes"));
-    assert!(readme.contains("Project status after CAP-014"));
-    assert!(readme.contains("baseline is protected CAP-014 merge"));
-    assert!(readme.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
-    assert!(readme.contains("The next action is `CAP-015-READINESS`"));
+    assert!(
+        readme.contains("**CAP-015 accepted project integration:** protected master now includes")
+    );
+    assert!(readme.contains("Project status after CAP-015"));
+    assert!(readme.contains("baseline is protected CAP-015 project-integration merge"));
+    assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(readme.contains("The next action is `CAP-016-MODULE-RESOLUTION-READINESS`"));
+    assert!(readme.contains("CAP-014 remains Aero's latest accepted compiler/profile capability"));
+    assert!(readme.contains("CAP-015 is the latest accepted project integration checkpoint"));
     assert!(readme.contains("`exact-i32-array-v0` profile, classified `END_TO_END`"));
     assert!(readme.contains("Broad integer and fixed-array support remains `PARTIAL`"));
     assert!(readme.contains("`stable-scalar-v0` remains Aero's only `STABLE` profile"));
@@ -205,9 +238,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!readme.contains("baseline is protected CAP-011 merge"));
     assert!(!readme.contains("baseline is protected CAP-012 merge"));
     assert!(!readme.contains("baseline is protected CAP-013 merge"));
-    assert!(!readme.contains("Project status after CAP-013"));
+    assert!(!readme.contains("Project status after CAP-014"));
     assert!(!readme.contains("CAP-013 candidate (not accepted)"));
     assert!(!readme.contains("CAP-014 candidate (not accepted)"));
+    assert!(!readme.contains("`CAP-015-READINESS`"));
     assert!(!readme.contains(
         "next ranked product target is an explicitly profiled exact fixed-width integer"
     ));
@@ -220,7 +254,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-014 compiler-capability merge"));
+    assert!(audit.contains("protected CAP-015 project-integration merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(audit.contains("CAP-010 accepted: required-only CopyData trait-bound static dispatch"));
@@ -232,8 +266,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         audit.contains("CAP-013 accepted: canonical specialization identity and phase authority")
     );
     assert!(audit.contains("CAP-014 accepted: exact `i32` fixed-array CPU reference kernel"));
-    assert!(audit.contains("The post-CAP-014 order begins with `CAP-015-READINESS`"));
-    assert!(audit.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(
+        audit.contains("CAP-015 accepted: embedded character-record representative integration")
+    );
+    assert!(
+        audit.contains("The post-CAP-015 order begins with `CAP-016-MODULE-RESOLUTION-READINESS`")
+    );
+    assert!(audit.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(audit.contains(
         "CORE-043 through CORE-090 and accepted CAP-001 through CAP-013 implemented substantial typed"
     ));
@@ -244,6 +283,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!audit.contains("CAP-012 candidate only"));
     assert!(!audit.contains("protected CAP-012 compiler-capability merge"));
     assert!(!audit.contains("protected CAP-013 compiler-capability merge"));
+    assert!(!audit.contains("`CAP-015-READINESS`"));
     assert!(audit.contains("selected-profile row is therefore `STABLE`"));
 
     let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
@@ -266,8 +306,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(alignment.contains(
         "Accepted CAP-014 advances the founding high-performance and data-pipeline direction"
     ));
-    assert!(alignment.contains("`CAP-015-READINESS`, not automatic implementation"));
-    assert!(alignment.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(alignment.contains(
+        "Accepted CAP-015 advances the founding composition and execution-quality direction"
+    ));
+    assert!(
+        alignment.contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+    );
+    assert!(alignment.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(!alignment.contains("`CAP-015-READINESS`"));
     assert!(alignment.contains("satisfy the roadmap's selected Milestone 2 exit gate"));
     assert!(alignment.contains("Aero remains\na Minimal Prototype"));
     assert!(!alignment.contains("Projected borrowing, reference-target dynamic writes"));
@@ -298,11 +344,22 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(
         project_state.contains("CAP-014 accepted: exact `i32` fixed-array CPU reference kernel")
     );
-    assert!(project_state.contains("Current accepted public master is CAP-014"));
-    assert!(project_state.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
-    assert!(project_state.contains("`CAP-015-READINESS`, not automatic implementation"));
+    assert!(
+        project_state
+            .contains("CAP-015 accepted: embedded character-record representative integration")
+    );
+    assert!(
+        project_state.contains("Current accepted public master is CAP-015 project integration")
+    );
+    assert!(project_state.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(
+        project_state
+            .contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+    );
     assert!(!project_state.contains("Current accepted public master is CAP-012"));
     assert!(!project_state.contains("Current accepted public master is CAP-013"));
+    assert!(!project_state.contains("Current accepted public master is CAP-014"));
+    assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(
         !project_state
             .contains("next ranked product target is an explicitly profiled exact fixed-width")
@@ -319,6 +376,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(
         matrix.contains("Latest accepted compiler-capability master is protected CAP-014 merge")
     );
+    assert!(
+        matrix.contains("Latest accepted project-integration master is protected CAP-015 merge")
+    );
     assert!(matrix.contains("Accepted CAP-011 composes the existing generic-struct"));
     assert!(matrix.contains("Nonescaping projected CopyData call loans (accepted `CAP-012`)"));
     assert!(matrix.contains(
@@ -328,9 +388,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "| Selected CPU-only `exact-i32-array-v0` profile (accepted `CAP-014`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
     ));
     assert!(matrix.contains(
+        "| Representative scalar application/conformance subset (`M1-001`, enriched by accepted `CAP-015`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |"
+    ));
+    assert!(matrix.contains(
         "The selected-profile row is `END_TO_END`; broad integers and\nfixed arrays remain `PARTIAL`, and `stable-scalar-v0` remains the only `STABLE`"
     ));
-    assert!(matrix.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(matrix.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(!matrix.contains("`CAP-015-READINESS`"));
     assert!(
         !matrix.contains("Latest accepted compiler-capability master is protected CAP-011 merge")
     );
@@ -353,9 +417,15 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         roadmap
             .contains("CAP-014 is accepted as the first bounded Milestone 3 CPU computation slice")
     );
-    assert!(roadmap.contains("`CAP-015-READINESS`, not automatic implementation"));
+    assert!(roadmap.contains(
+        "CAP-015 is accepted as a bounded representative application integration checkpoint"
+    ));
+    assert!(
+        roadmap.contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+    );
     assert!(roadmap.contains("The milestone exit is not met"));
-    assert!(roadmap.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(roadmap.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(!roadmap.contains("`CAP-015-READINESS`"));
     assert!(!roadmap.contains("product task is an explicitly profiled exact fixed-width integer"));
     assert!(roadmap.contains("selected Milestone 2 exit gate is met"));
     assert!(!roadmap.contains("CAP-012 is the current candidate, not accepted capability"));
@@ -376,10 +446,15 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     ));
     assert!(conformance.contains("accepted CAP-014 `exact-i32-array-v0` slice"));
     assert!(conformance.contains("Accepted CAP-014 adds one selected `exact-i32-array-v0`"));
-    assert!(conformance.contains("`CAP-015-READINESS` is the next action"));
+    assert!(
+        conformance
+            .contains("Accepted CAP-015 enriches the existing M1-001 representative application")
+    );
+    assert!(conformance.contains("`CAP-016-MODULE-RESOLUTION-READINESS` is the next action"));
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
-    assert!(conformance.contains("ca09ebe3c1b981339c8bf56b360e62208ac900e1"));
+    assert!(conformance.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
+    assert!(!conformance.contains("`CAP-015-READINESS`"));
     for (document_name, document) in [
         ("README.md", readme.as_str()),
         ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
@@ -390,6 +465,27 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
         assert_cap014_acceptance_evidence(document_name, document);
+        assert_cap015_acceptance_evidence(document_name, document);
+    }
+    for (document_name, document) in [
+        ("README.md", readme.as_str()),
+        ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
+        ("FRAMEWORK_ALIGNMENT.md", alignment.as_str()),
+        ("PROJECT_STATE.md", project_state.as_str()),
+        ("SPEC_IMPLEMENTATION_MATRIX.md", matrix.as_str()),
+        ("Roadmap.md", roadmap.as_str()),
+        ("CONFORMANCE_PLAN.md", conformance.as_str()),
+    ] {
+        assert!(
+            document.contains("CAP-015 changes no compiler production or language-profile code"),
+            "{document_name} blurs the CAP-015 integration/compiler boundary"
+        );
+        assert!(
+            document.contains(
+                "General parsing, strings, serialization, runtime ingestion, file input, and Unicode remain unsupported"
+            ),
+            "{document_name} omits the CAP-015 product-claim boundary"
+        );
     }
     for (document_name, document) in [
         ("README.md", readme.as_str()),
@@ -399,12 +495,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("Roadmap.md", roadmap.as_str()),
         ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
-        assert_post_cap014_successor_order(document_name, document);
+        assert_post_cap015_successor_order(document_name, document);
     }
     assert!(readme.contains("Within this profile, array results and writes"));
     assert!(audit.contains("Within this profile, array results"));
     assert!(project_state.contains("Within this profile, array results"));
     assert!(matrix.contains("Within this profile, array results or writes"));
+    assert!(!matrix.contains("Selected `CAP-015` profile"));
+    assert!(!matrix.contains("Parser feature row (accepted `CAP-015`)"));
     assert!(roadmap.contains("Within this profile, array results"));
     assert!(readme.contains(
         "General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
@@ -596,7 +694,13 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
         project_state.contains("CAP-006 accepted: explicit user-defined generic CopyData enums")
     );
     assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
-    assert!(project_state.contains("`CAP-015-READINESS`, not automatic implementation"));
-    assert!(project_state.contains("Current accepted public master is CAP-014"));
+    assert!(
+        project_state
+            .contains("`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation")
+    );
+    assert!(
+        project_state.contains("Current accepted public master is CAP-015 project integration")
+    );
+    assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(!project_state.contains("exact next action is this bounded"));
 }
