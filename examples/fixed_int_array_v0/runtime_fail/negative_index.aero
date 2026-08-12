@@ -1,0 +1,9 @@
+fn read(values: [int; 2], index: int) -> int {
+    return values[index];
+}
+
+fn main() -> int {
+    let values: [int; 2] = [7, 8];
+    let index: int = -1;
+    return read(values, index);
+}

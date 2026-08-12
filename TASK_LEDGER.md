@@ -1,5 +1,201 @@
 # Aero Task Ledger
 
+## CAP-014 - exact fixed-width integer fixed-array CPU reference kernel
+
+- Date/task/status: 2026-08-12, `CAP-014`, authorized red-first executable
+  capability from exact accepted public master
+  `1b0a5bab67ed44527a0c5c363bb2f86ce98bc343` on
+  `agent/cap-014-fixed-int-array-kernel`. Protected PR #49 synchronized CAP-013
+  project truth through exact candidate
+  `35ce54bace3dbe10d62892a05a5faa364eb9395a`, merge tree
+  `89fb86dd954aea2169cdf8c6ec8722cebd966c3a`, candidate push/PR CI
+  `31563344289`/`31563382824`, candidate Rust/Windows LLVM 22
+  `31563382808`, candidate CodeQL `31563381640`, and merge-head CI/Rust/CodeQL
+  `31563578421`/`31563578545`/`31563577963`; all pass. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside the task. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  used as evidence.
+- Milestone selection and real-program delta: the accepted post-CAP-013 ranking
+  selects the exact fixed-width integer fixed-array CPU reference kernel (27) ahead
+  of a fixed-capacity character-array parser/interpreter (24) and runtime file-byte
+  acquisition (23, semantics not frozen). Before CAP-014, Aero can execute exact
+  wrapping `i32` scalar programs under `stable-scalar-v0`, and it can execute fixed
+  CopyData arrays experimentally, but the stable scalar profile deliberately rejects
+  arrays while experimental integer aggregate leaves lower as LLVM `double`. Aero
+  therefore cannot truthfully express an exact fixed-width integer vector kernel.
+  After CAP-014, one bounded Aero program passes two flat eight-element integer arrays
+  by value into a CPU dot-product-plus-bias kernel, reads them through a guarded
+  runtime loop index, performs wrapping `i32` multiply/add, and executes at the
+  independent-oracle exit 91. A separate array-lane edge specimen must demonstrate
+  wrapping without `nsw`/`nuw` and exit 93. This is the explicit Milestone 3
+  destination, not another neighboring compiler topology.
+- Frozen source/profile semantics: add the distinct public selector
+  `exact-i32-array-v0`; do not widen or rename `stable-scalar-v0`. The new CPU-only
+  profile inherits the existing stable-scalar-v0 scalar function, call, control-flow,
+  comparison, logical, and wrapping `int`/`bool` contract, including its division,
+  remainder, recursion, effect, and entrypoint exclusions. It additionally admits
+  only flat `[int; N]`/`[i32; N]` values with `1 <= N <= i32::MAX`: exact signed-i32
+  literal array construction in explicitly annotated initialized local bindings,
+  by-value nongeneric function parameters, identifier transport to calls, and direct
+  identifier indexing by an already-admitted scalar integer expression. Array
+  results, empty/repeat/nested arrays, projected or mutable array writes, bool/char/
+  float/user-defined elements, structs/tuples/enums, references, modules/imports,
+  constants, methods, generics/traits, closures, dynamic collections, allocation/
+  drop, I/O, accelerators, and every other neighboring shape remain rejected. The
+  profile is a source/execution contract only; it does not stabilize aggregate
+  layout, callable ABI, serialization, packages, performance, quantization, tensors,
+  safety, or Aero as a language.
+- Mechanism and architectural boundary: one parameterized pre-semantic profile
+  authority in `language_profile.rs` owns the complete scalar-versus-flat-int-array
+  classification and deterministic profile-named diagnostics. One profile-aware
+  physical mapping in `code_generator.rs` lowers every verifier-proven `Int` scalar
+  and admitted flat-array leaf to `i32`, lowers `[int; N]` consistently in local
+  storage, whole-value calls, loads/stores, element GEPs, and returns only where the
+  source profile permits them, and emits dynamic bounds checks as signed `i32`
+  comparisons before address formation followed by `sext i32` to the GEP index.
+  `main.rs` may route the typed selector, CPU-only target rule, help, and cache
+  identity; that is CLI routing, not a third compiler semantic authority. Existing
+  semantic analysis, raw/checked IR generation, logical metadata, and independent IR
+  verification already retain `Int`, array element identity/count, base, index,
+  bounds, and function schemas and must remain production-byte-unchanged. A need to
+  edit parser, semantic, IR, or verifier production code is a stop under the
+  two-compiler-phase rule.
+- Assumptions and evidence: CAP-009 proves exact wrapping scalar `i32`; CAP-001/002
+  prove guarded fixed-array selectors; existing checked CopyData array allocation,
+  element-pointer, parameter/result metadata, count/base/schema verification, and
+  corruption controls preserve logical identity; fixed-array transport already
+  crosses internal functions. The profile is sealed inside `CheckedProgram` and
+  consumed with checked IR at LLVM emission, so callers cannot pair verified IR from
+  one source profile with another physical map. Fresh red evidence must show the new
+  selector is absent on check/build/run and that `stable-scalar-v0` continues to
+  reject the complete kernel while experimental compilation retains `[8 x double]`.
+- Measurement and detection: the primary tracked specimen and embedded source must
+  match an independent Rust `i32::wrapping_mul`/`wrapping_add` oracle. Source/file
+  library routes and public `check`, verifier-required `build`, and `run` must agree.
+  LLVM must contain exact `[8 x i32]` storage/signatures/GEPs, `mul i32`, `add i32`,
+  signed `icmp` bounds guards before every dynamic `getelementptr inbounds`, and an
+  `i32`-to-`i64` sign extension; it must contain no aggregate `double`, `fptosi`,
+  `sitofp`, `nsw`, or `nuw` in the kernel. Negative/separation evidence must cover
+  zero count, array repeats, nested arrays, non-int elements, array results, projected
+  access, writes, wrong count, out-of-range literals, constant and runtime lower/upper
+  bounds, stable-profile rejection, experimental byte identity, non-CPU selectors,
+  unsupported profile names, and checked-IR element/count/base/index/metadata
+  corruption. Pinned LLVM/Clang 22 on Linux and Windows must verify IR/machine code
+  and execute exact O0/O2 oracle results; all public workflows and the complete root
+  gate must pass.
+- Failure modes, recovery, and decision threshold: false success could arise from
+  losing profile identity between validation and emission, mapping only array
+  allocation but not signatures/loads/stores/GEPs, leaving double-based bounds checks,
+  allowing a rejected aggregate to reach the backend, emitting poison-producing
+  overflow promises, weakening experimental/stable behavior, or accidentally
+  presenting a private physical map as ABI/performance/tensor support. The new
+  profile test matrix, existing independent verifier corruption suite, LLVM absence/
+  order assertions, native O0/O2 oracle, legacy profile byte-parity control, and full
+  gates detect those failures. The branch/one bounded PR is the rollback boundary.
+  Merge requires the exact class green, independent review, candidate-head Linux/
+  Windows evidence, protected normal integration, and merge-head evidence.
+- Allowed files: `TASK_LEDGER.md`; `src/compiler/src/language_profile.rs`,
+  `src/compiler/src/code_generator.rs`, and CLI routing/help/cache assertions in
+  `src/compiler/src/main.rs`; `src/compiler/tests/fixed_int_array_profile_tests.rs`,
+  existing stable-profile/CLI/claim tests only where exact separation or help text
+  requires them; `src/compiler/tests/windows_native_system_gate_tests.rs` only to
+  account for CAP-014's additional expected-nonzero Windows control group;
+  `examples/fixed_int_array_v0/**`; `.github/workflows/rust.yml`; and,
+  only after the exact candidate is green, the mandatory project-truth documents and
+  their assertions. No dependency, package, release, benchmark, accelerator,
+  claim-verification, registry, or external artifact file is authorized.
+- Strategic value and what would change our mind: this is Aero's first truthful
+  fixed-width integer vector computation and the shortest direct move from the
+  selected Milestone 2 product into a useful CPU data/AI reference workload. Stop or
+  rerank if a distinct profile cannot remain private and CPU-only, if exact array
+  lowering requires a stable aggregate ABI or a semantic/IR/verifier production
+  change, if the useful kernel requires a new feature-specific generic classifier,
+  if existing experimental or stable-scalar LLVM changes, if the independent oracle
+  cannot be matched at O0/O2 on both platforms, or if evidence shows the selected
+  program is merely an isolated syntax demo rather than an array computation. Those
+  findings would promote an architectural prerequisite or the ranked character-array
+  parser instead of forcing this design.
+- Pre-production authorization correction: two independent read-only audits
+  converged on selector spelling `exact-i32-array-v0`, which states the physical
+  integer contract and avoids implying generic fixed-array support. They also
+  converged on required explicit local array annotations and the complete structural
+  signed-index count class `1 <= N <= i32::MAX`, with eight lanes only in the
+  representative proof. The upper bound is the exact representability boundary of
+  the profile's signed-i32 runtime index and prevents source-admitted arrays whose
+  target size cannot be proven by the pinned LLVM/native gate; this pre-candidate
+  correction supersedes the earlier bare `N > 0` wording without changing any
+  accepted public behavior. Those
+  refinements replace the earlier local `fixed-int-array-v0` spelling before any
+  production behavior edit or publication; every other boundary above is unchanged.
+- Red checkpoint: the tracked eight-lane wrapping dot-product-plus-bias specimen and public
+  route test compile as a test target from exact authorization `0ae52fc032cd90e757046bf24ed420785c73c404`.
+  Focused `fixed_int_array_profile_tests` is red exactly 3/5: public `check`, `build`,
+  and `run` each reject `exact-i32-array-v0` as an unsupported selector (run exits 2
+  instead of the independent-oracle 91). Both separation controls pass: unchanged
+  `stable-scalar-v0` rejects the complete array kernel, and implicit/explicit
+  experimental compilation is byte-identical with `[8 x double]` and no
+  `[8 x i32]`. No parser, semantic, checked-IR, verifier, backend, CLI, workflow, or
+  project-truth production file has changed at this checkpoint.
+- Local implementation checkpoint, not accepted public behavior: the distinct selector,
+  shared source/checked-logical shape and role authority, fail-closed exact-profile
+  checked-IR instruction admission, profile-aware `i32` physical map, signed bounds-before-
+  GEP path, CPU-only CLI/cache routing, four tracked executable/runtime specimens, and
+  mirrored Linux/Windows LLVM 22 workflow gates are implemented without parser, semantic,
+  IR-generator, or verifier production edits. The settled focused matrix passes 11/11;
+  exact profile/backend unit controls pass 7/7 including the shared role matrix and
+  verified corruption rejections; CLI routing passes 35/35; frozen stable profile passes
+  10/10; and existing experimental fixed-array transport/index/assignment controls pass
+  12/12. Formatting, diff hygiene, and Clippy with `-D clippy::correctness` pass.
+  Independent read-only review reports P0/P1/P2/P3 none. The first complete root-gate
+  attempt reached the final Windows workflow contract and correctly exposed that CAP-014
+  adds a fifteenth expected-nonzero control group; the authorized uniqueness assertion now
+  records 15 and passes 1/1. After LF-normalizing that two-line assertion change, diff
+  hygiene and independent delta review are clean, the complete root `./tools/test.sh` gate
+  passes on the corrected worktree, and `cargo doc --locked --no-deps` passes with only
+  pre-existing warnings. This checkpoint remains mutable and non-acceptance evidence:
+  create one immutable candidate and repeat pinned LLVM/native and public workflow evidence
+  at its exact SHA.
+- First immutable-candidate public checkpoint, red and not accepted: candidate
+  `46c4d44512bf49ce4aa323fa311f2f50ce09ae26` (tree
+  `e7caa673c9f717df2d2e8de6b95d2c326e653899`) passed push CI
+  `31567979234`, PR CI `31568017832`, and all CodeQL analyses in
+  `31568017589`, but exact-head Rust CI `31568017822` is red. Stable job
+  `94023847756` selected the kernel loop's ordinary signed `icmp slt i32` as
+  the first array upper-bound guard, so its order assertion compared that
+  unrelated instruction against the later `icmp sge` lower guard. Windows job
+  `94023847841` rejected the wrapping specimen because its assertion classified
+  any ordinary signed `icmp slt i32` comparison as dynamic bounds IR; nightly
+  job `94023847680` was then cancelled by fail-fast. These are proof-script
+  false positives, not compiler/native acceptance: the candidate remains red
+  and PR #50 remains draft. The frozen correction is to locate each dynamic
+  upper guard only after its lower guard and to classify dynamic bounds by the
+  complete lower/upper/trap/sign-extension/address sequence, while explicitly
+  retaining ordinary scalar signed comparisons in the constant-index wrapping
+  specimen. A red workflow-contract regression must reproduce both mistakes
+  before the workflow changes; the corrected exact head must repeat the full
+  local gate, independent review, pinned native evidence, and every fresh public
+  check. No language, profile, checked-IR, verifier, or LLVM-emission behavior is
+  authorized to change by this correction.
+- Corrected-candidate local checkpoint, not public evidence: a workflow-contract
+  regression first failed on both published false-positive forms. The final
+  correction leaves ordinary scalar `icmp slt i32` comparisons admissible while
+  requiring exactly two contiguous dynamic guard blocks on the kernel. Both Linux
+  PCRE2 and Windows .NET patterns bind the same index SSA through lower/upper
+  predicates, the conjunction and branch, matching safe/trap place labels, sign
+  extension, aggregate identity, and the GEP index; the constant-index wrapping
+  specimen retains three ordinary signed comparisons and has zero lower guards,
+  trap calls, or sign extensions. Positive contract assertions preserve the Linux
+  matcher execution/count and every shared identity backreference in both workflow
+  lanes. The focused CAP-014 matrix passes 11/11 with pinned LLVM 22 available, the
+  Windows system-gate contract passes 1/1, exact extracted Linux and Windows matchers
+  each count two kernel blocks, formatting and diff hygiene pass, and the complete
+  repository-root `./tools/test.sh` gate passes after the final test assertions,
+  including 259 library tests and all integration, CLI, documentation, formatting,
+  and correctness-Clippy targets. Independent read-only execution audit reports no
+  blocker. This remains mutable local correction evidence until committed as a new
+  immutable candidate, rerun through pinned native evidence at that exact SHA, and
+  reproduced by every fresh public workflow; CAP-014 is still not accepted.
+
 ## CAP-013 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-013-ACCEPTANCE-SYNC`, authorized bounded

@@ -3,7 +3,10 @@ use crate::ir::{
     ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
-use crate::language_profile::LanguageProfile;
+use crate::language_profile::{
+    LanguageProfile, ProfileTypeShape, ProfileTypeUse, classify_profile_logical_type,
+    profile_type_shape_is_admitted,
+};
 use crate::primitive_contract::PrimitiveKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
@@ -37,6 +40,11 @@ pub enum CodeGenerationError {
     IrVerification(IrVerificationError),
     /// A verified program contained an instruction that this emitter does not admit.
     UnsupportedInstruction { instruction: &'static str },
+    /// Verified logical metadata escaped the selected language profile's source class.
+    LanguageProfileContract {
+        profile: LanguageProfile,
+        detail: String,
+    },
 }
 
 impl fmt::Display for CodeGenerationError {
@@ -49,6 +57,12 @@ impl fmt::Display for CodeGenerationError {
                     "unsupported instruction `{instruction}` in checked code generation"
                 )
             }
+            Self::LanguageProfileContract { profile, detail } => {
+                write!(
+                    formatter,
+                    "language profile `{profile}` rejected checked IR: {detail}"
+                )
+            }
         }
     }
 }
@@ -57,7 +71,7 @@ impl std::error::Error for CodeGenerationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::IrVerification(error) => Some(error),
-            Self::UnsupportedInstruction { .. } => None,
+            Self::UnsupportedInstruction { .. } | Self::LanguageProfileContract { .. } => None,
         }
     }
 }
@@ -164,6 +178,31 @@ impl CodeGenerator {
             | LogicalType::Enum { .. } => {
                 unreachable!("verified Copy-data schemas exclude non-Copy-data logical types")
             }
+        }
+    }
+
+    /// Select the private physical CopyData representation paired with the checked
+    /// program's source profile. The topology decision comes from language-profile
+    /// authority; this backend owns only its physical rendering.
+    fn profile_copy_data_type_to_llvm(&self, logical_type: &LogicalType) -> String {
+        match classify_profile_logical_type(logical_type) {
+            ProfileTypeShape::Int if self.language_profile == LanguageProfile::ExactI32ArrayV0 => {
+                "i32".to_string()
+            }
+            ProfileTypeShape::ExactI32Array { count }
+                if self.language_profile.admits_exact_i32_array(logical_type) =>
+            {
+                format!("[{count} x i32]")
+            }
+            _ => Self::copy_data_type_to_llvm(logical_type),
+        }
+    }
+
+    fn profile_logical_type_to_llvm(&self, logical_type: &LogicalType) -> String {
+        if self.language_profile.admits_exact_i32_array(logical_type) {
+            self.profile_copy_data_type_to_llvm(logical_type)
+        } else {
+            Self::logical_type_to_llvm(logical_type)
         }
     }
 
@@ -769,7 +808,7 @@ impl CodeGenerator {
             Value::ImmChar(character) => u32::from(*character).to_string(),
             Value::Reg(r) => {
                 if self.is_checked_char_result(value)
-                    || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                    || (self.uses_exact_i32_lane() && self.is_checked_int_result(value))
                 {
                     return format!("%reg{r}");
                 }
@@ -802,8 +841,38 @@ impl CodeGenerator {
         count: usize,
         element_place: u32,
     ) -> String {
+        let exact_i32_index = self.language_profile == LanguageProfile::ExactI32ArrayV0
+            && self.is_checked_int_result(index);
         match index {
             Value::ImmInt(index) => index.to_string(),
+            Value::Reg(index) if exact_i32_index => {
+                let count = i32::try_from(count)
+                    .expect("exact-i32-array-v0 count fits its signed i32 index domain");
+                let nonnegative = self.fresh_reg();
+                let below_count = self.fresh_reg();
+                let in_bounds = self.fresh_reg();
+                let safe_label = format!("aero.bounds.safe.{element_place}");
+                let trap_label = format!("aero.bounds.trap.{element_place}");
+
+                llvm_ir.push_str(&format!("  %{nonnegative} = icmp sge i32 %reg{index}, 0\n"));
+                llvm_ir.push_str(&format!(
+                    "  %{below_count} = icmp slt i32 %reg{index}, {count}\n"
+                ));
+                llvm_ir.push_str(&format!(
+                    "  %{in_bounds} = and i1 %{nonnegative}, %{below_count}\n"
+                ));
+                llvm_ir.push_str(&format!(
+                    "  br i1 %{in_bounds}, label %{safe_label}, label %{trap_label}\n"
+                ));
+                llvm_ir.push_str(&format!("{trap_label}:\n"));
+                llvm_ir.push_str("  call void @llvm.trap()\n");
+                llvm_ir.push_str("  unreachable\n");
+                llvm_ir.push_str(&format!("{safe_label}:\n"));
+
+                let converted = self.fresh_reg();
+                llvm_ir.push_str(&format!("  %{converted} = sext i32 %reg{index} to i64\n"));
+                format!("%{converted}")
+            }
             Value::Reg(index) => {
                 let nonnegative = self.fresh_reg();
                 let below_count = self.fresh_reg();
@@ -878,8 +947,8 @@ impl CodeGenerator {
             .map(|place| &place.pointee)
     }
 
-    fn uses_stable_scalar_i32_lane(&self) -> bool {
-        self.language_profile == LanguageProfile::StableScalarV0
+    fn uses_exact_i32_lane(&self) -> bool {
+        self.language_profile.uses_exact_i32_lane()
     }
 
     fn is_checked_int_result(&self, value: &Value) -> bool {
@@ -961,6 +1030,116 @@ impl CodeGenerator {
                 panic!("String value cannot be lowered as LLVM boolean")
             }
         }
+    }
+
+    fn exact_i32_profile_type(logical_type: &LogicalType, usage: ProfileTypeUse) -> bool {
+        profile_type_shape_is_admitted(
+            LanguageProfile::ExactI32ArrayV0,
+            classify_profile_logical_type(logical_type),
+            usage,
+        )
+    }
+
+    fn ensure_language_profile_codegen_support(
+        &self,
+        metadata: &IrMetadata,
+        ir_functions: &HashMap<String, Function>,
+    ) -> Result<(), CodeGenerationError> {
+        if self.language_profile != LanguageProfile::ExactI32ArrayV0 {
+            return Ok(());
+        }
+
+        let reject = |detail: String| CodeGenerationError::LanguageProfileContract {
+            profile: self.language_profile,
+            detail,
+        };
+        let mut raw_function_names = ir_functions.keys().collect::<Vec<_>>();
+        raw_function_names.sort();
+        for function_name in raw_function_names {
+            let function = &ir_functions[function_name];
+            if let Some(instruction) =
+                Self::unsupported_exact_i32_profile_instruction(&function.body)
+            {
+                return Err(reject(format!(
+                    "function `{function_name}` contains {instruction}"
+                )));
+            }
+        }
+        for (function_name, function) in &metadata.functions {
+            for (parameter_name, parameter_type) in &function.signature.parameters {
+                if !Self::exact_i32_profile_type(parameter_type, ProfileTypeUse::Parameter) {
+                    return Err(reject(format!(
+                        "function `{function_name}` parameter `{parameter_name}` has unsupported logical type `{parameter_type}`"
+                    )));
+                }
+            }
+            if !matches!(function.signature.result, LogicalType::Void)
+                && !Self::exact_i32_profile_type(&function.signature.result, ProfileTypeUse::Result)
+            {
+                return Err(reject(format!(
+                    "function `{function_name}` has unsupported result type `{}`",
+                    function.signature.result
+                )));
+            }
+            for (result, logical_type) in &function.results {
+                if !Self::exact_i32_profile_type(logical_type, ProfileTypeUse::Value) {
+                    return Err(reject(format!(
+                        "function `{function_name}` result {} has unsupported logical type `{logical_type}`",
+                        result.0
+                    )));
+                }
+            }
+            for (place, metadata) in &function.places {
+                if !Self::exact_i32_profile_type(&metadata.pointee, ProfileTypeUse::Binding) {
+                    return Err(reject(format!(
+                        "function `{function_name}` place {} has unsupported logical type `{}`",
+                        place.0, metadata.pointee
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn unsupported_exact_i32_profile_instruction(instructions: &[Inst]) -> Option<&'static str> {
+        instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                Inst::Add(..)
+                | Inst::Sub(..)
+                | Inst::Mul(..)
+                | Inst::Alloca(..)
+                | Inst::Store(..)
+                | Inst::Load(..)
+                | Inst::Return(..)
+                | Inst::Call { .. }
+                | Inst::Branch { .. }
+                | Inst::Jump(..)
+                | Inst::Label(..)
+                | Inst::ICmp { .. }
+                | Inst::And { .. }
+                | Inst::Or { .. }
+                | Inst::Not { .. }
+                | Inst::Neg { .. }
+                | Inst::CheckedCopyStructArrayAlloca { .. }
+                | Inst::CheckedCopyStructArrayElementPtr { .. } => None,
+                Inst::CheckedMutableOwnedPlaceAlloca { ty, .. }
+                | Inst::CheckedOwnedPlaceAssignment { ty, .. }
+                    if matches!(ty, LogicalType::Int | LogicalType::Bool) =>
+                {
+                    None
+                }
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                    Self::unsupported_exact_i32_profile_instruction(body)
+                }
+                Inst::AllocaArray { .. } => Some("legacy `alloca array` instruction"),
+                Inst::GetElementPtr { .. } => Some("legacy `get element pointer` instruction"),
+                Inst::Div(..) | Inst::FDiv(..) => Some("profile-excluded division instruction"),
+                Inst::Print { .. } | Inst::Println { .. } => {
+                    Some("profile-excluded output instruction")
+                }
+                _ => Some("instruction outside the exact i32 fixed-array profile"),
+            })
     }
 
     fn ensure_checked_codegen_support(
@@ -1128,6 +1307,7 @@ impl CodeGenerator {
         let checked_ir = ir.into();
         let metadata =
             verify_checked_ir(&checked_ir).map_err(CodeGenerationError::IrVerification)?;
+        self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw())?;
         Self::ensure_checked_codegen_support(checked_ir.raw())?;
 
         self.checked_metadata = Some(metadata);
@@ -1364,9 +1544,9 @@ impl CodeGenerator {
             } => (
                 parameters
                     .iter()
-                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .map(|(name, ty)| (name.clone(), self.profile_logical_type_to_llvm(ty)))
                     .collect::<Vec<_>>(),
-                Self::logical_type_to_llvm(result),
+                self.profile_logical_type_to_llvm(result),
             ),
         };
 
@@ -1422,20 +1602,19 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable owned-place alloca")
                     };
-                    let copy_type =
-                        if self.uses_stable_scalar_i32_lane() && matches!(ty, LogicalType::Int) {
-                            "i32".to_string()
-                        } else {
-                            Self::reference_pointee_to_llvm(ty)
-                        };
-                    let align =
-                        if self.uses_stable_scalar_i32_lane() && matches!(ty, LogicalType::Int) {
-                            4
-                        } else {
-                            PrimitiveKind::from_logical_type(ty)
-                                .map(PrimitiveKind::alignment)
-                                .unwrap_or(8)
-                        };
+                    let copy_type = if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int)
+                    {
+                        "i32".to_string()
+                    } else {
+                        Self::reference_pointee_to_llvm(ty)
+                    };
+                    let align = if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int) {
+                        4
+                    } else {
+                        PrimitiveKind::from_logical_type(ty)
+                            .map(PrimitiveKind::alignment)
+                            .unwrap_or(8)
+                    };
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
                     ));
@@ -1473,7 +1652,7 @@ impl CodeGenerator {
                         _ => panic!("Expected register for alloca"),
                     };
                     let int_place =
-                        self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg);
+                        self.uses_exact_i32_lane() && self.is_checked_int_place(ptr_reg);
                     let bool_place = self.is_checked_bool_place(ptr_reg);
                     let char_place = self.is_checked_char_place(ptr_reg);
                     let aggregate_place = match self.checked_place_type(ptr_reg) {
@@ -1482,7 +1661,7 @@ impl CodeGenerator {
                             | LogicalType::Array { .. }
                             | LogicalType::Tuple { .. }
                             | LogicalType::Enum { .. }),
-                        ) => Some(Self::logical_type_to_llvm(logical_type)),
+                        ) => Some(self.profile_logical_type_to_llvm(logical_type)),
                         _ => None,
                     };
                     if let Some(aggregate_type) = &aggregate_place {
@@ -1582,7 +1761,7 @@ impl CodeGenerator {
                         | LogicalType::Enum { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
-                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                        let aggregate_type = self.profile_logical_type_to_llvm(logical_type);
                         let ptr_id = match ptr_reg {
                             Value::Reg(register) => *register,
                             _ => panic!("Expected register for store pointer"),
@@ -1593,7 +1772,7 @@ impl CodeGenerator {
                         ));
                         continue;
                     }
-                    if self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg) {
+                    if self.uses_exact_i32_lane() && self.is_checked_int_place(ptr_reg) {
                         let Value::Reg(ptr_id) = ptr_reg else {
                             panic!("Expected register for stable integer store pointer")
                         };
@@ -1646,7 +1825,7 @@ impl CodeGenerator {
                         panic!("Expected register for checked owned-place assignment target")
                     };
                     match ty {
-                        LogicalType::Int if self.uses_stable_scalar_i32_lane() => {
+                        LogicalType::Int if self.uses_exact_i32_lane() => {
                             llvm_ir.push_str(&format!(
                                 "  store i32 {}, i32* %ptr{ptr_id}, align 4\n",
                                 self.stable_int_value_to_string(value)
@@ -1668,7 +1847,7 @@ impl CodeGenerator {
                         | LogicalType::Array { .. }
                         | LogicalType::Tuple { .. }
                         | LogicalType::Enum { .. }) => {
-                            let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                            let aggregate_type = self.profile_logical_type_to_llvm(logical_type);
                             llvm_ir.push_str(&format!(
                                 "  store {aggregate_type} {}, {aggregate_type}* %ptr{ptr_id}, align 8\n",
                                 self.value_to_string(value)
@@ -1685,7 +1864,7 @@ impl CodeGenerator {
                         | LogicalType::Enum { .. }),
                     ) = self.checked_place_type(ptr_reg)
                     {
-                        let aggregate_type = Self::logical_type_to_llvm(logical_type);
+                        let aggregate_type = self.profile_logical_type_to_llvm(logical_type);
                         let result_id = match result_reg {
                             Value::Reg(register) => *register,
                             _ => panic!("Expected register for load result"),
@@ -1699,7 +1878,7 @@ impl CodeGenerator {
                         ));
                         continue;
                     }
-                    if self.uses_stable_scalar_i32_lane() && self.is_checked_int_place(ptr_reg) {
+                    if self.uses_exact_i32_lane() && self.is_checked_int_place(ptr_reg) {
                         let Value::Reg(result_id) = result_reg else {
                             panic!("Expected register for stable integer load result")
                         };
@@ -1752,7 +1931,7 @@ impl CodeGenerator {
                         result_str, ptr_str
                     ));
                 }
-                Inst::Add(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                Inst::Add(result_reg, lhs, rhs) if self.uses_exact_i32_lane() => {
                     let Value::Reg(result) = result_reg else {
                         panic!("Expected register for stable integer add result")
                     };
@@ -1774,7 +1953,7 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
-                Inst::Sub(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                Inst::Sub(result_reg, lhs, rhs) if self.uses_exact_i32_lane() => {
                     let Value::Reg(result) = result_reg else {
                         panic!("Expected register for stable integer subtract result")
                     };
@@ -1796,7 +1975,7 @@ impl CodeGenerator {
                         result_str, lhs_str, rhs_str
                     ));
                 }
-                Inst::Mul(result_reg, lhs, rhs) if self.uses_stable_scalar_i32_lane() => {
+                Inst::Mul(result_reg, lhs, rhs) if self.uses_exact_i32_lane() => {
                     let Value::Reg(result) = result_reg else {
                         panic!("Expected register for stable integer multiply result")
                     };
@@ -1977,7 +2156,7 @@ impl CodeGenerator {
                         Value::Reg(r) => format!("reg{}", r),
                         _ => panic!("Expected register for neg result"),
                     };
-                    if self.uses_stable_scalar_i32_lane() {
+                    if self.uses_exact_i32_lane() {
                         llvm_ir.push_str(&format!(
                             "  %{result_str} = sub i32 0, {}\n",
                             self.stable_int_value_to_string(operand)
@@ -2032,7 +2211,7 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked Copy-data array alloca")
                     };
-                    let element = Self::copy_data_type_to_llvm(element);
+                    let element = self.profile_copy_data_type_to_llvm(element);
                     llvm_ir.push_str(&format!(
                         "  %ptr{result} = alloca [{count} x {element}], align 8\n"
                     ));
@@ -2050,7 +2229,7 @@ impl CodeGenerator {
                     let Value::Reg(base) = base else {
                         panic!("Expected register for checked Copy-data array base")
                     };
-                    let element = Self::copy_data_type_to_llvm(element);
+                    let element = self.profile_copy_data_type_to_llvm(element);
                     let aggregate = format!("[{count} x {element}]");
                     let index = self
                         .checked_copy_array_index_to_i64_operand(llvm_ir, index, *count, *result);
@@ -2584,9 +2763,9 @@ impl CodeGenerator {
             }) => (
                 parameters
                     .iter()
-                    .map(|(name, ty)| (name.clone(), Self::logical_type_to_llvm(ty)))
+                    .map(|(name, ty)| (name.clone(), self.profile_logical_type_to_llvm(ty)))
                     .collect(),
-                Some(Self::logical_type_to_llvm(result)),
+                Some(self.profile_logical_type_to_llvm(result)),
             ),
             None => (Vec::new(), None),
         };
@@ -2596,7 +2775,7 @@ impl CodeGenerator {
             let target_type = checked_signature
                 .as_ref()
                 .and_then(|signature| signature.parameters.get(i))
-                .map(|(_, ty)| Self::logical_type_to_llvm(ty))
+                .map(|(_, ty)| self.profile_logical_type_to_llvm(ty))
                 .or_else(|| param_defs.get(i).map(|(_name, ty)| ty.clone()))
                 .unwrap_or_else(|| "double".to_string());
             let arg_val = self.cast_value_for_call_arg(llvm_ir, arg, &target_type);
@@ -2606,7 +2785,7 @@ impl CodeGenerator {
 
         let return_llvm_type = checked_signature
             .as_ref()
-            .map(|signature| Self::logical_type_to_llvm(&signature.result))
+            .map(|signature| self.profile_logical_type_to_llvm(&signature.result))
             .unwrap_or_else(|| {
                 if let Some(ret) = return_type {
                     ret
@@ -2632,8 +2811,7 @@ impl CodeGenerator {
                 "i32" => {
                     if self.is_checked_enum_result(result_reg)
                         || self.is_checked_char_result(result_reg)
-                        || (self.uses_stable_scalar_i32_lane()
-                            && self.is_checked_int_result(result_reg))
+                        || (self.uses_exact_i32_lane() && self.is_checked_int_result(result_reg))
                     {
                         llvm_ir.push_str(&format!(
                             "  %{} = call i32 @{}({})\n",
@@ -2734,7 +2912,7 @@ impl CodeGenerator {
                 Value::Reg(r) => {
                     if self.is_checked_enum_result(value)
                         || self.is_checked_char_result(value)
-                        || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                        || (self.uses_exact_i32_lane() && self.is_checked_int_result(value))
                     {
                         format!("%reg{}", r)
                     } else {
@@ -2856,7 +3034,7 @@ impl CodeGenerator {
                 Value::Reg(r) => {
                     if self.is_checked_enum_result(value)
                         || self.is_checked_char_result(value)
-                        || (self.uses_stable_scalar_i32_lane() && self.is_checked_int_result(value))
+                        || (self.uses_exact_i32_lane() && self.is_checked_int_result(value))
                     {
                         llvm_ir.push_str(&format!("  ret i32 %reg{}\n", r));
                     } else {
@@ -3183,7 +3361,7 @@ mod tests {
     #![allow(clippy::approx_constant)]
 
     use super::*;
-    use crate::ir::{Function, Inst, Value};
+    use crate::ir::{BlockMetadata, Function, FunctionMetadata, FunctionSignature, Inst, Value};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
@@ -3226,6 +3404,197 @@ mod tests {
         assert_eq!(
             CodeGenerator::struct_field_type_to_llvm(&recursive),
             "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
+        );
+    }
+
+    #[test]
+    fn exact_i32_profile_maps_the_signed_index_count_boundary() {
+        let mut generator = CodeGenerator::new();
+        generator.language_profile = LanguageProfile::ExactI32ArrayV0;
+        let admitted_count = i32::MAX as usize;
+        let array = LogicalType::Array {
+            element: Box::new(LogicalType::Int),
+            count: admitted_count,
+        };
+        assert_eq!(
+            generator.profile_copy_data_type_to_llvm(&array),
+            format!("[{admitted_count} x i32]")
+        );
+        let too_large = LogicalType::Array {
+            element: Box::new(LogicalType::Int),
+            count: admitted_count + 1,
+        };
+        assert!(!LanguageProfile::ExactI32ArrayV0.admits_exact_i32_array(&too_large));
+        assert_eq!(
+            generator.profile_copy_data_type_to_llvm(&too_large),
+            format!("[{} x double]", admitted_count + 1)
+        );
+
+        generator.current_function = Some("probe".to_string());
+        generator.checked_metadata = Some(IrMetadata {
+            functions: BTreeMap::from([(
+                "probe".to_string(),
+                FunctionMetadata {
+                    signature: FunctionSignature {
+                        parameters: Vec::new(),
+                        result: LogicalType::Void,
+                    },
+                    results: BTreeMap::from([(ResultId(7), LogicalType::Int)]),
+                    places: BTreeMap::new(),
+                    blocks: vec![BlockMetadata {
+                        label: "entry".to_string(),
+                        reachable: true,
+                        successors: Vec::new(),
+                    }],
+                },
+            )]),
+        });
+        let mut llvm = String::new();
+        let index = generator.checked_copy_array_index_to_i64_operand(
+            &mut llvm,
+            &Value::Reg(7),
+            admitted_count,
+            9,
+        );
+        assert!(llvm.contains("icmp sge i32 %reg7, 0"));
+        assert!(llvm.contains("icmp slt i32 %reg7, 2147483647"));
+        assert!(llvm.contains("sext i32 %reg7 to i64"));
+        assert!(index.starts_with('%'));
+    }
+
+    #[test]
+    fn exact_i32_profile_rejects_verified_legacy_array_instructions_before_emission() {
+        let raw = HashMap::from([(
+            "main".to_string(),
+            Function {
+                name: "main".to_string(),
+                body: vec![
+                    Inst::AllocaArray {
+                        result: Value::Reg(0),
+                        elem_type: "double".to_string(),
+                        count: 2,
+                    },
+                    Inst::GetElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        elem_type: "[2 x double]".to_string(),
+                    },
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+                next_reg: 2,
+                next_ptr: 2,
+            },
+        )]);
+
+        let error = CodeGenerator::new()
+            .try_generate_code_with_profile(raw, LanguageProfile::ExactI32ArrayV0)
+            .expect_err("exact profile must reject the legacy double-array route");
+        assert!(matches!(
+            error,
+            CodeGenerationError::LanguageProfileContract {
+                profile: LanguageProfile::ExactI32ArrayV0,
+                ..
+            }
+        ));
+        assert!(error.to_string().contains("legacy `alloca array`"));
+    }
+
+    #[test]
+    fn exact_i32_profile_rejects_verified_excluded_operations_and_array_roles() {
+        let cases = [
+            (
+                "division",
+                vec![
+                    Inst::Div(Value::Reg(0), Value::ImmInt(4), Value::ImmInt(2)),
+                    Inst::Return(Value::Reg(0)),
+                ],
+                "profile-excluded division instruction",
+            ),
+            (
+                "mutable array place",
+                vec![
+                    Inst::CheckedCopyStructArrayAlloca {
+                        result: Value::Reg(0),
+                        element: LogicalType::Int,
+                        count: 2,
+                    },
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(1),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(0),
+                        element: LogicalType::Int,
+                        count: 2,
+                    },
+                    Inst::Store(Value::Reg(1), Value::ImmInt(7)),
+                    Inst::CheckedCopyStructArrayElementPtr {
+                        result: Value::Reg(2),
+                        base: Value::Reg(0),
+                        index: Value::ImmInt(1),
+                        element: LogicalType::Int,
+                        count: 2,
+                    },
+                    Inst::Store(Value::Reg(2), Value::ImmInt(8)),
+                    Inst::Load(Value::Reg(3), Value::Reg(0)),
+                    Inst::CheckedMutableOwnedPlaceAlloca {
+                        result: Value::Reg(4),
+                        name: "values".to_string(),
+                        ty: LogicalType::Array {
+                            element: Box::new(LogicalType::Int),
+                            count: 2,
+                        },
+                    },
+                    Inst::Store(Value::Reg(4), Value::Reg(3)),
+                    Inst::Return(Value::ImmInt(0)),
+                ],
+                "instruction outside the exact i32 fixed-array profile",
+            ),
+        ];
+
+        for (name, body, expected) in cases {
+            let raw = HashMap::from([(
+                "main".to_string(),
+                Function {
+                    name: "main".to_string(),
+                    body,
+                    next_reg: 2,
+                    next_ptr: 2,
+                },
+            )]);
+            let error = CodeGenerator::new()
+                .try_generate_code_with_profile(raw, LanguageProfile::ExactI32ArrayV0)
+                .err()
+                .unwrap_or_else(|| panic!("{name} unexpectedly reached exact LLVM"));
+            assert!(
+                matches!(
+                    &error,
+                    CodeGenerationError::LanguageProfileContract {
+                        profile: LanguageProfile::ExactI32ArrayV0,
+                        ..
+                    }
+                ),
+                "{name} was rejected at the wrong boundary: {error}"
+            );
+            assert!(error.to_string().contains(expected), "{name}: {error}");
+        }
+    }
+
+    #[test]
+    fn stable_scalar_profile_does_not_claim_the_exact_copydata_array_lane() {
+        let array = LogicalType::Array {
+            element: Box::new(LogicalType::Int),
+            count: 2,
+        };
+        let mut generator = CodeGenerator::new();
+        generator.language_profile = LanguageProfile::StableScalarV0;
+        assert_eq!(
+            generator.profile_copy_data_type_to_llvm(&array),
+            "[2 x double]"
+        );
+        assert_eq!(
+            generator.profile_copy_data_type_to_llvm(&LogicalType::Int),
+            "double"
         );
     }
 
