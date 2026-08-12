@@ -1,5 +1,82 @@
 # Aero Task Ledger
 
+## CAP-018-ACCEPTANCE-SYNC - immutable array-result composition accepted truth
+
+- Date/task/status: 2026-08-12, `CAP-018-ACCEPTANCE-SYNC`, authorized bounded
+  record/claim-contract synchronization on `agent/cap-018-accepted-truth-sync` from
+  exact protected master `c49ff17cab7fc0e8d4f552a71499929135c16c61`, tree
+  `3073c881c883984f53fcde2f0b205acbec760145`. Its ordered parents are accepted
+  base `7e6b231ff2955d94f2b51a7a69aff01a88de103c`, then reviewed candidate
+  `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and observability defect: protected PR #54 accepted CAP-018 and
+  preserved the candidate tree exactly. Candidate push CI `31614934307`, PR CI
+  `31614994226`, Rust CI `31614994253`, and CodeQL `31614991761` passed. Fresh
+  merge-head CI `31615467151`, Rust CI `31615467115`, and CodeQL `31615465499`
+  also passed; exact default-branch analyses are Actions `1608636029`, Python
+  `1608636345`, and Rust `1608644785`. The cumulative truth surfaces still describe
+  CAP-014 as the latest compiler/profile capability, reject array results inside
+  `exact-i32-array-v0`, and direct work toward the already completed CAP-016
+  readiness audit. That disagreement is a current public observability defect, not
+  evidence that the compiler capability is missing.
+- Frozen truth and classification: CAP-018 is the latest accepted compiler/profile
+  capability and widens CAP-014's existing CPU-only `exact-i32-array-v0` profile; it
+  does not create another profile. CAP-014 remains the profile origin and first
+  bounded Milestone 3 CPU slice. CAP-015 remains the latest separately classified
+  M1-001 representative-integration checkpoint. The selected profile row stays
+  `END_TO_END`, broad integers/fixed arrays stay `PARTIAL`, and
+  `stable-scalar-v0` remains Aero's only `STABLE` profile. CAP-016 module/import
+  semantics and CAP-017 Result-propagation syntax remain completed architecture
+  stops, not accepted capabilities. CAP-013 remains the shared specialization
+  identity/phase authority; CAP-018 added no specialization classifier.
+- Real-program delta and strategic value: before CAP-018, the selected CPU profile
+  could consume a fixed array but every caller had to own each literal and no helper
+  could form an array-producing pipeline stage. Accepted CAP-018 lets ordinary
+  nongeneric functions construct, return, bind, forward, pass, and index immutable
+  exact flat array values. The maintained N=8 specimen preserves source lane 127,
+  produces lane 128, computes 2035, and retains exit 91 on Linux and Windows at O0/O2.
+  Synchronizing this result restores one source of project truth before further
+  implementation and prevents old exclusions from understating executable Aero.
+- Mechanism and assumptions: update only the seven cumulative truth surfaces, this
+  single ledger authorization/acceptance record, and the version-claim contract. A
+  red-first claim test must bind the ordered candidate/merge evidence, one widened
+  profile row, CAP-014/CAP-015 historical distinctions, CAP-016/CAP-017 stop state,
+  stable/partial boundaries, exact next-action ranking, and stale-negative wording.
+  No compiler, example, workflow, dependency, release, benchmark, or protection
+  mutation is part of this task. PR #54 metadata has already been corrected to exact
+  accepted status and must remain byte/render coherent.
+- Evidence and measurement: success requires exact identities and passing conclusions
+  in every cumulative document; exactly one `exact-i32-array-v0` matrix row saying
+  CAP-014 created and CAP-018 widened it; no separate CAP-018 profile/parser/module/
+  propagation row; no live array-result exclusion; one fresh three-gap ranking with
+  favorable score direction, before/after delta, stop condition, and change-of-mind
+  evidence for every row; exact preservation of prior CAP-014/CAP-015 evidence; and
+  explicit CAP-016/CAP-017 stop boundaries. Run the focused claim test red then green,
+  `git diff --check`, formatting, the exact repository-root `./tools/test.sh`, docs,
+  independent nine-file review, exact-head public workflows, protected merge, and
+  fresh merge-head verification.
+- Allowed files and rollback: exactly `TASK_LEDGER.md`, `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `Roadmap.md`, `CONFORMANCE_PLAN.md`, `README.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. The authorization commit is
+  the rollback boundary. Writing agents, if used, must own non-overlapping subsets.
+- Failure modes, detection, and recovery: stale or synthetic GitHub identities could
+  be recorded; CAP-014 history could be rewritten; CAP-018 could be misrepresented as
+  a new/stable/general array profile; CAP-015 integration could be relabeled compiler
+  behavior; CAP-016/017 stops could be promoted; rankings could reverse or omit
+  decision contracts; or evidence prose could claim the pre-existing Actions alert is
+  absent. Exact claim-contract assertions, independent diff/GitHub audits, and one
+  bounded PR detect these. Revert this record-only branch rather than altering the
+  accepted compiler or specification to fit prose.
+- Stop and change-mind conditions: stop on any candidate/merge/tree/run disagreement,
+  non-green cited run, new CodeQL finding, need for a tenth file, material conflict
+  between the accepted compiler and founding/roadmap authority, or inability to freeze
+  a truthful third-ranked capability without inventing semantics. Do not begin the
+  next implementation until this sync is protected-integrated. Evidence that master
+  advanced, CAP-018 changed another profile, or the fresh accepted-head ranking gives
+  a different project-level payoff must amend this record before publication.
+
 ## CAP-018-EXACT-ARRAY-VALUE-COMPOSITION - immutable array-producing CPU pipeline
 
 - Date/task/status: 2026-08-12, `CAP-018-EXACT-ARRAY-VALUE-COMPOSITION`, authorized
