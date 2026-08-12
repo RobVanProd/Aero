@@ -1,5 +1,90 @@
 # Aero Task Ledger
 
+## CAP-015 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-12, `CAP-015-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from exact protected master
+  `b62696272f293f9f378f8a368cc818fcb8ef1074` (tree
+  `27f359bc5ca90212a06ce73b71759cac0533c1f0`) on
+  `agent/cap-015-acceptance-sync`. Its ordered parents are prior accepted master
+  `7f669c3a58f296fa0596c5722d3afdc96d596798` then candidate
+  `dd9b1710abebf2f2318582cf94568c2f9a30ca8f`. User/app-owned untracked
+  `.codex-remote-attachments/` and `tmp/` remain outside the task. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Observed behavior and real-program consequence: protected PR #52 accepts the
+  bounded representative application integration, but cumulative truth still
+  presents `CAP-015-READINESS` as future work and accepted master as the CAP-014
+  truth-sync merge. Before this sync, a reader cannot reliably discover that Aero's
+  maintained application interprets one exact embedded `[char; 10]` record through
+  guarded reads and `Result<int, char>` into materially used numerical computation.
+  Afterward, current surfaces must describe that accepted integration without
+  recasting it as a compiler feature, general parser, profile, runtime ingestion, or
+  file I/O.
+- Mechanism, assumptions, and immutable evidence: update only cumulative records
+  and their exact claim assertions. Candidate
+  `dd9b1710abebf2f2318582cf94568c2f9a30ca8f` and protected merge
+  `b62696272f293f9f378f8a368cc818fcb8ef1074` share tree
+  `27f359bc5ca90212a06ce73b71759cac0533c1f0`. Candidate push/PR CI
+  `31597830488`/`31598146528`, Rust CI `31598146473`, and CodeQL
+  `31598144554` pass, including jobs `94117596344`, `94118624866`, stable
+  `94118624919`, nightly `94118624945`, Windows LLVM 22 `94118624833`, and
+  actions/Python/Rust analysis jobs `94118623200`/`94118623225`/`94118623063`.
+  Merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
+  `31598633803` pass, including compiler `94120212134`, stable `94120211600`,
+  nightly `94120211628`, Windows LLVM 22 `94120211634`, analysis jobs
+  `94120215436`/`94120215489`/`94120215540`, and exact-SHA default-branch
+  analyses actions `1607576253`, Python `1607576720`, and Rust `1607581887`
+  with no analysis warnings. PR #52 now renders `Accepted status` with exact
+  identities, passing evidence, correction chronology, and exclusions.
+- Frozen wording and classification: CAP-014 remains Aero's latest accepted
+  compiler/profile capability and first Milestone 3 CPU slice. CAP-015 is the
+  latest accepted project integration checkpoint. It enriches only the existing
+  M1-001 representative `END_TO_END` application evidence with exact embedded
+  record grammar `T=<digit><digit>;H=<digit><digit>;`, canonical result 42,
+  boundaries 0/297, all ten malformed positions, three first-error controls, and
+  negative/equal-to-count bounds traps. Do not add a CAP-015 parser, grammar,
+  profile, feature, stability, or conformance row; do not promote neighboring
+  component rows. Preserve that no compiler production or language-profile code
+  changed and both named profiles reject the parser.
+- Post-acceptance decision/ranking requirement: retire the consumed readiness text
+  and freeze a fresh scored top-three capability ranking before authorizing
+  CAP-016. Rank real-program usefulness, roadmap criticality, architectural
+  leverage, correctness/safety value, implementation risk, and evidence cost.
+  Current audit evidence places positive module/import/name resolution first,
+  typed `Result` propagation across ordinary call chains second, and runtime
+  byte/file acquisition into a bounded owned buffer third; the final record must
+  state exact before/after program deltas and stop conditions. File acquisition
+  remains stopped until path/byte/buffer/error/drop/platform contracts are frozen.
+  Positive modules must begin as architecture/readiness plus a red probe because
+  current module flattening, `import`/`use` rejection, erased visibility, and
+  unqualified specialization identities make a guard removal unsound.
+- Exact allowed files and architecture boundary: only `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. No compiler production,
+  example, workflow, dependency, package, release, benchmark,
+  `claim-verification/`, protection, or external-artifact mutation is authorized.
+  The first post-authorization behavior change is a failing exact claim-contract
+  test; synchronize the other records only after that red checkpoint.
+- Failure modes, detection, recovery, and decision threshold: prevent stale master
+  identity, candidate/acceptance tense drift, calling CAP-015 a compiler capability,
+  claiming file/runtime ingestion from embedded literals, widening either profile,
+  adding a parser row, changing the historical `CAP-001 through CAP-013` Milestone
+  2 sentence, or beginning the next capability while records disagree. Exact
+  positive/stale-negative claim assertions, nine-file scope inspection, formatting,
+  documentation, the complete root gate, independent review, exact-head public
+  checks, protected merge, and merge-head evidence detect these failures. This
+  branch and its record-only commits are the rollback boundary. Merge only if every
+  current surface identifies accepted master and the integration/compiler
+  distinction consistently, the scored ranking is frozen, all gates pass, and the
+  rendered sync PR metadata is exact. Evidence that CAP-015 changed compiler
+  semantics, that the representative program does not materially consume 42, or
+  that positive modules require unfrozen namespace/visibility/cycle semantics would
+  change the decision and trigger correction or reranking rather than claim
+  broadening.
+
 ## CAP-015-READINESS - bounded embedded character-record parser/interpreter probe
 
 - Date/task/status: 2026-08-12, `CAP-015-READINESS`, authorized readiness contract
