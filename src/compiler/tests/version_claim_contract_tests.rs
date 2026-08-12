@@ -395,7 +395,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains("Project status after CAP-018"));
     assert!(readme.contains("baseline is protected CAP-018 compiler/profile merge"));
     assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
-    assert!(readme.contains("The next action is mutable loop-produced exact-`i32` flat-array results"));
+    assert!(
+        readme.contains("The next action is mutable loop-produced exact-`i32` flat-array results")
+    );
     assert!(readme.contains("CAP-018 is Aero's latest accepted compiler/profile capability"));
     assert!(readme.contains("CAP-015 is the latest accepted project integration checkpoint"));
     assert!(readme.contains("`exact-i32-array-v0` profile, classified `END_TO_END`"));
@@ -438,7 +440,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         audit.contains("CAP-015 accepted: embedded character-record representative integration")
     );
     assert!(audit.contains("CAP-018 accepted: immutable exact-array value/result composition"));
-    assert!(audit.contains("The post-CAP-018 order begins with mutable loop-produced exact-`i32` flat-array results"));
+    assert!(audit.contains(
+        "The post-CAP-018 order begins with mutable loop-produced exact-`i32` flat-array results"
+    ));
     assert!(audit.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(audit.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(audit.contains(
@@ -524,7 +528,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(project_state.contains("Current accepted public master is CAP-018"));
     assert!(project_state.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(project_state.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
-    assert!(project_state.contains("Mutable loop-produced exact-`i32` flat-array results rank first"));
+    assert!(
+        project_state.contains("Mutable loop-produced exact-`i32` flat-array results rank first")
+    );
     assert!(!project_state.contains("Current accepted public master is CAP-012"));
     assert!(!project_state.contains("Current accepted public master is CAP-013"));
     assert!(!project_state.contains("Current accepted public master is CAP-014"));
@@ -542,9 +548,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`)"
     ));
     assert!(matrix.contains("| STABLE |"));
-    assert!(
-        matrix.contains("Latest accepted compiler/profile master is protected CAP-018 merge")
-    );
+    assert!(matrix.contains("Latest accepted compiler/profile master is protected CAP-018 merge"));
     assert!(
         normalized_words(&matrix)
             .contains("Latest accepted project-integration master is protected CAP-015 merge")
@@ -568,7 +572,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .collect::<Vec<_>>();
     assert_eq!(
         exact_profile_rows,
-        ["| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"],
+        [
+            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
+        ],
         "CAP-014/CAP-018 must classify in exactly one widened profile row"
     );
     let stable_rows = language_features
@@ -578,7 +584,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .collect::<Vec<_>>();
     assert_eq!(
         stable_rows,
-        ["| Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |"],
+        [
+            "| Selected `stable-scalar-v0` profile (accepted `CAP-009`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | STABLE |"
+        ],
         "stable-scalar-v0 must remain the only STABLE language-feature row"
     );
     assert!(language_features.contains(
@@ -633,9 +641,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(roadmap.contains(
         "CAP-015 is accepted as a bounded representative application integration checkpoint"
     ));
-    assert!(roadmap.contains(
-        "CAP-018 is accepted as immutable exact-array value/result composition"
-    ));
+    assert!(
+        roadmap.contains("CAP-018 is accepted as immutable exact-array value/result composition")
+    );
     assert!(roadmap.contains("Mutable loop-produced exact-`i32` flat-array results rank first"));
     assert!(roadmap.contains("The milestone exit is not met"));
     assert!(roadmap.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
@@ -676,7 +684,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("Accepted CAP-015 enriches the existing M1-001 representative application")
     );
     assert!(conformance.contains("Accepted CAP-018 widens the existing `exact-i32-array-v0` lane"));
-    assert!(conformance.contains("Mutable loop-produced exact-`i32` flat-array results rank first"));
+    assert!(
+        conformance.contains("Mutable loop-produced exact-`i32` flat-array results rank first")
+    );
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
     assert!(conformance.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
