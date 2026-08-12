@@ -36,7 +36,8 @@
   accepted CPU kernel, preserves every source lane, produces result `2035`, and
   exits `91`. Linux/Windows evidence retains read traps and adds negative and
   equal-to-count write traps. CAP-018 remains the immutable array-result
-  composition checkpoint, CAP-015 remains the M1-001 parser/integration checkpoint,
+  composition checkpoint, CAP-015 remains the M1-001 representative-integration
+  checkpoint,
   CAP-016 and CAP-017 remain completed architecture/readiness stops rather than
   accepted capabilities, and CAP-013 remains the single specialization
   identity/phase authority.
