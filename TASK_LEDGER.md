@@ -1,5 +1,102 @@
 # Aero Task Ledger
 
+## CAP-015-READINESS - bounded embedded character-record parser/interpreter probe
+
+- Date/task/status: 2026-08-12, `CAP-015-READINESS`, authorized readiness contract
+  and full-program probe from exact accepted master
+  `7f669c3a58f296fa0596c5722d3afdc96d596798` (tree
+  `f66d5ee7a962c2e2c69d93e7929f2973e0e3d2c6`) on
+  `agent/cap-015-readiness`. Protected PR #51 accepted the CAP-014 truth sync;
+  exact merge-head CI `31592323512`, Rust CI `31592323497`, and CodeQL
+  `31592323342` pass. User/app-owned untracked `.codex-remote-attachments/` and
+  `tmp/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as evidence.
+- Founding-framework and roadmap basis: the original
+  `__Aero___ A High-Performance, Ergonomic Programming Language.pdf` identifies
+  `char`, fixed-size arrays, explicit control flow, algebraic sum types, typed IR,
+  LLVM, and high-performance data/AI pipelines as founding language/workload
+  directions. `Aero Programming Language Framework - Claude.pdf` emphasizes that
+  execution quality and a real AI/ML infrastructure workload, not feature count,
+  determine adoption. Accepted project truth ranks a bounded embedded `[char; N]`
+  parser/interpreter first because it is the shortest composition step from CAP-014's
+  CPU kernel toward an ingestion-to-computation workload. The PDFs are design
+  direction, not evidence that these capabilities are implemented.
+- Real-program delta and mechanism: before this task, Aero has isolated accepted
+  evidence for character CopyData, fixed arrays, dynamic guarded reads, functions,
+  loops, arithmetic, concrete `Result<int, char>`, and exhaustive `Match`, but no
+  maintained application interprets structured embedded character data into a typed
+  numerical result. This readiness task changes no compiler behavior by assumption.
+  It first probes one complete program through current semantic, raw checked,
+  verified LLVM, public `check`/`build`/`run`, and native routes. If already green,
+  the only permitted next mutation is a separately recorded representative
+  application/system gate followed by reranking. If red, classify the first failure;
+  only one semantically established capability class spanning at most two compiler
+  phases may be proposed for a separate red-first implementation authorization.
+- Frozen application grammar and result contract: the input is exactly the ten-code-
+  point ASCII record `T=<digit><digit>;H=<digit><digit>;`, represented as
+  `[char; 10]`. `digit` is exactly ASCII `0` through `9`; no whitespace, sign,
+  separator variation, variable field width, trailing data, locale, normalization,
+  case folding, or Unicode digit class is admitted. Parsing is left-to-right through
+  runtime integer indexes over the fixed array. The first unexpected character is
+  returned unchanged as `Err(character)`. On success the two decimal fields are
+  interpreted as `temperature` and `humidity`, and the exact typed result is
+  `Ok(temperature * 2 + humidity)`. The canonical source record `T=17;H=08;`
+  therefore has independent oracle 42. Decimal accumulation is bounded to `0..99`,
+  so no arithmetic-overflow semantic decision is needed. The program must use an
+  explicit `Result<int, char>` and exhaustive `Match`; question-mark propagation is
+  outside this contract.
+- Complete probe class: positive canonical record; boundary digits `00` and `99`;
+  invalid first marker; invalid first and second decimal digits; invalid separators;
+  invalid second field marker; first-error precedence when two positions are invalid;
+  runtime index below zero and equal to count as clean trap controls; char/int identity
+  separation; and current-profile separation. The parser uses no mutable array write,
+  array result, repeat/nested array, struct/tuple/enum storage around the input,
+  reference storage, module/import, constant, method, generic/trait, closure, dynamic
+  collection, heap/drop, string/slice, I/O, unsafe/FFI, accelerator, or public ABI.
+- Assumptions and evidence: accepted CORE-072 proves exact character identity and
+  equality through recursive CopyData; CAP-001 proves pre-address dynamic fixed-array
+  read guards; CAP-003 proves concrete recursive-CopyData `Result` transport and
+  exhaustive `Match`; CORE-068 proves exact named-call admission; and M1-001 proves
+  representative public/native execution infrastructure. Current source tests and
+  implementation are evidence for the probe hypothesis only. They do not establish
+  that this complete composition is green, nor do they authorize profile widening.
+- CEO/engineering measurement and failure detection: success requires a complete
+  source specimen, exact semantic/raw checked/public parity, independent checked-IR
+  verification, LLVM verification, identity-linked bounds guards before every dynamic
+  GEP, no character-to-numeric conversion, exact native/public oracle 42 at `-O0` and
+  `-O2`, deterministic typed-error outcomes for every malformed class, and nonzero
+  clean bounds-trap controls on Linux and Windows. A green microcomponent is not
+  sufficient. Detect false success through source-readable diagnostics, checked-IR
+  corruption controls where a new invariant is introduced, LLVM-shape/absence/order
+  assertions, public artifact hygiene, O0/O2 comparison, and a tracked composed
+  application rather than feature-only snippets.
+- Profile and claim boundary: probe the accepted default experimental behavior first.
+  Do not widen or rename `stable-scalar-v0` or `exact-i32-array-v0`; do not claim this
+  parser is part of either profile. A green experimental probe is integration evidence,
+  not a new `STABLE`/`END_TO_END` language row, general parsing, strings, file input,
+  serialization, performance, safety, or Milestone 3 completion. A separate additive
+  profile would require a new architecture/semantics decision and is not authorized.
+- Initial allowed files and stop conditions: before probe classification, only this
+  `TASK_LEDGER.md` authorization may change. Probe sources/evidence must live in a
+  task-local directory outside the repository. Do not change compiler production,
+  examples, tests, workflows, state/claim documents, dependencies, releases,
+  benchmarks, or external artifacts. Stop if the grammar requires character casts or
+  arithmetic, `String`, slices, variable-length storage, Unicode policy, I/O,
+  allocation/drop, imports, new generic specialization, profile fusion, more than two
+  compiler phases, or any unfrozen language semantic. Stop and rerank rather than
+  inventing behavior.
+- Recovery, decision threshold, strategic value, and what would change our mind: this
+  branch and the authorization commit are the rollback boundary. Commit this record
+  before running the probe. If the full program is green, record that finding and
+  authorize only the smallest representative gate; if one established class is red,
+  record its exhaustive shapes and separately authorize one shared-predicate vertical
+  slice; otherwise stop. Evidence that the program is artificial, duplicates the
+  existing telemetry gate without adding structured ingestion, requires profile
+  fusion, crosses the two-phase boundary, or does not shorten the path to the
+  ingestion/error/kernel workload would change the decision and trigger immediate
+  reranking toward positive module/name resolution instead.
+
 ## CAP-014 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded
