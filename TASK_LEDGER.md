@@ -82,6 +82,45 @@
   and require fresh exact merge-head CI/Rust/CodeQL analyses before CAP-020 is
   accepted. Do not count stale/foreign SHAs or the PR-only aggregate CodeQL check
   as default-branch evidence.
+- Reviewed local candidate and red/green chronology (not accepted public truth):
+  authorization `07a7b8510ff312eda81d66b47822bef9da7431a3` precedes the
+  product red `f0176f1c203bffd910d814acfb0f4d126de0a396`, the exact Linux
+  public-exit hardening red `849e07f4cd81390686a552b7bf131f33d43131a4`, and
+  the workflow-only green checkpoint
+  `d62639544b3f887ea18e97dcf79bb369b503b469`, tree
+  `28773e03333453b62369cc7021005b883f58cfed`. The first red ran 18 focused
+  tests with 17 pass and one final collected failure naming missing Linux and
+  Windows matvec evidence. The hardening red again ran 17/18, failing only
+  because the Linux exact-profile step did not yet require exactly one public
+  exit line. The final focused target passes 18/18; the quick-start contract
+  passes 5/5; the pinned Windows workflow contract passes 1/1; both extracted
+  workflow bodies parse; GNU PCRE and .NET each match one complete matvec
+  identity chain and three complete guard/address chains; and the required root
+  `./tools/test.sh` gate passes. Static review found no P0-P2 finding, confirmed
+  four jobs and 83 named steps unchanged, and verified the cumulative diff is
+  exactly the four authorized files with no production source change. The
+  force-tracked specimen is blob
+  `521f7b3d39392bbc16396fdbb9925873c0635311`; accepted CAP-019 main,
+  wrapping, and all four trap fixtures remain byte-identical to the protected
+  base.
+- Independent pinned Windows evidence on that exact green checkpoint: a fresh
+  official LLVM 22.1.8 archive download was 862,053,924 bytes with SHA-256
+  `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`,
+  exactly the workflow pin; `opt`, `llvm-as`, `llc`, and `clang` all reported
+  22.1.8. External evidence root
+  `D:\CodexArtifacts\aero-cap020-native-d626395` contains the 10,994-byte
+  matvec LLVM file with SHA-256
+  `aabe23131612924e3326a51dc30d723301bc34c087067b4696b2222fe8b367b5`;
+  the exact source SHA-256 is
+  `9637341005b6a1ec40bcfb52104fff9352ce23296849db211216a61ebc6e9dcf`.
+  Public check and verifier-required build pass; public run exits 91 with
+  exactly one `Exit code: 91` line; Clang O0/O2 natives exit 91 with empty
+  stdout/stderr. Preserved kernel and wrapping natives exit 91/93, and all four
+  negative/equal read/write fixtures trap under public execution and both native
+  optimization levels; every one of the seven LLVM files passes `opt`,
+  `llvm-as`, and `llc -verify-machineinstrs`. These artifacts are mutable local
+  evidence only. Exact-candidate GitHub checks, protected integration, and fresh
+  merge-head evidence remain mandatory before CAP-020 is accepted.
 - Preserved exclusions, risks, and stop conditions: no recursive/nested arrays,
   new type topology, general matrix/tensor support, general mutation, partial or
   uninitialized arrays, aliases/references, whole-array reassignment, static
