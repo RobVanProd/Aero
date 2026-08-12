@@ -175,6 +175,30 @@
   After protected acceptance, synchronize current truth and rerank the three highest-
   leverage gaps; do not automatically select profile fusion.
 
+### CAP-015 representative-gate red checkpoint
+
+- Test-first result: the focused representative target passes its two unchanged
+  controls and reaches the new composed parser test through direct-module compile,
+  flattened semantic analysis, raw checked admission, independently verified
+  codegen, exact route parity, parser guard/GEP assertions, public check/build, and
+  both profile-rejection controls. It then fails only because tracked `main.aero`
+  still has the old bytes, `records.aero` and the two parser trap specimens do not
+  exist, and the existing Linux/Windows workflow lacks the five frozen parser
+  anchors. This is the intended red boundary; no compiler production failure or
+  semantic ambiguity was observed.
+- Command/result: `cargo fmt --manifest-path src/compiler/Cargo.toml --check` passes;
+  `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  representative_scalar_application_tests -- --nocapture` reports 2 passed and 1
+  failed with only those source/workflow integration diagnostics. A first local
+  attempt to add public `run` inside the Rust test exposed only that the ambient
+  PowerShell `PATH` omitted the pinned LLVM verifier; that duplicate local route was
+  removed before this red checkpoint because the existing Linux/Windows workflow
+  lane owns required-verifier public/native execution. The readiness probe already
+  proved the same source through pinned local LLVM 22.
+- Green threshold: add exactly the authorized tracked source and workflow changes;
+  the unchanged focused test must become green without modifying compiler
+  production, profiles, expected diagnostic policy, or any test assertion.
+
 ## CAP-014 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded
