@@ -72,11 +72,60 @@ const CAP019_ACCEPTANCE_EVIDENCE: [&str; 22] = [
     "1609401493",
 ];
 
+const CAP020_ACCEPTANCE_EVIDENCE: [&str; 28] = [
+    "3b61cd1ed34f910f556821942cd06301ba17dd50",
+    "800510de85bd82f3332126ad249c95da109dd3e1",
+    "13157687f3e955d1c8292ccca133c5a73e29e1a7",
+    "d9493d5123840b38ebab6ca275aaba3216728706",
+    "31639493741",
+    "31639540134",
+    "31639540030",
+    "31639535638",
+    "94258433541",
+    "94258276078",
+    "94258275978",
+    "94258275899",
+    "94258264605",
+    "94258264489",
+    "94258264627",
+    "31640016314",
+    "31640016316",
+    "31640015733",
+    "94259869631",
+    "94259869676",
+    "94259869637",
+    "94259869559",
+    "94259873136",
+    "94259873164",
+    "94259873086",
+    "1610137115",
+    "1610137589",
+    "1610144660",
+];
+
 const CAP019_EVIDENCE_PREFIX: &str = "Exact CAP-019 reviewed candidate \
 `f2955bedd22708041e36ee90c65c4f08c443d740`, shared candidate/merge tree \
 `c520729e7b081087bbe431e97d937fb77f519b37`, accepted base and first merge parent \
 `84916e124752b8e7d228855a0969cd9eab8dba26`, and protected PR #56 merge \
 `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4` whose second parent is that candidate are immutable.";
+const CAP020_EVIDENCE_PREFIX: &str = "Exact CAP-020 reviewed candidate \
+`3b61cd1ed34f910f556821942cd06301ba17dd50`, shared candidate/merge tree \
+`800510de85bd82f3332126ad249c95da109dd3e1`, accepted base and first merge parent \
+`13157687f3e955d1c8292ccca133c5a73e29e1a7`, and protected PR #58 merge \
+`d9493d5123840b38ebab6ca275aaba3216728706` whose second parent is that candidate are immutable.";
+const CAP020_EVIDENCE_PARAGRAPH: &str = "Exact CAP-020 reviewed candidate \
+`3b61cd1ed34f910f556821942cd06301ba17dd50`, shared candidate/merge tree \
+`800510de85bd82f3332126ad249c95da109dd3e1`, accepted base and first merge parent \
+`13157687f3e955d1c8292ccca133c5a73e29e1a7`, and protected PR #58 merge \
+`d9493d5123840b38ebab6ca275aaba3216728706` whose second parent is that candidate are immutable. \
+Candidate push CI `31639493741`, PR CI `31639540134`, Rust CI `31639540030`, \
+CodeQL `31639535638`, and aggregate candidate check `94258433541`; candidate stable/nightly/Windows \
+LLVM 22 jobs `94258276078`/`94258275978`/`94258275899` and CodeQL Actions/Python/Rust \
+jobs `94258264605`/`94258264489`/`94258264627`; merge-head CI/Rust CI/CodeQL \
+`31640016314`/`31640016316`/`31640015733`, exact merge compiler/stable/nightly/Windows \
+LLVM 22 jobs `94259869631`/`94259869676`/`94259869637`/`94259869559`, merge CodeQL \
+Actions/Python/Rust jobs `94259873136`/`94259873164`/`94259873086`, and default-branch \
+Actions/Python/Rust analyses `1610137115`/`1610137589`/`1610144660` all pass.";
 const CAP018_CANDIDATE_LEADIN: &str = "Exact CAP-018 candidate \
 `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`";
 
@@ -116,6 +165,32 @@ const CAP019_SPECIALIZATION_BOUNDARY: &str = "CAP-013 remains the single shared 
 specialization identity/phase authority; CAP-018 and CAP-019 add no specialization \
 classifier.";
 
+const CAP020_ZERO_PRODUCTION_BOUNDARY: &str = "Accepted CAP-020 changes no parser, \
+grammar, source semantics, language profile, semantic analysis, checked IR, verifier, \
+backend, ABI, or capability classification; it is a zero-production product/evidence \
+checkpoint over CAP-019's `exact-i32-array-v0` surface.";
+
+const CAP020_PRODUCT_BOUNDARY: &str = "The accepted application encodes a 2x3 matrix as \
+`[int; 6]`, consumes an `[int; 3]` vector, computes wrapping `row * 3 + column` in \
+nested loops, returns a fully initialized mutable-produced `[i32; 2]`, preserves every \
+input lane, produces ordinary and wrapping results `[50, 122]` and `[-2, 5]`, and exits \
+`91`.";
+
+const CAP020_GUARD_BOUNDARY: &str = "The computed linear value flows through the existing \
+signed bounds and trap-before-address authority before a `[6 x i32]` load, with \
+corresponding guarded `[3 x i32]` load and `[2 x i32]` store.";
+
+const CAP020_EXCLUSION_BOUNDARY: &str = "CAP-020 adds no matrix type, recursive or nested \
+arrays, static index proof, checked-overflow arithmetic, stable layout or ABI, \
+performance, accelerator execution, general mutation, or safety claim.";
+
+const CAP020_HISTORY_BOUNDARY: &str = "CAP-019 remains the latest compiler/profile \
+capability widening; CAP-020 is an accepted product gate, not a separate profile or \
+feature row.";
+
+const CAP020_ALERT_BOUNDARY: &str = "The sole open finding remains pre-existing Actions \
+alert #4 from 2026-08-09; no new CAP-020 alert surfaced.";
+
 const CAP015_M1_BOUNDARY: &str = "CAP-015 remains the accepted M1-001 \
 representative-integration checkpoint. CAP-015 changes no compiler production or \
 language-profile code.";
@@ -132,23 +207,27 @@ const CAP018_CONFORMANCE_HISTORY_BOUNDARY: &str = "Its retained historical negat
 record the mutable binding/result/write boundary before CAP-019; current negative \
 separation retains only the mutable forms CAP-019 still excludes";
 
-const POST_CAP019_RANKING_ROWS: [&str; 3] = [
-    "| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |",
-    "| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |",
-    "| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |",
+const POST_CAP020_RANKING_HEADER: &str = "| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |";
+
+const POST_CAP020_RANKING_ROWS: [&str; 3] = [
+    "| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |",
+    "| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |",
+    "| 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |",
 ];
 
-const POST_CAP019_DECISION_CONTRACTS: [&str; 9] = [
-    "Before, accepted CAP-019 can produce and consume mutable flat exact-Int arrays, but no maintained product proves that lane can encode a two-dimensional workload with row-major flat indexing and produce a matrix-shaped result. After, one bounded nongeneric 2x3-by-3 exact-Int matrix-vector application should encode the matrix as `[int; 6]`, compute `row * 3 + column` through guarded loops, return a mutable-produced `[int; 2]`, and execute through the accepted CPU profile with exact source/result, bounds-trap, wrapping, LLVM, and Linux/Windows native oracles.",
-    "Stop and rerank if the flat-buffer matrix-vector product cannot be expressed without new language semantics, compiler production changes, unchecked linearized indexing, partial/uninitialized arrays, stable ABI/layout, workload-specific profile exceptions, or duplicated bounds authorities.",
-    "Evidence that the flat encoding obscures the useful program, cannot prove row/column-to-linear-index bounds composition, or yields no material product evidence beyond CAP-019 would change the decision; evidence that it executes cleanly is the prerequisite for deciding whether recursive matrix syntax has enough added value.",
-    "Before, the selected profile deliberately rejects nested arrays, while the experimental compiler already has recursive CopyData array transport and indexing machinery; neither establishes one exact recursive source/physical shape authority or a trusted 2D profile. After this readiness task, a task-local `[[int; 3]; 2]` by `[int; 3]` matrix-vector red probe should locate the first failure, enumerate depth, dimension-product, value-placement, nested-mutation, alias, and physical-identity decisions, and either freeze one bounded two-phase implementation contract or record a mandatory stop without claiming a capability.",
-    "This row authorizes readiness and a red probe only, not implementation: stop if recursive admission and physical lowering cannot consume one canonical shape, if depth or dimension-product bounds, nested value placements, mutation/alias behavior, or nested-versus-flat physical identity remain unfrozen, or if a complete slice crosses more than two compiler phases.",
-    "Evidence that the rank-one flat-buffer product clearly serves the target workload would defer recursive syntax; an explicit bounded shape decision plus a probe proving one shared source/physical authority within two phases would permit a later implementation ranking, while evidence of rank-specific classifiers would reject it.",
-    "Before, Aero can interpret only source-embedded character/array data; it cannot acquire external workload bytes. After the eventual capability, a cross-platform program should acquire a size-bounded owned byte buffer, report a frozen typed acquisition failure, and hand validated bytes to parsing and CPU computation.",
-    "This row is a strategic gap, not an authorizable implementation: stop until path and byte identity, capacity/initialized-count, partial-read/EOF, error mapping, ownership/drop, runtime linkage, sandboxing, determinism, and Linux/Windows behavior are explicitly frozen.",
-    "Evidence that a platform-neutral caller-provided byte slice or embedded-binary source unlocks the flagship workload sooner and safely avoids filesystem/runtime semantics would replace or reorder this row.",
+const POST_CAP020_DECISION_CONTRACTS: [&str; 9] = [
+    "Before rank 1, accepted CAP-020 executes one directly initialized 2x3-by-3 flat matvec, but no maintained Aero-native product validates and decodes a source-embedded tensor-shaped record or composes that result into a second numerical stage. After rank 1, one fixed `[int; 17]` record with exact header `[2, 3, 1]` and flat input/weight/bias payload must be validated, decoded through guarded reads and fully initialized flat-array writes, consumed by the accepted 2x3 matvec and a second exact-Int affine scoring stage, preserve and reread every source lane, and produce independent ordinary and wrapping oracles plus exact public and native sentinel 91.",
+    "Stop and rerank rank 1 if the exact `[int; 17]` product needs any compiler production change, new language or profile rule, partial or uninitialized array state, unchecked indexing, new arithmetic or quantization semantics, stable layout or ABI, or duplicated guard or type authority.",
+    "Evidence that the complete record-to-score program is not expressible solely through accepted CAP-020 semantics, is only a restatement of the single matvec, or cannot define independent record, header, source, result, and wrapping oracles changes rank 1; clean zero-production execution makes runtime acquisition, not recursive syntax, the next hard boundary.",
+    "Before rank 2, Aero computations consume only source-embedded fixed data and no trusted source program acquires external bytes. After rank 2 readiness, a task-local cross-platform probe and architecture map must locate the first failure and freeze path and byte identity, capacity and initialized count, partial-read and EOF behavior, typed error mapping, ownership and drop, runtime linkage, sandboxing and determinism, and Linux and Windows behavior, either yielding one bounded implementation contract within two compiler phases or an explicit mandatory stop without claiming I/O capability.",
+    "Stop rank 2 before implementation if any contract item remains unfrozen, if allocation, drop, or runtime ABI must be invented, if platform behavior cannot be made equivalent and observable, if a useful slice crosses more than two compiler phases, or if invalid acquisition can reach trusted IR or backend generation without typed failure.",
+    "Evidence that a caller-provided bounded byte slice or source-embedded record feeds the flagship boundary sooner without filesystem or runtime semantics would defer rank 2 implementation; an explicit runtime RFC plus a probe demonstrating one shared cross-platform ownership and error authority within the phase limit would permit later implementation ranking.",
+    "Before rank 3, CAP-020 proves the target 2D matvec through flat `[int; 6]` storage while `exact-i32-array-v0` deliberately rejects nested arrays. After rank 3 readiness, only if it is reopened, a task-local `[[int; 3]; 2]` red probe and topology map must freeze depth, dimension-product bounds, value placements, nested mutation and alias rules, and nested-versus-flat physical identity under one source and physical shape authority, or record a mandatory stop without claiming recursive arrays.",
+    "Stop rank 3 before implementation while flat encoding serves the target workload, or if any recursive-shape decision remains unfrozen, admission and lowering cannot share one canonical shape, the slice exceeds two compiler phases, or it requires stable aggregate layout or ABI, aliases, or rank-specific classifiers.",
+    "Evidence of a concrete workload that flat buffers materially obscure, together with an explicit bounded shape decision and a probe proving one shared source and physical authority within two phases, would restore recursive arrays to implementation ranking; CAP-020's clean flat execution otherwise keeps them deferred.",
 ];
+
+const CAP020_CPU_MATRIX_ROW: &str = "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps, and CAP-020 flat-buffer 2x3-by-3 matvec product with identity-linked guarded [6]/[3]/[2] access and exact ordinary/wrapping/native oracles | P | P | PARTIAL |";
 
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
@@ -226,7 +305,7 @@ fn assert_bounded_acceptance_evidence(
     let mut search_from = 0;
     for identity in identities {
         let count = paragraph.matches(identity).count();
-        if matches!(capability, "CAP-018" | "CAP-019") {
+        if matches!(capability, "CAP-018" | "CAP-019" | "CAP-020") {
             assert_eq!(
                 count, 1,
                 "{document_name} must bind {capability} evidence {identity} exactly once"
@@ -269,16 +348,20 @@ fn assert_bounded_acceptance_evidence(
         .map(|(index, _)| index)
         .expect("nonempty evidence identities");
     let cursor = positions[final_index] + identities[final_index].len();
-    let maximum_span = if capability == "CAP-019" { 1_200 } else { 700 };
+    let maximum_span = match capability {
+        "CAP-019" => 1_200,
+        "CAP-020" => 1_600,
+        _ => 700,
+    };
     assert!(
         cursor - start < maximum_span,
         "{document_name} detaches the {capability} evidence identities"
     );
     let conclusion = paragraph[cursor..].trim_start();
-    if capability == "CAP-019" {
+    if matches!(capability, "CAP-019" | "CAP-020") {
         assert_eq!(
             conclusion, "` all pass.",
-            "{document_name} must terminate CAP-019 evidence with the exact all-pass conclusion"
+            "{document_name} must terminate {capability} evidence with the exact all-pass conclusion"
         );
     } else {
         assert!(
@@ -295,7 +378,7 @@ fn assert_bounded_acceptance_evidence(
             "{document_name} does not bind a passing {capability} conclusion to its exact evidence: {conclusion:?}"
         );
     }
-    if matches!(capability, "CAP-018" | "CAP-019") {
+    if matches!(capability, "CAP-018" | "CAP-019" | "CAP-020") {
         let normalized = paragraph.to_ascii_lowercase();
         for contradiction in ["fail", "pending", "not pass", "did not pass"] {
             assert!(
@@ -306,8 +389,70 @@ fn assert_bounded_acceptance_evidence(
     }
 }
 
-fn assert_post_cap019_ranking_table(document_name: &str, document: &str) {
+fn assert_post_cap020_ranking_table(document_name: &str, document: &str) {
+    let semantic = semantic_words(document);
+    for stale_label in [
+        &[
+            "flat", "buffer", "exact", "i32", "2d", "matrix", "vector", "cpu", "product", "gate",
+        ][..],
+        &[
+            "recursive",
+            "exact",
+            "i32",
+            "array",
+            "2d",
+            "matrix",
+            "readiness",
+            "and",
+            "red",
+            "probe",
+            "under",
+            "one",
+            "shared",
+            "recursive",
+            "shape",
+            "authority",
+        ][..],
+        &[
+            "runtime",
+            "byte",
+            "file",
+            "acquisition",
+            "into",
+            "a",
+            "bounded",
+            "owned",
+            "buffer",
+        ][..],
+    ] {
+        assert!(
+            !contains_semantic_phrase(&semantic, stale_label),
+            "{document_name} retains a stale post-CAP-019 ranking row or label"
+        );
+    }
     let source_lines = document.lines().map(table_line).collect::<Vec<_>>();
+    let rank_total_headers = document
+        .lines()
+        .filter_map(table_cells)
+        .filter(|cells| {
+            cells
+                .first()
+                .is_some_and(|cell| cell.eq_ignore_ascii_case("rank"))
+                && cells
+                    .last()
+                    .is_some_and(|cell| cell.eq_ignore_ascii_case("total"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rank_total_headers.len(),
+        1,
+        "{document_name} must contain exactly one current Rank-to-Total table"
+    );
+    assert_eq!(
+        rank_total_headers[0],
+        table_cells(POST_CAP020_RANKING_HEADER).expect("canonical ranking header"),
+        "{document_name} contains a competing or malformed ranking header"
+    );
     let rows = document
         .lines()
         .enumerate()
@@ -316,7 +461,7 @@ fn assert_post_cap019_ranking_table(document_name: &str, document: &str) {
         })
         .collect::<Vec<_>>();
     let mut indices = Vec::new();
-    for expected in POST_CAP019_RANKING_ROWS {
+    for expected in POST_CAP020_RANKING_ROWS {
         let expected_cells = table_cells(expected).expect("canonical ranking table row");
         let label = expected_cells[1];
         let matches = rows
@@ -337,11 +482,32 @@ fn assert_post_cap019_ranking_table(document_name: &str, document: &str) {
             *actual, expected,
             "{document_name} changes the rank, scores, or total for {label}"
         );
+        let cells = table_cells(actual).expect("canonical successor row");
+        let scores = cells[2..8]
+            .iter()
+            .map(|cell| {
+                cell.parse::<u8>().unwrap_or_else(|_| {
+                    panic!("{document_name} gives {label} a nonnumeric score: {cell}")
+                })
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            scores.iter().all(|score| (1..=5).contains(score)),
+            "{document_name} gives {label} a score outside 1..=5"
+        );
+        let total = cells[8]
+            .parse::<u8>()
+            .unwrap_or_else(|_| panic!("{document_name} gives {label} a nonnumeric total"));
+        assert_eq!(
+            scores.iter().sum::<u8>(),
+            total,
+            "{document_name} gives {label} an inconsistent total"
+        );
         indices.push(*source_index);
     }
     assert!(
         indices.windows(2).all(|pair| pair[1] == pair[0] + 1),
-        "{document_name} must preserve one consecutive ordered post-CAP-019 ranking"
+        "{document_name} must preserve one consecutive ordered post-CAP-020 ranking"
     );
     let first = indices[0];
     let last = indices[2];
@@ -349,9 +515,22 @@ fn assert_post_cap019_ranking_table(document_name: &str, document: &str) {
         first >= 2,
         "{document_name} detaches the ranking from its table header"
     );
+    assert_eq!(
+        source_lines[first - 2],
+        POST_CAP020_RANKING_HEADER,
+        "{document_name} changes the canonical post-CAP-020 ranking header"
+    );
+    assert_eq!(
+        source_lines
+            .iter()
+            .filter(|line| **line == POST_CAP020_RANKING_HEADER)
+            .count(),
+        1,
+        "{document_name} must contain exactly one canonical post-CAP-020 ranking header"
+    );
     let header = table_cells(source_lines[first - 2])
         .unwrap_or_else(|| panic!("{document_name} is missing the ranking table header"));
-    let canonical_cell_count = table_cells(POST_CAP019_RANKING_ROWS[0])
+    let canonical_cell_count = table_cells(POST_CAP020_RANKING_ROWS[0])
         .expect("canonical ranking row")
         .len();
     assert_eq!(
@@ -386,7 +565,7 @@ fn assert_post_cap019_ranking_table(document_name: &str, document: &str) {
         source_lines
             .get(last + 1)
             .is_none_or(|line| line.is_empty()),
-        "{document_name} appends an uncontracted row to the post-CAP-019 ranking table"
+        "{document_name} appends an uncontracted row to the post-CAP-020 ranking table"
     );
 }
 
@@ -463,22 +642,69 @@ fn assert_cap019_acceptance_evidence(document_name: &str, document: &str) {
     );
 }
 
-fn assert_post_cap019_successor_order(document_name: &str, document: &str) {
-    let normalized = document.to_ascii_lowercase();
-    let flat_matrix = normalized
-        .find("flat-buffer exact-`i32` 2d matrix-vector cpu product gate")
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked flat-matrix gate"));
-    let recursive_array = normalized[flat_matrix..]
-        .find("recursive exact-`i32` array / 2d matrix readiness and red probe")
-        .map(|offset| flat_matrix + offset)
-        .unwrap_or_else(|| panic!("{document_name} is missing the recursive-array readiness gap"));
-    let file_bytes = normalized[recursive_array..]
-        .find("runtime byte/file acquisition")
-        .map(|offset| recursive_array + offset)
-        .unwrap_or_else(|| panic!("{document_name} is missing the ranked runtime byte/file gap"));
+fn assert_cap020_acceptance_evidence(document_name: &str, document: &str) {
+    let normalized = normalized_words(document);
+    assert_eq!(
+        normalized
+            .matches("Exact CAP-020 reviewed candidate")
+            .count(),
+        1,
+        "{document_name} must contain exactly one CAP-020 evidence lead-in"
+    );
+    assert_eq!(
+        normalized.matches(CAP020_EVIDENCE_PREFIX).count(),
+        1,
+        "{document_name} is missing or duplicates the canonical CAP-020 evidence prefix"
+    );
+    for identity in CAP020_ACCEPTANCE_EVIDENCE {
+        assert_eq!(
+            normalized.matches(identity).count(),
+            1,
+            "{document_name} must state CAP-020 evidence identity {identity} exactly once globally"
+        );
+    }
+    let evidence_paragraphs = normalized_markdown_paragraphs(document)
+        .into_iter()
+        .filter(|paragraph| paragraph.contains(CAP020_ACCEPTANCE_EVIDENCE[0]))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        evidence_paragraphs.len(),
+        1,
+        "{document_name} must contain one SHA-scoped CAP-020 evidence paragraph"
+    );
     assert!(
-        flat_matrix < recursive_array && recursive_array < file_bytes,
-        "{document_name} does not preserve flat matrix -> recursive readiness -> byte/file ordering"
+        evidence_paragraphs[0].starts_with(CAP020_EVIDENCE_PREFIX),
+        "{document_name} detaches the CAP-020 evidence lead-in from its SHA-scoped paragraph"
+    );
+    assert_eq!(
+        evidence_paragraphs[0], CAP020_EVIDENCE_PARAGRAPH,
+        "{document_name} changes CAP-020 evidence labels, roles, order, or conclusion"
+    );
+    assert_bounded_acceptance_evidence(
+        document_name,
+        document,
+        "CAP-020",
+        &CAP020_ACCEPTANCE_EVIDENCE,
+        true,
+    );
+}
+
+fn assert_post_cap020_successor_order(document_name: &str, document: &str) {
+    let normalized = document.to_ascii_lowercase();
+    let tensor_record = normalized
+        .find("source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` cpu scoring product gate")
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked tensor-record gate"));
+    let file_bytes = normalized[tensor_record..]
+        .find("runtime byte/file acquisition readiness and red probe")
+        .map(|offset| tensor_record + offset)
+        .unwrap_or_else(|| panic!("{document_name} is missing the ranked runtime byte/file probe"));
+    let recursive_array = normalized[file_bytes..]
+        .find("recursive exact-`i32` array / 2d matrix readiness deferred")
+        .map(|offset| file_bytes + offset)
+        .unwrap_or_else(|| panic!("{document_name} is missing the deferred recursive-array probe"));
+    assert!(
+        tensor_record < file_bytes && file_bytes < recursive_array,
+        "{document_name} does not preserve tensor record -> byte/file probe -> recursive deferral ordering"
     );
     assert!(
         !normalized.contains("cap-018-readiness"),
@@ -486,9 +712,236 @@ fn assert_post_cap019_successor_order(document_name: &str, document: &str) {
     );
 }
 
-fn assert_cap019_boundaries(document_name: &str, document: &str) {
+fn clause_words(clause: &str) -> Vec<&str> {
+    clause
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '-')
+        .filter(|word| !word.is_empty())
+        .collect()
+}
+
+fn semantic_words(text: &str) -> Vec<String> {
+    text.split(|character: char| !character.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(|word| word.to_ascii_lowercase())
+        .collect()
+}
+
+fn contains_semantic_phrase(words: &[String], phrase: &[&str]) -> bool {
+    words.windows(phrase.len()).any(|candidate| {
+        candidate
+            .iter()
+            .map(String::as_str)
+            .eq(phrase.iter().copied())
+    })
+}
+
+fn has_semantic_capability(words: &[String], number: &str) -> bool {
+    words.iter().any(|word| word == &format!("cap{number}"))
+        || words
+            .windows(2)
+            .any(|pair| pair[0] == "cap" && pair[1] == number)
+}
+
+fn assert_no_stale_cap019_current_claims(document_name: &str, document: &str) {
+    for paragraph in normalized_markdown_paragraphs(document) {
+        for clause in paragraph.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            if !has_semantic_capability(&words, "019") {
+                continue;
+            }
+            let has = |word: &str| words.iter().any(|candidate| candidate == word);
+            let stale = (has("master") && (has("current") || has("latest") || has("baseline")))
+                || (has("baseline") && has("protected"))
+                || (has("project") && has("status") && has("after"))
+                || (has("post") && (has("ranking") || has("order")));
+            assert!(
+                !stale,
+                "{document_name} presents CAP-019 as current state or current ranking: {clause}"
+            );
+        }
+    }
+}
+
+fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
+    let subjects: &[&[&str]] = &[
+        &["parser"],
+        &["grammar"],
+        &["source", "semantics"],
+        &["language", "profile"],
+        &["compiler", "profile"],
+        &["profile"],
+        &["language", "feature"],
+        &["feature", "row"],
+        &["capability", "classification"],
+        &["semantic", "analysis"],
+        &["checked", "ir"],
+        &["verifier"],
+        &["backend"],
+        &["compiler", "production"],
+        &["matrix", "type"],
+        &["matrix", "support"],
+        &["tensor", "type"],
+        &["tensor", "support"],
+        &["binary", "ingestion"],
+        &["quantization"],
+        &["inference", "completion"],
+        &["stable", "abi"],
+        &["abi", "stability"],
+        &["stable", "layout"],
+        &["layout", "guarantee"],
+        &["performance"],
+        &["accelerator", "execution"],
+        &["accelerator", "support"],
+        &["memory", "safety"],
+        &["safety", "claim"],
+        &["safety"],
+        &["recursive", "arrays"],
+        &["nested", "arrays"],
+        &["static", "index", "proof"],
+        &["checked", "overflow", "arithmetic"],
+        &["general", "mutation"],
+    ];
+    let positive_verbs = [
+        "is",
+        "has",
+        "change",
+        "changes",
+        "changed",
+        "add",
+        "adds",
+        "added",
+        "create",
+        "creates",
+        "created",
+        "admit",
+        "admits",
+        "accept",
+        "accepts",
+        "support",
+        "supports",
+        "enable",
+        "enables",
+        "implement",
+        "implements",
+        "implemented",
+        "widen",
+        "widens",
+        "widened",
+        "stabilize",
+        "stabilizes",
+        "stabilized",
+        "guarantee",
+        "guarantees",
+        "provide",
+        "provides",
+        "provided",
+        "deliver",
+        "delivers",
+        "delivered",
+        "introduce",
+        "introduces",
+        "introduced",
+        "certify",
+        "certifies",
+        "complete",
+        "completes",
+    ];
+    for paragraph in normalized_markdown_paragraphs(document) {
+        let mut cap020_context = false;
+        for clause in paragraph.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            let explicit_cap020 = has_semantic_capability(&words, "020");
+            let explicit_other_capability = ["014", "015", "016", "017", "018", "019"]
+                .iter()
+                .any(|number| has_semantic_capability(&words, number));
+            if explicit_cap020 {
+                cap020_context = true;
+            } else if explicit_other_capability {
+                cap020_context = false;
+            }
+            if !cap020_context {
+                continue;
+            }
+            for start in 0..words.len() {
+                for subject in subjects {
+                    if start + subject.len() > words.len()
+                        || !words[start..start + subject.len()]
+                            .iter()
+                            .map(String::as_str)
+                            .eq(subject.iter().copied())
+                    {
+                        continue;
+                    }
+                    let search_start = start.saturating_sub(12);
+                    if let Some(verb_index) = (search_start..start)
+                        .rev()
+                        .find(|index| positive_verbs.contains(&words[*index].as_str()))
+                    {
+                        let negated = words[verb_index.saturating_sub(3)..start + subject.len()]
+                            .iter()
+                            .any(|word| {
+                                matches!(word.as_str(), "not" | "no" | "without" | "never")
+                            });
+                        assert!(
+                            negated,
+                            "{document_name} promotes CAP-020 beyond its product-only boundary: {}",
+                            subject.join(" ")
+                        );
+                    }
+
+                    let subject_end = start + subject.len();
+                    if subject_end + 1 < words.len()
+                        && matches!(words[subject_end].as_str(), "is" | "are")
+                        && matches!(
+                            words[subject_end + 1].as_str(),
+                            "guaranteed"
+                                | "stable"
+                                | "complete"
+                                | "supported"
+                                | "implemented"
+                                | "enabled"
+                                | "accepted"
+                                | "provided"
+                                | "certified"
+                                | "changed"
+                                | "widened"
+                                | "added"
+                        )
+                    {
+                        let passive_negated = words
+                            [start.saturating_sub(3)..(subject_end + 4).min(words.len())]
+                            .iter()
+                            .any(|word| {
+                                matches!(word.as_str(), "not" | "no" | "without" | "never")
+                            });
+                        assert!(
+                            passive_negated,
+                            "{document_name} passively promotes CAP-020 beyond its product-only boundary: {}",
+                            subject.join(" ")
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn has_capability_token(words: &[&str], capability: &str) -> bool {
+    let compact = capability.replace('-', "");
+    let number = capability
+        .strip_prefix("cap-")
+        .expect("canonical CAP capability token");
+    words
+        .iter()
+        .any(|word| *word == capability || *word == compact)
+        || words.windows(2).any(|pair| pair == ["cap", number])
+}
+
+fn assert_cap020_boundaries(document_name: &str, document: &str) {
     let normalized = normalized_words(document);
     let normalized_lower = normalized.to_ascii_lowercase();
+    assert_no_stale_cap019_current_claims(document_name, document);
+    assert_no_cap020_overclaims(document_name, document);
     for expected in [
         CAP019_PROFILE_HISTORY,
         CAP019_VALUE_BOUNDARY,
@@ -496,6 +949,12 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
         CAP019_CLASSIFICATION_BOUNDARY,
         CAP019_EXCLUSION_BOUNDARY,
         CAP019_SPECIALIZATION_BOUNDARY,
+        CAP020_ZERO_PRODUCTION_BOUNDARY,
+        CAP020_PRODUCT_BOUNDARY,
+        CAP020_GUARD_BOUNDARY,
+        CAP020_EXCLUSION_BOUNDARY,
+        CAP020_HISTORY_BOUNDARY,
+        CAP020_ALERT_BOUNDARY,
         CAP015_M1_BOUNDARY,
         CAP016_CAP017_STOP_BOUNDARY,
     ] {
@@ -520,6 +979,10 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
         "CAP-019 local candidate",
         "CAP-019 candidate (not accepted)",
         "CAP-019 candidate only",
+        "CAP-020 local candidate",
+        "CAP-020 candidate (not accepted)",
+        "CAP-020 candidate only",
+        "CAP-020 acceptance pending",
         "Project status after CAP-018",
         "baseline is protected CAP-018",
         "Current accepted public master is CAP-018",
@@ -532,6 +995,15 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
         "This acceptance does not admit mutable array production",
         "projected or mutable array writes",
         "mutable selected-profile array results/writes",
+        "Project status after CAP-019",
+        "baseline is protected CAP-019",
+        "Current accepted public master is CAP-019",
+        "Latest accepted compiler/profile master is protected CAP-019 merge",
+        "The post-CAP-019 order begins",
+        "### Post-CAP-019 ranking",
+        "The fresh post-CAP-019 capability-gap order",
+        "The next action is the flat-buffer exact-`i32` 2D matrix-vector CPU product gate",
+        "Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first",
     ] {
         assert!(
             !normalized_lower.contains(&stale.to_ascii_lowercase()),
@@ -566,6 +1038,20 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
         "cap-019 widens `stable-scalar-v0`",
         "cap-019 adds general mutable arrays",
         "cap-019 accepts general mutable arrays",
+        "cap-020 remains a candidate",
+        "cap-020 is not accepted",
+        "cap-020 remains unaccepted",
+        "cap-020 is pending acceptance",
+        "cap-020 acceptance is pending",
+        "cap-020 acceptance remains pending",
+        "cap-020 has not been accepted",
+        "cap-020 is not yet accepted",
+        "cap-020 is the latest compiler/profile capability widening",
+        "cap-020 is a compiler/profile capability widening",
+        "cap-020 widens `exact-i32-array-v0`",
+        "cap-020 creates a new profile",
+        "cap-020 adds a new profile",
+        "cap-020 is a matrix type",
         "cap-014 is not the profile origin",
         "cap-014 is no longer the profile origin",
         "cap-014 is the latest accepted compiler/profile capability",
@@ -596,20 +1082,36 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
 
     for paragraph in normalized_markdown_paragraphs(document) {
         let paragraph_lower = paragraph.to_ascii_lowercase();
+        let cap020_prefix_lower = CAP020_EVIDENCE_PREFIX.to_ascii_lowercase();
         let cap019_prefix_lower = CAP019_EVIDENCE_PREFIX.to_ascii_lowercase();
         let cap018_leadin_lower = CAP018_CANDIDATE_LEADIN.to_ascii_lowercase();
         let status_text = paragraph_lower
-            .strip_prefix(&cap019_prefix_lower)
+            .strip_prefix(&cap020_prefix_lower)
+            .or_else(|| paragraph_lower.strip_prefix(&cap019_prefix_lower))
             .unwrap_or(&paragraph_lower)
             .replace(&cap018_leadin_lower, "");
         for clause in status_text.split(['.', ';', '!', '?']) {
             let clause = clause.trim();
-            let words = clause
-                .split(|character: char| !character.is_ascii_alphanumeric() && character != '-')
-                .filter(|word| !word.is_empty())
-                .collect::<Vec<_>>();
+            let words = clause_words(clause);
             let has_word = |expected: &str| words.contains(&expected);
-            if has_word("cap-019") {
+            if has_capability_token(&words, "cap-020") {
+                assert!(
+                    !has_word("candidate")
+                        && !has_word("pending")
+                        && !has_word("unaccepted")
+                        && !has_word("proposed")
+                        && !has_word("unpublished")
+                        && !has_word("unmerged")
+                        && !has_word("awaiting")
+                        && !has_word("local-only")
+                        && !(has_word("local") && has_word("only"))
+                        && !(has_word("not") && has_word("published"))
+                        && !(has_word("awaits") && has_word("acceptance"))
+                        && !(has_word("not") && has_word("accepted")),
+                    "{document_name} gives CAP-020 a candidate or unaccepted status: {clause}"
+                );
+            }
+            if has_capability_token(&words, "cap-019") {
                 assert!(
                     !has_word("candidate")
                         && !has_word("pending")
@@ -681,7 +1183,7 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
                     }
                 }
             }
-            if has_word("cap-018") {
+            if has_capability_token(&words, "cap-018") {
                 assert!(
                     !has_word("candidate")
                         && !has_word("pending")
@@ -691,7 +1193,7 @@ fn assert_cap019_boundaries(document_name: &str, document: &str) {
                 );
             }
             for capability in ["cap-016", "cap-017"] {
-                if !has_word(capability) {
+                if !has_capability_token(&words, capability) {
                     continue;
                 }
                 let acceptance_negative = clause.contains("not accepted")
@@ -869,13 +1371,16 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     );
     assert!(readme.contains("**CAP-018 accepted:**"));
     assert!(readme.contains("**CAP-019 accepted:**"));
-    assert!(readme.contains("Project status after CAP-019"));
-    assert!(readme.contains("baseline is protected CAP-019 compiler/profile merge"));
+    assert!(readme.contains("**CAP-020 accepted product gate:**"));
+    assert!(readme.contains("Project status after CAP-020"));
+    assert!(readme.contains("baseline is protected CAP-020 product merge"));
     assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(readme.contains(
-        "The next action is the flat-buffer exact-`i32` 2D matrix-vector CPU product gate"
+        "The next action is the source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate"
     ));
-    assert!(readme.contains("CAP-019 is Aero's latest accepted compiler/profile capability"));
+    assert!(
+        readme.contains("CAP-019 is Aero's latest accepted compiler/profile capability widening")
+    );
     assert!(readme.contains("CAP-015 is the latest accepted project integration checkpoint"));
     assert!(readme.contains("`exact-i32-array-v0` profile, classified `END_TO_END`"));
     assert!(readme.contains("Broad integer and fixed-array support remains `PARTIAL`"));
@@ -887,6 +1392,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!readme.contains("Project status after CAP-014"));
     assert!(!readme.contains("Project status after CAP-015"));
     assert!(!readme.contains("Project status after CAP-018"));
+    assert!(!readme.contains("Project status after CAP-019"));
     assert!(!readme.contains("CAP-013 candidate (not accepted)"));
     assert!(!readme.contains("CAP-014 candidate (not accepted)"));
     assert!(!readme.contains("`CAP-015-READINESS`"));
@@ -902,7 +1408,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-019 compiler/profile merge"));
+    assert!(audit.contains("protected CAP-020 product merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(audit.contains("CAP-010 accepted: required-only CopyData trait-bound static dispatch"));
@@ -919,8 +1425,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     );
     assert!(audit.contains("CAP-018 accepted: immutable exact-array value/result composition"));
     assert!(audit.contains("CAP-019 accepted: initialized mutable exact-array production"));
+    assert!(audit.contains("CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate"));
     assert!(normalized_words(&audit).contains(
-        "The post-CAP-019 order begins with the flat-buffer exact-`i32` 2D matrix-vector CPU product gate"
+        "The post-CAP-020 order begins with the source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate"
     ));
     assert!(audit.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(audit.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
@@ -966,8 +1473,11 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(alignment.contains(
         "Accepted CAP-019 advances the founding high-performance and data-pipeline direction"
     ));
+    assert!(alignment.contains(
+        "Accepted CAP-020 advances the founding high-performance and data-pipeline direction"
+    ));
     assert!(
-        alignment.contains("Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first")
+        alignment.contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
     );
     assert!(alignment.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(alignment.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
@@ -1010,12 +1520,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         project_state.contains("CAP-018 accepted: immutable exact-array value/result composition")
     );
     assert!(project_state.contains("CAP-019 accepted: initialized mutable exact-array production"));
-    assert!(project_state.contains("Current accepted public master is CAP-019"));
+    assert!(project_state.contains("CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate"));
+    assert!(project_state.contains("Current accepted public master is CAP-020"));
     assert!(project_state.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(project_state.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(
         normalized_words(&project_state)
-            .contains("Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first")
+            .contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
     );
     assert!(!project_state.contains("Current accepted public master is CAP-012"));
     assert!(!project_state.contains("Current accepted public master is CAP-013"));
@@ -1034,7 +1545,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`)"
     ));
     assert!(matrix.contains("| STABLE |"));
-    assert!(matrix.contains("Latest accepted compiler/profile master is protected CAP-019 merge"));
+    assert!(matrix.contains("Latest accepted public master is protected CAP-020 product merge"));
     assert!(
         normalized_words(&matrix)
             .contains("Latest accepted project-integration master is protected CAP-015 merge")
@@ -1055,17 +1566,59 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .lines()
         .filter_map(|line| table_cells(line).map(|cells| (table_line(line), cells)))
         .collect::<Vec<_>>();
-    for (line, cells) in &language_feature_rows {
-        let Some(classification) = cells.last() else {
-            panic!("matrix language-feature row has no classification: {line}");
-        };
-        if classification.eq_ignore_ascii_case("class")
-            || classification
-                .chars()
-                .all(|character| matches!(character, '-' | ':'))
+    for expected_header in [
+        "| Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |",
+        "| Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |",
+        "| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |",
+    ] {
+        assert_eq!(
+            matrix
+                .lines()
+                .map(table_line)
+                .filter(|line| *line == expected_header)
+                .count(),
+            1,
+            "matrix must preserve exactly one closed-classification header: {expected_header}"
+        );
+    }
+    assert_eq!(
+        matrix
+            .lines()
+            .filter_map(table_cells)
+            .filter(|cells| {
+                cells.last().is_some_and(|cell| {
+                    cell.eq_ignore_ascii_case("class")
+                        || cell.eq_ignore_ascii_case("classification")
+                })
+            })
+            .count(),
+        3,
+        "matrix must expose exactly the three frozen classification tables"
+    );
+    let mut in_classified_table = false;
+    for line in matrix.lines().map(table_line) {
+        if !line.starts_with('|') {
+            in_classified_table = false;
+            continue;
+        }
+        let cells = table_cells(line).expect("pipe table row");
+        if cells
+            .last()
+            .is_some_and(|classification| classification.eq_ignore_ascii_case("class"))
+        {
+            in_classified_table = true;
+            continue;
+        }
+        if !in_classified_table
+            || cells
+                .iter()
+                .all(|cell| !cell.is_empty() && cell.chars().all(|ch| matches!(ch, '-' | ':')))
         {
             continue;
         }
+        let classification = cells
+            .last()
+            .unwrap_or_else(|| panic!("matrix classified row has no final cell: {line}"));
         assert!(
             [
                 "STABLE",
@@ -1074,10 +1627,11 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
                 "PARSED_ONLY",
                 "EXPERIMENTAL",
                 "DESIGNED",
+                "ABSENT",
             ]
             .iter()
             .any(|expected| classification.eq_ignore_ascii_case(expected)),
-            "matrix language-feature row has an unknown/decorated classification: {line}"
+            "matrix classified row has an unknown/decorated classification: {line}"
         );
     }
     let exact_profile_rows = language_features
@@ -1086,7 +1640,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .filter(|line| {
             let lower = line.to_ascii_lowercase();
             lower.starts_with('|')
-                && (lower.contains("exact-i32-array-v0") || lower.contains("cap-018"))
+                && (lower.contains("exact-i32-array-v0")
+                    || lower.contains("cap-018")
+                    || lower.contains("cap-019"))
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -1095,6 +1651,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
         ],
         "CAP-014/CAP-018/CAP-019 must classify in exactly one widened profile row"
+    );
+    assert!(
+        !language_features.to_ascii_lowercase().contains("cap-020"),
+        "CAP-020 must not create a language-feature or profile row"
     );
     let stable_rows = language_feature_rows
         .iter()
@@ -1209,9 +1769,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         roadmap.contains("CAP-018 is accepted as immutable exact-array value/result composition")
     );
     assert!(roadmap.contains("CAP-019 is accepted as initialized mutable exact-array production"));
+    assert!(roadmap.contains(
+        "CAP-020 is accepted as a zero-production flat-buffer 2x3-by-3 matvec product gate"
+    ));
     assert!(
         normalized_words(&roadmap)
-            .contains("Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first")
+            .contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
     );
     assert!(roadmap.contains("The milestone exit is not met"));
     assert!(roadmap.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
@@ -1225,34 +1788,109 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(normalized_roadmap.contains(
         "Scores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability, so 5 means lower implementation risk or lower evidence cost."
     ));
-    let ranking_heading = "### Post-CAP-019 ranking";
+    let ranking_heading = "### Post-CAP-020 ranking";
     assert_eq!(
         roadmap.matches(ranking_heading).count(),
         1,
-        "Roadmap.md must contain one post-CAP-019 ranking section"
+        "Roadmap.md must contain one post-CAP-020 ranking section"
     );
     let ranking_tail = roadmap
         .split_once(ranking_heading)
-        .expect("unique post-CAP-019 ranking heading")
+        .expect("unique post-CAP-020 ranking heading")
         .1;
     let ranking_section = ranking_tail
         .split_once("\n## ")
         .map_or(ranking_tail, |(section, _)| section);
     let normalized_ranking_section = normalized_words(ranking_section);
+    for clause in ranking_section.split(['.', ';', '!', '?']) {
+        let words = semantic_words(clause);
+        let has = |word: &str| words.iter().any(|candidate| candidate == word);
+        let implementation_claim = words.iter().any(|word| {
+            matches!(
+                word.as_str(),
+                "implement" | "implements" | "implemented" | "implementation"
+            )
+        });
+        let explicitly_deferred =
+            contains_semantic_phrase(&words, &["stop", "rank", "2", "before", "implementation"])
+                || contains_semantic_phrase(
+                    &words,
+                    &["stop", "rank", "3", "before", "implementation"],
+                )
+                || contains_semantic_phrase(&words, &["not", "implementation"])
+                || contains_semantic_phrase(&words, &["not", "an", "implementation"])
+                || contains_semantic_phrase(&words, &["no", "implementation"])
+                || contains_semantic_phrase(
+                    &words,
+                    &["not", "authorized", "for", "implementation"],
+                )
+                || contains_semantic_phrase(&words, &["not", "approved", "for", "implementation"])
+                || (contains_semantic_phrase(&words, &["rank", "2", "readiness"])
+                    && (contains_semantic_phrase(&words, &["implementation", "contract"])
+                        || contains_semantic_phrase(&words, &["mandatory", "stop"]))
+                    && !has("proceed")
+                    && !has("approved")
+                    && !has("authorized"))
+                || contains_semantic_phrase(
+                    &words,
+                    &["would", "defer", "rank", "2", "implementation"],
+                )
+                || contains_semantic_phrase(
+                    &words,
+                    &[
+                        "would",
+                        "restore",
+                        "recursive",
+                        "arrays",
+                        "to",
+                        "implementation",
+                        "ranking",
+                    ],
+                )
+                || (has("readiness") && has("only") && !has("proceed"))
+                || (has("deferred") && !contains_semantic_phrase(&words, &["not", "deferred"]))
+                || (has("later") && (has("permit") || has("ranking")));
+        let positive_progress = has("proceed")
+            || has("proceeds")
+            || has("approved")
+            || has("authorized")
+            || has("cleared")
+            || contains_semantic_phrase(&words, &["will", "implement"])
+            || contains_semantic_phrase(&words, &["may", "implement"]);
+        for rank in ["2", "3"] {
+            let names_rank = words
+                .windows(2)
+                .any(|pair| pair[0] == "rank" && pair[1] == rank);
+            assert!(
+                !(names_rank
+                    && (implementation_claim || positive_progress)
+                    && !explicitly_deferred),
+                "Roadmap.md promotes readiness-only rank {rank} to implementation: {clause}"
+            );
+        }
+        let names_runtime = has("runtime") && has("acquisition");
+        let names_recursive = has("recursive") && (has("array") || has("arrays"));
+        assert!(
+            !((names_runtime || names_recursive)
+                && (implementation_claim || positive_progress)
+                && !explicitly_deferred),
+            "Roadmap.md promotes a readiness-only successor to implementation: {clause}"
+        );
+    }
     let mut previous_position = None;
-    for contract in POST_CAP019_DECISION_CONTRACTS {
+    for contract in POST_CAP020_DECISION_CONTRACTS {
         assert_eq!(
             normalized_roadmap.matches(contract).count(),
             1,
-            "Roadmap.md must state each post-CAP-019 decision contract exactly once: {contract}"
+            "Roadmap.md must state each post-CAP-020 decision contract exactly once: {contract}"
         );
         let position = normalized_ranking_section.find(contract).unwrap_or_else(|| {
-            panic!("Roadmap.md detaches a decision contract from the post-CAP-019 section: {contract}")
+            panic!("Roadmap.md detaches a decision contract from the post-CAP-020 section: {contract}")
         });
         if let Some(previous) = previous_position {
             assert!(
                 position > previous,
-                "Roadmap.md reorders the post-CAP-019 decision contracts"
+                "Roadmap.md reorders the post-CAP-020 decision contracts"
             );
         }
         previous_position = Some(position);
@@ -1286,9 +1924,12 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     );
     assert!(conformance.contains("Accepted CAP-018 widens the existing `exact-i32-array-v0` lane"));
     assert!(conformance.contains("Accepted CAP-019 widens the existing `exact-i32-array-v0` lane"));
+    assert!(conformance.contains(
+        "Accepted CAP-020 adds one zero-production flat-buffer 2x3-by-3 matvec product gate"
+    ));
     assert!(
         conformance
-            .contains("Flat-buffer exact-`i32` 2D matrix-vector CPU product gate ranks first")
+            .contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
     );
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
@@ -1308,7 +1949,8 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         assert_cap015_acceptance_evidence(document_name, document);
         assert_cap018_acceptance_evidence(document_name, document);
         assert_cap019_acceptance_evidence(document_name, document);
-        assert_cap019_boundaries(document_name, document);
+        assert_cap020_acceptance_evidence(document_name, document);
+        assert_cap020_boundaries(document_name, document);
     }
     for (document_name, document, expected_boundaries) in [
         ("README.md", readme.as_str(), 1),
@@ -1345,7 +1987,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("Roadmap.md", roadmap.as_str()),
         ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
-        assert_post_cap019_successor_order(document_name, document);
+        assert_post_cap020_successor_order(document_name, document);
     }
     for (document_name, document) in [
         ("README.md", readme.as_str()),
@@ -1356,20 +1998,40 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("Roadmap.md", roadmap.as_str()),
         ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
-        assert_post_cap019_ranking_table(document_name, document);
+        assert_post_cap020_ranking_table(document_name, document);
     }
-    let cap019_matrix_rows = matrix
+    let cap020_matrix_rows = matrix
         .lines()
         .map(table_line)
-        .filter(|line| line.starts_with('|') && line.to_ascii_lowercase().contains("cap-019"))
+        .filter(|line| line.starts_with('|') && line.to_ascii_lowercase().contains("cap-020"))
         .collect::<Vec<_>>();
     assert_eq!(
-        cap019_matrix_rows,
-        [
-            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |",
-            "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, and CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps | P | P | PARTIAL |",
-        ],
-        "CAP-019 may classify only in the widened exact profile and its existing CPU platform row"
+        cap020_matrix_rows,
+        [CAP020_CPU_MATRIX_ROW],
+        "CAP-020 may appear in exactly one matrix row, as evidence in the existing CPU platform row"
+    );
+    let backend_summary = matrix
+        .split_once("## Backend summary")
+        .expect("matrix backend summary")
+        .1
+        .split_once("## Evidence notes")
+        .expect("matrix evidence notes")
+        .0;
+    let cpu_rows = backend_summary
+        .lines()
+        .map(table_line)
+        .filter(|line| {
+            table_cells(line).is_some_and(|cells| {
+                cells
+                    .first()
+                    .is_some_and(|label| label.eq_ignore_ascii_case("cpu"))
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cpu_rows,
+        [CAP020_CPU_MATRIX_ROW],
+        "matrix must preserve exactly one CPU row with CAP-020 product evidence"
     );
     let normalized_conformance = normalized_words(&conformance);
     assert!(normalized_conformance.contains(CAP014_CONFORMANCE_HISTORY_BOUNDARY));
@@ -1572,7 +2234,7 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
     );
     assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
     assert!(normalized_words(&project_state).contains(CAP016_CAP017_STOP_BOUNDARY));
-    assert!(project_state.contains("Current accepted public master is CAP-019"));
+    assert!(project_state.contains("Current accepted public master is CAP-020"));
     assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(!project_state.contains("exact next action is this bounded"));
 }
