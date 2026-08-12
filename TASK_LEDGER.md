@@ -164,6 +164,32 @@
   the exact labeled evidence template, frozen boundaries, current ranking,
   Roadmap decision clauses, readiness-only successor guards, unchanged profile
   row, sole CAP-020 CPU row, and closed matrix classification headers/vocabulary.
+- Focused green claim-contract checkpoint: the seven cumulative documents now
+  carry the exact accepted CAP-020 evidence, product-only boundaries, current
+  ranking, and Roadmap decisions. Integration exposed three test-attribution
+  false positives—negative stop/rerank conditions containing `profile`, the
+  noun `change`, and the canonical `accepted product gate, not a separate
+  profile` sentence. Test-only follow-up `4f9fb01` narrows those scanners while
+  retaining the adversarial positive-claim and stale-status controls. With
+  `%USERPROFILE%\.cargo\bin` and the authenticated LLVM 22.1.8 bundle on
+  `PATH`, `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  version_claim_contract_tests` passes `8/8`; `cargo fmt --manifest-path
+  src/compiler/Cargo.toml -- --check` and `git diff --check` also pass. The
+  repository root gate and immutable-candidate/public review remain required.
+- Terminal contract-hardening checkpoint: a fresh adversarial review found
+  source-versus-rendered Markdown, passive/wrapped claim ownership, nonlocal
+  negation, contradictory outcome, split readiness/successor, current-ranking
+  scope, and matrix-table topology gaps. The expanded mutation corpus was
+  recorded before the fix: the exact single host test compiled and failed `0/1`
+  at the first unhandled ownership contrast. The final test-only working
+  snapshot now uses same-marker/length Markdown fence handling with
+  hidden-comment removal, rendered claim records, relation-local CAP
+  ownership/negation, exact ordinary/wrapping/exit values, discourse-scoped
+  readiness and successor order, historical-heading-scoped legacy rankings,
+  and rendered matrix rows/cardinality. On the final nine-file snapshot, the
+  locked focused target passes `8/8`, `cargo fmt -- --check` and `git diff
+  --check` pass, and root `./tools/test.sh` passes. The immutable candidate and
+  public review remain required.
 - Risks and stop conditions: risks are calling an application encoding a matrix
   language feature, calling CAP-020 a compiler/profile widening, erasing CAP-019
   history, overstating warning-free CodeQL despite pre-existing alert #4,

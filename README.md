@@ -182,6 +182,49 @@ aero lsp
 > file input, and Unicode text encoding/normalization remain unsupported; accepted
 > CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.
 
+> **CAP-020 accepted product gate:** protected master now carries the flat-buffer
+> 2x3-by-3 matvec product gate over the existing CPU-only `exact-i32-array-v0`
+> profile. Accepted CAP-020 changes no parser, grammar, source semantics, language
+> profile, semantic analysis, checked IR, verifier, backend, ABI, or capability
+> classification; it is a zero-production product/evidence checkpoint over CAP-019's
+> `exact-i32-array-v0` surface.
+>
+> The accepted application encodes a 2x3 matrix as `[int; 6]`, consumes an `[int; 3]`
+> vector, computes wrapping `row * 3 + column` in nested loops, returns a fully
+> initialized mutable-produced `[i32; 2]`, preserves every input lane, produces
+> ordinary and wrapping results `[50, 122]` and `[-2, 5]`, and exits `91`.
+>
+> The computed linear value flows through the existing signed bounds and
+> trap-before-address authority before a `[6 x i32]` load, with corresponding guarded
+> `[3 x i32]` load and `[2 x i32]` store.
+>
+> Exact CAP-020 reviewed candidate
+> `3b61cd1ed34f910f556821942cd06301ba17dd50`, shared candidate/merge tree
+> `800510de85bd82f3332126ad249c95da109dd3e1`, accepted base and first merge parent
+> `13157687f3e955d1c8292ccca133c5a73e29e1a7`, and protected PR #58 merge
+> `d9493d5123840b38ebab6ca275aaba3216728706` whose second parent is that candidate are
+> immutable. Candidate push CI `31639493741`, PR CI `31639540134`, Rust CI
+> `31639540030`, CodeQL `31639535638`, and aggregate candidate check `94258433541`;
+> candidate stable/nightly/Windows LLVM 22 jobs
+> `94258276078`/`94258275978`/`94258275899` and CodeQL Actions/Python/Rust jobs
+> `94258264605`/`94258264489`/`94258264627`; merge-head CI/Rust CI/CodeQL
+> `31640016314`/`31640016316`/`31640015733`, exact merge
+> compiler/stable/nightly/Windows LLVM 22 jobs
+> `94259869631`/`94259869676`/`94259869637`/`94259869559`, merge CodeQL
+> Actions/Python/Rust jobs `94259873136`/`94259873164`/`94259873086`, and
+> default-branch Actions/Python/Rust analyses
+> `1610137115`/`1610137589`/`1610144660` all pass.
+>
+> CAP-020 adds no matrix type, recursive or nested arrays, static index proof,
+> checked-overflow arithmetic, stable layout or ABI, performance, accelerator
+> execution, general mutation, or safety claim.
+>
+> CAP-019 remains the latest compiler/profile capability widening; CAP-020 is an
+> accepted product gate, not a separate profile or feature row.
+>
+> The sole open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+> CAP-020 alert surfaced.
+
 > **CAP-019 accepted:** protected master now adds initialized mutable exact-array
 > production to the existing CPU-only `exact-i32-array-v0` profile. Accepted CAP-014
 > created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018 remains its
@@ -341,50 +384,42 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-019:** Aero remains a Minimal Prototype in correctness
+> **Project status after CAP-020:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. The accepted public
-> baseline is protected CAP-019 compiler/profile merge
-> `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4` at tree
-> `c520729e7b081087bbe431e97d937fb77f519b37`.
-> CAP-019 is Aero's latest accepted compiler/profile capability and widens CAP-014's
-> first Milestone 3 CPU slice. CAP-015 is the latest accepted project integration checkpoint.
+> baseline is protected CAP-020 product merge.
+> CAP-019 is Aero's latest accepted compiler/profile capability widening and remains
+> the compiler boundary beneath the
+> product-only checkpoint. CAP-015 is the latest accepted project integration checkpoint.
 > CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
-> changes no compiler production or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture
-> stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013
+> changes no compiler production or language-profile code. CAP-016 and CAP-017
+> remain completed readiness/architecture stops, not accepted capabilities;
+> neither adds a profile or matrix row. CAP-013
 > remains the single shared specialization identity/phase authority; CAP-018 and
 > CAP-019 add no specialization classifier.
 > CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
 > general ownership, generics, collections, layout/ABI/destruction, and ordinary-
 > program breadth remain partial.
 >
-> The fresh post-CAP-019 ranking uses 1--5 scores; higher risk/evidence favorability
+> The fresh post-CAP-020 ranking uses 1--5 scores; higher risk/evidence favorability
 > means safer and cheaper delivery:
 >
-> | Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+> | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 > |---:|---|---:|---:|---:|---:|---:|---:|---:|
-> | 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
-> | 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
-> | 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+> | 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+> | 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+> | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 >
-> The next action is the flat-buffer exact-`i32` 2D matrix-vector CPU product gate.
-> Rank 1 uses accepted CAP-019 without compiler production changes: one bounded
-> nongeneric 2x3-by-3 application should encode the matrix as `[int; 6]`, compute
-> `row * 3 + column` through guarded loops, and return a mutable-produced `[int; 2]`
-> through the selected CPU profile. Stop if it requires new semantics, unchecked
-> linearized indexing, partial initialization, stable ABI/layout, product-specific
-> exceptions, or duplicated guards. Evidence that flat encoding obscures the workload,
-> cannot prove the composed bounds, or adds no material evidence would rerank it.
-> Rank 2 is readiness and a red probe only: it would locate the first `[[int; 3]; 2]`
-> failure and freeze depth, dimension-product, placement, mutation/alias, and physical-
-> identity decisions under one recursive shape authority. Stop before implementation
-> if that authority cannot stay within two compiler phases or those semantics remain
-> unfrozen. A successful flat-buffer product defers recursive syntax; a bounded shared-
-> authority probe could permit its later ranking.
-> Rank 3 would move from source-embedded bytes to bounded owned runtime acquisition,
-> but remains stopped until path/byte identity, capacity and initialized count,
-> partial-read/EOF, typed errors, ownership/drop, linkage, sandboxing, determinism, and
-> Linux/Windows behavior are frozen. A safer caller-provided or embedded byte source
-> that unlocks the target workload sooner would reorder that decision.
+> The next action is the source-embedded fixed-shape tensor-record decode plus
+> two-stage flat-buffer exact-`i32` CPU scoring product gate.
+> It must stay within
+> accepted CAP-020 semantics and stop if it needs any compiler production change, new
+> profile rule, partial initialization, unchecked indexing, new arithmetic semantics,
+> stable ABI/layout, or duplicated guard authority. Runtime byte/file acquisition is
+> rank-2 readiness and a red probe only under a frozen cross-platform bounded-owned-
+> buffer contract. Recursive exact-`i32` arrays remain deferred while flat encoding
+> serves the target workload and may return to implementation ranking only after a
+> concrete workload and one shared recursive source/physical shape authority justify
+> reopening them.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

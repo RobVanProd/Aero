@@ -248,6 +248,167 @@ fn normalized_words(document: &str) -> String {
         .join(" ")
 }
 
+#[derive(Clone, Copy)]
+struct MarkdownFence {
+    marker: char,
+    length: usize,
+}
+
+fn strip_blockquote_prefixes(mut line: &str) -> &str {
+    loop {
+        let candidate = line.trim_start_matches(' ');
+        if candidate.len() + 3 < line.len() || !candidate.starts_with('>') {
+            return line;
+        }
+        line = candidate[1..].strip_prefix(' ').unwrap_or(&candidate[1..]);
+    }
+}
+
+fn strip_list_marker(line: &str) -> &str {
+    let indentation = line.len() - line.trim_start_matches(' ').len();
+    if indentation > 3 {
+        return line;
+    }
+    let trimmed = &line[indentation..];
+    if ["- ", "* ", "+ "]
+        .iter()
+        .any(|marker| trimmed.starts_with(marker))
+    {
+        return &trimmed[2..];
+    }
+    let digits = trimmed
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .count();
+    let ordered_suffix = trimmed[digits..]
+        .strip_prefix('.')
+        .or_else(|| trimmed[digits..].strip_prefix(')'));
+    if digits > 0 && ordered_suffix.is_some_and(|suffix| suffix.starts_with(' ')) {
+        return &trimmed[digits + 2..];
+    }
+    line
+}
+
+fn fence_marker(line: &str) -> Option<(char, usize, &str)> {
+    let indentation = line.len() - line.trim_start_matches(' ').len();
+    if indentation > 3 {
+        return None;
+    }
+    let line = &line[indentation..];
+    let marker = line
+        .chars()
+        .next()
+        .filter(|marker| matches!(marker, '`' | '~'))?;
+    let length = line
+        .chars()
+        .take_while(|candidate| *candidate == marker)
+        .count();
+    (length >= 3).then(|| (marker, length, &line[length..]))
+}
+
+fn commonmark_indentation(line: &str) -> usize {
+    let mut width = 0;
+    for character in line.chars() {
+        match character {
+            ' ' => width += 1,
+            '\t' => width += 4 - (width % 4),
+            _ => break,
+        }
+    }
+    width
+}
+
+fn visible_without_html_comments(line: &str, html_comment: &mut bool) -> String {
+    let mut visible = String::new();
+    let mut index = 0;
+    let mut code_span = None;
+    while index < line.len() {
+        if *html_comment {
+            if let Some(end) = line[index..].find("-->") {
+                index += end + 3;
+                *html_comment = false;
+            } else {
+                break;
+            }
+            continue;
+        }
+        if line[index..].starts_with('\\') {
+            let mut characters = line[index..].char_indices();
+            let (_, slash) = characters.next().expect("escape character");
+            visible.push(slash);
+            if let Some((_, escaped)) = characters.next() {
+                visible.push(escaped);
+                index += slash.len_utf8() + escaped.len_utf8();
+            } else {
+                index += slash.len_utf8();
+            }
+            continue;
+        }
+        if line[index..].starts_with('`') {
+            let length = line[index..]
+                .chars()
+                .take_while(|character| *character == '`')
+                .count();
+            if code_span == Some(length) {
+                code_span = None;
+            } else if code_span.is_none() {
+                code_span = Some(length);
+            }
+            visible.push_str(&line[index..index + length]);
+            index += length;
+            continue;
+        }
+        if code_span.is_none() && line[index..].starts_with("<!--") {
+            *html_comment = true;
+            index += 4;
+            continue;
+        }
+        let character = line[index..].chars().next().expect("visible character");
+        visible.push(character);
+        index += character.len_utf8();
+    }
+    visible
+}
+
+fn markdown_outside_fences(document: &str) -> String {
+    let mut fence: Option<MarkdownFence> = None;
+    let mut html_comment = false;
+    let mut rendered = String::with_capacity(document.len());
+    for raw_line in document.lines() {
+        let line = strip_blockquote_prefixes(raw_line);
+        let fence_line = strip_list_marker(line);
+        if let Some(open) = fence {
+            let closes = fence_marker(fence_line).is_some_and(|(marker, length, suffix)| {
+                marker == open.marker
+                    && length >= open.length
+                    && suffix.chars().all(char::is_whitespace)
+            });
+            if closes {
+                fence = None;
+            }
+            rendered.push('\n');
+            continue;
+        }
+        if commonmark_indentation(line) >= 4 {
+            rendered.push('\n');
+            continue;
+        }
+        if let Some((marker, length, suffix)) = fence_marker(fence_line) {
+            let valid_opener = marker == '~' || !suffix.contains('`');
+            if valid_opener {
+                fence = Some(MarkdownFence { marker, length });
+                rendered.push('\n');
+                continue;
+            }
+        }
+
+        let visible = visible_without_html_comments(line, &mut html_comment);
+        rendered.push_str(&visible);
+        rendered.push('\n');
+    }
+    rendered
+}
+
 fn table_line(line: &str) -> &str {
     line.trim_start().strip_prefix('>').unwrap_or(line).trim()
 }
@@ -272,10 +433,102 @@ fn normalized_markdown_paragraphs(document: &str) -> Vec<String> {
     paragraphs
 }
 
+fn normalized_claim_records(document: &str) -> Vec<String> {
+    let rendered = markdown_outside_fences(document);
+    let mut records = Vec::new();
+    let mut prose = Vec::new();
+    let flush_prose = |records: &mut Vec<String>, prose: &mut Vec<&str>| {
+        if !prose.is_empty() {
+            records.push(prose.join(" "));
+            prose.clear();
+        }
+    };
+    for line in rendered.lines() {
+        let line = table_line(line);
+        if line.is_empty() {
+            flush_prose(&mut records, &mut prose);
+        } else if line.starts_with('|') {
+            flush_prose(&mut records, &mut prose);
+            records.push(line.to_owned());
+        } else {
+            prose.push(line);
+        }
+    }
+    flush_prose(&mut records, &mut prose);
+    records
+}
+
 fn table_cells(line: &str) -> Option<Vec<&str>> {
     let line = table_line(line);
-    line.starts_with('|')
-        .then(|| line.trim_matches('|').split('|').map(str::trim).collect())
+    line.contains('|').then(|| {
+        line.trim_start_matches('|')
+            .trim_end_matches('|')
+            .split('|')
+            .map(str::trim)
+            .collect()
+    })
+}
+
+fn valid_markdown_delimiter_cell(cell: &str) -> bool {
+    let cell = cell.trim();
+    let core = cell.strip_prefix(':').unwrap_or(cell);
+    let core = core.strip_suffix(':').unwrap_or(core);
+    core.len() >= 3 && core.chars().all(|character| character == '-')
+}
+
+fn markdown_table_after_header_is_valid(document: &str, header: &str) -> bool {
+    let rendered = markdown_outside_fences(document);
+    let lines = rendered.lines().map(table_line).collect::<Vec<_>>();
+    let positions = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| **line == header)
+        .map(|(position, _)| position)
+        .collect::<Vec<_>>();
+    if positions.len() != 1 {
+        return false;
+    }
+    let position = positions[0];
+    let Some(header_cells) = table_cells(header) else {
+        return false;
+    };
+    let Some(delimiter) = lines.get(position + 1).and_then(|line| table_cells(line)) else {
+        return false;
+    };
+    let valid_delimiter = delimiter.len() == header_cells.len()
+        && delimiter
+            .iter()
+            .all(|cell| valid_markdown_delimiter_cell(cell));
+    if !valid_delimiter {
+        return false;
+    }
+
+    let section_start = lines[..position]
+        .iter()
+        .rposition(|line| line.starts_with("## "))
+        .unwrap_or(0);
+    let section_end = lines[position + 1..]
+        .iter()
+        .position(|line| line.starts_with("## "))
+        .map_or(lines.len(), |offset| position + 1 + offset);
+    let mut table_end = position + 2;
+    let mut data_rows = 0;
+    while table_end < section_end {
+        let Some(cells) = table_cells(lines[table_end]) else {
+            break;
+        };
+        if cells.len() != header_cells.len() {
+            return false;
+        }
+        data_rows += 1;
+        table_end += 1;
+    }
+    if data_rows == 0 {
+        return false;
+    }
+    !(section_start..section_end).any(|line_index| {
+        table_cells(lines[line_index]).is_some() && !(position..table_end).contains(&line_index)
+    })
 }
 
 fn assert_bounded_acceptance_evidence(
@@ -285,7 +538,8 @@ fn assert_bounded_acceptance_evidence(
     identities: &[&str],
     require_order: bool,
 ) {
-    let paragraphs = normalized_markdown_paragraphs(document);
+    let rendered = markdown_outside_fences(document);
+    let paragraphs = normalized_markdown_paragraphs(&rendered);
     let matching = paragraphs
         .iter()
         .filter(|paragraph| paragraph.contains(identities[0]))
@@ -390,7 +644,8 @@ fn assert_bounded_acceptance_evidence(
 }
 
 fn assert_post_cap020_ranking_table(document_name: &str, document: &str) {
-    let semantic = semantic_words(document);
+    let rendered = markdown_outside_fences(document);
+    let semantic = semantic_words(&rendered);
     for stale_label in [
         &[
             "flat", "buffer", "exact", "i32", "2d", "matrix", "vector", "cpu", "product", "gate",
@@ -430,8 +685,8 @@ fn assert_post_cap020_ranking_table(document_name: &str, document: &str) {
             "{document_name} retains a stale post-CAP-019 ranking row or label"
         );
     }
-    let source_lines = document.lines().map(table_line).collect::<Vec<_>>();
-    let rows = document
+    let source_lines = rendered.lines().map(table_line).collect::<Vec<_>>();
+    let rows = rendered
         .lines()
         .enumerate()
         .filter_map(|(source_index, line)| {
@@ -506,6 +761,106 @@ fn assert_post_cap020_ranking_table(document_name: &str, document: &str) {
         1,
         "{document_name} must contain exactly one canonical post-CAP-020 ranking header"
     );
+    for (line_index, line) in rendered.lines().map(table_line).enumerate() {
+        let Some(cells) = table_cells(line) else {
+            continue;
+        };
+        let is_rank_total_header = cells
+            .first()
+            .is_some_and(|cell| cell.eq_ignore_ascii_case("rank"))
+            && cells
+                .last()
+                .is_some_and(|cell| cell.eq_ignore_ascii_case("total"));
+        if is_rank_total_header && line != POST_CAP020_RANKING_HEADER {
+            let legacy_shape = cells.iter().any(|cell| cell == &"Risk")
+                && cells.iter().any(|cell| cell == &"Evidence")
+                && !cells.iter().any(|cell| cell == &"Favorable risk")
+                && !cells.iter().any(|cell| cell == &"Favorable evidence cost")
+                && matches!(cells.get(1), Some(&"Gap") | Some(&"Capability gap"));
+            let heading = source_lines[..line_index]
+                .iter()
+                .rfind(|candidate| candidate.starts_with('#'))
+                .copied()
+                .unwrap_or("");
+            let historical_heading = [
+                "### ROADMAP-001 ranked gaps and M1-001 outcome",
+                "### Post-M1 ranking and accepted CAP-001",
+                "### Post-CAP-001 ranking and accepted CAP-002",
+                "### Post-CAP-002 ranking and accepted CAP-003",
+            ]
+            .contains(&heading);
+            let exact_audit_history = document_name == "CURRENT_CAPABILITY_AUDIT.md"
+                && heading == "### ROADMAP-001 ranking and M1-001 outcome"
+                && source_lines
+                    .get(line_index..line_index + 5)
+                    .is_some_and(|block| {
+                        block
+                            == [
+                                "| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |",
+                                "|---:|---|---:|---:|---:|---:|---:|---:|---:|",
+                                "| 1 | Freeze and certify one representative scalar application/subset, including `-O0`/`-O2` equivalence | 4 | 5 | 5 | 5 | 4 | 3 | 26 |",
+                                "| 2 | Close the Milestone 0 canonical diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |",
+                                "| 3 | Implement positive module/import/name resolution after its graph and namespace semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
+                            ]
+                    });
+            let legacy_headers_under_heading = source_lines
+                .iter()
+                .enumerate()
+                .filter(|(candidate_index, candidate)| {
+                    let candidate_cells = table_cells(candidate).unwrap_or_default();
+                    let same_legacy_shape = candidate_cells
+                        .first()
+                        .is_some_and(|cell| cell.eq_ignore_ascii_case("rank"))
+                        && candidate_cells
+                            .last()
+                            .is_some_and(|cell| cell.eq_ignore_ascii_case("total"))
+                        && candidate_cells.iter().any(|cell| cell == &"Risk")
+                        && candidate_cells.iter().any(|cell| cell == &"Evidence");
+                    if !same_legacy_shape {
+                        return false;
+                    }
+                    source_lines[..*candidate_index]
+                        .iter()
+                        .rfind(|line| line.starts_with('#'))
+                        .is_some_and(|candidate_heading| *candidate_heading == heading)
+                })
+                .count();
+            assert!(
+                legacy_shape
+                    && (historical_heading || exact_audit_history)
+                    && legacy_headers_under_heading == 1,
+                "{document_name} adds a competing current ranking table header: {line}"
+            );
+        }
+        let rank = cells.first().and_then(|cell| cell.parse::<u8>().ok());
+        if !matches!(rank, Some(1..=3)) {
+            continue;
+        }
+        let words = semantic_words(line);
+        let expected = if contains_semantic_phrase(&words, &["tensor", "record"])
+            && contains_semantic_phrase(&words, &["two", "stage"])
+        {
+            Some(POST_CAP020_RANKING_ROWS[0])
+        } else if contains_semantic_phrase(&words, &["runtime", "byte", "file", "acquisition"])
+            || (words.iter().any(|word| word == "runtime")
+                && words.iter().any(|word| word == "acquisition"))
+        {
+            Some(POST_CAP020_RANKING_ROWS[1])
+        } else if contains_semantic_phrase(&words, &["recursive", "exact", "i32", "array"])
+            || (words.iter().any(|word| word == "recursive")
+                && words.iter().any(|word| word == "matrix"))
+        {
+            Some(POST_CAP020_RANKING_ROWS[2])
+        } else {
+            None
+        };
+        if let Some(expected) = expected {
+            assert_eq!(
+                line, expected,
+                "{document_name} adds a competing or reordered successor row: {line}"
+            );
+        }
+    }
     let header = table_cells(source_lines[first - 2])
         .unwrap_or_else(|| panic!("{document_name} is missing the ranking table header"));
     let canonical_cell_count = table_cells(POST_CAP020_RANKING_ROWS[0])
@@ -578,7 +933,8 @@ fn assert_cap018_acceptance_evidence(document_name: &str, document: &str) {
 }
 
 fn assert_cap019_acceptance_evidence(document_name: &str, document: &str) {
-    let normalized = normalized_words(document);
+    let rendered = markdown_outside_fences(document);
+    let normalized = normalized_words(&rendered);
     assert_eq!(
         normalized
             .matches("Exact CAP-019 reviewed candidate")
@@ -598,7 +954,7 @@ fn assert_cap019_acceptance_evidence(document_name: &str, document: &str) {
             "{document_name} must state CAP-019 run/job/analysis {identity} exactly once"
         );
     }
-    let evidence_paragraphs = normalized_markdown_paragraphs(document)
+    let evidence_paragraphs = normalized_markdown_paragraphs(&rendered)
         .into_iter()
         .filter(|paragraph| paragraph.contains(CAP019_ACCEPTANCE_EVIDENCE[0]))
         .collect::<Vec<_>>();
@@ -613,7 +969,7 @@ fn assert_cap019_acceptance_evidence(document_name: &str, document: &str) {
     );
     assert_bounded_acceptance_evidence(
         document_name,
-        document,
+        &rendered,
         "CAP-019",
         &CAP019_ACCEPTANCE_EVIDENCE,
         true,
@@ -621,16 +977,18 @@ fn assert_cap019_acceptance_evidence(document_name: &str, document: &str) {
 }
 
 fn assert_cap020_acceptance_evidence(document_name: &str, document: &str) {
-    let normalized = normalized_words(document);
+    let rendered = markdown_outside_fences(document);
+    let normalized = normalized_words(&rendered);
+    let rendered_normalized = normalized_words(&rendered);
     assert_eq!(
-        normalized
+        rendered_normalized
             .matches("Exact CAP-020 reviewed candidate")
             .count(),
         1,
         "{document_name} must contain exactly one CAP-020 evidence lead-in"
     );
     assert_eq!(
-        normalized.matches(CAP020_EVIDENCE_PREFIX).count(),
+        rendered_normalized.matches(CAP020_EVIDENCE_PREFIX).count(),
         1,
         "{document_name} is missing or duplicates the canonical CAP-020 evidence prefix"
     );
@@ -641,7 +999,7 @@ fn assert_cap020_acceptance_evidence(document_name: &str, document: &str) {
             "{document_name} must state CAP-020 evidence identity {identity} exactly once globally"
         );
     }
-    let evidence_paragraphs = normalized_markdown_paragraphs(document)
+    let evidence_paragraphs = normalized_markdown_paragraphs(&rendered)
         .into_iter()
         .filter(|paragraph| paragraph.contains(CAP020_ACCEPTANCE_EVIDENCE[0]))
         .collect::<Vec<_>>();
@@ -660,7 +1018,7 @@ fn assert_cap020_acceptance_evidence(document_name: &str, document: &str) {
     );
     assert_bounded_acceptance_evidence(
         document_name,
-        document,
+        &rendered,
         "CAP-020",
         &CAP020_ACCEPTANCE_EVIDENCE,
         true,
@@ -668,7 +1026,8 @@ fn assert_cap020_acceptance_evidence(document_name: &str, document: &str) {
 }
 
 fn assert_post_cap020_successor_order(document_name: &str, document: &str) {
-    let normalized = document.to_ascii_lowercase();
+    let rendered = markdown_outside_fences(document);
+    let normalized = rendered.to_ascii_lowercase();
     let tensor_record = normalized
         .find("source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` cpu scoring product gate")
         .unwrap_or_else(|| panic!("{document_name} is missing the ranked tensor-record gate"));
@@ -688,6 +1047,115 @@ fn assert_post_cap020_successor_order(document_name: &str, document: &str) {
         !normalized.contains("cap-018-readiness"),
         "{document_name} invents CAP-018 readiness work after acceptance"
     );
+    assert!(
+        successor_order_violation(&rendered).is_none(),
+        "{document_name} states a contradictory post-CAP-020 successor order: {:?}",
+        successor_order_violation(&rendered)
+    );
+}
+
+fn successor_order_violation(text: &str) -> Option<String> {
+    for record in normalized_claim_records(text) {
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            let mut categories = Vec::new();
+            for (position, word) in words.iter().enumerate() {
+                let nearby = &words[position..(position + 5).min(words.len())];
+                if word == "tensor" && nearby.iter().any(|word| word == "record") {
+                    categories.push((position, 1_u8));
+                } else if word == "runtime" && nearby.iter().any(|word| word == "acquisition") {
+                    categories.push((position, 2_u8));
+                } else if word == "byte"
+                    && nearby.iter().any(|word| word == "file")
+                    && nearby.iter().any(|word| word == "acquisition")
+                {
+                    categories.push((position, 2_u8));
+                } else if word == "recursive"
+                    && nearby
+                        .iter()
+                        .any(|word| matches!(word.as_str(), "array" | "arrays" | "matrix"))
+                {
+                    categories.push((position, 3_u8));
+                }
+            }
+            let nearest_category = |position: usize| {
+                categories
+                    .iter()
+                    .min_by_key(|(candidate, _)| candidate.abs_diff(position))
+                    .copied()
+            };
+            for (position, word) in words.iter().enumerate() {
+                let claimed_rank = match word.as_str() {
+                    "first" | "1" => Some(1),
+                    "second" | "2" => Some(2),
+                    "third" | "3" => Some(3),
+                    _ => None,
+                };
+                if let Some(claimed_rank) = claimed_rank {
+                    let has_rank_relation =
+                        word.chars().all(|character| character.is_ascii_digit())
+                            && words
+                                .get(position.wrapping_sub(1))
+                                .is_some_and(|word| word == "rank")
+                            || words[position.saturating_sub(3)..position]
+                                .iter()
+                                .any(|word| {
+                                    matches!(word.as_str(), "rank" | "ranks" | "ranked" | "placed")
+                                })
+                            || words
+                                .get(position + 1)
+                                .is_some_and(|word| word == "priority")
+                            || words
+                                .get(position.wrapping_sub(1))
+                                .is_some_and(|word| word == "priority");
+                    let unlike = words[..position].iter().rposition(|word| word == "unlike");
+                    let attached_category = unlike
+                        .and_then(|unlike| {
+                            categories
+                                .iter()
+                                .filter(|(candidate, _)| *candidate < unlike)
+                                .max_by_key(|(candidate, _)| *candidate)
+                                .copied()
+                        })
+                        .or_else(|| nearest_category(position));
+                    if has_rank_relation
+                        && !preceded_by_local_negation(&words, position)
+                        && attached_category.is_some_and(|(_, expected)| expected != claimed_rank)
+                    {
+                        return Some(clause.trim().to_owned());
+                    }
+                }
+            }
+            for (position, relation) in words.iter().enumerate() {
+                let direction = match relation.as_str() {
+                    "precede" | "precedes" | "before" | "ahead" => Some(true),
+                    "follow" | "follows" | "after" | "behind" => Some(false),
+                    _ => None,
+                };
+                let Some(left_before_right) = direction else {
+                    continue;
+                };
+                if preceded_by_local_negation(&words, position) {
+                    continue;
+                }
+                let left = categories
+                    .iter()
+                    .filter(|(candidate, _)| *candidate < position)
+                    .max_by_key(|(candidate, _)| *candidate)
+                    .map(|(_, rank)| *rank);
+                let right = categories
+                    .iter()
+                    .filter(|(candidate, _)| *candidate > position)
+                    .min_by_key(|(candidate, _)| *candidate)
+                    .map(|(_, rank)| *rank);
+                if matches!((left, right), (Some(left), Some(right)) if left != right && (left < right) != left_before_right)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+        }
+    }
+    None
 }
 
 fn clause_words(clause: &str) -> Vec<&str> {
@@ -720,190 +1188,1262 @@ fn has_semantic_capability(words: &[String], number: &str) -> bool {
             .any(|pair| pair[0] == "cap" && pair[1] == number)
 }
 
-fn assert_no_stale_cap019_current_claims(document_name: &str, document: &str) {
-    for paragraph in normalized_markdown_paragraphs(document) {
-        for clause in paragraph.split(['.', ';', '!', '?']) {
+fn stale_cap019_current_violation(document: &str) -> Option<String> {
+    for record in normalized_claim_records(document) {
+        for clause in record.split(['.', ';', '!', '?']) {
             let words = semantic_words(clause);
             if !has_semantic_capability(&words, "019") {
                 continue;
             }
             let has = |word: &str| words.iter().any(|candidate| candidate == word);
-            let stale = (has("master") && (has("current") || has("latest") || has("baseline")))
-                || (has("baseline") && has("protected"))
-                || (has("project") && has("status") && has("after"))
-                || (has("post") && (has("ranking") || has("order")));
-            assert!(
-                !stale,
-                "{document_name} presents CAP-019 as current state or current ranking: {clause}"
-            );
+            let explicit_current =
+                has("current") || has("present") || has("today") || has("remains") || has("still");
+            let historical = has("former")
+                || has("formerly")
+                || has("previously")
+                || has("historical")
+                || has("archived")
+                || has("was")
+                || has("were")
+                || (has("before") && has_semantic_capability(&words, "020"));
+            let state_positions = words
+                .iter()
+                .enumerate()
+                .filter(|(_, word)| {
+                    matches!(
+                        word.as_str(),
+                        "master"
+                            | "baseline"
+                            | "head"
+                            | "status"
+                            | "state"
+                            | "ranking"
+                            | "order"
+                            | "successor"
+                    )
+                })
+                .map(|(position, _)| position)
+                .collect::<Vec<_>>();
+            let cap019_state = state_positions.iter().copied().find(|position| {
+                nearest_capability_owner(&words, *position, 1).as_deref() == Some("019")
+            });
+            let state_negated = cap019_state
+                .is_some_and(|position| preceded_by_local_negation(&words, position))
+                || contains_semantic_phrase(&words, &["no", "longer"])
+                || contains_semantic_phrase(&words, &["ceased", "to", "be"]);
+            let current_capability = explicit_current
+                && has("accepted")
+                && has("capability")
+                && !(has("compiler") && has("profile"));
+            let present_state_copula = cap019_state.is_some() && has("is") && !historical;
+            let current_state = cap019_state.is_some()
+                && (explicit_current || present_state_copula || has("post"))
+                && (!historical
+                    || has("today")
+                    || has("current")
+                    || has("remains")
+                    || has("still"));
+            let stale = !state_negated
+                && (current_state
+                    || current_capability
+                    || (has("project") && has("status") && has("after") && cap019_state.is_some()));
+            if stale {
+                return Some(clause.trim().to_owned());
+            }
         }
     }
+    None
 }
 
-fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
-    let subjects: &[&[&str]] = &[
+fn assert_no_stale_cap019_current_claims(document_name: &str, document: &str) {
+    assert!(
+        stale_cap019_current_violation(document).is_none(),
+        "{document_name} presents CAP-019 as current state or current ranking: {:?}",
+        stale_cap019_current_violation(document)
+    );
+}
+
+fn capability_mentions(words: &[String]) -> Vec<(usize, usize, String)> {
+    let mut mentions = Vec::new();
+    let mut index = 0;
+    while index < words.len() {
+        let compact = words[index]
+            .strip_prefix("cap")
+            .filter(|number| !number.is_empty() && number.chars().all(|ch| ch.is_ascii_digit()));
+        let split = (words[index] == "cap")
+            .then(|| words.get(index + 1))
+            .flatten()
+            .filter(|number| number.chars().all(|ch| ch.is_ascii_digit()))
+            .map(String::as_str);
+        if let Some(number) = compact.or(split) {
+            let end = index + 1 + usize::from(words[index] == "cap");
+            mentions.push((index, end, number.to_owned()));
+            index = end;
+            continue;
+        }
+        index += 1;
+    }
+    mentions
+}
+
+fn nearest_capability_owner(
+    words: &[String],
+    subject_start: usize,
+    subject_len: usize,
+) -> Option<String> {
+    let subject_end = subject_start + subject_len;
+    capability_mentions(words)
+        .into_iter()
+        .min_by_key(|(start, end, _)| {
+            let distance = if *end <= subject_start {
+                subject_start - *end
+            } else if *start >= subject_end {
+                *start - subject_end
+            } else {
+                0
+            };
+            (distance, usize::from(*start >= subject_end))
+        })
+        .map(|(_, _, number)| number)
+}
+
+fn semantic_phrase_position(words: &[String], phrase: &[&str]) -> Option<usize> {
+    words.windows(phrase.len()).position(|candidate| {
+        candidate
+            .iter()
+            .map(String::as_str)
+            .eq(phrase.iter().copied())
+    })
+}
+
+fn relation_is_negated(words: &[String], subject_start: usize, subject_len: usize) -> bool {
+    let fragment_start = words[..subject_start]
+        .iter()
+        .rposition(|word| matches!(word.as_str(), "but" | "yet" | "however" | "whereas"))
+        .map_or(0, |position| position + 1);
+    let fragment_end = words[subject_start + subject_len..]
+        .iter()
+        .position(|word| matches!(word.as_str(), "but" | "yet" | "however" | "whereas"))
+        .map_or(words.len(), |position| {
+            subject_start + subject_len + position
+        });
+    let relation_before = words[fragment_start..subject_start]
+        .iter()
+        .rposition(|word| {
+            matches!(
+                word.as_str(),
+                "add"
+                    | "adds"
+                    | "added"
+                    | "support"
+                    | "supports"
+                    | "supported"
+                    | "enable"
+                    | "enables"
+                    | "enabled"
+                    | "provide"
+                    | "provides"
+                    | "create"
+                    | "creates"
+                    | "change"
+                    | "changes"
+                    | "implement"
+                    | "implements"
+                    | "guarantee"
+                    | "guarantees"
+                    | "stabilize"
+                    | "stabilizes"
+                    | "admit"
+                    | "admits"
+                    | "accept"
+                    | "accepts"
+                    | "require"
+                    | "requires"
+                    | "need"
+                    | "needs"
+                    | "offer"
+                    | "offers"
+                    | "give"
+                    | "gives"
+                    | "contain"
+                    | "contains"
+                    | "work"
+                    | "works"
+                    | "is"
+                    | "are"
+                    | "has"
+                    | "have"
+                    | "belong"
+                    | "belongs"
+                    | "credit"
+                    | "credits"
+                    | "own"
+                    | "owns"
+                    | "lack"
+                    | "lacks"
+                    | "exclude"
+                    | "excludes"
+                    | "omit"
+                    | "omits"
+                    | "reject"
+                    | "rejects"
+            )
+        })
+        .map(|position| fragment_start + position);
+    let relation_after = words[subject_start + subject_len..fragment_end]
+        .iter()
+        .position(|word| {
+            matches!(
+                word.as_str(),
+                "support"
+                    | "supports"
+                    | "supported"
+                    | "enable"
+                    | "enables"
+                    | "enabled"
+                    | "add"
+                    | "adds"
+                    | "added"
+                    | "provide"
+                    | "provides"
+                    | "provided"
+                    | "work"
+                    | "works"
+                    | "available"
+                    | "complete"
+                    | "accepted"
+                    | "implemented"
+                    | "is"
+                    | "are"
+                    | "was"
+                    | "were"
+                    | "remain"
+                    | "remains"
+                    | "belong"
+                    | "belongs"
+            )
+        })
+        .map(|position| subject_start + subject_len + position);
+    let relation = match (relation_before, relation_after) {
+        (Some(before), Some(after)) => {
+            let before_distance = subject_start.saturating_sub(before);
+            let after_distance = after.saturating_sub(subject_start + subject_len);
+            Some(
+                if after_distance <= 2 && after_distance <= before_distance {
+                    after
+                } else {
+                    before
+                },
+            )
+        }
+        (before, after) => before.or(after),
+    };
+    let negative_verb = relation.is_some_and(|position| {
+        matches!(
+            words[position].as_str(),
+            "lack" | "lacks" | "exclude" | "excludes" | "omit" | "omits" | "reject" | "rejects"
+        )
+    });
+    let relation_follows_subject =
+        relation.is_some_and(|position| position >= subject_start + subject_len);
+    let local_start = relation.map_or(subject_start.saturating_sub(3), |position| {
+        if relation_follows_subject {
+            subject_start
+        } else {
+            position.saturating_sub(3).max(fragment_start)
+        }
+    });
+    let local_end = relation.map_or(subject_start + subject_len, |position| {
+        if relation_follows_subject {
+            (position + 4).min(fragment_end)
+        } else {
+            subject_start + subject_len
+        }
+    });
+    let local = &words[local_start..local_end];
+    let explicit_negative = local
+        .iter()
+        .any(|word| matches!(word.as_str(), "not" | "no" | "never" | "without" | "cannot"))
+        || local.windows(2).any(|pair| {
+            pair[1] == "t"
+                && matches!(
+                    pair[0].as_str(),
+                    "can"
+                        | "isn"
+                        | "doesn"
+                        | "wasn"
+                        | "won"
+                        | "aren"
+                        | "didn"
+                        | "hasn"
+                        | "haven"
+                        | "couldn"
+                        | "wouldn"
+                        | "shouldn"
+                )
+        });
+    let after_subject = &words[subject_start + subject_len..fragment_end];
+    let negative_value_position = relation_follows_subject
+        .then(|| {
+            after_subject.iter().take(10).position(|word| {
+                matches!(
+                    word.as_str(),
+                    "absent"
+                        | "unsupported"
+                        | "excluded"
+                        | "omitted"
+                        | "rejected"
+                        | "unchanged"
+                        | "deferred"
+                        | "future"
+                        | "open"
+                )
+            })
+        })
+        .flatten();
+    let negative_value = negative_value_position.is_some()
+        || (relation.is_none()
+            && (after_subject.iter().any(|word| word == "readiness")
+                || after_subject.iter().any(|word| word == "probe"))
+            && (after_subject.iter().any(|word| word == "only") || relation_before.is_none()));
+    let relation_prefix = &words[fragment_start..subject_start];
+    let stop_if = relation_prefix.iter().any(|word| word == "stop")
+        && relation_prefix.iter().any(|word| word == "if");
+    let negative_value_is_negated = negative_value_position
+        .is_some_and(|position| preceded_by_local_negation(after_subject, position));
+    let double_negative = (negative_verb && explicit_negative) || negative_value_is_negated;
+    (!double_negative && (negative_verb || explicit_negative || negative_value)) || stop_if
+}
+
+fn preceded_by_local_negation(words: &[String], position: usize) -> bool {
+    let contrast_start = words[..position]
+        .iter()
+        .rposition(|word| matches!(word.as_str(), "but" | "yet" | "however"))
+        .map_or(0, |index| index + 1);
+    let start = contrast_start.max(position.saturating_sub(5));
+    let local = &words[start..position];
+    local
+        .iter()
+        .any(|word| matches!(word.as_str(), "not" | "no" | "never" | "cannot"))
+        || local.windows(2).any(|pair| {
+            pair[1] == "t"
+                && matches!(
+                    pair[0].as_str(),
+                    "can"
+                        | "isn"
+                        | "doesn"
+                        | "wasn"
+                        | "won"
+                        | "aren"
+                        | "didn"
+                        | "hasn"
+                        | "haven"
+                        | "couldn"
+                        | "wouldn"
+                        | "shouldn"
+                )
+        })
+}
+
+fn cap020_product_violation(text: &str) -> Option<String> {
+    const EXCLUDED: &[&[&str]] = &[
         &["parser"],
         &["grammar"],
         &["source", "semantics"],
         &["language", "profile"],
         &["compiler", "profile"],
-        &["profile"],
         &["language", "feature"],
         &["feature", "row"],
-        &["capability", "classification"],
         &["semantic", "analysis"],
         &["checked", "ir"],
         &["verifier"],
         &["backend"],
         &["compiler", "production"],
+        &["production", "compiler"],
+        &["production", "code"],
+        &["production", "source", "code"],
+        &["compiler", "edits"],
+        &["compiler", "changes"],
+        &["separate", "profile"],
         &["matrix", "type"],
+        &["matrix", "types"],
+        &["matrix", "syntax"],
         &["matrix", "support"],
+        &["matrices"],
+        &["matrices", "supported"],
         &["tensor", "type"],
+        &["tensor", "types"],
+        &["tensor", "syntax"],
         &["tensor", "support"],
         &["binary", "ingestion"],
+        &["runtime", "ingestion"],
+        &["file", "input"],
+        &["file", "acquisition"],
+        &["external", "bytes"],
+        &["bounded", "owned", "buffer"],
+        &["i", "o"],
+        &["runtime", "abi"],
+        &["allocation"],
+        &["drop"],
         &["quantization"],
         &["inference", "completion"],
         &["stable", "abi"],
         &["abi", "stability"],
         &["stable", "layout"],
         &["layout", "guarantee"],
-        &["performance"],
+        &["performance", "claim"],
+        &["performance", "guarantee"],
         &["accelerator", "execution"],
         &["accelerator", "support"],
         &["memory", "safety"],
         &["safety", "claim"],
-        &["safety"],
         &["recursive", "arrays"],
         &["nested", "arrays"],
         &["static", "index", "proof"],
         &["checked", "overflow", "arithmetic"],
         &["general", "mutation"],
     ];
-    let positive_verbs = [
-        "is",
-        "has",
-        "changes",
-        "changed",
-        "add",
-        "adds",
-        "added",
-        "create",
-        "creates",
-        "created",
-        "admit",
-        "admits",
-        "accept",
-        "accepts",
-        "support",
-        "supports",
-        "enable",
-        "enables",
-        "implement",
-        "implements",
-        "implemented",
-        "widen",
-        "widens",
-        "widened",
-        "stabilize",
-        "stabilizes",
-        "stabilized",
-        "guarantee",
-        "guarantees",
-        "provide",
-        "provides",
-        "provided",
-        "deliver",
-        "delivers",
-        "delivered",
-        "introduce",
-        "introduces",
-        "introduced",
-        "certify",
-        "certifies",
-        "complete",
-        "completes",
-    ];
-    for paragraph in normalized_markdown_paragraphs(document) {
-        let mut cap020_context = false;
-        for clause in paragraph.split(['.', ';', '!', '?']) {
+    for record in normalized_claim_records(text) {
+        let mut carried_owner = None;
+        for clause in record.split(['.', ';', '!', '?']) {
             let words = semantic_words(clause);
-            let explicit_cap020 = has_semantic_capability(&words, "020");
-            let explicit_other_capability = ["014", "015", "016", "017", "018", "019"]
-                .iter()
-                .any(|number| has_semantic_capability(&words, number));
-            if explicit_cap020 {
-                cap020_context = true;
-            } else if explicit_other_capability {
-                cap020_context = false;
+            let mentions = capability_mentions(&words);
+            if let Some((_, _, owner)) = mentions.last() {
+                carried_owner = Some(owner.clone());
             }
-            if !cap020_context {
-                continue;
-            }
-            for start in 0..words.len() {
-                for subject in subjects {
-                    if start + subject.len() > words.len()
-                        || !words[start..start + subject.len()]
+            let names_successor_without_cap = mentions.is_empty()
+                && ((contains_semantic_phrase(&words, &["rank", "2"])
+                    || contains_semantic_phrase(&words, &["rank", "3"])
+                    || contains_semantic_phrase(&words, &["runtime", "acquisition"])
+                    || contains_semantic_phrase(&words, &["recursive", "arrays"]))
+                    && words.iter().any(|word| {
+                        matches!(word.as_str(), "readiness" | "probe" | "deferred" | "future")
+                    }));
+            let fallback_owner = (!names_successor_without_cap)
+                .then(|| carried_owner.clone())
+                .flatten();
+            let leading_stop_condition = words.first().is_some_and(|word| word == "stop")
+                && words.iter().any(|word| word == "if");
+            for phrase in EXCLUDED {
+                for position in words
+                    .windows(phrase.len())
+                    .enumerate()
+                    .filter(|(_, candidate)| {
+                        candidate
                             .iter()
                             .map(String::as_str)
-                            .eq(subject.iter().copied())
+                            .eq(phrase.iter().copied())
+                    })
+                    .map(|(position, _)| position)
+                {
+                    let owner = nearest_capability_owner(&words, position, phrase.len())
+                        .or_else(|| fallback_owner.clone());
+                    if owner.as_deref() == Some("020")
+                        && !leading_stop_condition
+                        && !relation_is_negated(&words, position, phrase.len())
                     {
+                        return Some(format!("{} :: {}", phrase.join(" "), clause.trim()));
+                    }
+                }
+            }
+            for performance_position in words
+                .iter()
+                .enumerate()
+                .filter(|(_, word)| *word == "performance")
+                .map(|(position, _)| position)
+            {
+                let owner = nearest_capability_owner(&words, performance_position, 1)
+                    .or_else(|| fallback_owner.clone());
+                let claims_performance = owner.as_deref() == Some("020")
+                    && words.iter().any(|word| {
+                        matches!(
+                            word.as_str(),
+                            "guarantee"
+                                | "guarantees"
+                                | "claim"
+                                | "claims"
+                                | "promise"
+                                | "promises"
+                        )
+                    })
+                    && !relation_is_negated(&words, performance_position, 1);
+                if claims_performance {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
+    assert!(
+        cap020_product_violation(document).is_none(),
+        "{document_name} promotes CAP-020 beyond its product-only boundary: {:?}",
+        cap020_product_violation(document)
+    );
+}
+
+fn signed_bracket_vectors(text: &str) -> Vec<(usize, Vec<i64>)> {
+    let mut vectors = Vec::new();
+    let mut offset = 0;
+    while let Some((start, closer)) =
+        text[offset..]
+            .char_indices()
+            .find_map(|(position, character)| match character {
+                '[' => Some((offset + position, ']')),
+                '(' => Some((offset + position, ')')),
+                _ => None,
+            })
+    {
+        let Some(end) = text[start + 1..]
+            .find(closer)
+            .map(|position| start + 1 + position)
+        else {
+            break;
+        };
+        let components = text[start + 1..end]
+            .split(',')
+            .map(str::trim)
+            .map(str::parse::<i64>)
+            .collect::<Result<Vec<_>, _>>();
+        if let Ok(components) = components {
+            if !components.is_empty() {
+                vectors.push((start, components));
+            }
+        }
+        offset = end + 1;
+    }
+    vectors
+}
+
+fn signed_integers(text: &str) -> Vec<i64> {
+    let bytes = text.as_bytes();
+    let mut values = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        let signed = bytes[index] == b'-'
+            && bytes
+                .get(index + 1)
+                .is_some_and(|next| next.is_ascii_digit());
+        if !bytes[index].is_ascii_digit() && !signed {
+            index += 1;
+            continue;
+        }
+        let start = index;
+        if signed {
+            index += 1;
+        }
+        while bytes.get(index).is_some_and(u8::is_ascii_digit) {
+            index += 1;
+        }
+        let embedded = start
+            .checked_sub(1)
+            .and_then(|previous| bytes.get(previous))
+            .is_some_and(u8::is_ascii_alphanumeric)
+            || bytes.get(index).is_some_and(u8::is_ascii_alphanumeric);
+        if !embedded {
+            if let Ok(value) = text[start..index].parse::<i64>() {
+                values.push(value);
+            }
+        }
+    }
+    values
+}
+
+fn vector_assertion_region_is_valid(
+    clause: &str,
+    start: usize,
+    end: usize,
+    vectors: &[(usize, Vec<i64>)],
+    expected: &[i64],
+) -> bool {
+    let bracketed = vectors
+        .iter()
+        .filter(|(position, _)| (start..end).contains(position))
+        .map(|(_, vector)| vector.as_slice())
+        .collect::<Vec<_>>();
+    if !bracketed.is_empty() {
+        return bracketed.iter().all(|vector| *vector == expected);
+    }
+    let unbracketed = signed_integers(&clause[start..end]);
+    unbracketed.len() < 2 || unbracketed == expected
+}
+
+fn scalar_assertion_values(
+    words: &[String],
+    keyword_position: usize,
+    max_tokens: usize,
+) -> Vec<i64> {
+    let mut values = Vec::new();
+    let suffix = &words[keyword_position + 1..];
+    let mut index = 0;
+    while index < suffix.len() && index < max_tokens {
+        if matches!(
+            suffix[index].as_str(),
+            "after" | "because" | "through" | "while" | "under" | "with"
+        ) {
+            break;
+        }
+        let locally_negated = suffix[index.saturating_sub(3)..index]
+            .iter()
+            .any(|word| matches!(word.as_str(), "not" | "no" | "never"));
+        if let Ok(value) = suffix[index].parse::<i64>() {
+            if !locally_negated {
+                values.push(value);
+            }
+        } else if suffix[index] == "ninety" {
+            let ones = suffix.get(index + 1).map(String::as_str);
+            let value = match ones {
+                Some("one") => Some(91),
+                Some("two") => Some(92),
+                Some("three") => Some(93),
+                _ => None,
+            };
+            if let Some(value) = value.filter(|_| !locally_negated) {
+                values.push(value);
+                index += 1;
+            }
+        }
+        index += 1;
+    }
+    values
+}
+
+fn value_is_locally_negated(text: &str, value_position: usize) -> bool {
+    let prefix = &text[..value_position];
+    let fragment = prefix
+        .rsplit([',', ';'])
+        .next()
+        .unwrap_or(prefix)
+        .to_ascii_lowercase();
+    let words = semantic_words(&fragment);
+    words
+        .iter()
+        .rev()
+        .take(4)
+        .any(|word| matches!(word.as_str(), "not" | "no" | "never"))
+        || words.windows(2).any(|pair| {
+            pair[1] == "t"
+                && matches!(
+                    pair[0].as_str(),
+                    "isn" | "doesn" | "wasn" | "aren" | "didn" | "can" | "won"
+                )
+        })
+}
+
+fn cap020_status_violation(text: &str) -> Option<String> {
+    const NEGATABLE_STATUS: &[&[&str]] = &[
+        &["remains", "a", "candidate"],
+        &["a", "candidate"],
+        &["candidate", "only"],
+        &["pending", "acceptance"],
+        &["acceptance", "is", "pending"],
+        &["acceptance", "remains", "pending"],
+        &["unaccepted"],
+        &["proposed"],
+        &["local", "only"],
+        &["local", "candidate"],
+        &["unpublished"],
+        &["unmerged"],
+        &["awaiting", "acceptance"],
+        &["awaits", "acceptance"],
+    ];
+    const ABSOLUTE_CONTRADICTIONS: &[&[&str]] = &[
+        &["has", "not", "yet", "been", "accepted"],
+        &["has", "not", "been", "accepted"],
+        &["not", "yet", "accepted"],
+        &["not", "yet", "published"],
+        &["acceptance", "revoked"],
+        &["acceptance", "reverted"],
+        &["acceptance", "withdrawn"],
+        &["acceptance", "rejected"],
+        &["non", "zero", "production"],
+        &["not", "zero", "production"],
+        &["no", "longer", "zero", "production"],
+    ];
+    for paragraph in normalized_claim_records(text) {
+        if paragraph == CAP020_EVIDENCE_PARAGRAPH {
+            continue;
+        }
+        let mut carried_owner = None;
+        for clause in paragraph.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            let mentions = capability_mentions(&words);
+            if let Some((_, _, owner)) = mentions.last() {
+                carried_owner = Some(owner.clone());
+            }
+            if !has_semantic_capability(&words, "020") && carried_owner.as_deref() != Some("020") {
+                continue;
+            }
+            if let Some(phrase) = ABSOLUTE_CONTRADICTIONS
+                .iter()
+                .find(|phrase| contains_semantic_phrase(&words, phrase))
+            {
+                return Some(phrase.join(" "));
+            }
+            if contains_semantic_phrase(&words, &["did", "not", "pass"])
+                || contains_semantic_phrase(&words, &["does", "not", "pass"])
+                || contains_semantic_phrase(&words, &["not", "pass"])
+            {
+                return Some(clause.trim().to_owned());
+            }
+            for status in [
+                "fail",
+                "fails",
+                "failed",
+                "revoked",
+                "reverted",
+                "withdrawn",
+            ] {
+                if let Some(position) = words.iter().position(|word| word == status) {
+                    let describes_failed_programs = matches!(status, "fail" | "fails" | "failed")
+                        && words.get(position + 1).is_some_and(|word| {
+                            matches!(word.as_str(), "program" | "programs" | "case" | "cases")
+                        });
+                    let acceptance_context = position <= 3
+                        || words.iter().any(|word| {
+                            matches!(
+                                word.as_str(),
+                                "ci" | "check"
+                                    | "checks"
+                                    | "run"
+                                    | "merge"
+                                    | "acceptance"
+                                    | "evidence"
+                            )
+                        });
+                    if !describes_failed_programs
+                        && acceptance_context
+                        && !preceded_by_local_negation(&words, position)
+                    {
+                        return Some(clause.trim().to_owned());
+                    }
+                }
+            }
+            if let Some(position) = words.iter().position(|word| word == "new") {
+                if words[position..].iter().any(|word| word == "alert")
+                    && !preceded_by_local_negation(&words, position)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            if let Some(position) = words.iter().position(|word| word == "additional") {
+                if words[position..].iter().any(|word| word == "finding")
+                    && !preceded_by_local_negation(&words, position)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            for phrase in NEGATABLE_STATUS {
+                if let Some(position) = semantic_phrase_position(&words, phrase) {
+                    if !preceded_by_local_negation(&words, position) {
+                        return Some(phrase.join(" "));
+                    }
+                }
+            }
+
+            let lower = clause.to_ascii_lowercase();
+            let vectors = signed_bracket_vectors(clause)
+                .into_iter()
+                .filter(|(position, _)| !value_is_locally_negated(clause, *position))
+                .collect::<Vec<_>>();
+            let ordinary_position = lower.find("ordinary");
+            let wrapping_position = lower.find("wrapping");
+            if let (Some(ordinary), Some(wrapping)) = (ordinary_position, wrapping_position) {
+                if ordinary < wrapping {
+                    let asserted_after_wrapping = vectors
+                        .iter()
+                        .filter(|(position, _)| *position > wrapping)
+                        .map(|(_, vector)| vector.as_slice())
+                        .collect::<Vec<_>>();
+                    let ordinary_has_no_earlier_vector = !vectors
+                        .iter()
+                        .any(|(position, _)| *position > ordinary && *position < wrapping);
+                    let combined_pair = ordinary_has_no_earlier_vector
+                        && asserted_after_wrapping.len() == 2
+                        && asserted_after_wrapping[0] == [50, 122]
+                        && asserted_after_wrapping[1] == [-2, 5];
+                    let separate_pair = vector_assertion_region_is_valid(
+                        clause,
+                        ordinary,
+                        wrapping,
+                        &vectors,
+                        &[50, 122],
+                    ) && vector_assertion_region_is_valid(
+                        clause,
+                        wrapping,
+                        clause.len(),
+                        &vectors,
+                        &[-2, 5],
+                    );
+                    if !combined_pair && !separate_pair {
+                        return Some(clause.trim().to_owned());
+                    }
+                }
+            } else if let Some(ordinary) = ordinary_position {
+                if !vector_assertion_region_is_valid(
+                    clause,
+                    ordinary,
+                    clause.len(),
+                    &vectors,
+                    &[50, 122],
+                ) {
+                    return Some(clause.trim().to_owned());
+                }
+            } else if let Some(wrapping) = wrapping_position {
+                if !vector_assertion_region_is_valid(
+                    clause,
+                    wrapping,
+                    clause.len(),
+                    &vectors,
+                    &[-2, 5],
+                ) {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            let returns_result_vector = words
+                .iter()
+                .any(|word| matches!(word.as_str(), "return" | "returns"))
+                && !vectors.is_empty();
+            if returns_result_vector
+                && vectors
+                    .iter()
+                    .any(|(_, vector)| !matches!(vector.as_slice(), [50, 122] | [-2, 5]))
+            {
+                return Some(clause.trim().to_owned());
+            }
+            for keyword in [
+                "exit",
+                "exits",
+                "sentinel",
+                "return",
+                "returns",
+                "terminate",
+                "terminates",
+                "termination",
+            ] {
+                if let Some(position) = words.iter().position(|word| word == keyword) {
+                    if preceded_by_local_negation(&words, position) {
                         continue;
                     }
-                    let search_start = start.saturating_sub(12);
-                    if let Some(verb_index) = (search_start..start)
-                        .rev()
-                        .find(|index| positive_verbs.contains(&words[*index].as_str()))
-                    {
-                        let stop_condition = words.first().is_some_and(|word| word == "stop")
-                            && words[..start].iter().any(|word| word == "if");
-                        let negated = stop_condition
-                            || words[verb_index.saturating_sub(3)..start + subject.len()]
-                                .iter()
-                                .any(|word| {
-                                    matches!(word.as_str(), "not" | "no" | "without" | "never")
-                                });
-                        assert!(
-                            negated,
-                            "{document_name} promotes CAP-020 beyond its product-only boundary ({}) in: {clause}",
-                            subject.join(" ")
-                        );
+                    if matches!(keyword, "return" | "returns") && returns_result_vector {
+                        continue;
                     }
-
-                    let subject_end = start + subject.len();
-                    if subject_end + 1 < words.len()
-                        && matches!(words[subject_end].as_str(), "is" | "are")
-                        && matches!(
-                            words[subject_end + 1].as_str(),
-                            "guaranteed"
-                                | "stable"
-                                | "complete"
-                                | "supported"
-                                | "implemented"
-                                | "enabled"
-                                | "accepted"
-                                | "provided"
-                                | "certified"
-                                | "changed"
-                                | "widened"
-                                | "added"
-                        )
+                    let value_anchor = if matches!(keyword, "terminate" | "terminates")
+                        && words.get(position + 1).is_some_and(|word| word == "with")
+                        && words.get(position + 2).is_some_and(|word| word == "code")
                     {
-                        let passive_negated = words
-                            [start.saturating_sub(3)..(subject_end + 4).min(words.len())]
-                            .iter()
-                            .any(|word| {
-                                matches!(word.as_str(), "not" | "no" | "without" | "never")
-                            });
-                        assert!(
-                            passive_negated,
-                            "{document_name} passively promotes CAP-020 beyond its product-only boundary ({}) in: {clause}",
-                            subject.join(" ")
-                        );
+                        position + 2
+                    } else if keyword == "termination"
+                        && words.get(position + 1).is_some_and(|word| word == "code")
+                    {
+                        position + 1
+                    } else {
+                        position
+                    };
+                    let max_tokens = if matches!(keyword, "return" | "returns") {
+                        3
+                    } else {
+                        8
+                    };
+                    if scalar_assertion_values(&words, value_anchor, max_tokens)
+                        .into_iter()
+                        .any(|value| value != 91)
+                    {
+                        return Some(clause.trim().to_owned());
                     }
                 }
             }
         }
     }
+    None
+}
+
+fn readiness_promotion_violation(text: &str) -> Option<String> {
+    const POSITIVE: &[&[&str]] = &[
+        &["approved", "to", "proceed"],
+        &["authorized", "for", "implementation"],
+        &["implementation", "is", "approved"],
+        &["implementation", "is", "authorized"],
+        &["implementation", "is", "underway"],
+        &["implementation", "is", "in", "progress"],
+        &["implementation", "has", "begun"],
+        &["implementation", "has", "started"],
+        &["is", "being", "implemented"],
+        &["work", "is", "underway"],
+        &["implementation", "may", "proceed"],
+        &["may", "proceed"],
+        &["can", "proceed"],
+        &["cleared", "for", "implementation"],
+        &["will", "implement"],
+        &["is", "now", "implemented"],
+        &["now", "an", "executable", "product", "gate"],
+        &["active", "development"],
+        &["will", "ship", "next"],
+    ];
+    for record in normalized_claim_records(text) {
+        let mut carried_readiness = false;
+        for sentence in record.split(['.', '!', '?']) {
+            let sentence_words = semantic_words(sentence);
+            let explicit_subject = contains_semantic_phrase(&sentence_words, &["rank", "2"])
+                || contains_semantic_phrase(&sentence_words, &["rank", "two"])
+                || contains_semantic_phrase(&sentence_words, &["rank", "3"])
+                || contains_semantic_phrase(&sentence_words, &["rank", "three"])
+                || contains_semantic_phrase(&sentence_words, &["runtime", "acquisition"])
+                || contains_semantic_phrase(
+                    &sentence_words,
+                    &["runtime", "byte", "file", "acquisition"],
+                )
+                || contains_semantic_phrase(&sentence_words, &["recursive", "arrays"])
+                || contains_semantic_phrase(&sentence_words, &["recursive", "array"]);
+            let continuation = carried_readiness
+                && sentence_words.first().is_some_and(|word| {
+                    matches!(
+                        word.as_str(),
+                        "its"
+                            | "it"
+                            | "this"
+                            | "implementation"
+                            | "work"
+                            | "effort"
+                            | "task"
+                            | "development"
+                    )
+                });
+            if !explicit_subject && !continuation {
+                carried_readiness = false;
+                continue;
+            }
+            carried_readiness = explicit_subject || continuation;
+            for clause in sentence.split(';') {
+                let clause_words = semantic_words(clause);
+                let mut starts = vec![0];
+                starts.extend(
+                    clause_words
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, word)| {
+                            matches!(word.as_str(), "but" | "yet" | "however" | "whereas")
+                        })
+                        .map(|(position, _)| position + 1),
+                );
+                starts.push(clause_words.len());
+                for bounds in starts.windows(2) {
+                    let fragment = &clause_words[bounds[0]..bounds[1]];
+                    let approved_only_for_readiness = |position: usize| {
+                        let suffix = &fragment[position..(position + 10).min(fragment.len())];
+                        suffix.iter().any(|word| word == "only")
+                            && suffix
+                                .iter()
+                                .any(|word| matches!(word.as_str(), "readiness" | "probe"))
+                            && (suffix.iter().any(|word| word == "not")
+                                || !suffix.iter().any(|word| word == "implementation"))
+                    };
+                    for phrase in POSITIVE {
+                        for position in fragment
+                            .windows(phrase.len())
+                            .enumerate()
+                            .filter(|(_, candidate)| {
+                                candidate
+                                    .iter()
+                                    .map(String::as_str)
+                                    .eq(phrase.iter().copied())
+                            })
+                            .map(|(position, _)| position)
+                        {
+                            if !preceded_by_local_negation(fragment, position)
+                                && !approved_only_for_readiness(position)
+                            {
+                                return Some(format!("{}: {}", phrase.join(" "), record.trim()));
+                            }
+                        }
+                    }
+                    for (position, word) in fragment.iter().enumerate() {
+                        if matches!(
+                            word.as_str(),
+                            "underway"
+                                | "approved"
+                                | "authorized"
+                                | "executable"
+                                | "cleared"
+                                | "begun"
+                                | "started"
+                                | "implemented"
+                                | "progress"
+                        ) && !preceded_by_local_negation(fragment, position)
+                            && !approved_only_for_readiness(position)
+                        {
+                            return Some(record.trim().to_owned());
+                        }
+                        if word == "active"
+                            && fragment
+                                .get(position + 1)
+                                .is_some_and(|next| next == "development")
+                            && !preceded_by_local_negation(fragment, position)
+                        {
+                            return Some(record.trim().to_owned());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn assert_cap020_contract_mutation_fixtures() {
+    for accepted in [
+        "CAP-020 is an accepted product gate, not a candidate and not pending acceptance.",
+        "CAP-020 executes the flat 2x3-by-3 matrix-vector product gate.",
+        "CAP-020 contains matrix-product evidence but adds no matrix type.",
+        "CAP020 changes no parser or language profile.",
+        "CAP 020 doesn't add file input or runtime ingestion.",
+        "CAP-020 does not guarantee performance.",
+        "CAP-020 is an accepted product gate, not a separate profile.",
+        "CAP-020 proves the flat matvec; CAP-021 owns runtime acquisition.",
+        "CAP-020 lacks matrix syntax, whereas CAP-021 adds matrix support.",
+        "CAP-020 is product evidence, and matrix syntax belongs to CAP-021.",
+        "Before CAP-020, matrix types were unsupported.",
+        "CAP-020 is accepted. Matrix syntax remains future work.",
+        "Stop rank 1 if CAP-020 would require file input or runtime ingestion.",
+    ] {
+        assert!(cap020_status_violation(accepted).is_none(), "{accepted}");
+        assert!(cap020_product_violation(accepted).is_none(), "{accepted}");
+    }
+    for rejected in [
+        "CAP-020 adds a matrix type.",
+        "CAP020 parser supports records.",
+        "CAP 020's parser works.",
+        "| CAP020 | Parser | Supported |",
+        "CAP-020 matrix type works.",
+        "| CAP 020 | Matrix type | Y |",
+        "CAP020 supports matrices.",
+        "CAP020 changes production compiler code.",
+        "Under CAP 020, file input is supported.",
+        "CAP020 runtime ingestion works.",
+        "CAP-020 supports recursive arrays.",
+        "CAP-020 guarantees stable ABI and performance.",
+        "CAP020 doesn't support parser, but it enables matrix types.",
+        "Matrix syntax is supported by CAP-020.",
+        "CAP-020 enables matrix types, but no file input.",
+        "CAP-020 adds matrix syntax in this zero-production product gate.",
+        "CAP-020 adds\n matrix types.",
+        "CAP-020 does not change the parser and matrix syntax is supported.",
+        "CAP-020 adds matrix syntax and recursive arrays remain open.",
+        "CAP-020 does not lack matrix syntax.",
+    ] {
+        assert!(cap020_product_violation(rejected).is_some(), "{rejected}");
+    }
+    for accepted in [
+        "No new CAP-020 alert surfaced.",
+        "CAP-020 did not fail and was not revoked.",
+        "CAP-020 failed programs trap correctly.",
+        "CAP-020 is zero-production product evidence.",
+        "CAP020 ordinary oracle is [50, 122].",
+        "CAP020 wrapping oracle is [-2, 5].",
+        "CAP020 exits 91.",
+        "CAP020 ordinary oracle is not [50, 121], but is [50, 122].",
+        "CAP020 does not exit 92; it exits 91.",
+        "CAP-020 exits 91 after 2 stages.",
+        "CAP-020 exits 91, not 92.",
+        "CAP020 returns [50, 122].",
+    ] {
+        assert!(cap020_status_violation(accepted).is_none(), "{accepted}");
+    }
+    for rejected in [
+        "CAP-020 remains a candidate.",
+        "CAP020 remains a local candidate.",
+        "CAP020 awaits acceptance.",
+        "CAP020 is not yet published.",
+        "CAP-020 has not yet been accepted.",
+        "CAP-020 merge CI later failed and acceptance was revoked.",
+        "A new CAP-020 alert surfaced.",
+        "CAP020 failed.",
+        "CAP020 acceptance was revoked.",
+        "CAP020 is non-zero-production.",
+        "CAP020 is no longer zero production.",
+        "CAP020 ordinary oracle is [50, 121].",
+        "CAP020 wrapping oracle is [-2, 6].",
+        "CAP020 exits 92.",
+        "CAP020 ordinary oracle is (50, 121).",
+        "CAP020 returns 92.",
+        "CAP020 exit is ninety-two.",
+        "CAP-020 did not pass CI.",
+        "CAP-020 passed. The ordinary oracle is [50, 121].",
+        "CAP020 ordinary oracle is [50, 122] and [50, 121].",
+        "CAP020 exits 91 or 92.",
+        "CAP020 ordinary oracle is 50 and 121.",
+        "CAP020 terminates with code 92.",
+    ] {
+        assert!(cap020_status_violation(rejected).is_some(), "{rejected}");
+    }
+    for accepted in [
+        "CAP-019 remains the latest compiler/profile capability widening.",
+        "CAP-019 was the public baseline before CAP-020.",
+        "CAP-019 is the historical baseline before CAP-020.",
+        "CAP-019 isn't the current public baseline.",
+        "Current public head is CAP-020, after CAP-019.",
+    ] {
+        assert!(
+            stale_cap019_current_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "CAP-019 is the present public baseline.",
+        "Current public head: CAP 019.",
+        "Project status after CAP-019.",
+        "Post-CAP-019 successor order controls task selection.",
+        "Historically important, CAP-019 remains master today.",
+        "CAP-019 remains the current accepted capability.",
+    ] {
+        assert!(
+            stale_cap019_current_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+    for accepted in [
+        "Rank 2 remains readiness and a red probe only, not implementation.",
+        "Stop rank 2 before implementation if the runtime contract remains unfrozen.",
+        "An explicit RFC would permit future runtime acquisition implementation ranking only after a bounded probe.",
+        "Rank 3 remains deferred and isn't executable.",
+        "Rank 2 is approved only for a readiness probe, not implementation.",
+        "Recursive arrays are not in active development.",
+    ] {
+        assert!(
+            readiness_promotion_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "Rank 2 is approved to proceed with runtime acquisition implementation.",
+        "Runtime acquisition implementation is now underway.",
+        "Rank three is now an executable product gate.",
+        "Recursive arrays move into active development.",
+        "Rank 2 is executable.",
+        "Rank 3 implementation is underway.",
+        "Recursive arrays are approved for implementation.",
+        "Rank 2 remains readiness only, but implementation is authorized.",
+        "Rank 2 is not readiness only; implementation is approved.",
+        "Runtime acquisition may proceed without further review.",
+        "Rank 2 remains readiness only,\nimplementation is underway.",
+        "Rank 2 remains readiness only. Its implementation is now authorized.",
+        "Before implementation, rank 2 is approved to proceed.",
+        "Future implementation ranking is approved for rank 2.",
+        "Rank 2 remains readiness only. Work is underway.",
+        "Rank 2 implementation has begun.",
+        "Runtime acquisition is being implemented.",
+        "Rank 2 implementation is in progress.",
+    ] {
+        assert!(
+            readiness_promotion_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+    for accepted in [
+        "The tensor-record gate ranks first.",
+        "Runtime acquisition ranks second.",
+        "Recursive arrays rank third.",
+        "Runtime acquisition does not rank first.",
+    ] {
+        assert!(successor_order_violation(accepted).is_none(), "{accepted}");
+    }
+    for rejected in [
+        "Runtime acquisition ranks first.",
+        "The tensor-record gate ranks second.",
+        "Recursive arrays rank second.",
+        "The tensor-record gate follows runtime acquisition.",
+        "Runtime acquisition ranks first and tensor-record ranks second.",
+        "Recursive arrays precede the tensor-record gate.",
+        "Recursive arrays precede runtime acquisition.",
+        "Runtime acquisition comes before the tensor-record gate.",
+        "Runtime acquisition is rank 1.",
+        "Byte/file acquisition ranks first.",
+        "Runtime acquisition, unlike the tensor-record gate, ranks first.",
+        "Runtime acquisition is the first priority.",
+    ] {
+        assert!(successor_order_violation(rejected).is_some(), "{rejected}");
+    }
+    assert_eq!(
+        normalized_markdown_paragraphs(&markdown_outside_fences(CAP020_EVIDENCE_PARAGRAPH)),
+        [CAP020_EVIDENCE_PARAGRAPH]
+    );
+    let fenced_evidence = format!("```text\n{CAP020_EVIDENCE_PARAGRAPH}\n```");
+    assert!(
+        normalized_markdown_paragraphs(&markdown_outside_fences(&fenced_evidence)).is_empty(),
+        "fenced CAP-020 evidence must not count as rendered public truth"
+    );
+    let mismatched_fence = format!("~~~text\n```\n{CAP020_EVIDENCE_PARAGRAPH}\n```\n~~~");
+    assert!(
+        normalized_markdown_paragraphs(&markdown_outside_fences(&mismatched_fence)).is_empty(),
+        "a mismatched fence marker must not expose hidden CAP-020 evidence"
+    );
+    let longer_fence = format!("````text\n```\n{CAP020_EVIDENCE_PARAGRAPH}\n````");
+    assert!(
+        normalized_markdown_paragraphs(&markdown_outside_fences(&longer_fence)).is_empty(),
+        "a shorter same-marker run must not close a longer Markdown fence"
+    );
+    let hidden_contradictions = "```text\nCAP-020 adds matrix types.\nRank 2 implementation is underway.\nRuntime acquisition ranks first.\n```";
+    assert!(cap020_product_violation(hidden_contradictions).is_none());
+    assert!(cap020_status_violation(hidden_contradictions).is_none());
+    assert!(readiness_promotion_violation(hidden_contradictions).is_none());
+    assert!(successor_order_violation(hidden_contradictions).is_none());
+    assert!(
+        cap020_product_violation("<!-- CAP-020 adds matrix types. -->").is_none(),
+        "HTML-comment-hidden examples are not rendered capability claims"
+    );
+    assert_eq!(
+        markdown_outside_fences("Inline ``` markers stay visible."),
+        "Inline ``` markers stay visible.\n"
+    );
+    assert!(
+        markdown_outside_fences("    CAP-020 adds matrix types.")
+            .trim()
+            .is_empty(),
+        "indented Markdown code is not rendered capability prose"
+    );
+    assert!(
+        markdown_outside_fences("\tCAP-020 adds matrix types.")
+            .trim()
+            .is_empty(),
+        "tab-indented Markdown code is not rendered capability prose"
+    );
+    assert!(
+        markdown_outside_fences("- ```text\n  CAP-020 adds matrix types.\n  ```")
+            .trim()
+            .is_empty(),
+        "list-item fenced code is not rendered capability prose"
+    );
+    assert!(
+        markdown_outside_fences(r"`<!--` CAP-020 adds matrix types. `-->`")
+            .contains("CAP-020 adds matrix types"),
+        "comment markers inside code spans remain visible Markdown"
+    );
+    assert!(
+        markdown_outside_fences(r"\<!-- CAP-020 adds matrix types. -->")
+            .contains("CAP-020 adds matrix types"),
+        "escaped comment markers remain visible Markdown"
+    );
+    let matrix_header = "| Feature | Spec | Lex | Parse | Res | Ty | Own | TIR | BE | Exec | + | - | D | Docs | Class |";
+    assert!(!markdown_table_after_header_is_valid(
+        &format!("{matrix_header}\n\n| Row | Y |"),
+        matrix_header
+    ));
+    assert!(!markdown_table_after_header_is_valid(
+        &format!("{matrix_header}\n|---|---|\n| Row | Y |"),
+        matrix_header
+    ));
+    let single_hyphen_delimiter = table_cells(matrix_header)
+        .expect("matrix header")
+        .iter()
+        .map(|_| "-")
+        .collect::<Vec<_>>()
+        .join("|");
+    assert!(!markdown_table_after_header_is_valid(
+        &format!("{matrix_header}\n{single_hyphen_delimiter}\n| Row | Y |"),
+        matrix_header
+    ));
 }
 
 fn has_capability_token(words: &[&str], capability: &str) -> bool {
@@ -918,10 +2458,21 @@ fn has_capability_token(words: &[&str], capability: &str) -> bool {
 }
 
 fn assert_cap020_boundaries(document_name: &str, document: &str) {
-    let normalized = normalized_words(document);
+    let rendered = markdown_outside_fences(document);
+    let normalized = normalized_words(&rendered);
     let normalized_lower = normalized.to_ascii_lowercase();
-    assert_no_stale_cap019_current_claims(document_name, document);
-    assert_no_cap020_overclaims(document_name, document);
+    assert_no_stale_cap019_current_claims(document_name, &rendered);
+    assert_no_cap020_overclaims(document_name, &rendered);
+    assert!(
+        cap020_status_violation(&rendered).is_none(),
+        "{document_name} contradicts accepted CAP-020 status or evidence: {:?}",
+        cap020_status_violation(&rendered)
+    );
+    assert!(
+        readiness_promotion_violation(&rendered).is_none(),
+        "{document_name} promotes a readiness-only successor: {:?}",
+        readiness_promotion_violation(&rendered)
+    );
     for expected in [
         CAP019_PROFILE_HISTORY,
         CAP019_VALUE_BOUNDARY,
@@ -1060,7 +2611,7 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
         );
     }
 
-    for paragraph in normalized_markdown_paragraphs(document) {
+    for paragraph in normalized_markdown_paragraphs(&rendered) {
         let paragraph_lower = paragraph.to_ascii_lowercase();
         let cap020_prefix_lower = CAP020_EVIDENCE_PREFIX.to_ascii_lowercase();
         let cap019_prefix_lower = CAP019_EVIDENCE_PREFIX.to_ascii_lowercase();
@@ -1078,23 +2629,6 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
             let denies_acceptance = contains_semantic_phrase(&semantic, &["not", "accepted"])
                 || contains_semantic_phrase(&semantic, &["not", "yet", "accepted"])
                 || contains_semantic_phrase(&semantic, &["has", "not", "been", "accepted"]);
-            if has_capability_token(&words, "cap-020") {
-                assert!(
-                    !has_word("candidate")
-                        && !has_word("pending")
-                        && !has_word("unaccepted")
-                        && !has_word("proposed")
-                        && !has_word("unpublished")
-                        && !has_word("unmerged")
-                        && !has_word("awaiting")
-                        && !has_word("local-only")
-                        && !(has_word("local") && has_word("only"))
-                        && !(has_word("not") && has_word("published"))
-                        && !(has_word("awaits") && has_word("acceptance"))
-                        && !denies_acceptance,
-                    "{document_name} gives CAP-020 a candidate or unaccepted status: {clause}"
-                );
-            }
             if has_capability_token(&words, "cap-019") {
                 assert!(
                     !has_word("candidate")
@@ -1321,8 +2855,9 @@ fn conformance_is_presented_as_deterministic_regression_evidence() {
 
 #[test]
 fn current_repository_surfaces_state_only_evidenced_capabilities() {
+    assert_cap020_contract_mutation_fixtures();
     let task_ledger = repository_file("TASK_LEDGER.md");
-    let readme = repository_file("README.md");
+    let readme = markdown_outside_fences(&repository_file("README.md"));
     assert!(readme.contains(
         "Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class"
     ));
@@ -1359,7 +2894,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains("Project status after CAP-020"));
     assert!(readme.contains("baseline is protected CAP-020 product merge"));
     assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
-    assert!(readme.contains(
+    assert!(normalized_words(&readme).contains(
         "The next action is the source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate"
     ));
     assert!(
@@ -1384,7 +2919,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "next ranked product target is an explicitly profiled exact fixed-width integer"
     ));
 
-    let audit = repository_file("CURRENT_CAPABILITY_AUDIT.md");
+    let audit = markdown_outside_fences(&repository_file("CURRENT_CAPABILITY_AUDIT.md"));
     assert!(audit.contains(
         "Accepted CAP-007 closes the canonical checked-entrypoint and artifact mechanism"
     ));
@@ -1428,7 +2963,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!audit.contains("`CAP-015-READINESS`"));
     assert!(audit.contains("selected-profile row is therefore `STABLE`"));
 
-    let alignment = repository_file("FRAMEWORK_ALIGNMENT.md");
+    let alignment = markdown_outside_fences(&repository_file("FRAMEWORK_ALIGNMENT.md"));
     assert!(alignment.contains(
         "accepted CAP-007 makes library compile/check plus CLI check/build/run/profile/source-test validation consume one canonical checked-program authority"
     ));
@@ -1460,9 +2995,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(alignment.contains(
         "Accepted CAP-020 advances the founding high-performance and data-pipeline direction"
     ));
-    assert!(
-        alignment.contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
-    );
+    assert!(normalized_words(&alignment).contains(
+        "Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first"
+    ));
     assert!(alignment.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(alignment.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!alignment.contains("`CAP-015-READINESS`"));
@@ -1471,7 +3006,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(!alignment.contains("Projected borrowing, reference-target dynamic writes"));
     assert!(!alignment.contains("close the remaining Milestone 2 exit half"));
 
-    let project_state = repository_file("PROJECT_STATE.md");
+    let project_state = markdown_outside_fences(&repository_file("PROJECT_STATE.md"));
     assert!(project_state.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(project_state.contains("Protected PR #40 merged it as accepted master"));
     assert!(
@@ -1521,7 +3056,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("next ranked product target is an explicitly profiled exact fixed-width")
     );
 
-    let matrix = repository_file("SPEC_IMPLEMENTATION_MATRIX.md");
+    let matrix = markdown_outside_fences(&repository_file("SPEC_IMPLEMENTATION_MATRIX.md"));
     assert!(matrix.contains("Accepted CAP-009 adds an explicitly selected `stable-scalar-v0`"));
     assert!(matrix.contains("Selected `stable-scalar-v0` profile (accepted `CAP-009`)"));
     assert!(matrix.contains("Accepted CAP-010 adds one bounded partial row"));
@@ -1555,6 +3090,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "| Surface | Interface | Shared compiler truth | Artifact/result | Failure tests | Integration evidence | Docs | Class |",
         "| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |",
     ] {
+        assert!(
+            markdown_table_after_header_is_valid(&matrix, expected_header),
+            "matrix must render the frozen header, same-width delimiter, and data rows: {expected_header}"
+        );
         assert_eq!(
             matrix
                 .lines()
@@ -1579,24 +3118,30 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         3,
         "matrix must expose exactly the three frozen classification tables"
     );
-    let mut in_classified_table = false;
+    let mut classified_cell_count = None;
     for line in matrix.lines().map(table_line) {
-        if !line.starts_with('|') {
-            in_classified_table = false;
+        let Some(cells) = table_cells(line) else {
+            classified_cell_count = None;
             continue;
-        }
-        let cells = table_cells(line).expect("pipe table row");
+        };
         if cells
             .last()
             .is_some_and(|classification| classification.eq_ignore_ascii_case("class"))
         {
-            in_classified_table = true;
+            classified_cell_count = Some(cells.len());
             continue;
         }
-        if !in_classified_table
-            || cells
-                .iter()
-                .all(|cell| !cell.is_empty() && cell.chars().all(|ch| matches!(ch, '-' | ':')))
+        if classified_cell_count.is_none() {
+            continue;
+        }
+        assert_eq!(
+            cells.len(),
+            classified_cell_count.expect("active classified table header"),
+            "matrix classified row changes its table cardinality: {line}"
+        );
+        if cells
+            .iter()
+            .all(|cell| !cell.is_empty() && cell.chars().all(|ch| matches!(ch, '-' | ':')))
         {
             continue;
         }
@@ -1622,11 +3167,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .lines()
         .map(table_line)
         .filter(|line| {
-            let lower = line.to_ascii_lowercase();
-            lower.starts_with('|')
-                && (lower.contains("exact-i32-array-v0")
-                    || lower.contains("cap-018")
-                    || lower.contains("cap-019"))
+            if table_cells(line).is_none() {
+                return false;
+            }
+            let words = semantic_words(line);
+            contains_semantic_phrase(&words, &["exact", "i32", "array", "v0"])
+                || has_semantic_capability(&words, "018")
+                || has_semantic_capability(&words, "019")
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -1637,7 +3184,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "CAP-014/CAP-018/CAP-019 must classify in exactly one widened profile row"
     );
     assert!(
-        !language_features.to_ascii_lowercase().contains("cap-020"),
+        !language_features
+            .lines()
+            .map(semantic_words)
+            .any(|words| has_semantic_capability(&words, "020")),
         "CAP-020 must not create a language-feature or profile row"
     );
     let stable_rows = language_feature_rows
@@ -1735,7 +3285,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         !matrix.contains("Latest accepted compiler-capability master is protected CAP-013 merge")
     );
 
-    let roadmap = repository_file("Roadmap.md");
+    let roadmap = markdown_outside_fences(&repository_file("Roadmap.md"));
     assert!(roadmap.contains("CAP-010 is an accepted Milestone 2 capability"));
     assert!(!roadmap.contains("CAP-010 is a local green Milestone 2 candidate"));
     assert!(roadmap.contains("CAP-011 is an accepted Milestone 2 capability"));
@@ -1761,6 +3311,18 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
     );
     assert!(roadmap.contains("The milestone exit is not met"));
+    for historical_ranking in [
+        "### ROADMAP-001 ranked gaps and M1-001 outcome\n\nScores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability,\nso 5 means lower risk or lower evidence cost.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Representative scalar application plus frozen subset and optimization-equivalence gate (accepted as M1-001) | 4 | 5 | 5 | 5 | 4 | 3 | 26 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
+        "### Post-M1 ranking and accepted CAP-001\n\nThe required post-M1 comparison is complete. Scores retain the same 1--5 convention;\n`Risk` and `Evidence` reward more favorable delivery.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Verified runtime reads from fixed arrays (accepted `CAP-001`) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
+        "### Post-CAP-001 ranking and accepted CAP-002\n\nThe CAP-001 accepted-truth synchronization is complete. A fresh comparison uses the\nsame 1--5 scoring convention; `Risk` and `Evidence` reward more favorable delivery.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Checked runtime-indexed fixed-array assignment (accepted `CAP-002`) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
+        "### Post-CAP-002 ranking and accepted CAP-003\n\nThe CAP-002 accepted-truth synchronization and corrective milestone audit selected a\nbroader ordinary-program capability rather than another reference or index topology.\nThe comparison used the same 1--5 scoring convention; `Risk` and `Evidence` reward\nmore favorable delivery.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Explicitly typed `Option`/`Result` construction, transport, and exhaustive `Match` (accepted `CAP-003`) | 5 | 5 | 5 | 5 | 2 | 3 | 25 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
+    ] {
+        assert_eq!(
+            roadmap.matches(historical_ranking).count(),
+            1,
+            "Roadmap.md must preserve each historical ranking record exactly once"
+        );
+    }
     assert!(roadmap.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(roadmap.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!roadmap.contains("`CAP-015-READINESS`"));
@@ -1880,7 +3442,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         previous_position = Some(position);
     }
 
-    let conformance = repository_file("CONFORMANCE_PLAN.md");
+    let conformance = markdown_outside_fences(&repository_file("CONFORMANCE_PLAN.md"));
 
     let normalized_task_ledger = normalized_words(&task_ledger);
     assert!(
@@ -1911,10 +3473,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(conformance.contains(
         "Accepted CAP-020 adds one zero-production flat-buffer 2x3-by-3 matvec product gate"
     ));
-    assert!(
-        conformance
-            .contains("Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first")
-    );
+    assert!(normalized_words(&conformance).contains(
+        "Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first"
+    ));
     assert!(conformance.contains("This selected lane is `END_TO_END`"));
     assert!(conformance.contains("`stable-scalar-v0` remains the only `STABLE` profile"));
     assert!(conformance.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
@@ -1987,7 +3548,9 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     let cap020_matrix_rows = matrix
         .lines()
         .map(table_line)
-        .filter(|line| line.starts_with('|') && line.to_ascii_lowercase().contains("cap-020"))
+        .filter(|line| {
+            table_cells(line).is_some() && has_semantic_capability(&semantic_words(line), "020")
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         cap020_matrix_rows,

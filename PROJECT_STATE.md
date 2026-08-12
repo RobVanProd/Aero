@@ -4,6 +4,51 @@ Last updated: 2026-08-12 (America/New_York)
 
 ## Current objective
 
+### CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate
+
+Accepted CAP-020 changes no parser, grammar, source semantics, language profile,
+semantic analysis, checked IR, verifier, backend, ABI, or capability classification;
+it is a zero-production product/evidence checkpoint over CAP-019's
+`exact-i32-array-v0` surface.
+
+The accepted application encodes a 2x3 matrix as `[int; 6]`, consumes an `[int; 3]`
+vector, computes wrapping `row * 3 + column` in nested loops, returns a fully
+initialized mutable-produced `[i32; 2]`, preserves every input lane, produces ordinary
+and wrapping results `[50, 122]` and `[-2, 5]`, and exits `91`.
+
+The computed linear value flows through the existing signed bounds and
+trap-before-address authority before a `[6 x i32]` load, with corresponding guarded
+`[3 x i32]` load and `[2 x i32]` store.
+
+Exact CAP-020 reviewed candidate `3b61cd1ed34f910f556821942cd06301ba17dd50`,
+shared candidate/merge tree `800510de85bd82f3332126ad249c95da109dd3e1`,
+accepted base and first merge parent `13157687f3e955d1c8292ccca133c5a73e29e1a7`,
+and protected PR #58 merge `d9493d5123840b38ebab6ca275aaba3216728706`
+whose second parent is that candidate are immutable. Candidate push CI `31639493741`,
+PR CI `31639540134`, Rust CI `31639540030`, CodeQL `31639535638`, and aggregate
+candidate check `94258433541`; candidate stable/nightly/Windows LLVM 22 jobs
+`94258276078`/`94258275978`/`94258275899` and CodeQL Actions/Python/Rust jobs
+`94258264605`/`94258264489`/`94258264627`; merge-head CI/Rust CI/CodeQL
+`31640016314`/`31640016316`/`31640015733`, exact merge
+compiler/stable/nightly/Windows LLVM 22 jobs
+`94259869631`/`94259869676`/`94259869637`/`94259869559`, merge CodeQL
+Actions/Python/Rust jobs `94259873136`/`94259873164`/`94259873086`, and default-branch
+Actions/Python/Rust analyses `1610137115`/`1610137589`/`1610144660` all pass.
+
+CAP-020 adds no matrix type, recursive or nested arrays, static index proof,
+checked-overflow arithmetic, stable layout or ABI, performance, accelerator execution,
+general mutation, or safety claim.
+
+CAP-019 remains the latest compiler/profile capability widening; CAP-020 is an
+accepted product gate, not a separate profile or feature row.
+
+The sole open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+CAP-020 alert surfaced.
+
+Current accepted public master is CAP-020. CAP-019 remains the latest accepted
+compiler/profile capability widening, and CAP-015 remains the latest accepted project
+integration checkpoint.
+
 ### CAP-019 accepted: initialized mutable exact-array production
 
 Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018
@@ -48,11 +93,8 @@ add no specialization classifier.
 CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
 changes no compiler production or language-profile code. CAP-016 and CAP-017 remain
 completed readiness/architecture stops, not accepted capabilities; neither adds a
-profile or matrix row. CAP-019 is Aero's latest accepted compiler/profile capability;
-CAP-015 is the latest accepted project integration checkpoint.
-Current accepted public master is CAP-019 protected merge
-`6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4` at tree
-`c520729e7b081087bbe431e97d937fb77f519b37`.
+profile or matrix row. This retained section records CAP-019's immutable
+compiler/profile widening history beneath the accepted CAP-020 product checkpoint.
 
 ### CAP-018 accepted: immutable exact-array value/result composition
 
@@ -134,8 +176,9 @@ bounded Unicode scalar `char` remains `PARTIAL`.
 General error propagation, variable-width input, dynamic collections, allocation/
 drop, I/O, public ABI, safety, performance, releases, and language completion also
 remain outside the accepted claim. CAP-015's immutable evidence remains the protected
-merge `b62696272f293f9f378f8a368cc818fcb8ef1074`; current accepted public master
-is the later CAP-019 merge `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4`.
+merge `b62696272f293f9f378f8a368cc818fcb8ef1074`; CAP-019's later protected merge
+`6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4` remains its immutable
+compiler-widening checkpoint.
 
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
@@ -3092,56 +3135,36 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Do not begin another compiler capability until this bounded CAP-019 accepted-truth
-synchronization is green and protected-integrated. CAP-016 and CAP-017 are completed
-architecture stops: the former proved positive import/name resolution needs frozen
-namespace, visibility, graph, cache, and specialization-identity semantics; the latter
-proved propagation syntax and early-return behavior are not founded. Neither is an
-implementation queue entry. Flat-buffer exact-`i32` 2D matrix-vector CPU product gate
-ranks first.
+Accepted CAP-020 is the zero-production flat-buffer matvec product checkpoint over the
+CAP-019 compiler/profile boundary. CAP-016 and CAP-017 remain completed architecture
+stops, not implementation queue entries. Source-embedded fixed-shape tensor-record
+decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate ranks first.
 
-| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
-| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
-| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 
-`Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
-lower evidence cost. The next action is the flat-buffer exact-`i32` 2D matrix-vector
-CPU product gate. Before it, CAP-019 can produce and consume mutable flat exact-Int
-arrays, but the maintained product does not encode a two-dimensional workload. The
-bounded gate should use a nongeneric 2x3-by-3 matrix encoded as `[int; 6]`, compute
-`row * 3 + column` through guarded loops, return a mutable-produced `[int; 2]`, and
-execute with exact source/result, bounds-trap, wrapping, LLVM, and Linux/Windows native
-oracles. Stop and rerank if that cannot be expressed without new language semantics,
-compiler production changes, unchecked linearized indexing, uninitialized/partial
-arrays, stable ABI/layout, workload-specific profile exceptions, or duplicated bounds
-authorities. Evidence that flat encoding obscures the program, cannot prove row/column
-to linear-index bounds composition, or adds no material product evidence changes the
-decision; clean execution is required before deciding whether recursive syntax adds
-enough value.
+`Favorable risk` and `Favorable evidence cost` are delivery-favorability scores:
+higher means lower implementation risk or lower evidence cost. The next action is the
+source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32`
+CPU scoring product gate. It must validate and decode one fixed `[int; 17]` record,
+feed the accepted matvec, and compose a second exact-Int affine score using only
+accepted CAP-020 semantics. Stop and rerank if it needs compiler production changes,
+new language or profile rules, partial initialization, unchecked indexing, new
+arithmetic semantics, stable ABI/layout, or duplicated guard authority.
 
-Rank 2 is readiness and a red probe only, not implementation. Before it, the selected
-profile rejects nested arrays even though the experimental compiler has recursive
-CopyData array machinery; no trusted recursive source/physical shape authority or 2D
-profile follows from that. The task-local `[[int; 3]; 2]` by `[int; 3]` probe should
-locate the first failure and freeze depth, dimension-product, value-placement,
-nested-mutation, alias, and physical-identity decisions, or record a mandatory stop.
-Stop if one canonical shape cannot serve admission and lowering, any decision remains
-unfrozen, or a complete slice crosses more than two compiler phases. A successful
-flat-buffer product defers recursive syntax; one explicit bounded shape contract and
-a probe proving shared authority could permit a later implementation ranking, while
-rank-specific classifiers reject it.
+Rank 2 remains readiness and a red probe only, not implementation. Any later runtime
+acquisition work first needs one frozen cross-platform bounded-owned-buffer contract
+covering path and byte identity, initialized capacity, partial-read and EOF behavior,
+typed failures, ownership/drop, runtime linkage, sandboxing, determinism, and Linux and
+Windows equivalence.
 
-Rank 3 remains a strategic gap, not an authorizable implementation. Before it, Aero
-can interpret source-embedded character/array data but cannot acquire external
-workload bytes. An eventual cross-platform capability would acquire a size-bounded
-owned byte buffer, report a frozen typed acquisition failure, and pass validated bytes
-to parsing and CPU computation. Stop until path and byte identity, capacity and
-initialized count, partial-read/EOF, error mapping, ownership/drop, runtime linkage,
-sandboxing, determinism, and Linux/Windows behavior are frozen. Evidence that a
-platform-neutral caller-provided byte slice or embedded-binary source unlocks the
-flagship workload sooner would replace or reorder it. Do not default to neighboring
+Rank 3 remains deferred while flat storage serves the target workload. Recursive
+arrays may return to implementation ranking only if a concrete workload shows that
+flat buffers materially obscure it and a bounded probe proves one shared source and
+physical shape authority within two compiler phases. Do not default to neighboring
 topology work, releases/packages/benchmarks, force-pushes, or deletion of retained
 integration work.
 
