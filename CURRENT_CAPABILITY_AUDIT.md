@@ -5,7 +5,7 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-018 merge
+protected CAP-018 compiler/profile merge
 `c49ff17cab7fc0e8d4f552a71499929135c16c61`, tree
 `3073c881c883984f53fcde2f0b205acbec760145`.
 

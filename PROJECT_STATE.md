@@ -36,9 +36,7 @@ and Rust analyses `1608636029`, `1608636345`, and `1608644785` also pass.
 CAP-014 remains the profile origin and Aero's first bounded Milestone 3 CPU slice;
 CAP-018 is the latest accepted compiler/profile capability, not a new profile.
 CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
-changes no compiler production or language-profile code. CAP-016 and CAP-017 remain
-completed readiness/architecture stops, not accepted capabilities; neither adds a
-profile or matrix row. CAP-013 remains the
+changes no compiler production or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013 remains the
 single shared specialization identity/phase authority; CAP-018 adds no specialization
 classifier. The selected profile row remains `END_TO_END`, broad integer/fixed-array
 support remains `PARTIAL`, and `stable-scalar-v0` remains Aero's only `STABLE`

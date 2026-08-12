@@ -59,6 +59,27 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
+Accepted CAP-018 advances the founding high-performance and data-pipeline direction by
+turning CAP-014's input-only exact-array kernel into an immutable array-producing
+pipeline. Accepted CAP-014 created the CPU-only `exact-i32-array-v0` profile; accepted
+CAP-018 widens that same profile with immutable exact-array results rather than
+creating another profile. Ordinary acyclic nongeneric functions can now construct,
+return, immutably bind, forward, pass, and index exact flat arrays from literal,
+identifier, or call roots. The maintained N=8 program preserves source lane 127,
+produces lane 128, computes 2035, and retains exit 91 under public and pinned
+Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution.
+
+Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
+`3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
+`c49ff17cab7fc0e8d4f552a71499929135c16c61` are exact. Candidate push/PR CI
+`31614934307`/`31614994226`, Rust CI `31614994253`, CodeQL `31614991761`, and
+merge-head CI/Rust CI/CodeQL `31615467151`/`31615467115`/`31615465499` pass. Exact
+default-branch Actions/Python/Rust analyses `1608636029`/`1608636345`/`1608644785`
+also pass. Mutable bindings/results and writes, loop-produced results, recursion,
+nested/general arrays, stable ABI/layout, accelerators, performance, safety, and
+stability remain outside this selected-profile advance. Broad arrays remain `PARTIAL`;
+`stable-scalar-v0` remains the only `STABLE` profile.
+
 Accepted CAP-014 advances the founding high-performance and data-pipeline direction
 with a truthful CPU reference workload rather than a syntax-only array claim. The
 distinct CPU-only `exact-i32-array-v0` profile admits flat `[int; N]`/`[i32; N]`
@@ -91,11 +112,11 @@ value 42 is materially consumed by the established computation, while boundary v
 0 and 297, all ten malformed positions, three first-error precedence controls, and
 negative/equal-to-count trap specimens preserve exact behavior under public and pinned
 Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution.
-CAP-015 changes no compiler production or language-profile code.
-CAP-014 remains Aero's latest accepted compiler/profile capability and first Milestone
-3 CPU slice; CAP-015 is the latest
-accepted project integration checkpoint and enriches only the existing M1-001
-`END_TO_END` evidence. Both named profiles continue to reject the parser.
+CAP-015 remains the accepted M1-001 representative-integration checkpoint.
+CAP-015 changes no compiler production or language-profile code. CAP-018 is the latest
+accepted compiler/profile capability and widens CAP-014's first Milestone 3 CPU slice;
+CAP-015 enriches only the existing M1-001 `END_TO_END` evidence. Both named profiles
+continue to reject the parser.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file input,
 and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
 bounded Unicode scalar `char` remains `PARTIAL`.
@@ -108,20 +129,30 @@ merge-head CI/Rust CI/CodeQL `31598634185`/`31598634090`/`31598633803` all pass.
 This evidence adds no CAP-015 parser, grammar, profile, conformance row, stability, or
 general ingestion claim.
 
-The successor order begins with
-`CAP-016-MODULE-RESOLUTION-READINESS`, not automatic implementation. Freeze namespace
-roots, file/module identity, visibility, lookup, collision, graph,
-cycle, diagnostic, cache, and specialization-identity contracts, then run a bounded
-red probe before any positive guard changes. The target real-program delta is an
-ordinary multi-file Aero application that explicitly imports and resolves a reusable
-API instead of relying on direct-module flattening. Second is
-typed `Result` propagation across ordinary call chains, so a fallible application layer
-can forward its exact error without reconstructing every carrier manually. Third is
-runtime byte/file acquisition into a bounded owned buffer, which remains stopped until path,
-byte, buffer, partial-read/EOF, error, ownership/drop, runtime-linkage, and platform
-semantics are frozen. Stop or rerank if positive modules require ambiguous lookup,
-unfrozen cycle behavior, visibility erasure, a package architecture outside the
-bounded task, or duplicated specialization authorities.
+CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted
+capabilities; neither adds a profile or matrix row. CAP-013 remains the shared
+specialization authority.
+
+| Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
+| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+Mutable loop-produced exact-`i32` flat-array results rank first.
+The post-CAP-018 successor order is mutable loop-produced exact-`i32` flat-array
+results, then a bounded nonempty recursive exact-`i32` array / 2D matrix pipeline
+under one shared recursive shape authority, then runtime byte/file acquisition into a
+bounded owned buffer. Rank 1 would enable a guarded loop-produced transform returned
+into the accepted CPU kernel; stop on partial/uninitialized semantics, escaping
+references, new checked-IR contracts, stable ABI, or duplicate guards, and combine it
+if one recursive authority safely subsumes the class. Rank 2 would enable a trusted
+2D computation; stop on unfrozen depth/product bounds, rank-specific classifiers, new
+ownership, or ABI requirements, and defer it if flat indexing already serves the
+workload. Rank 3 would enable external workload bytes but remains stopped on path/byte
+identity, capacity/initialized count, partial-read/EOF, typed errors, ownership/drop,
+linkage, sandboxing, determinism, and platform contracts; a safer caller-provided or
+embedded source would change the order.
 
 Accepted CAP-013 advances the founding generic and compile-time monomorphization
 direction by making already-admitted specialization features coherent rather than by
@@ -714,7 +745,7 @@ claim.
 |---|---|---|
 | Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-071 preserves Rust-like `use` syntax only for future work and rejects it before checked IR; accepted CORE-080 similarly preserves the founding dotted `import` syntax with a distinct AST identity and rejects it through the same shared authority. Accepted CORE-072 preserves exact Unicode-character identity across the existing recursive CopyData execution surface under one primitive authority and a pinned native exit-197 gate. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze import/name-resolution semantics before any positive path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners. Accepted CORE-073–077 add acyclic reinitialization, owned Match results, and balanced loop restoration. Accepted CORE-079 adds convergent `Owned`/`Moved`/`MaybeMoved` direct-enum loop headers/exits under shared source/admission classification and independent verifier proof. Accepted CORE-083–089 compose enum reference behavior and mixed/multiple reference callable signatures. Accepted CORE-090 admits exact static projected writes through arbitrary finite field/tuple/fixed-array paths over mutable owned CopyData roots under one shared classifier. Accepted CAP-001 guards runtime fixed-array reads before conversion or address formation, accepted CAP-002 guards runtime indexes in the same mutable direct-owner projected write class before effects or memory access, and accepted CAP-012 admits immediate call-only immutable/mutable loans over those nested CopyData places with conservative complete-root conflicts. Stored/escaping projected references, reference-target dynamic writes, partial moves, disjoint alias reasoning, reference results, free enum dereference/transport, enum aggregate storage, stable reference ABI, general non-enum CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Rank the post-Milestone-2 real-program blockers; promote shared ownership architecture only when it unlocks multiple useful programs or closes a serious correctness boundary |
-| Structs, arrays, enums, traits, and Match | CORE-043 through CORE-047 accept bounded all-Copy scalar/named-struct construction, projection, arrays, transport, and finite acyclic graphs. CORE-049 through CORE-052 accept unit/unary-scalar enums, exhaustive bound Match, and owned internal transport. CORE-058 through CORE-061 add flat tuples, whole-place references, and direct CopyData owner replacement. Accepted CORE-062 removes the executable CopyData topology whitelist. Accepted CORE-063 carries that recursive class through unary owned-enum payloads and exact bound Match under a pinned native exit-113 gate. Accepted CORE-064/065 add exact enum replacement and acyclic joins. Accepted CORE-069 generalizes positional variants to two or more recursive CopyData fields. Accepted CORE-073–077 add reinitialization, typed owned Match results, and balanced loop-owner restoration; accepted CORE-079 changes loop dataflow only, not enum topology. Accepted CORE-083–089 add bounded reference/enum compositions. Accepted CORE-090 composes existing recursive CopyData field, tuple, and fixed-array projections into exact static mutable paths without adding a data topology. Accepted CAP-001 adds guarded variable reads, accepted CAP-002 adds guarded variable writes through the existing mixed projection class over nonempty recursive CopyData fixed arrays, accepted CAP-003 adds concrete recursive-CopyData Option/Result construction, internal transport, replacement, and bound exhaustive Match, accepted CAP-004 adds explicit user-defined recursive-CopyData generic structs under deterministic substitution and checked schema identities, accepted CAP-005 adds bound-free whole-value generic transport functions over that CopyData universe, accepted CAP-006 adds explicit user-defined recursive-CopyData generic enums through the same compile-time specialization discipline, accepted CAP-008 adds exact nonbinding payload and terminal whole-arm wildcards across that complete admitted enum class, accepted CAP-010 adds bounded required-only static trait dispatch, accepted CAP-011 composes fixed arrays plus projected mutation into one reusable fixed-capacity generic CopyData container algorithm, accepted CAP-012 composes finite projected places with ordinary reference calls, accepted CAP-013 gives those bounded specialization paths one canonical primitive-alias identity and phase order, and accepted CAP-014 adds a separately selected end-to-end exact-i32 flat-array CPU kernel without promoting the broad integer or fixed-array classes. Accepted CAP-015 composes existing character-array, guarded-read, concrete-Result, and Match behavior only inside the maintained representative application; it adds no parser or profile row. Named-field/bounded/general generic enums, general generic operations/substitution/error propagation, guards/nested destructuring, carrier aggregate/reference storage, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Run `CAP-016-MODULE-RESOLUTION-READINESS`: freeze namespace, visibility, lookup, collision, graph, cycle, cache, diagnostic, and specialization-identity semantics before probing one positive multi-file program. Then separately freeze typed Result propagation; keep runtime byte/file acquisition blocked until path, buffer, error, ownership, and platform contracts exist |
+| Structs, arrays, enums, traits, and Match | The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`. CAP-013 retains one canonical specialization identity/phase authority. CAP-014 created the selected `exact-i32-array-v0` CPU lane, and CAP-018 widens that same lane with immutable flat-array construction, results, bindings, call transport, and indexing without promoting broad arrays. CAP-015 remains M1-001 representative integration only. General generic operations/error propagation, nested/general arrays, mutable selected-profile array results/writes, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Follow the post-CAP-018 order: first mutable loop-produced exact-`i32` flat-array results, then one bounded recursive exact-array/2D matrix authority; keep runtime byte/file acquisition blocked until its path, buffer, error, ownership, and platform contracts exist. |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist. Pinned Linux LLVM 22 execution and bounded Windows x86_64 MSVC system evidence are accepted through CORE-078; CAP-014 additionally proves an exact wrapping `i32` flat-array lane with signed trap-before-GEP guards under public/O0/O2 execution. Typed-IR invariants and verification remain incomplete. | Retain exact object/link/runtime gates on each supported platform and extend only with separately frozen contracts |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |

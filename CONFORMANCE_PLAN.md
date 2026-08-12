@@ -95,7 +95,7 @@
   `[int; N]`/`[i32; N]` with `1 <= N <= i32::MAX`, explicitly annotated immutable
   literal locals, by-value nongeneric parameters, identifier call transport, direct
   scalar indexing, the exit-91 kernel, and the exit-93 wrapping specimen. Negative
-  evidence must exhaust the excluded array result/write/construction/element/profile/
+  evidence must exhaust the excluded mutable/write/construction/element/profile/
   target families and preserve exact `stable-scalar-v0` rejection plus experimental
   byte parity. LLVM-shape evidence must require `[N x i32]`, wrapping `mul`/`add`
   without `nsw`/`nuw`, and no aggregate `double`, conversion, vector, or excluded
@@ -106,6 +106,19 @@
   verification, and native `-O0`/`-O2` execution are required on pinned Linux and
   Windows LLVM/Clang 22. This is selected-profile conformance only, not broad array,
   ABI/layout, SIMD, tensor, performance, accelerator, safety, or stability conformance.
+- The accepted CAP-018 widening must retain one shared immutable array-value
+  classifier over the existing flat nonempty exact-`Int` shape. Positive evidence
+  covers literal, identifier, and acyclic ordinary-call roots across explicit return,
+  inferred and annotated immutable bindings, ordinary-call arguments, and
+  literal/identifier/call index objects; computed elements, `int`/`i32` aliases, and
+  original-source preservation are mandatory. Negative separation retains mutable
+  bindings/results and writes, recursion, repeat/zero/nested/non-Int and mismatched
+  arrays, unsupported roots, stable-profile rejection, and experimental controls.
+  Raw and semantic checked evidence, corruption controls, exact `[N x i32]`
+  definition/call/return anchors, public required-verifier routes, and pinned
+  Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution must agree. This widens CAP-014's
+  existing `END_TO_END` profile row; it is not a new profile, general-array, ABI,
+  performance, safety, or stability conformance claim.
 - The accepted CAP-015 representative integration must retain one exact embedded
   `[char; 10]` grammar, equality-only ASCII digit classification, exact
   `Result<int, char>` checked metadata, and material consumption of canonical value 42
@@ -152,20 +165,33 @@
 ## Real-program progression
 
 The release suite has reached bounded generic-data-structure, ownership-intensive,
-canonical-specialization telemetry, exact fixed-width integer fixed-array CPU kernel,
-and embedded-character representative-integration stages. Accepted CAP-015 consumes
-the prior parser readiness probe without widening `exact-i32-array-v0` or changing the
-compiler: the existing M1-001 application now proves that structured embedded data can
-reach materially used typed computation under the established cross-platform oracle.
-`CAP-016-MODULE-RESOLUTION-READINESS` is the next action: freeze namespace roots,
-file/module identity, visibility, qualified and unqualified lookup, collisions,
-dependency order, cycles, diagnostics, cache identity, and specialization identity,
-then red-probe one bounded positive multi-file program before any guard removal.
-Second is typed `Result` propagation across ordinary call chains; third is
-runtime byte/file acquisition into a bounded owned buffer. File acquisition remains stopped
-until path, byte, buffer, partial-read/EOF, error, ownership/drop, runtime-linkage, and
-Linux/Windows contracts are frozen. Real vector, matrix, and tensor accelerator
-workloads follow only after their runtime contracts exist.
+canonical-specialization telemetry, embedded-character representative integration,
+and immutable exact fixed-array production/composition stages. Accepted CAP-014
+created the CPU-only `exact-i32-array-v0` profile; accepted CAP-018 widens that same
+profile with immutable exact-array results rather than creating another profile.
+CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
+changes no compiler production or language-profile code. CAP-016 and CAP-017 remain
+completed readiness/architecture stops, not accepted capabilities; neither adds a
+profile or matrix row. CAP-013 remains the shared specialization authority.
+
+| Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Mutable loop-produced exact-`i32` flat-array results | 5 | 5 | 5 | 5 | 3 | 3 | 26 |
+| 2 | Bounded nonempty recursive exact-`i32` array / 2D matrix pipeline under one shared recursive shape authority | 5 | 5 | 5 | 4 | 2 | 2 | 23 |
+| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+
+Mutable loop-produced exact-`i32` flat-array results rank first.
+Rank 1 would add a guarded loop-produced transform returned into the accepted CPU
+kernel; stop on partial/uninitialized semantics, escaping references, new checked-IR
+contracts, stable ABI, or duplicate guards, and combine it if one recursive authority
+safely subsumes the class. Rank 2 would add a bounded 2D pipeline; stop on unfrozen
+depth/product bounds, rank-specific classifiers, new ownership, or ABI requirements,
+and defer it if flat indexing already serves the workload. Rank 3 would add external
+workload bytes but remains stopped on path/byte identity, capacity/initialized count,
+partial-read/EOF, typed errors, ownership/drop, linkage, sandboxing, determinism, and
+Linux/Windows behavior; a safer caller-provided or embedded byte source would change
+the order. Real vector, matrix, and tensor accelerator workloads still require their
+separate runtime contracts.
 
 ## Platform matrix
 
@@ -200,6 +226,26 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
+Accepted CAP-018 widens the existing `exact-i32-array-v0` lane
+with immutable exact-array results. Literal, identifier, and call sources compose
+through returns, inferred/annotated immutable bindings, ordinary calls, and indexing;
+the maintained N=8 application preserves source lane 127, produces lane 128, computes
+2035, and retains exit 91 through public and pinned Linux/Windows LLVM/Clang 22
+`-O0`/`-O2` routes. Accepted CAP-014 created the CPU-only `exact-i32-array-v0`
+profile; accepted CAP-018 widens that same profile with immutable exact-array results
+rather than creating another profile.
+
+Exact candidate `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`, shared tree
+`3073c881c883984f53fcde2f0b205acbec760145`, and protected PR #54 merge
+`c49ff17cab7fc0e8d4f552a71499929135c16c61` are exact. Candidate push/PR CI
+`31614934307`/`31614994226`, Rust CI `31614994253`, CodeQL `31614991761`, and
+merge-head CI/Rust CI/CodeQL `31615467151`/`31615467115`/`31615465499` pass. Exact
+default-branch Actions/Python/Rust analyses `1608636029`/`1608636345`/`1608644785`
+also pass. The selected lane remains `END_TO_END`; broad integer/fixed-array rows
+remain `PARTIAL`, and `stable-scalar-v0` remains the only `STABLE` profile. Mutable
+array bindings/results and writes, loop production, recursion, nested/general arrays,
+stable ABI/layout, performance, safety, and stability remain excluded.
+
 Accepted CAP-015 enriches the existing M1-001 representative application with one
 exact source-embedded `[char; 10]` telemetry record. Ten identity-linked signed
 bounds guards protect ten runtime reads; equality-only ASCII classification returns
@@ -212,10 +258,10 @@ profile rejections, and negative/equal-to-count trap controls are retained. The 
 existing Linux and Windows representative lanes perform public check/required-
 verifier build/run, external LLVM and machine verification, Clang `-O0`/`-O2`, exact
 output/exit, and clean runtime-failure checks.
-CAP-015 changes no compiler production or language-profile code.
-CAP-014 remains Aero's latest accepted compiler/profile capability and first Milestone
-3 CPU slice; CAP-015 is the latest accepted project
-integration checkpoint and only enriches the M1-001 `END_TO_END` row. General-purpose
+CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
+changes no compiler production or language-profile code. CAP-018 is the latest
+accepted compiler/profile capability and widens CAP-014's first Milestone 3 CPU slice;
+CAP-015 only enriches the M1-001 `END_TO_END` row. General-purpose
 text parsing, runtime Strings, serialization, runtime ingestion, file input, and
 Unicode text encoding/normalization remain unsupported; accepted CORE-072's bounded
 Unicode scalar `char` remains `PARTIAL`.
