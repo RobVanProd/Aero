@@ -1,0 +1,93 @@
+fn decimal_digit(character: char) -> Result<int, char> {
+    if character == '0' { return Ok(0); }
+    if character == '1' { return Ok(1); }
+    if character == '2' { return Ok(2); }
+    if character == '3' { return Ok(3); }
+    if character == '4' { return Ok(4); }
+    if character == '5' { return Ok(5); }
+    if character == '6' { return Ok(6); }
+    if character == '7' { return Ok(7); }
+    if character == '8' { return Ok(8); }
+    if character == '9' { return Ok(9); }
+    Err(character)
+}
+
+fn parse_record(record: [char; 10]) -> Result<int, char> {
+    let mut index = 0;
+    let first_marker = record[index];
+    if first_marker != 'T' { return Err(first_marker); }
+
+    index = index + 1;
+    let first_equals = record[index];
+    if first_equals != '=' { return Err(first_equals); }
+
+    index = index + 1;
+    let first_tens_character = record[index];
+    let first_tens_result: Result<int, char> = decimal_digit(first_tens_character);
+    let first_tens = match first_tens_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if first_tens < 0 { return Err(first_tens_character); }
+
+    index = index + 1;
+    let first_ones_character = record[index];
+    let first_ones_result: Result<int, char> = decimal_digit(first_ones_character);
+    let first_ones = match first_ones_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if first_ones < 0 { return Err(first_ones_character); }
+    let temperature = first_tens * 10 + first_ones;
+
+    index = index + 1;
+    let first_separator = record[index];
+    if first_separator != ';' { return Err(first_separator); }
+
+    index = index + 1;
+    let second_marker = record[index];
+    if second_marker != 'H' { return Err(second_marker); }
+
+    index = index + 1;
+    let second_equals = record[index];
+    if second_equals != '=' { return Err(second_equals); }
+
+    index = index + 1;
+    let second_tens_character = record[index];
+    let second_tens_result: Result<int, char> = decimal_digit(second_tens_character);
+    let second_tens = match second_tens_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if second_tens < 0 { return Err(second_tens_character); }
+
+    index = index + 1;
+    let second_ones_character = record[index];
+    let second_ones_result: Result<int, char> = decimal_digit(second_ones_character);
+    let second_ones = match second_ones_result {
+        Ok(digit) => digit,
+        Err(character) => -1
+    };
+    if second_ones < 0 { return Err(second_ones_character); }
+    let humidity = second_tens * 10 + second_ones;
+
+    index = index + 1;
+    let final_separator = record[index];
+    if final_separator != ';' { return Err(final_separator); }
+
+    Ok(temperature * 2 + humidity)
+}
+
+fn result_or(result: Result<int, char>, fallback: int) -> int {
+    match result {
+        Ok(value) => value,
+        Err(character) => fallback
+    }
+}
+
+fn result_has_error(result: Result<int, char>, expected: char) -> bool {
+    match result {
+        Ok(value) => 1 > 2,
+        Err(character) => character == expected
+    }
+}

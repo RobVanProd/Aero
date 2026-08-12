@@ -199,6 +199,62 @@
   the unchanged focused test must become green without modifying compiler
   production, profiles, expected diagnostic policy, or any test assertion.
 
+### CAP-015 representative-gate local candidate checkpoint
+
+- Local candidate result: the settled seven-file tree is green without compiler
+  production, profile, specialization, dependency, or claim-surface changes. The
+  tracked telemetry application now interprets the exact embedded record
+  `T=17;H=08;` as typed value 42, proves boundary results 0 and 297, all ten
+  first-invalid positions, and the three frozen precedence controls, and uses 42 as
+  the third calibration sensor while preserving exact stdout `telemetry score: 91`
+  and exit 91. Raw and semantic checked metadata retain `char`, `[char; 10]`, and
+  `Result<int, char>`; public CLI and library parser-function LLVM agree; both named
+  profiles reject the module-free parser specimen with their exact first
+  diagnostic. No general parser, string, I/O, profile-fusion, Unicode, safety,
+  performance, stability, or completion claim is created.
+- Test/evidence hardening: the focused gate binds ten ASCII equality classifiers
+  (`48..57`) and forbids integer/float/pointer conversion in `decimal_digit`. Each
+  of the ten parser reads binds the same index through exact zero/ten comparisons,
+  conjunction, guard branch, matching safe/trap place labels, conversion, and
+  `[10 x i32]` GEP. It also reads the actual public LLVM artifact, checks exact
+  parser-function parity, validates checked logical metadata, uses non-module
+  profile controls, and binds the real Linux and Windows extraction/count/absence
+  predicates independently. Both native workflow lanes reuse the existing
+  representative job and runtime-failure loop; job/step topology is unchanged and
+  the Windows workflow retains exactly fifteen reset groups.
+- Correction chronology: the first pinned native pass found that both new trap
+  specimens attempted to format a `char`, which current Aero correctly rejects
+  before checked IR. This was a fixture false-boundary, not a compiler defect. The
+  authorized specimens and embedded byte copies were amended before publication to
+  consume the post-read character through supported equality, then execute a
+  literal-only post-access sentinel. Public `check` and verified `build` now reach
+  the bounds guards; negative-one and equal-to-count indexes trap before the
+  sentinel through public, native `-O0`, and native `-O2` routes with identical
+  nonzero Windows status and empty program output.
+- Commands and results on the settled live tree: `cargo fmt` and `git diff --check`
+  pass; the focused `representative_scalar_application_tests` target passes 3/3;
+  the complete repository `./tools/test.sh` gate passes after inheriting Cargo and
+  the pinned LLVM 22 paths; and `cargo doc --locked --no-deps` passes with only
+  pre-existing warnings. Independent candidate and workflow audits report no open
+  P0-P3 finding. Pinned Windows LLVM/Clang 22.1.8 evidence passes public
+  `check`/required-verifier `build`/`run`, `opt -passes=verify`,
+  `llc -verify-machineinstrs`, Clang `-O0`/`-O2`, exact output/91, ten classifier
+  and guard sequences, forbidden-representation absence, and both clean trap
+  controls. Evidence is under
+  `C:\Users\usa50\AppData\Local\Temp\aero-cap015-native-103c667-20260812-01`;
+  representative/negative/equal LLVM SHA-256 values are respectively
+  `FB92F7F19EAAF1467AA092423CE2E8507BD333A09380D3170E91C1D23C6BD282`,
+  `EF79066CD8BA5DD022F140C4DC13FF9C0A3090AABACA5F7439FC6F4BB975BE6C`, and
+  `AAABA892D5A84E0AD070A7BD84BEB444A80396391EC8F3509995BEFB789AC1FE`.
+- Candidate boundary and next action: this record describes a mutable local tree,
+  not accepted public behavior. Commit exactly the seven authorized files, rerun
+  focused/root/documentation/pinned-native evidence on the immutable candidate,
+  then publish a draft PR and require exact-head public Linux/Windows, CodeQL,
+  protected integration, and merge-head evidence. Any tree mutation invalidates
+  this local evidence and requires the relevant gates again. After protected
+  acceptance, synchronize current truth and rerank; do not automatically widen a
+  profile or start file I/O.
+
 ## CAP-014 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded

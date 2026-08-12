@@ -1,0 +1,13 @@
+fn read_record_character(record: [char; 10], index: int) -> char {
+    record[index]
+}
+
+fn main() -> int {
+    let record: [char; 10] = ['T', '=', '1', '7', ';', 'H', '=', '0', '8', ';'];
+    let count = 10;
+    let selected = read_record_character(record, count);
+    let selected_is_marker = selected == 'T';
+    println!("unreachable parser equal-to-count index");
+    if selected_is_marker { return 1; }
+    0
+}
