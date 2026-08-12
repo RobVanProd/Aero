@@ -24,6 +24,52 @@ const NEGATIVE_RUNTIME_WRITE_INDEX: &str =
 const EQUAL_TO_COUNT_RUNTIME_WRITE_INDEX: &str = include_str!(
     "../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_write_index.aero"
 );
+const FLAT_MATVEC_PRODUCT: &str =
+    include_str!("../../../examples/fixed_int_array_v0/flat_matvec.aero");
+const EXPECTED_FLAT_MATVEC_PRODUCT: &str = r#"fn matvec_2x3(matrix: [int; 6], vector: [int; 3]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 3 {
+            accumulator = accumulator + matrix[row * 3 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn main() -> int {
+    let ordinary_matrix: [int; 6] = [1, 2, 3, 4, 5, 6];
+    let ordinary_vector: [int; 3] = [7, 8, 9];
+    let wrapping_matrix: [int; 6] = [2147483647, 0, 0, -2147483648, -1, 2];
+    let wrapping_vector: [int; 3] = [2, 1, 3];
+
+    let ordinary_result: [int; 2] = matvec_2x3(ordinary_matrix, ordinary_vector);
+    let wrapping_result: [int; 2] = matvec_2x3(wrapping_matrix, wrapping_vector);
+
+    if ordinary_matrix[0] == 1 && ordinary_matrix[1] == 2
+        && ordinary_matrix[2] == 3 && ordinary_matrix[3] == 4
+        && ordinary_matrix[4] == 5 && ordinary_matrix[5] == 6
+        && ordinary_vector[0] == 7 && ordinary_vector[1] == 8
+        && ordinary_vector[2] == 9 {
+        if wrapping_matrix[0] == 2147483647 && wrapping_matrix[1] == 0
+            && wrapping_matrix[2] == 0 && wrapping_matrix[3] == -2147483647 - 1
+            && wrapping_matrix[4] == -1 && wrapping_matrix[5] == 2
+            && wrapping_vector[0] == 2 && wrapping_vector[1] == 1
+            && wrapping_vector[2] == 3 {
+            if ordinary_result[0] == 50 && ordinary_result[1] == 122
+                && wrapping_result[0] == -2 && wrapping_result[1] == 5 {
+                return 91;
+            }
+        }
+    }
+    return 1;
+}
+"#;
 
 const IMMUTABLE_ARRAY_VALUE_COMPOSITION: &str = r#"
 fn transform(values: [int; 3]) -> [i32; 3] {
@@ -145,6 +191,20 @@ fn reference_kernel() -> i32 {
     result
 }
 
+fn reference_flat_matvec(matrix: [i32; 6], vector: [i32; 3]) -> [i32; 2] {
+    let mut result = [0_i32; 2];
+    for row in 0..2 {
+        let mut accumulator = 0_i32;
+        for column in 0..3 {
+            let linear_index = row * 3 + column;
+            accumulator =
+                accumulator.wrapping_add(matrix[linear_index].wrapping_mul(vector[column]));
+        }
+        result[row] = accumulator;
+    }
+    result
+}
+
 struct TestWorkspace {
     root: PathBuf,
 }
@@ -210,6 +270,207 @@ fn combined_output(output: &Output) -> String {
 
 fn occurrences(haystack: &str, needle: &str) -> usize {
     haystack.match_indices(needle).count()
+}
+
+fn llvm_function_body<'a>(llvm: &'a str, signature: &str) -> &'a str {
+    assert_eq!(
+        occurrences(llvm, signature),
+        1,
+        "LLVM must contain exactly one `{signature}`"
+    );
+    let start = llvm
+        .find(signature)
+        .expect("unique LLVM function signature");
+    let remaining = &llvm[start..];
+    let end = remaining
+        .find("\n}\n")
+        .map(|offset| offset + 3)
+        .expect("LLVM function terminator");
+    &remaining[..end]
+}
+
+fn ssa_definition(line: &str) -> &str {
+    let value = line
+        .trim()
+        .split_once(" = ")
+        .map(|(value, _)| value)
+        .expect("SSA definition line");
+    let suffix = value
+        .strip_prefix("%reg")
+        .or_else(|| value.strip_prefix("%ptr"))
+        .expect("canonical Aero SSA register or pointer");
+    assert!(
+        !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit()),
+        "Aero SSA values must use a numeric register or pointer suffix: {value}"
+    );
+    value
+}
+
+fn ssa_rhs<'a>(function: &'a str, value: &str) -> &'a str {
+    let prefix = format!("{value} = ");
+    let definitions = function
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix(&prefix))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        definitions.len(),
+        1,
+        "SSA value `{value}` must have exactly one definition:\n{function}"
+    );
+    definitions[0]
+}
+
+fn loaded_i32_pointer(function: &str, value: &str) -> String {
+    let pointer = ssa_rhs(function, value)
+        .strip_prefix("load i32, i32* ")
+        .and_then(|rhs| rhs.strip_suffix(", align 4"))
+        .unwrap_or_else(|| panic!("`{value}` must be an exact i32 load:\n{function}"));
+    let suffix = pointer
+        .strip_prefix("%ptr")
+        .expect("loaded i32 pointer must use Aero pointer SSA");
+    assert!(
+        !suffix.is_empty() && suffix.chars().all(|character| character.is_ascii_digit()),
+        "loaded i32 pointer must have a numeric suffix: {pointer}"
+    );
+    pointer.to_string()
+}
+
+fn assert_identity_linked_guard_consumer(
+    function: &str,
+    index: &str,
+    upper_bound: i32,
+    aggregate: &str,
+    consumer: &str,
+) {
+    let lines = function.lines().collect::<Vec<_>>();
+    let lower_suffix = format!(" = icmp sge i32 {index}, 0");
+    let lower_positions = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.trim().ends_with(&lower_suffix))
+        .map(|(position, _)| position)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        lower_positions.len(),
+        1,
+        "index `{index}` must enter exactly one lower guard:\n{function}"
+    );
+    let lower_position = lower_positions[0];
+    let lower = ssa_definition(lines[lower_position]);
+    let upper_line = lines
+        .get(lower_position + 1)
+        .expect("upper guard after lower guard");
+    let expected_upper = format!("icmp slt i32 {index}, {upper_bound}");
+    assert_eq!(
+        upper_line.trim().split_once(" = ").map(|(_, rhs)| rhs),
+        Some(expected_upper.as_str()),
+        "upper guard must reuse the exact index"
+    );
+    let upper = ssa_definition(upper_line);
+    let conjunction_line = lines
+        .get(lower_position + 2)
+        .expect("guard conjunction after upper guard");
+    let expected_conjunction = format!("and i1 {lower}, {upper}");
+    assert_eq!(
+        conjunction_line
+            .trim()
+            .split_once(" = ")
+            .map(|(_, rhs)| rhs),
+        Some(expected_conjunction.as_str()),
+        "guard conjunction must reuse lower and upper predicates"
+    );
+    let conjunction = ssa_definition(conjunction_line);
+    let branch = lines
+        .get(lower_position + 3)
+        .expect("guard branch after conjunction")
+        .trim();
+    let branch_prefix = format!("br i1 {conjunction}, label %aero.bounds.safe.");
+    assert!(
+        branch.starts_with(&branch_prefix),
+        "guard branch must reuse the conjunction: {branch}"
+    );
+    let labels = branch
+        .strip_prefix(&format!("br i1 {conjunction}, label %"))
+        .expect("guard branch predicate")
+        .split_once(", label %")
+        .expect("guard branch labels");
+    let safe_label = labels.0;
+    let trap_label = labels.1;
+    let place = safe_label
+        .strip_prefix("aero.bounds.safe.")
+        .expect("safe label prefix");
+    assert_eq!(
+        trap_label,
+        format!("aero.bounds.trap.{place}"),
+        "safe and trap labels must share one projected place"
+    );
+    assert_eq!(lines[lower_position + 4].trim(), format!("{trap_label}:"));
+    assert_eq!(lines[lower_position + 5].trim(), "call void @llvm.trap()");
+    assert_eq!(lines[lower_position + 6].trim(), "unreachable");
+    assert_eq!(lines[lower_position + 7].trim(), format!("{safe_label}:"));
+    let extension_line = lines[lower_position + 8];
+    let expected_extension = format!("sext i32 {index} to i64");
+    assert_eq!(
+        extension_line.trim().split_once(" = ").map(|(_, rhs)| rhs),
+        Some(expected_extension.as_str()),
+        "sign extension must reuse the guarded index"
+    );
+    let extension = ssa_definition(extension_line);
+    let gep_line = lines[lower_position + 9];
+    let pointer = ssa_definition(gep_line);
+    assert!(
+        gep_line.contains(&format!(
+            "getelementptr inbounds {aggregate}, {aggregate}* %ptr"
+        )) && gep_line.ends_with(&format!(", i64 0, i64 {extension}")),
+        "guarded address must reuse the sign-extended index: {gep_line}"
+    );
+    let consumer_target = format!("i32* {pointer}, align 4");
+    let consumer_lines = lines[lower_position + 10..]
+        .iter()
+        .take_while(|line| line.trim() != "}")
+        .filter(|line| {
+            line.contains(&consumer_target)
+                && if consumer == "load i32" {
+                    line.contains(" = load i32, ")
+                } else {
+                    line.trim().starts_with(consumer)
+                }
+        })
+        .count();
+    assert_eq!(
+        consumer_lines, 1,
+        "guarded pointer `{pointer}` must feed exactly one `{consumer}` consumer"
+    );
+}
+
+fn guarded_index_for_bound(function: &str, upper_bound: i32) -> String {
+    let lines = function.lines().collect::<Vec<_>>();
+    let mut indexes = Vec::new();
+    for pair in lines.windows(2) {
+        let Some((_, lower_rhs)) = pair[0].trim().split_once(" = ") else {
+            continue;
+        };
+        let Some(index) = lower_rhs
+            .strip_prefix("icmp sge i32 ")
+            .and_then(|rhs| rhs.strip_suffix(", 0"))
+        else {
+            continue;
+        };
+        let expected_upper = format!("icmp slt i32 {index}, {upper_bound}");
+        if pair[1]
+            .trim()
+            .split_once(" = ")
+            .is_some_and(|(_, rhs)| rhs == expected_upper)
+        {
+            indexes.push(index.to_string());
+        }
+    }
+    assert_eq!(
+        indexes.len(),
+        1,
+        "expected exactly one guarded index with upper bound {upper_bound}:\n{function}"
+    );
+    indexes.pop().expect("unique guarded index")
 }
 
 fn workflow_named_step<'a>(workflow: &'a str, name: &str) -> &'a str {
@@ -1123,6 +1384,217 @@ fn exact_profile_emits_guarded_mutable_i32_array_kernel() {
 }
 
 #[test]
+fn exact_profile_executes_flat_row_major_matvec_product() {
+    assert_eq!(
+        FLAT_MATVEC_PRODUCT, EXPECTED_FLAT_MATVEC_PRODUCT,
+        "tracked flat matvec source bytes drifted from the frozen product contract"
+    );
+    let ordinary_matrix = [1_i32, 2, 3, 4, 5, 6];
+    let ordinary_vector = [7_i32, 8, 9];
+    let wrapping_matrix = [i32::MAX, 0, 0, i32::MIN, -1, 2];
+    let wrapping_vector = [2_i32, 1, 3];
+    assert_eq!(
+        reference_flat_matvec(ordinary_matrix, ordinary_vector),
+        [50, 122]
+    );
+    assert_eq!(
+        reference_flat_matvec(wrapping_matrix, wrapping_vector),
+        [-2, 5]
+    );
+    assert_eq!(ordinary_matrix, [1, 2, 3, 4, 5, 6]);
+    assert_eq!(ordinary_vector, [7, 8, 9]);
+    assert_eq!(wrapping_matrix, [i32::MAX, 0, 0, i32::MIN, -1, 2]);
+    assert_eq!(wrapping_vector, [2, 1, 3]);
+
+    check_program(FLAT_MATVEC_PRODUCT, exact_options())
+        .expect("flat matvec product should pass exact-profile checking");
+    let first = compile_program(FLAT_MATVEC_PRODUCT, exact_options())
+        .expect("flat matvec product should compile without production changes");
+    let second = compile_program(FLAT_MATVEC_PRODUCT, exact_options())
+        .expect("flat matvec product should compile deterministically");
+    assert_eq!(first, second, "flat matvec LLVM must be deterministic");
+
+    for anchor in [
+        "define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)",
+        "alloca [6 x i32], align 8",
+        "alloca [3 x i32], align 8",
+        "alloca [2 x i32], align 8",
+        "store [6 x i32]",
+        "store [3 x i32]",
+        "store [2 x i32]",
+        "load [2 x i32]",
+        "ret [2 x i32]",
+        "declare void @llvm.trap()",
+    ] {
+        assert!(
+            first.contains(anchor),
+            "matvec LLVM omitted `{anchor}`:\n{first}"
+        );
+    }
+    assert_eq!(
+        occurrences(&first, "call [2 x i32] @matvec_2x3([6 x i32]"),
+        2,
+        "main must execute the same flat matvec helper for ordinary and wrapping oracles"
+    );
+    for forbidden in [
+        "double",
+        "fptosi",
+        "sitofp",
+        " nsw ",
+        " nuw ",
+        "<2 x i32>",
+        "<3 x i32>",
+        "<6 x i32>",
+        "[2 x [",
+        "[3 x [",
+        "[6 x [",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "flat matvec leaked forbidden representation `{forbidden}`:\n{first}"
+        );
+    }
+
+    let function = llvm_function_body(
+        &first,
+        "define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)",
+    );
+    let function_lines = function.lines().collect::<Vec<_>>();
+    let multiplication = function_lines
+        .iter()
+        .filter(|line| line.contains(" = mul i32 ") && line.trim_end().ends_with(", 3"))
+        .copied()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        multiplication.len(),
+        1,
+        "matvec must contain exactly one row-times-three calculation:\n{function}"
+    );
+    let row_offset = ssa_definition(multiplication[0]);
+    let row_value = ssa_rhs(function, row_offset)
+        .strip_prefix("mul i32 ")
+        .and_then(|rhs| rhs.strip_suffix(", 3"))
+        .expect("row offset must multiply one SSA row value by three");
+    let row_slot = loaded_i32_pointer(function, row_value);
+    let additions = function_lines
+        .iter()
+        .filter(|line| line.contains(&format!(" = add i32 {row_offset}, ")))
+        .copied()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        additions.len(),
+        1,
+        "row offset must feed exactly one linear-index addition:\n{function}"
+    );
+    let linear_index = ssa_definition(additions[0]);
+    let column_value = ssa_rhs(function, linear_index)
+        .strip_prefix(&format!("add i32 {row_offset}, "))
+        .expect("linear index must add a column SSA value to the row offset");
+    let column_slot = loaded_i32_pointer(function, column_value);
+    assert_ne!(
+        row_slot, column_slot,
+        "row and column loop identities must remain independent mutable slots"
+    );
+    assert_identity_linked_guard_consumer(function, linear_index, 6, "[6 x i32]", "load i32");
+
+    let vector_index = guarded_index_for_bound(function, 3);
+    assert_eq!(
+        loaded_i32_pointer(function, &vector_index),
+        column_slot,
+        "the vector guard must reload the same loop-column slot used by linear indexing"
+    );
+    assert_identity_linked_guard_consumer(function, &vector_index, 3, "[3 x i32]", "load i32");
+    let output_index = guarded_index_for_bound(function, 2);
+    assert_eq!(
+        loaded_i32_pointer(function, &output_index),
+        row_slot,
+        "the output guard must reload the same loop-row slot used by linear indexing"
+    );
+    assert_identity_linked_guard_consumer(function, &output_index, 2, "[2 x i32]", "store i32");
+    assert_eq!(occurrences(function, "icmp sge i32"), 3);
+    assert_eq!(occurrences(function, "call void @llvm.trap()"), 3);
+    assert_eq!(occurrences(function, "sext i32"), 3);
+    for anchor in [
+        "store [6 x i32] %aero.arg.matrix",
+        "store [3 x i32] %aero.arg.vector",
+        "store [2 x i32]",
+        "load [2 x i32]",
+        "ret [2 x i32]",
+    ] {
+        assert!(
+            function.contains(anchor),
+            "matvec function omitted aggregate transport `{anchor}`:\n{function}"
+        );
+    }
+    assert_guarded_dynamic_array_reads_and_writes(&first, "[6 x i32]", 1, 0);
+    assert_guarded_dynamic_array_reads_and_writes(&first, "[3 x i32]", 1, 0);
+    assert_guarded_dynamic_array_reads_and_writes(&first, "[2 x i32]", 0, 1);
+
+    let workspace = TestWorkspace::new("flat-matvec-public-routes");
+    let source = workspace.path("flat_matvec.aero");
+    fs::write(&source, FLAT_MATVEC_PRODUCT).expect("write flat matvec product source");
+    check_file(&source, exact_options()).expect("file library check should admit flat matvec");
+    let file_llvm = compile_file(&source, exact_options())
+        .expect("file library compile should admit flat matvec");
+    assert_eq!(
+        file_llvm, first,
+        "source and file library matvec LLVM diverged"
+    );
+    for command in ["check", "build"] {
+        let llvm = workspace.path("flat_matvec.ll");
+        let arguments = if command == "build" {
+            vec![
+                Path::new(command),
+                &source,
+                Path::new("-o"),
+                &llvm,
+                Path::new("--require-llvm-verifier"),
+                Path::new("--language-profile"),
+                Path::new("exact-i32-array-v0"),
+            ]
+        } else {
+            vec![
+                Path::new(command),
+                &source,
+                Path::new("--language-profile"),
+                Path::new("exact-i32-array-v0"),
+            ]
+        };
+        let output = run_cli(&workspace, &arguments);
+        assert!(
+            output.status.success(),
+            "public {command} rejected flat matvec product:\n{}",
+            combined_output(&output)
+        );
+        if command == "build" {
+            let public = fs::read_to_string(&llvm).expect("public matvec LLVM artifact");
+            assert_eq!(
+                llvm_body_without_public_route_headers(&public),
+                llvm_body_without_public_route_headers(&first),
+                "public and library matvec LLVM bodies diverged"
+            );
+        }
+    }
+    let output = run_cli(
+        &workspace,
+        &[
+            Path::new("run"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "public matvec run diverged:\n{}",
+        combined_output(&output)
+    );
+    let public_output = combined_output(&output);
+    assert_eq!(occurrences(&public_output, "Exit code: 91"), 1);
+}
+
+#[test]
 fn exact_array_kernel_and_wrapping_edges_match_independent_i32_oracles() {
     assert_eq!(reference_kernel(), 2035);
 
@@ -1302,6 +1774,68 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
     assert_eq!(linux_bounds_loop_names(linux), expected_bounds.to_vec());
     assert_eq!(windows_bounds_loop_names(windows), expected_bounds.to_vec());
 
+    let required_product_evidence: [(&str, &str, &[&str]); 2] = [
+        (
+            "Linux",
+            linux,
+            &[
+                "matvec:flat_matvec.aero:91:yes",
+                "if [ \"${name}\" = matvec ]; then",
+                "matvec_llvm=\"$(awk '",
+                "matvec_identity_pattern='(?ms)^",
+                "matvec_identity_count=\"$(grep -Pzo -- \"${matvec_identity_pattern}\"",
+                "test \"${matvec_identity_count}\" -eq 1",
+                "matvec_guard_pattern='(?m)^",
+                "matvec_guard_count=\"$(grep -Pzo -- \"${matvec_guard_pattern}\"",
+                "test \"${matvec_guard_count}\" -eq 3",
+            ],
+        ),
+        (
+            "Windows",
+            windows,
+            &[
+                "[pscustomobject]@{ Name = \"matvec\"; File = \"flat_matvec.aero\"; Expected = 91; Dynamic = $true }",
+                "if ($specimen.Name -ceq \"matvec\") {",
+                "$matvecFunctionPattern = '(?ms)^define",
+                "$matvecFunctionMatches = [regex]::Matches($llvmText, $matvecFunctionPattern)",
+                "$matvecFunctionMatches.Count -ne 1",
+                "$matvecText = $matvecFunctionMatches[0].Value",
+                "$matvecIdentityPattern = '(?ms)^",
+                "$matvecIdentityMatches = [regex]::Matches($matvecText, $matvecIdentityPattern)",
+                "$matvecIdentityMatches.Count -ne 1",
+                "$matvecGuardPattern = '(?m)^",
+                "$matvecGuardMatches = [regex]::Matches($matvecText, $matvecGuardPattern)",
+                "$matvecGuardMatches.Count -ne 3",
+            ],
+        ),
+    ];
+    let mut missing_product_evidence = Vec::new();
+    for (os, step, anchors) in required_product_evidence {
+        for &anchor in anchors {
+            if !step.contains(anchor) {
+                missing_product_evidence.push(format!("{os}: {anchor}"));
+            }
+        }
+    }
+    for (os, step) in [("Linux", linux), ("Windows", windows)] {
+        for anchor in [
+            "define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)",
+            "call [2 x i32] @matvec_2x3([6 x i32]",
+            "(?<matvec_row_times_three>%reg[0-9]+) = mul i32 \\k<matvec_row>, 3",
+            "(?<matvec_linear>%reg[0-9]+) = add i32 \\k<matvec_row_times_three>, \\k<matvec_column>",
+            "icmp slt i32 \\k<matvec_linear>, 6",
+            "sext i32 \\k<matvec_linear> to i64",
+            "load i32, i32\\* \\k<matvec_matrix_target>, align 4",
+            "load i32, i32\\* \\k<matvec_vector_target>, align 4",
+            "store i32 [^,\\r\\n]+, i32\\* \\k<matvec_output_target>, align 4",
+            "(?<matvec_guard_bound>[236])",
+            "\\[\\k<matvec_guard_bound> x i32\\]",
+        ] {
+            if !step.contains(anchor) {
+                missing_product_evidence.push(format!("{os}: {anchor}"));
+            }
+        }
+    }
     for (os, step) in [("Linux", linux), ("Windows", windows)] {
         for anchor in [
             "examples/fixed_int_array_v0/",
@@ -1470,5 +2004,9 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
     assert!(
         !windows.contains("$guardMatches.Count -ne 2"),
         "Windows exact step retained the former two-guard kernel contract"
+    );
+    assert!(
+        missing_product_evidence.is_empty(),
+        "CAP-020 red: existing OS steps lack flat-matvec product evidence: {missing_product_evidence:#?}"
     );
 }
