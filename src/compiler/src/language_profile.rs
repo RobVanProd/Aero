@@ -77,17 +77,21 @@ pub(crate) enum ProfileTypeUse {
     Parameter,
     Result,
     Binding,
+    MutableBinding,
+    OwnedAssignment,
     Value,
 }
 
 pub(crate) fn profile_type_shape_is_admitted(
     profile: LanguageProfile,
     shape: ProfileTypeShape,
-    _usage: ProfileTypeUse,
+    usage: ProfileTypeUse,
 ) -> bool {
     match shape {
         ProfileTypeShape::Int | ProfileTypeShape::Bool => true,
-        ProfileTypeShape::ExactI32Array { .. } => profile == LanguageProfile::ExactI32ArrayV0,
+        ProfileTypeShape::ExactI32Array { .. } => {
+            profile == LanguageProfile::ExactI32ArrayV0 && usage != ProfileTypeUse::OwnedAssignment
+        }
         ProfileTypeShape::Unsupported => false,
     }
 }
@@ -188,6 +192,19 @@ enum ProfileValueShape {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProfileBindingOrigin {
+    Parameter,
+    Local,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ProfileBindingFact {
+    shape: ProfileValueShape,
+    mutable: bool,
+    origin: ProfileBindingOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProfileValueContext {
     General,
     ExactArrayElement,
@@ -214,7 +231,7 @@ struct ProfileValidator {
     function_parameter_shapes: BTreeMap<String, Vec<ProfileTypeShape>>,
     function_result_shapes: BTreeMap<String, ProfileTypeShape>,
     calls: BTreeMap<String, BTreeSet<String>>,
-    binding_scopes: Vec<BTreeMap<String, ProfileValueShape>>,
+    binding_scopes: Vec<BTreeMap<String, ProfileBindingFact>>,
 }
 
 impl ProfileValidator {
@@ -320,7 +337,13 @@ impl ProfileValidator {
                 .map(|parameter| {
                     (
                         parameter.name.clone(),
-                        ProfileValueShape::known(classify_profile_ast_type(&parameter.param_type)),
+                        ProfileBindingFact {
+                            shape: ProfileValueShape::known(classify_profile_ast_type(
+                                &parameter.param_type,
+                            )),
+                            mutable: false,
+                            origin: ProfileBindingOrigin::Parameter,
+                        },
                     )
                 })
                 .collect();
@@ -357,7 +380,11 @@ impl ProfileValidator {
                 let annotation_shape = if let Some(annotation) = type_annotation {
                     self.validate_type(
                         annotation,
-                        ProfileTypeUse::Binding,
+                        if *mutable {
+                            ProfileTypeUse::MutableBinding
+                        } else {
+                            ProfileTypeUse::Binding
+                        },
                         "binding annotation types",
                     )?;
                     Some(classify_profile_ast_type(annotation))
@@ -370,14 +397,14 @@ impl ProfileValidator {
                 let value_shape = self.classify_value(function, value)?;
                 let stored_shape = match annotation_shape {
                     Some(expected @ ProfileTypeShape::ExactI32Array { count }) => {
-                        if *mutable {
-                            return Err(self.error("mutable array bindings"));
-                        }
                         self.require_exact_array_shape(
                             value_shape,
                             count,
                             "array literal counts that differ from their annotations",
                         )?;
+                        if *mutable {
+                            self.validate_mutable_array_initializer(value)?;
+                        }
                         ProfileValueShape::known(expected)
                     }
                     Some(expected @ (ProfileTypeShape::Int | ProfileTypeShape::Bool)) => {
@@ -391,7 +418,7 @@ impl ProfileValidator {
                     }
                     None => {
                         if value_shape.exact_array().is_some() && *mutable {
-                            return Err(self.error("mutable array bindings"));
+                            self.validate_mutable_array_initializer(value)?;
                         }
                         value_shape
                     }
@@ -404,10 +431,44 @@ impl ProfileValidator {
                 self.binding_scopes
                     .last_mut()
                     .expect("validated function body retains a binding scope")
-                    .insert(name.clone(), stored_shape);
+                    .insert(
+                        name.clone(),
+                        ProfileBindingFact {
+                            shape: stored_shape,
+                            mutable: *mutable,
+                            origin: ProfileBindingOrigin::Local,
+                        },
+                    );
                 Ok(())
             }
             Statement::Assignment { target, value } => {
+                if let Expression::IndexAccess { object, index } = target {
+                    if self.profile != LanguageProfile::ExactI32ArrayV0 {
+                        return Err(self.error("projected or indirect assignment targets"));
+                    }
+                    let Expression::Identifier(target_name) = object.as_ref() else {
+                        return Err(self.error("projected or indirect assignment targets"));
+                    };
+                    let Some(target_fact) = self.binding_fact(target_name) else {
+                        return Err(
+                            self.error("projected assignment targets rooted in unproved bindings")
+                        );
+                    };
+                    if target_fact.shape.exact_array().is_none() {
+                        return Err(
+                            self.error("projected assignment targets rooted in non-array bindings")
+                        );
+                    }
+                    if !target_fact.mutable || target_fact.origin != ProfileBindingOrigin::Local {
+                        return Err(self.error(
+                            "projected assignment targets rooted in immutable exact-array bindings",
+                        ));
+                    }
+                    self.require_int_value(function, index, ProfileValueContext::General)?;
+                    self.require_int_value(function, value, ProfileValueContext::General)?;
+                    return Ok(());
+                }
+
                 let Expression::Identifier(target_name) = target else {
                     return Err(self.error("projected or indirect assignment targets"));
                 };
@@ -839,6 +900,28 @@ impl ProfileValidator {
         }
     }
 
+    fn validate_mutable_array_initializer(&self, value: &Expression) -> Result<(), String> {
+        match value {
+            Expression::ArrayLiteral(_) | Expression::FunctionCall { .. } => Ok(()),
+            Expression::Identifier(name) => match self.binding_fact(name) {
+                Some(ProfileBindingFact {
+                    shape: ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { .. }),
+                    mutable: false,
+                    ..
+                }) => Ok(()),
+                Some(ProfileBindingFact {
+                    shape: ProfileValueShape::Known(ProfileTypeShape::ExactI32Array { .. }),
+                    mutable: true,
+                    ..
+                }) => Err(self.error("mutable exact-array values as initializer sources")),
+                _ => Err(self.error("mutable array bindings with unproved initializer sources")),
+            },
+            _ => Err(self.error(
+                "mutable array bindings without literal, immutable identifier, or function-call initializers",
+            )),
+        }
+    }
+
     fn reject_call_cycles(&self) -> Result<(), String> {
         fn visit(
             name: &str,
@@ -892,6 +975,10 @@ impl ProfileValidator {
     }
 
     fn binding_shape(&self, name: &str) -> Option<ProfileValueShape> {
+        self.binding_fact(name).map(|fact| fact.shape)
+    }
+
+    fn binding_fact(&self, name: &str) -> Option<ProfileBindingFact> {
         self.binding_scopes
             .iter()
             .rev()
@@ -1173,6 +1260,7 @@ mod tests {
             ProfileTypeUse::Parameter,
             ProfileTypeUse::Result,
             ProfileTypeUse::Binding,
+            ProfileTypeUse::MutableBinding,
             ProfileTypeUse::Value,
         ] {
             assert!(profile_type_shape_is_admitted(
@@ -1189,6 +1277,8 @@ mod tests {
                 ProfileTypeUse::Parameter,
                 ProfileTypeUse::Result,
                 ProfileTypeUse::Binding,
+                ProfileTypeUse::MutableBinding,
+                ProfileTypeUse::OwnedAssignment,
                 ProfileTypeUse::Value,
             ] {
                 assert!(!profile_type_shape_is_admitted(profile, exact_array, usage));
@@ -1198,6 +1288,8 @@ mod tests {
             ProfileTypeUse::Parameter,
             ProfileTypeUse::Result,
             ProfileTypeUse::Binding,
+            ProfileTypeUse::MutableBinding,
+            ProfileTypeUse::OwnedAssignment,
             ProfileTypeUse::Value,
         ] {
             assert!(profile_type_shape_is_admitted(
@@ -1216,6 +1308,11 @@ mod tests {
                 usage
             ));
         }
+        assert!(!profile_type_shape_is_admitted(
+            LanguageProfile::ExactI32ArrayV0,
+            exact_array,
+            ProfileTypeUse::OwnedAssignment,
+        ));
     }
 
     #[test]
@@ -1225,6 +1322,7 @@ mod tests {
             "fn read(values: [i32; 1]) -> int { return values[0]; } fn main() -> int { let values: [i32; 1] = [-0]; return read(values); }",
             "fn main() -> int { let values: [int; 1] = [7]; let mut index: int = 0; while index < 1 { let value: int = values[index + 0]; index = index + 1; } return values[0]; }",
             "fn forward(values: [int; 1]) -> [i32; 1] { return later(values); } fn main() -> int { let literal = [1]; let computed: [i32; 1] = [literal[0] + 1]; let annotated: [int; 1] = computed; let copied = annotated; let called = forward(copied); let taken: int = take([called[0] * 2]); let literal_index: int = [7][0]; if taken == 4 && literal_index == 7 { return 0; } return 1; } fn later(values: [i32; 1]) -> [int; 1] { return values; } fn take(values: [int; 1]) -> int { return values[0]; }",
+            "fn seed() -> [int; 2] { return [3, 4]; } fn literal() -> [int; 2] { let mut output: [i32; 2] = [1, 2]; output[0] = 5; return output; } fn copied(source: [int; 2]) -> [i32; 2] { let mut output = source; let mut index: int = 0; while index < 2 { output[index] = source[index] + 1; index = index + 1; } return output; } fn called() -> [int; 2] { let mut output = seed(); output[1] = 6; return output; } fn main() -> int { return literal()[0] + copied(seed())[0] + called()[1]; }",
         ] {
             validate_language_profile(&parsed(source), LanguageProfile::ExactI32ArrayV0)
                 .unwrap_or_else(|error| panic!("exact flat-array source was rejected: {error}"));
@@ -1275,12 +1373,16 @@ mod tests {
                 "array writes",
             ),
             (
-                "fn main() -> int { let mut values: [int; 1] = [1]; return values[0]; }",
-                "mutable array bindings",
+                "fn main() -> int { let values: [int; 1] = [1]; values[0] = 2; return 0; }",
+                "projected assignment targets rooted in immutable exact-array bindings",
             ),
             (
-                "fn main() -> int { let values: [int; 1] = [1]; values[0] = 2; return 0; }",
-                "projected or indirect assignment targets",
+                "fn main() -> int { let mut source: [int; 1] = [1]; let mut values: [i32; 1] = source; return values[0]; }",
+                "mutable exact-array values as initializer sources",
+            ),
+            (
+                "fn main() -> int { let mut values: [int; 1] = [1]; values = [2]; return values[0]; }",
+                "array writes",
             ),
             (
                 "fn take(values: [int; 2]) -> int { return values[0]; } fn main() -> int { let values: [int; 1] = [1]; return take(values); }",

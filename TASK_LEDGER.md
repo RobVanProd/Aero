@@ -3,7 +3,8 @@
 ## CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION - loop-produced flat-array results
 
 - Date/task/status: 2026-08-12, `CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION`, red
-  established and two-phase architecture audit green on
+  established, two-phase implementation and focused gates green, and material
+  product/native evidence still pending on
   `agent/cap-019-mutable-array-results` from exact accepted master
   `84916e124752b8e7d228855a0969cd9eab8dba26`, tree
   `1fedb29c3cc865b3e4900d9aee47855396d8fa9a`. User/app-owned
@@ -70,8 +71,12 @@
   `src/compiler/src/language_profile.rs` and
   `src/compiler/src/code_generator.rs`; the existing
   `examples/fixed_int_array_v0/main.aero` and `.github/workflows/rust.yml` may be
-  amended only for the material product/native gate. Any need for another file must
-  amend this record before editing. The authorization commit is the rollback boundary;
+  amended only for the material product/native gate. Preserve CAP-001's existing
+  read-failure specimens; mutation-specific trap evidence may add only
+  `examples/fixed_int_array_v0/runtime_fail/negative_write_index.aero` and
+  `examples/fixed_int_array_v0/runtime_fail/equal_to_count_write_index.aero` inside
+  the same Linux/Windows workflow steps. Any need for another file must amend this
+  record before editing. The authorization commit is the rollback boundary;
   every later checkpoint is additive and must keep red evidence distinct from green.
 - Failure modes, detection, and recovery: a partial implementation could accept a
   mutable declaration but reject its writes/return; launder Bool/Unknown/array values
@@ -112,6 +117,22 @@
   remains `i32`, an admitted exact flat array uses the profile CopyData renderer, and
   every other owned-place type retains the legacy reference-pointee renderer so Enum
   and experimental/stable behavior cannot drift.
+- Green implementation checkpoint: the sole production changes remain in the audited
+  profile/backend phase pair. The profile records binding shape, mutability, and
+  parameter-versus-local origin; admits fully initialized mutable local exact arrays
+  from literal, immutable-identifier, or acyclic-call roots; admits only direct
+  `local[index] = value` projected writes with exact-Int index/value; and rejects
+  mutable-source aliases, immutable targets, and whole-array reassignment before IR.
+  The backend independently admits the checked mutable owned-place array topology,
+  renders it through the existing exact CopyData mapper as `[N x i32]`, rejects
+  whole-array owned-place assignment, and preserves legacy Enum plus
+  stable/experimental rendering. The language-profile units pass 12/12, exact backend
+  units pass 5/5, the stable backend preservation control passes 1/1, and the focused
+  fixed-array integration/public matrix passes 17/17 with the authenticated LLVM 22
+  tool directory on `PATH`; `git diff --check` is clean. This is pre-candidate local
+  evidence only. The representative application, mutation-specific bounds specimens,
+  Linux/Windows O0/O2 lanes, root gate, immutable native evidence, review, and public
+  candidate/merge-head checks remain required before acceptance.
 
 ## CAP-018-ACCEPTANCE-SYNC - immutable array-result composition accepted truth
 

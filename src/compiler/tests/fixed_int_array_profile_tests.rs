@@ -263,6 +263,58 @@ fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) 
     }
 }
 
+fn assert_guarded_dynamic_array_read_and_write(llvm: &str, aggregate: &str) {
+    let dynamic_geps = llvm
+        .lines()
+        .filter_map(|line| {
+            (line.contains(&format!("getelementptr inbounds {aggregate}"))
+                && line.contains(", i64 %reg"))
+            .then(|| line.split_once(" = ").map(|(pointer, _)| pointer.trim()))
+            .flatten()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        dynamic_geps.len(),
+        2,
+        "expected one dynamic read GEP and one dynamic write GEP for {aggregate}:\n{llvm}"
+    );
+
+    let mut loads = 0;
+    let mut stores = 0;
+    for pointer in dynamic_geps {
+        let definition = llvm
+            .find(&format!("{pointer} = getelementptr inbounds {aggregate}"))
+            .expect("dynamic array pointer definition");
+        let load = format!("load i32, i32* {pointer}, align 4");
+        let store_prefix = "store i32 ";
+        let store_target = format!("i32* {pointer}, align 4");
+        let load_positions = llvm
+            .match_indices(&load)
+            .map(|(position, _)| position)
+            .collect::<Vec<_>>();
+        let store_positions = llvm
+            .lines()
+            .filter(|line| line.contains(store_prefix) && line.contains(&store_target))
+            .filter_map(|line| llvm.find(line))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            load_positions.len() + store_positions.len(),
+            1,
+            "guarded pointer {pointer} must feed exactly one scalar read or write:\n{llvm}"
+        );
+        assert!(
+            load_positions
+                .iter()
+                .chain(store_positions.iter())
+                .all(|position| *position > definition),
+            "guarded pointer {pointer} was consumed before its GEP"
+        );
+        loads += load_positions.len();
+        stores += store_positions.len();
+    }
+    assert_eq!((loads, stores), (1, 1));
+}
+
 #[test]
 fn fixed_int_array_profile_is_selectable_on_public_check() {
     assert_eq!(reference_kernel(), 2035);
@@ -526,6 +578,12 @@ fn general_pipeline_already_owns_initialized_mutable_array_result_production() {
         "define [2 x double] @from_literal()",
         "define [4 x double] @from_identifier([4 x double]",
         "define [4 x double] @from_call()",
+        "alloca [2 x double], align 8",
+        "alloca [4 x double], align 8",
+        "store [2 x double]",
+        "load [2 x double]",
+        "store [4 x double]",
+        "load [4 x double]",
         "store double",
         "ret [4 x double]",
         "call i32 @score([4 x double]",
@@ -533,6 +591,12 @@ fn general_pipeline_already_owns_initialized_mutable_array_result_production() {
         assert!(
             implicit.contains(anchor),
             "experimental control omitted `{anchor}`:\n{implicit}"
+        );
+    }
+    for forbidden in ["[2 x i32]", "[4 x i32]"] {
+        assert!(
+            !implicit.contains(forbidden),
+            "experimental mutable-owner storage leaked `{forbidden}`:\n{implicit}"
         );
     }
 }
@@ -584,6 +648,7 @@ fn exact_profile_admits_initialized_mutable_array_result_production() {
                 );
             }
             assert_dynamic_guard_sequences(&first, "[4 x i32]", 2);
+            assert_guarded_dynamic_array_read_and_write(&first, "[4 x i32]");
         }
     }
 
@@ -683,6 +748,11 @@ fn mutable_array_result_production_retains_profile_separation_boundaries() {
         (
             "mutable alias initializer",
             "fn main() -> int { let mut source: [int; 2] = [1, 2]; let mut alias: [i32; 2] = source; return alias[0]; }",
+            "mutable exact-array values as initializer sources",
+        ),
+        (
+            "inferred mutable alias initializer",
+            "fn main() -> int { let mut source: [int; 2] = [1, 2]; let mut alias = source; return alias[0]; }",
             "mutable exact-array values as initializer sources",
         ),
         (
@@ -848,11 +918,6 @@ fn exact_array_value_composition_retains_topology_and_mutability_separation() {
             "array literal elements other than exact Int expressions",
         ),
         (
-            "mutable returned binding",
-            "fn make() -> [int; 1] { return [1]; } fn main() -> int { let mut values = make(); return values[0]; }",
-            "mutable array bindings",
-        ),
-        (
             "aggregate process result",
             "fn main() -> [int; 1] { return [1]; }",
             "entrypoints other than exact `fn main() -> int`",
@@ -1004,14 +1069,9 @@ fn exact_profile_rejects_every_neighboring_array_family_before_checked_ir() {
             "function parameter types",
         ),
         (
-            "mutable array",
-            "fn main() -> int { let mut values: [int; 1] = [1]; return values[0]; }",
-            "mutable array bindings",
-        ),
-        (
             "array write",
             "fn main() -> int { let values: [int; 1] = [1]; values[0] = 2; return 0; }",
-            "projected or indirect assignment targets",
+            "projected assignment targets rooted in immutable exact-array bindings",
         ),
         (
             "array comparison",
