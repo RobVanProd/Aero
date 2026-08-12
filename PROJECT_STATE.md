@@ -4,6 +4,46 @@ Last updated: 2026-08-12 (America/New_York)
 
 ## Current objective
 
+### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
+
+Accepted CAP-014 is Aero's first bounded Milestone 3 CPU computation slice. The
+distinct CPU-only `exact-i32-array-v0` profile composes the accepted exact wrapping
+scalar lane with flat `[int; N]`/`[i32; N]` values for `1 <= N <= i32::MAX`. It
+admits explicitly annotated immutable local literals, by-value nongeneric parameters,
+identifier call transport, and direct scalar indexing. The representative eight-lane
+dot-product-plus-bias program executes at the independent-oracle exit 91, while a
+separate edge specimen proves wrapping array-lane arithmetic at exit 93 without
+`nsw`/`nuw`. Every dynamic access uses signed bounds guards before address formation
+and sign-extends the checked index for the LLVM GEP.
+
+One pre-semantic profile authority owns the complete admitted source class and one
+profile-aware backend mapping lowers its verified logical `Int` leaves to LLVM `i32`.
+Semantic analysis, checked-IR generation, and independent verification remain
+unchanged; the established checked identities and schemas are consumed rather than
+reimplemented. Focused CAP-014 evidence passes 11/11, exact profile/backend controls
+pass 7/7, CLI routing passes 35/35, stable-profile separation passes 10/10, legacy
+fixed-array controls pass 12/12, and the complete repository gate passes 259 library
+tests plus every integration, CLI, documentation, formatting, and correctness-Clippy
+target. Pinned LLVM/Clang 22 verifies and executes the exact O0/O2 behavior on Linux
+and Windows.
+
+Corrected candidate `226279dd174f26dc3cd1c7573798955bfe789f78` and protected
+PR #50 merge `ca09ebe3c1b981339c8bf56b360e62208ac900e1` share tree
+`448e1c2ff397012804b886b904aa43bec63f2d37`. Candidate push/PR CI
+`31570455915`/`31570461500`, Rust CI `31570461524`, and CodeQL `31570456382`
+pass. Exact merge-head CI `31570823665`, Rust CI `31570823712`, and CodeQL
+`31570823073` also pass, including stable, nightly, and pinned Windows LLVM 22 jobs.
+
+This does not widen `stable-scalar-v0`. Within this profile, array results,
+empty/repeat/nested arrays, projected or mutable array writes, non-integer elements,
+struct/tuple/enum or reference use, modules/imports, constants, methods,
+generics/traits, closures, dynamic collections, allocation/drop, I/O, accelerators,
+and non-CPU target pairing remain rejected. The profile does not stabilize aggregate layout, callable ABI,
+serialization, packages, SIMD, quantization, tensors, performance, safety, Aero as a
+whole, or release eligibility. Aero remains a Minimal Prototype in correctness
+recovery. Current accepted public master is CAP-014. No new implementation may begin
+until this accepted-truth synchronization is green and protected-integrated.
+
 ### CAP-013 accepted: canonical specialization identity and phase authority
 
 Accepted CAP-013 closes an observed cross-feature specialization defect: the
@@ -35,9 +75,8 @@ This is bounded alias interoperability and shared compile-time architecture, not
 general generics or traits. Nested generic templates, generic impl targets, reference
 specialization, dynamic collections, allocation/drop, layout/ABI, accelerators,
 performance, releases, safety, stability, and language completion remain excluded.
-Current accepted public master is CAP-013. The next ranked product target is an exact
-fixed-width integer fixed-array CPU reference kernel, not further neighboring
-specialization enumeration.
+CAP-013 remains the accepted specialization architecture beneath CAP-014; no new
+specialization refactor is selected merely because its feature modules are large.
 
 ### CAP-012 accepted: nonescaping projected CopyData call loans
 
@@ -2915,15 +2954,25 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-After this bounded CAP-013 accepted-truth synchronization is green and protected-
-integrated, the next ranked product target is an explicitly profiled exact fixed-width
-integer fixed-array CPU reference kernel. Begin with the complete representative
-kernel and independent oracle as the red proof; preserve the existing experimental
-aggregate representation and stop if the new profile cannot remain private or would
-imply a stable aggregate ABI. The next-ranked fixed-capacity character-array parser/
-interpreter follows. Positive imports, runtime text, and file I/O remain high leverage
-but are not implementation-ready until their namespace, encoding, buffer, error,
-ownership/drop, and platform contracts are frozen. Do not default to neighboring
+Do not begin another implementation until this bounded CAP-014 accepted-truth
+synchronization is green and protected-integrated. The post-CAP-014 ranking is:
+
+1. `CAP-015-READINESS`, not automatic implementation: freeze an exact ASCII grammar
+   and result contract for the bounded embedded-data fixed-capacity `[char; N]`
+   parser/interpreter. The specimen may already compile experimentally, so run the
+   complete representative program as a red probe against accepted behavior. If it
+   is already green, install the representative gate and rerank without changing the
+   compiler. If it is red only on one established class spanning at most two compiler
+   phases, separately authorize and close that class. Stop for a decision if it
+   requires unfrozen semantics, profile fusion, or any widening of
+   `exact-i32-array-v0`.
+2. A separately frozen positive module/import/name-resolution architecture covering
+   namespace, visibility, collision, graph, cycle, and cache behavior before any
+   positive path is admitted.
+3. Runtime file-byte acquisition, which remains stopped pending path, byte, buffer,
+   error, ownership/drop, and platform semantics.
+
+File I/O is not authorized by this ranking. Do not default to neighboring
 specialization/reference topologies, releases/packages/benchmarks, force-pushes, or
 deletion of retained integration work.
 

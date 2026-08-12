@@ -152,12 +152,36 @@ aero lsp
 | **Function calls** | Accepted CORE-068 centralizes exact named-call classification across both semantic paths and checked admission/lowering. Existing nongeneric functions over admitted scalar, recursive CopyData, owned-enum, and reference contracts remain supported; accepted CORE-087 composes one mutable reference with CopyData sides, CORE-088 adds immutable-reference sides, and CORE-089 admits two or more pairwise-disjoint mutable references with any immutable and CopyData sides in every declared order. CORE-090 permits already admitted calls as projected-assignment RHS values, and accepted CAP-012 admits immediate nonescaping projected CopyData arguments to ordinary nongeneric reference parameters with checked call-lifecycle identity. Accepted CAP-003 transports exact concrete recursive-CopyData `Option`/`Result` values, CAP-004 transports exact concrete user-defined generic CopyData structs through nongeneric internal parameters and results, CAP-005 specializes bound-free whole-value generic transport functions over exact recursive finite CopyData arguments, CAP-006 transports exact specialized user-defined generic enums through nongeneric parameters/results, CAP-010 specializes exact required-only trait method calls over recursive-CopyData structs to verifier-bound monomorphic helpers, and CAP-011 specializes exact fixed-container read/update algorithms inferred through generic-struct schemas. Missing or unsupported signatures, wrong arguments, mutable-root overlap with any other argument, and `Void` value use fail before checked IR. Overloads, conversions, broader trait-bounded or operational generic functions, generic-to-generic/recursive calls, general trait/closure calls, stored/escaping projected references, generic projected calls, reference results, question-mark propagation, and stable callable ABI remain unsupported. |
 | **Intrinsic methods** | Accepted CORE-067 centralizes intrinsic method classification across semantics and checked IR. Exact recursive CopyData fixed-array `.len()`/`.is_empty()`, immutable compile-time String queries, and Array/Vec `.iter()` compatibility are the only admitted executable method forms. Runtime Strings, other collection methods, general dispatch, generic/trait methods, and callable ABI remain unsupported. |
 | **Direct module source collection** | Root-level `mod x;` collects `x.aero` or `x/mod.aero` into the current flattened compilation unit. Accepted CORE-070 adds public library `compile_file(path, options)` over this exact collector and the checked library frontend; it returns in-memory LLVM and writes no artifact. Accepted CAP-007 adds artifact-free `check_program`/`check_file` APIs over the same checked preparation authority. Accepted CORE-071 preserves Rust-like `use` syntax and source locations but rejects executable use before checked IR. Accepted CORE-080 likewise preserves the founding direct/aliased dotted `import` syntax with a distinct AST identity and fail-closed diagnostic. Accepted CORE-081 makes the collector and compiler phases library-owned while preserving current flattened behavior. Positive import/name-resolution, `pub` visibility semantics, namespaces, recursive modules, cycle graphs, and separate compilation are not implemented. |
-| **Codegen** | LLVM IR backend with optimization passes |
+| **Selected profiles** | `stable-scalar-v0` remains Aero's only `STABLE` profile. Accepted CAP-014 adds the separate CPU-only `exact-i32-array-v0` profile, classified `END_TO_END` for flat `[int; N]`/`[i32; N]` (`1 <= N <= i32::MAX`) through explicitly annotated immutable literal locals, by-value nongeneric parameters, identifier calls, and direct scalar indexing. Broad integer and fixed-array support remains `PARTIAL`; the default experimental profile is not widened or reclassified. |
+| **Codegen** | LLVM IR backend with optimization passes. In `exact-i32-array-v0`, admitted scalar and array leaves use exact wrapping LLVM `i32`; dynamic indexes take signed lower/upper trap paths before GEP address formation and then `sext i32`. This private selected-profile representation is not a public aggregate layout/ABI, SIMD, tensor, accelerator, or performance claim. |
 | **CLI** | `aero build`, `aero run`, `aero check`, `aero test`, `aero fmt`, `aero doc`, `aero profile`, `aero graph-opt`, `aero quantize`, `aero registry`, `aero conformance`, `aero init`, `aero lsp`. Accepted CORE-081 removes the binary's duplicate compiler-phase module graph. Accepted CAP-007 makes check/build/run/profile/source-test validation consume one checked-program preparation authority; docs and LSP syntax diagnostics remain intentionally parse-only. |
 | **LSP** | Syntax diagnostics, completion, hover, go-to-definition, document symbols |
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
+
+> **CAP-014 accepted:** protected master now includes the distinct CPU-only
+> `exact-i32-array-v0` profile. It admits flat `[int; N]`/`[i32; N]` with
+> `1 <= N <= i32::MAX`, explicitly annotated immutable literal locals, by-value
+> nongeneric parameters, identifier call transport, and direct indexing by admitted
+> scalar integer expressions. Its private LLVM lane uses exact wrapping `i32`; every
+> dynamic access takes identity-linked signed lower/upper checks and a trap branch
+> before GEP address formation, followed by `sext i32`. The tracked kernel exits 91,
+> the wrapping-edge specimen exits 93, and negative/equal-to-count bounds controls
+> trap through public, `-O0`, and `-O2` routes on pinned Linux and Windows LLVM/Clang
+> 22. Focused 11/11 and the complete 259-library plus integration/CLI/doc/format/
+> correctness-Clippy gate pass. Corrected candidate
+> `226279dd174f26dc3cd1c7573798955bfe789f78`, protected PR #50 merge
+> `ca09ebe3c1b981339c8bf56b360e62208ac900e1`, and shared tree
+> `448e1c2ff397012804b886b904aa43bec63f2d37` are exact. Candidate push/PR CI
+> `31570455915`/`31570461500`, Rust CI `31570461524`, CodeQL `31570456382`, and
+> merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073` pass.
+> Within this profile, array results and writes, neighboring aggregate shapes,
+> modules/imports, constants, reference use, generics/traits, closures, I/O,
+> allocation/drop, accelerators,
+> ABI/layout, SIMD, tensors, performance, safety, stability, releases, and language
+> completion remain excluded. Broad integers/fixed arrays remain `PARTIAL`, and
+> `stable-scalar-v0` remains the only `STABLE` profile.
 
 > **CAP-013 accepted:** protected master gives the already admitted generic-struct,
 > generic-enum, generic-function, fixed-capacity `Window<T>`, and bounded trait-
@@ -224,18 +248,22 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-013:** Aero remains a Minimal Prototype in correctness
+> **Project status after CAP-014:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. Accepted public and compiler-capability
-> baseline is protected CAP-013 merge
-> `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`.
+> baseline is protected CAP-014 merge
+> `ca09ebe3c1b981339c8bf56b360e62208ac900e1`.
 > CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
 > general ownership, generics, collections, layout/ABI/destruction, and ordinary-
 > program breadth remain partial.
-> The next ranked product target is an explicitly profiled exact fixed-width integer
-> fixed-array CPU reference kernel, not further specialization or topology
-> enumeration. Positive import/name resolution, runtime text, and file I/O remain
-> high leverage but require separately frozen namespace, ownership, buffer, error,
-> drop, and platform semantics first.
+> The next action is `CAP-015-READINESS`, not automatic implementation: freeze one
+> exact ASCII grammar and result for a bounded embedded-data `[char; N]` parser/
+> interpreter, then run the complete program as a red probe without widening
+> `exact-i32-array-v0`. If it is already green, install it as a representative gate
+> and rerank; if exactly one established at-most-two-phase class blocks it, close that
+> class; if profile fusion, semantic invention, or wider architecture is required,
+> stop for a decision. Positive module/import resolution comes next only under a
+> separately frozen namespace and graph contract. Runtime file-byte acquisition
+> remains blocked on path, buffer, error, ownership, and platform semantics.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

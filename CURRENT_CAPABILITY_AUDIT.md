@@ -5,8 +5,59 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-013 compiler-capability merge
-`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`.
+protected CAP-014 compiler-capability merge
+`ca09ebe3c1b981339c8bf56b360e62208ac900e1`.
+
+### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
+
+Accepted CAP-014 establishes Aero's first bounded Milestone 3 CPU computation slice
+without widening the stable scalar profile. The distinct CPU-only
+`exact-i32-array-v0` profile admits flat `[int; N]`/`[i32; N]` values for
+`1 <= N <= i32::MAX` only as explicitly annotated immutable local literals,
+by-value nongeneric parameters, identifier call arguments, and direct indexing by an
+admitted scalar integer expression. The tracked eight-lane dot-product-plus-bias
+kernel executes at independent-oracle exit 91, and the wrapping-edge specimen exits
+93 with exact LLVM `i32` arithmetic and no `nsw`/`nuw` promises. Dynamic accesses
+carry signed lower/upper guards before address formation and a checked `i32`-to-`i64`
+GEP index extension.
+
+One shared pre-semantic classifier owns the profile source class, and one
+profile-aware physical mapping consumes independently verified array/type/count/index
+identity at LLVM emission. Parser, semantic, checked-IR, and verifier production are
+unchanged. Focused 11/11, profile/backend 7/7, CLI 35/35, stable separation 10/10,
+legacy fixed-array 12/12, the complete 259-library repository gate, independent
+review, and pinned LLVM/Clang 22 Linux/Windows O0/O2 verification and execution pass.
+Corrected candidate `226279dd174f26dc3cd1c7573798955bfe789f78` and protected
+PR #50 merge `ca09ebe3c1b981339c8bf56b360e62208ac900e1` share tree
+`448e1c2ff397012804b886b904aa43bec63f2d37`. Candidate push/PR CI
+`31570455915`/`31570461500`, Rust CI `31570461524`, CodeQL `31570456382`, and
+exact merge-head CI/Rust CI/CodeQL `31570823665`/`31570823712`/`31570823073`
+all pass.
+
+The accepted class remains bounded and experimental outside its named profile.
+Within this profile, array results, empty/repeat/nested arrays, projected or mutable
+array writes, non-integer elements, struct/tuple/enum or reference use,
+modules/imports, constants, methods, generics/traits, closures, dynamic collections,
+allocation/drop, I/O, accelerators, and non-CPU target pairing remain rejected.
+Aggregate layout, callable
+ABI, serialization, packages, SIMD, quantization, tensors, performance, safety, Aero
+as a whole, and release eligibility remain unstabilized. Aero remains a Minimal
+Prototype in correctness recovery. CAP-013 remains accepted as the canonical
+specialization identity and phase authority; CAP-014 neither duplicates nor reopens
+it.
+
+The post-CAP-014 order begins with `CAP-015-READINESS`, not automatic
+implementation. Freeze the bounded embedded-data `[char; N]` parser/interpreter's
+exact ASCII grammar/result contract. Its specimen may already compile experimentally,
+so run the complete representative program as a red probe against accepted behavior.
+A green probe installs the representative gate and triggers a reranking without a
+compiler change. A red limited to one established class spanning at most two compiler
+phases may be separately authorized and closed; unfrozen semantics, profile fusion,
+or any widening of `exact-i32-array-v0` requires a stop and decision. The next gaps
+remain a separately frozen positive module/import/name-resolution architecture and
+then runtime file-byte acquisition. Its path/byte/buffer/error/ownership-drop/platform
+contracts are not frozen, so file I/O remains stopped. No new implementation may
+begin before this accepted-truth synchronization is green and protected-integrated.
 
 ### CAP-013 accepted: canonical specialization identity and phase authority
 
