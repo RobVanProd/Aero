@@ -40,7 +40,8 @@ fn main() -> int {
     let source = [2, 3, 4];
     let computed = transform(source);
     let annotated: [i32; 3] = return_call(computed);
-    let copied = annotated;
+    let alias: [int; 3] = annotated;
+    let copied = alias;
     let nested_score: int = score(identity(transform(source)));
     let literal_score: int = score([7, 8, 9]);
     let call_index: int = transform(source)[0];
@@ -301,6 +302,20 @@ fn stable_scalar_profile_still_rejects_the_array_kernel() {
     )
     .expect_err("stable-scalar-v0 must retain its frozen array exclusion");
     assert!(error.contains("Language Profile Error: stable-scalar-v0 rejects"));
+
+    let result_only = "fn make() -> [int; 1] { return [1]; } fn main() -> int { return 0; }";
+    let error = compile_program(
+        result_only,
+        CompilerOptions {
+            language_profile: LanguageProfile::StableScalarV0,
+            ..CompilerOptions::default()
+        },
+    )
+    .expect_err("stable-scalar-v0 must reject array results independently of parameters");
+    assert_eq!(
+        error,
+        "Language Profile Error: stable-scalar-v0 rejects function result types"
+    );
 }
 
 #[test]
@@ -401,6 +416,8 @@ fn exact_profile_admits_the_complete_immutable_array_value_composition_class() {
         "call [3 x i32] @transform([3 x i32]",
         "call [3 x i32] @identity([3 x i32]",
         "call [3 x i32] @return_call([3 x i32]",
+        "store [3 x i32]",
+        "load [3 x i32]",
         "ret [3 x i32]",
         "getelementptr inbounds [3 x i32]",
     ] {
