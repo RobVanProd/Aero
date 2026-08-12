@@ -1268,7 +1268,7 @@ jobs:
         set -euo pipefail
         export PATH="/usr/lib/llvm-22/bin:${PATH}"
 
-        for specimen in kernel:main.aero:91:yes wrapping:wrapping_edges.aero:93:no; do
+        for specimen in kernel:main.aero:91:yes wrapping:wrapping_edges.aero:93:no matvec:flat_matvec.aero:91:yes; do
           IFS=: read -r name file expected dynamic_bounds <<< "${specimen}"
           source="examples/fixed_int_array_v0/${file}"
           llvm="${RUNNER_TEMP}/exact_i32_array_${name}.linux.ll"
@@ -1304,12 +1304,32 @@ jobs:
           if [ "${dynamic_bounds}" = yes ]; then
             guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'
             guard_count="$(grep -Pzo -- "${guard_block_pattern}" "${llvm}" | tr -cd '\000' | wc -c)"
-            test "${guard_count}" -eq 4
+            if [ "${name}" = matvec ]; then
+              test "${guard_count}" -eq 3
+            else
+              test "${guard_count}" -eq 4
+            fi
           else
             if grep -Eq 'icmp sge i32|call void @llvm\.trap\(\)|sext i32' "${llvm}"; then
               echo "exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
               exit 1
             fi
+          fi
+          if [ "${name}" = matvec ]; then
+            grep -Fq 'define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)' "${llvm}"
+            test "$(grep -Fc 'call [2 x i32] @matvec_2x3([6 x i32]' "${llvm}")" -eq 2
+            matvec_llvm="$(awk '
+              /^define \[2 x i32\] @matvec_2x3\(\[6 x i32\] %aero.arg.matrix, \[3 x i32\] %aero.arg.vector\) \{$/ { capture = 1; definitions++ }
+              capture { print }
+              capture && /^}$/ { capture = 0 }
+              END { if (definitions != 1) exit 1 }
+            ' "${llvm}")"
+            matvec_identity_pattern='(?ms)^  (?<matvec_row>%reg[0-9]+) = load i32, i32\* (?<matvec_row_slot>%ptr[0-9]+), align 4\r?\n  (?<matvec_row_times_three>%reg[0-9]+) = mul i32 \k<matvec_row>, 3\r?\n  (?<matvec_column>%reg[0-9]+) = load i32, i32\* (?<matvec_column_slot>%ptr[0-9]+), align 4\r?\n  (?<matvec_linear>%reg[0-9]+) = add i32 \k<matvec_row_times_three>, \k<matvec_column>\r?\n  (?<matvec_matrix_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_linear>, 0\r?\n  (?<matvec_matrix_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_linear>, 6\r?\n  (?<matvec_matrix_inbounds>%reg[0-9]+) = and i1 \k<matvec_matrix_lower>, \k<matvec_matrix_upper>\r?\n  br i1 \k<matvec_matrix_inbounds>, label %aero\.bounds\.safe\.(?<matvec_matrix_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_matrix_place>\r?\naero\.bounds\.trap\.\k<matvec_matrix_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_matrix_place>:\r?\n  (?<matvec_matrix_extended>%reg[0-9]+) = sext i32 \k<matvec_linear> to i64\r?\n  (?<matvec_matrix_target>%ptr[0-9]+) = getelementptr inbounds \[6 x i32\], \[6 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_matrix_extended>\r?\n  %reg[0-9]+ = load i32, i32\* \k<matvec_matrix_target>, align 4\r?\n(?:(?!^}).)*?^  (?<matvec_vector_index>%reg[0-9]+) = load i32, i32\* \k<matvec_column_slot>, align 4\r?\n  (?<matvec_vector_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_vector_index>, 0\r?\n  (?<matvec_vector_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_vector_index>, 3\r?\n  (?<matvec_vector_inbounds>%reg[0-9]+) = and i1 \k<matvec_vector_lower>, \k<matvec_vector_upper>\r?\n  br i1 \k<matvec_vector_inbounds>, label %aero\.bounds\.safe\.(?<matvec_vector_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_vector_place>\r?\naero\.bounds\.trap\.\k<matvec_vector_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_vector_place>:\r?\n  (?<matvec_vector_extended>%reg[0-9]+) = sext i32 \k<matvec_vector_index> to i64\r?\n  (?<matvec_vector_target>%ptr[0-9]+) = getelementptr inbounds \[3 x i32\], \[3 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_vector_extended>\r?\n  %reg[0-9]+ = load i32, i32\* \k<matvec_vector_target>, align 4\r?\n(?:(?!^}).)*?^  (?<matvec_output_index>%reg[0-9]+) = load i32, i32\* \k<matvec_row_slot>, align 4\r?\n  (?<matvec_output_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_output_index>, 0\r?\n  (?<matvec_output_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_output_index>, 2\r?\n  (?<matvec_output_inbounds>%reg[0-9]+) = and i1 \k<matvec_output_lower>, \k<matvec_output_upper>\r?\n  br i1 \k<matvec_output_inbounds>, label %aero\.bounds\.safe\.(?<matvec_output_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_output_place>\r?\naero\.bounds\.trap\.\k<matvec_output_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_output_place>:\r?\n  (?<matvec_output_extended>%reg[0-9]+) = sext i32 \k<matvec_output_index> to i64\r?\n  (?<matvec_output_target>%ptr[0-9]+) = getelementptr inbounds \[2 x i32\], \[2 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_output_extended>\r?\n(?:(?!^}).)*?^  store i32 [^,\r\n]+, i32\* \k<matvec_output_target>, align 4\r?$'
+            matvec_identity_count="$(grep -Pzo -- "${matvec_identity_pattern}" <(printf '%s\n' "${matvec_llvm}") | tr -cd '\000' | wc -c)"
+            test "${matvec_identity_count}" -eq 1
+            matvec_guard_pattern='(?m)^  (?<matvec_guard_lower>%reg[0-9]+) = icmp sge i32 (?<matvec_guard_index>%reg[0-9]+), 0\r?\n  (?<matvec_guard_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_guard_index>, (?<matvec_guard_bound>[236])\r?\n  (?<matvec_guard_inbounds>%reg[0-9]+) = and i1 \k<matvec_guard_lower>, \k<matvec_guard_upper>\r?\n  br i1 \k<matvec_guard_inbounds>, label %aero\.bounds\.safe\.(?<matvec_guard_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_guard_place>\r?\naero\.bounds\.trap\.\k<matvec_guard_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_guard_place>:\r?\n  (?<matvec_guard_extended>%reg[0-9]+) = sext i32 \k<matvec_guard_index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds \[\k<matvec_guard_bound> x i32\], \[\k<matvec_guard_bound> x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_guard_extended>\r?$'
+            matvec_guard_count="$(grep -Pzo -- "${matvec_guard_pattern}" <(printf '%s\n' "${matvec_llvm}") | tr -cd '\000' | wc -c)"
+            test "${matvec_guard_count}" -eq 3
           fi
 
           opt-22 -passes=verify -disable-output "${llvm}"
@@ -1336,7 +1356,7 @@ jobs:
           set -e
           printf '%s\n' "${public_output}"
           test "${public_status}" -eq "${expected}"
-          printf '%s\n' "${public_output}" | grep -Fq "Exit code: ${expected}"
+          test "$(printf '%s\n' "${public_output}" | grep -Fxc "Exit code: ${expected}")" -eq 1
         done
 
         for bounds_file in negative_index.aero equal_to_count_index.aero negative_write_index.aero equal_to_count_write_index.aero; do
@@ -2331,7 +2351,8 @@ jobs:
 
         $specimens = @(
           [pscustomobject]@{ Name = "kernel"; File = "main.aero"; Expected = 91; Dynamic = $true },
-          [pscustomobject]@{ Name = "wrapping"; File = "wrapping_edges.aero"; Expected = 93; Dynamic = $false }
+          [pscustomobject]@{ Name = "wrapping"; File = "wrapping_edges.aero"; Expected = 93; Dynamic = $false },
+          [pscustomobject]@{ Name = "matvec"; File = "flat_matvec.aero"; Expected = 91; Dynamic = $true }
         )
         foreach ($specimen in $specimens) {
           $source = "examples/fixed_int_array_v0/$($specimen.File)"
@@ -2377,11 +2398,36 @@ jobs:
           if ($specimen.Dynamic) {
             $guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'
             $guardMatches = [regex]::Matches($llvmText, $guardPattern)
-            if ($guardMatches.Count -ne 4) {
-              throw "Windows exact-i32-array-v0 expected four identity-linked dynamic guard/address blocks"
+            if ($specimen.Name -ceq "matvec") {
+              if ($guardMatches.Count -ne 3) {
+                throw "Windows exact-i32-array-v0 matvec expected three identity-linked dynamic guard/address blocks"
+              }
+            } elseif ($guardMatches.Count -ne 4) {
+              throw "Windows exact-i32-array-v0 kernel expected four identity-linked dynamic guard/address blocks"
             }
           } elseif ($llvmText -match 'icmp sge i32|call void @llvm\.trap\(\)|sext i32') {
             throw "Windows exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
+          }
+          if ($specimen.Name -ceq "matvec") {
+            if (-not $llvmText.Contains("define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)") -or @([regex]::Matches($llvmText, [regex]::Escape("call [2 x i32] @matvec_2x3([6 x i32]"))).Count -ne 2) {
+              throw "Windows exact-i32-array-v0 matvec omitted its exact flat aggregate signature or calls"
+            }
+            $matvecFunctionPattern = '(?ms)^define \[2 x i32\] @matvec_2x3\(\[6 x i32\] %aero\.arg\.matrix, \[3 x i32\] %aero\.arg\.vector\) \{\r?\n.*?^}\r?$'
+            $matvecFunctionMatches = [regex]::Matches($llvmText, $matvecFunctionPattern)
+            if ($matvecFunctionMatches.Count -ne 1) {
+              throw "Windows exact-i32-array-v0 matvec omitted its unique exact function body"
+            }
+            $matvecText = $matvecFunctionMatches[0].Value
+            $matvecIdentityPattern = '(?ms)^  (?<matvec_row>%reg[0-9]+) = load i32, i32\* (?<matvec_row_slot>%ptr[0-9]+), align 4\r?\n  (?<matvec_row_times_three>%reg[0-9]+) = mul i32 \k<matvec_row>, 3\r?\n  (?<matvec_column>%reg[0-9]+) = load i32, i32\* (?<matvec_column_slot>%ptr[0-9]+), align 4\r?\n  (?<matvec_linear>%reg[0-9]+) = add i32 \k<matvec_row_times_three>, \k<matvec_column>\r?\n  (?<matvec_matrix_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_linear>, 0\r?\n  (?<matvec_matrix_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_linear>, 6\r?\n  (?<matvec_matrix_inbounds>%reg[0-9]+) = and i1 \k<matvec_matrix_lower>, \k<matvec_matrix_upper>\r?\n  br i1 \k<matvec_matrix_inbounds>, label %aero\.bounds\.safe\.(?<matvec_matrix_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_matrix_place>\r?\naero\.bounds\.trap\.\k<matvec_matrix_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_matrix_place>:\r?\n  (?<matvec_matrix_extended>%reg[0-9]+) = sext i32 \k<matvec_linear> to i64\r?\n  (?<matvec_matrix_target>%ptr[0-9]+) = getelementptr inbounds \[6 x i32\], \[6 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_matrix_extended>\r?\n  %reg[0-9]+ = load i32, i32\* \k<matvec_matrix_target>, align 4\r?\n(?:(?!^}).)*?^  (?<matvec_vector_index>%reg[0-9]+) = load i32, i32\* \k<matvec_column_slot>, align 4\r?\n  (?<matvec_vector_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_vector_index>, 0\r?\n  (?<matvec_vector_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_vector_index>, 3\r?\n  (?<matvec_vector_inbounds>%reg[0-9]+) = and i1 \k<matvec_vector_lower>, \k<matvec_vector_upper>\r?\n  br i1 \k<matvec_vector_inbounds>, label %aero\.bounds\.safe\.(?<matvec_vector_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_vector_place>\r?\naero\.bounds\.trap\.\k<matvec_vector_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_vector_place>:\r?\n  (?<matvec_vector_extended>%reg[0-9]+) = sext i32 \k<matvec_vector_index> to i64\r?\n  (?<matvec_vector_target>%ptr[0-9]+) = getelementptr inbounds \[3 x i32\], \[3 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_vector_extended>\r?\n  %reg[0-9]+ = load i32, i32\* \k<matvec_vector_target>, align 4\r?\n(?:(?!^}).)*?^  (?<matvec_output_index>%reg[0-9]+) = load i32, i32\* \k<matvec_row_slot>, align 4\r?\n  (?<matvec_output_lower>%reg[0-9]+) = icmp sge i32 \k<matvec_output_index>, 0\r?\n  (?<matvec_output_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_output_index>, 2\r?\n  (?<matvec_output_inbounds>%reg[0-9]+) = and i1 \k<matvec_output_lower>, \k<matvec_output_upper>\r?\n  br i1 \k<matvec_output_inbounds>, label %aero\.bounds\.safe\.(?<matvec_output_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_output_place>\r?\naero\.bounds\.trap\.\k<matvec_output_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_output_place>:\r?\n  (?<matvec_output_extended>%reg[0-9]+) = sext i32 \k<matvec_output_index> to i64\r?\n  (?<matvec_output_target>%ptr[0-9]+) = getelementptr inbounds \[2 x i32\], \[2 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_output_extended>\r?\n(?:(?!^}).)*?^  store i32 [^,\r\n]+, i32\* \k<matvec_output_target>, align 4\r?$'
+            $matvecIdentityMatches = [regex]::Matches($matvecText, $matvecIdentityPattern)
+            if ($matvecIdentityMatches.Count -ne 1) {
+              throw "Windows exact-i32-array-v0 matvec omitted its row-major identity-linked read/write chain"
+            }
+            $matvecGuardPattern = '(?m)^  (?<matvec_guard_lower>%reg[0-9]+) = icmp sge i32 (?<matvec_guard_index>%reg[0-9]+), 0\r?\n  (?<matvec_guard_upper>%reg[0-9]+) = icmp slt i32 \k<matvec_guard_index>, (?<matvec_guard_bound>[236])\r?\n  (?<matvec_guard_inbounds>%reg[0-9]+) = and i1 \k<matvec_guard_lower>, \k<matvec_guard_upper>\r?\n  br i1 \k<matvec_guard_inbounds>, label %aero\.bounds\.safe\.(?<matvec_guard_place>[0-9]+), label %aero\.bounds\.trap\.\k<matvec_guard_place>\r?\naero\.bounds\.trap\.\k<matvec_guard_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<matvec_guard_place>:\r?\n  (?<matvec_guard_extended>%reg[0-9]+) = sext i32 \k<matvec_guard_index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds \[\k<matvec_guard_bound> x i32\], \[\k<matvec_guard_bound> x i32\]\* %ptr[0-9]+, i64 0, i64 \k<matvec_guard_extended>\r?$'
+            $matvecGuardMatches = [regex]::Matches($matvecText, $matvecGuardPattern)
+            if ($matvecGuardMatches.Count -ne 3) {
+              throw "Windows exact-i32-array-v0 matvec omitted one of its three complete guard/address chains"
+            }
           }
 
           & "$llvmBin\opt.exe" -passes=verify -disable-output $llvm
