@@ -1,5 +1,73 @@
 # Aero Task Ledger
 
+## CAP-013 accepted-master project-truth synchronization
+
+- Date/task/status: 2026-08-12, `CAP-013-ACCEPTANCE-SYNC`, authorized bounded
+  record-only synchronization from protected PR #48 merge
+  `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572` (tree
+  `627582e27613803949c82ecfa52915ba55db2f0f`) on
+  `agent/cap-013-acceptance-sync`. User/app-owned untracked `tmp/` and
+  `.codex-remote-attachments/` remain outside the task. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be applied, dropped, or
+  treated as acceptance evidence.
+- Observed behavior and hypothesis: protected master now contains accepted CAP-013
+  compiler behavior, but cumulative state surfaces still identify CAP-012 as the
+  latest accepted capability and describe shared specialization identity/order as
+  future work. This is an observability defect only. Synchronizing those records to
+  immutable CAP-013 identities makes repository truth match public master without
+  adding or broadening language behavior.
+- Frozen semantics and allowed files: no parser, semantic, checked-IR, verifier,
+  backend, CLI, workflow, example, dependency, package, release, benchmark,
+  claim-verification artifact, protection setting, or external behavior may change.
+  Only `TASK_LEDGER.md`, `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and exact repository-state assertions in
+  `src/compiler/tests/version_claim_contract_tests.rs` may record the established
+  result. Historical authorization, red, and candidate checkpoints remain chronology
+  and must not be rewritten.
+- Immutable evidence: candidate
+  `1ecf0831149b99abd55e3d0a48d06eecaa8099b6` is based on prior accepted master
+  `d67158f0bfbc786cca84282b2fa55a029681ffb3`. Candidate push CI `31562192900`, PR
+  CI `31562195772`, Rust/Windows LLVM 22 `31562195887`, and CodeQL `31562193465`
+  pass. PR #48 merged normally as
+  `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`, whose ordered parents are prior
+  master then candidate and whose tree exactly equals candidate tree
+  `627582e27613803949c82ecfa52915ba55db2f0f`. Exact merge-head CI
+  `31562387501`, Rust/Windows LLVM 22 `31562387504`, and CodeQL `31562387066`
+  pass. The rendered merged PR metadata already reflects those identities.
+- Acceptance tests, risks, recovery, and decision threshold: update every mandatory
+  truth surface to CAP-013 accepted while retaining Minimal Prototype status and all
+  frozen exclusions. Record only the bounded alias-interoperability and shared
+  identity/order architecture across already admitted generic/trait capabilities;
+  do not imply general generics, traits, collections, ABI/layout, allocation/drop,
+  accelerators, performance, release, stability, or language completion. Add exact
+  positive and stale-negative state assertions, run focused assertions, formatting,
+  diff hygiene, docs, and the complete root gate, then require one bounded exact-head
+  PR, all protected checks, normal integration, and merge-head evidence. Stop on any
+  identity mismatch, semantic mutation, omitted truth surface, stale CAP-012-current
+  wording, or claim beyond the accepted finite class. This branch/PR is the rollback
+  boundary.
+- Strategic consequence and what would change our mind: this closes evidence
+  administration immediately after acceptance and leaves the ranked exact fixed-
+  width integer fixed-array CPU reference kernel as the next product task. Evidence
+  that the merge tree differs from the candidate, any exact candidate/merge-head run
+  is not green, mixed aliases do not execute through the representative workflow, or
+  a proposed wording requires a broader semantic claim revokes acceptance wording
+  and stops the sync. This task must not become another specialization implementation
+  or neighboring topology enumeration.
+- Local record-candidate checkpoint (not public acceptance): the live diff changes
+  exactly the nine authorized record/assertion files and no production, example,
+  workflow, dependency, or claim-verification artifact. The focused repository-state
+  contract passes 8/8; `cargo fmt --check`, `git diff --check`, and the complete
+  repository-root `./tools/test.sh` gate pass, including 249 library tests and every
+  integration, CLI, Windows-system, documentation, formatting, and correctness-Clippy
+  target. Independent read-only review corrected three ambiguous bare `references`
+  exclusions to the precise `reference specialization`, preserving Aero's already
+  accepted bounded reference capabilities. These are mutable local results only;
+  CAP-013 itself is accepted through PR #48, while this synchronization remains a
+  candidate until its own immutable commit, protected checks, normal merge, and
+  exact merge-head gates pass.
+
 ## CAP-013 - canonical specialization identity and phase authority
 
 - Date/task/status: 2026-08-11, CAP-013, authorized red-first compiler,

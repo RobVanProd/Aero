@@ -2,11 +2,36 @@
 
 Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
-Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
+Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-012 compiler-capability merge
-`49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`.
+protected CAP-013 compiler-capability merge
+`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`.
+
+### CAP-013 accepted: canonical specialization identity and phase authority
+
+Accepted CAP-013 makes the primitive contract's existing `int`/`i32` and
+`float`/`f64` equivalence coherent across already-admitted generic structs, generic
+enums, generic functions, fixed-capacity `Window<T>` algorithms, and bounded trait
+signatures. One shared recursive type-key, canonical renderer/parser, private framing
+contract, and deterministic struct -> enum -> function orchestrator replace the
+observed identity/equality/phase duplication. Struct and enum arguments are
+canonicalized before substitution, so equivalent spellings share both private
+identity and materialized schema. Semantic and raw checked routes invoke the same
+plan; feature-specific policy and the generic-function body classifier remain in
+their existing owners.
+
+The mixed-alias matrix passes 9/9, existing generic/trait controls pass 21/21,
+shared authority controls pass 7/7, and representative telemetry passes 3/3 at exact
+output/exit 91. The complete 249-library plus CLI/integration/doc/format/Clippy gate,
+independent review, canonical private-identity corruption controls, and pinned
+LLVM/Clang 22 native O0/O2 evidence pass. Exact candidate
+`1ecf0831149b99abd55e3d0a48d06eecaa8099b6` and protected PR #48 merge
+`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572` share tree
+`627582e27613803949c82ecfa52915ba55db2f0f`; all candidate and exact merge-head
+CI/Rust CI/CodeQL results pass. The bounded specialization rows remain `PARTIAL`;
+general generics/traits, new body semantics, reference specialization, collections, ABI/layout,
+allocation/drop, accelerators, safety, stability, and releases remain unsupported.
 
 ### CAP-012 accepted: nonescaping projected CopyData call loans
 
@@ -378,7 +403,7 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 and accepted CAP-001 through CAP-012 implemented substantial typed
+CORE-043 through CORE-090 and accepted CAP-001 through CAP-013 implemented substantial typed
 aggregate, enum/`Match`, CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
 not complete Milestone 2's broader ambitions: collections, general generic substitution, broader trait dispatch, general
@@ -392,8 +417,10 @@ recursive-CopyData generic-enum specialization slice. CAP-008 adds only terminal
 whole-arm and payload-leaf nonbinding wildcards over that existing enum universe;
 CAP-010 adds required-only static trait dispatch; CAP-011 supplies the selected generic
 data structure; and CAP-012 supplies the selected ownership-intensive representative
-program through nested call-only loans. CAP-011 and CAP-012 therefore meet the
-selected Milestone 2 exit gate without making the broader milestone complete.
+program through nested call-only loans. CAP-013 then unifies canonical identity and
+phase order across the already accepted specialization slices while adding only
+alias-interoperability behavior. CAP-011 and CAP-012 therefore meet the selected
+Milestone 2 exit gate without making the broader milestone complete.
 General substitution and operations, collections, broader pattern semantics, and
 broader error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
