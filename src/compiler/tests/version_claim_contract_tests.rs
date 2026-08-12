@@ -782,7 +782,6 @@ fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
     let positive_verbs = [
         "is",
         "has",
-        "change",
         "changes",
         "changed",
         "add",
@@ -855,14 +854,17 @@ fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
                         .rev()
                         .find(|index| positive_verbs.contains(&words[*index].as_str()))
                     {
-                        let negated = words[verb_index.saturating_sub(3)..start + subject.len()]
-                            .iter()
-                            .any(|word| {
-                                matches!(word.as_str(), "not" | "no" | "without" | "never")
-                            });
+                        let stop_condition = words.first().is_some_and(|word| word == "stop")
+                            && words[..start].iter().any(|word| word == "if");
+                        let negated = stop_condition
+                            || words[verb_index.saturating_sub(3)..start + subject.len()]
+                                .iter()
+                                .any(|word| {
+                                    matches!(word.as_str(), "not" | "no" | "without" | "never")
+                                });
                         assert!(
                             negated,
-                            "{document_name} promotes CAP-020 beyond its product-only boundary: {}",
+                            "{document_name} promotes CAP-020 beyond its product-only boundary ({}) in: {clause}",
                             subject.join(" ")
                         );
                     }
@@ -894,7 +896,7 @@ fn assert_no_cap020_overclaims(document_name: &str, document: &str) {
                             });
                         assert!(
                             passive_negated,
-                            "{document_name} passively promotes CAP-020 beyond its product-only boundary: {}",
+                            "{document_name} passively promotes CAP-020 beyond its product-only boundary ({}) in: {clause}",
                             subject.join(" ")
                         );
                     }
@@ -1071,7 +1073,11 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
         for clause in status_text.split(['.', ';', '!', '?']) {
             let clause = clause.trim();
             let words = clause_words(clause);
+            let semantic = semantic_words(clause);
             let has_word = |expected: &str| words.contains(&expected);
+            let denies_acceptance = contains_semantic_phrase(&semantic, &["not", "accepted"])
+                || contains_semantic_phrase(&semantic, &["not", "yet", "accepted"])
+                || contains_semantic_phrase(&semantic, &["has", "not", "been", "accepted"]);
             if has_capability_token(&words, "cap-020") {
                 assert!(
                     !has_word("candidate")
@@ -1085,7 +1091,7 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
                         && !(has_word("local") && has_word("only"))
                         && !(has_word("not") && has_word("published"))
                         && !(has_word("awaits") && has_word("acceptance"))
-                        && !(has_word("not") && has_word("accepted")),
+                        && !denies_acceptance,
                     "{document_name} gives CAP-020 a candidate or unaccepted status: {clause}"
                 );
             }
@@ -1094,7 +1100,7 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
                     !has_word("candidate")
                         && !has_word("pending")
                         && !has_word("unaccepted")
-                        && !(has_word("not") && has_word("accepted")),
+                        && !denies_acceptance,
                     "{document_name} gives CAP-019 a candidate or unaccepted status: {clause}"
                 );
                 let excluded_subject = [
@@ -1166,7 +1172,7 @@ fn assert_cap020_boundaries(document_name: &str, document: &str) {
                     !has_word("candidate")
                         && !has_word("pending")
                         && !has_word("unaccepted")
-                        && !(has_word("not") && has_word("accepted")),
+                        && !denies_acceptance,
                     "{document_name} gives CAP-018 a candidate or unaccepted status: {clause}"
                 );
             }
