@@ -1,6 +1,7 @@
 use compiler::{
-    CompilerOptions, IrGenerator, LanguageProfile, SemanticAnalyzer, check_file, check_program,
-    compile_file, compile_program, parse_with_locations, try_tokenize_with_locations,
+    CompilerOptions, IrGenerator, LanguageProfile, LogicalType, SemanticAnalyzer, check_file,
+    check_program, compile_file, compile_program, parse_with_locations,
+    try_tokenize_with_locations,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -49,6 +50,56 @@ fn main() -> int {
     if source[0] == 2 && copied[1] == 6 && annotated[2] == 3
         && nested_score == 13 && literal_score == 24
         && call_index == 4 && literal_index == 11 {
+        return 91;
+    }
+    return 1;
+}
+"#;
+
+const MUTABLE_ARRAY_RESULT_PRODUCTION: &str = r#"
+fn seed() -> [int; 4] {
+    return [3, 5, 7, 9];
+}
+
+fn from_literal() -> [i32; 2] {
+    let mut output: [int; 2] = [10, 20];
+    output[0] = output[0] + 1;
+    return output;
+}
+
+fn from_identifier(source: [int; 4]) -> [i32; 4] {
+    let mut output: [i32; 4] = source;
+    let mut index: int = 0;
+    let mut delta: int = 0;
+    while index < 4 {
+        output[index] = source[index] * 2 + delta;
+        index = index + 1;
+        delta = delta + 1;
+    }
+    return output;
+}
+
+fn from_call() -> [int; 4] {
+    let mut output = seed();
+    output[3] = output[3] + 1;
+    return output;
+}
+
+fn score(values: [int; 4]) -> int {
+    return values[0] + values[1] + values[2] + values[3];
+}
+
+fn main() -> int {
+    let source: [i32; 4] = seed();
+    let looped: [int; 4] = from_identifier(source);
+    let literal = from_literal();
+    let called = from_call();
+    let consumed: int = score(looped);
+    if source[0] == 3 && source[3] == 9
+        && looped[0] == 6 && looped[1] == 11
+        && looped[2] == 16 && looped[3] == 21
+        && literal[0] == 11 && literal[1] == 20
+        && called[3] == 10 && consumed == 54 {
         return 91;
     }
     return 1;
@@ -400,6 +451,329 @@ fn general_checked_pipeline_already_owns_the_complete_immutable_array_value_clas
     .expect("experimental control should retain general immutable array composition");
     assert!(llvm.contains("define [3 x double] @transform("));
     assert!(llvm.contains("call [3 x double] @identity("));
+}
+
+#[test]
+fn general_pipeline_already_owns_initialized_mutable_array_result_production() {
+    let tokens = try_tokenize_with_locations(MUTABLE_ARRAY_RESULT_PRODUCTION, None)
+        .expect("mutable array-result production control should lex");
+    let ast =
+        parse_with_locations(tokens).expect("mutable array-result production control should parse");
+
+    let checked = IrGenerator::new()
+        .try_generate_ir(ast.clone())
+        .expect("raw-AST checked admission should already own initialized array mutation");
+    let exact_array_four = LogicalType::Array {
+        element: Box::new(LogicalType::Int),
+        count: 4,
+    };
+    let from_identifier = &checked.metadata().functions["from_identifier"];
+    assert_eq!(
+        from_identifier.signature.parameters,
+        vec![("source".to_string(), exact_array_four.clone())],
+        "raw checked metadata must retain the exact Array<Int, 4> input identity"
+    );
+    assert_eq!(
+        from_identifier.signature.result, exact_array_four,
+        "raw checked metadata must retain the exact Array<Int, 4> result identity"
+    );
+    let output_place = from_identifier
+        .places
+        .values()
+        .find(|place| place.name.as_deref() == Some("output"))
+        .expect("raw checked metadata must retain the mutable output place");
+    assert_eq!(
+        output_place.pointee, from_identifier.signature.result,
+        "mutable output place and returned array must share one logical identity"
+    );
+    assert!(
+        from_identifier
+            .results
+            .values()
+            .any(|result| result == &from_identifier.signature.result),
+        "raw checked metadata must retain an Array<Int, 4> produced value"
+    );
+    let checked_debug = format!("{checked:#?}");
+    for marker in [
+        "CheckedMutableOwnedPlaceAlloca",
+        "CheckedOwnedPlaceAssignment",
+        "element: Int",
+        "count: 4",
+    ] {
+        assert!(
+            checked_debug.contains(marker),
+            "raw checked IR omitted mutable array-result marker `{marker}`:\n{checked_debug}"
+        );
+    }
+
+    let mut analyzer = SemanticAnalyzer::new();
+    analyzer
+        .analyze(ast)
+        .expect("general semantics should already own initialized array mutation and return");
+
+    let implicit = compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, CompilerOptions::default())
+        .expect("experimental control should compile mutable array-result production");
+    let explicit = compile_program(
+        MUTABLE_ARRAY_RESULT_PRODUCTION,
+        CompilerOptions {
+            language_profile: LanguageProfile::Experimental,
+            ..CompilerOptions::default()
+        },
+    )
+    .expect("explicit experimental control should compile mutable array-result production");
+    assert_eq!(implicit, explicit);
+    for anchor in [
+        "define [2 x double] @from_literal()",
+        "define [4 x double] @from_identifier([4 x double]",
+        "define [4 x double] @from_call()",
+        "store double",
+        "ret [4 x double]",
+        "call i32 @score([4 x double]",
+    ] {
+        assert!(
+            implicit.contains(anchor),
+            "experimental control omitted `{anchor}`:\n{implicit}"
+        );
+    }
+}
+
+#[test]
+fn exact_profile_admits_initialized_mutable_array_result_production() {
+    let mut failures = Vec::new();
+
+    if let Err(error) = check_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        if !error.starts_with("Language Profile Error: exact-i32-array-v0 rejects ") {
+            failures.push(format!(
+                "exact source check crossed the pre-semantic boundary: {error}"
+            ));
+        }
+        failures.push(format!(
+            "exact source check rejected mutable array-result production: {error}"
+        ));
+    }
+
+    match compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        Err(error) => failures.push(format!(
+            "exact source compilation rejected mutable array-result production: {error}"
+        )),
+        Ok(first) => {
+            let second = compile_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options())
+                .expect("a second exact mutable array-result compilation should remain admitted");
+            assert_eq!(
+                first, second,
+                "exact mutable array-result LLVM must be deterministic"
+            );
+            for anchor in [
+                "define [2 x i32] @from_literal()",
+                "define [4 x i32] @from_identifier([4 x i32] %aero.arg.source)",
+                "define [4 x i32] @from_call()",
+                "store [4 x i32]",
+                "store i32",
+                "ret [4 x i32]",
+                "call i32 @score([4 x i32]",
+            ] {
+                assert!(
+                    first.contains(anchor),
+                    "exact mutable array-result LLVM omitted `{anchor}`:\n{first}"
+                );
+            }
+            for forbidden in ["double", "fptosi", "sitofp", " nsw ", " nuw "] {
+                assert!(
+                    !first.contains(forbidden),
+                    "exact mutable array-result LLVM leaked `{forbidden}`:\n{first}"
+                );
+            }
+            assert_dynamic_guard_sequences(&first, "[4 x i32]", 2);
+        }
+    }
+
+    let workspace = TestWorkspace::new("mutable-array-result-production-red");
+    let source = workspace.path("main.aero");
+    fs::write(&source, MUTABLE_ARRAY_RESULT_PRODUCTION)
+        .expect("write mutable array-result production source");
+    let llvm = workspace.path("mutable-array-result.ll");
+
+    let check = run_cli(
+        &workspace,
+        &[
+            Path::new("check"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if !check.status.success() {
+        failures.push(format!(
+            "public check rejected mutable array-result production: {}",
+            combined_output(&check)
+        ));
+    }
+
+    let build = run_cli(
+        &workspace,
+        &[
+            Path::new("build"),
+            &source,
+            Path::new("-o"),
+            &llvm,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if !build.status.success() {
+        assert!(
+            !llvm.exists(),
+            "a rejected exact mutable array-result build must not leave an LLVM artifact"
+        );
+        failures.push(format!(
+            "public build rejected mutable array-result production: {}",
+            combined_output(&build)
+        ));
+    } else if !llvm.is_file() {
+        failures.push("public build admitted the source but omitted its LLVM artifact".to_string());
+    }
+
+    let run = run_cli(
+        &workspace,
+        &[
+            Path::new("run"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    if run.status.code() != Some(91) {
+        failures.push(format!(
+            "public run did not preserve the source Copy and consume the returned result (status={:?}): {}",
+            run.status.code(),
+            combined_output(&run)
+        ));
+    }
+
+    assert!(
+        failures.is_empty(),
+        "CAP-019 mutable exact-array result production is not complete:\n{}",
+        failures.join("\n")
+    );
+}
+
+#[test]
+fn mutable_array_result_production_retains_profile_separation_boundaries() {
+    let exact_rejections = [
+        (
+            "immutable assignment root",
+            "fn main() -> int { let values: [int; 2] = [1, 2]; values[0] = 3; return values[0]; }",
+            "projected assignment targets rooted in immutable exact-array bindings",
+        ),
+        (
+            "wrong-count initializer",
+            "fn seed() -> [int; 2] { return [1, 2]; } fn bad() -> [i32; 3] { let mut values: [int; 3] = seed(); return values; } fn main() -> int { return 0; }",
+            "array literal counts that differ from their annotations",
+        ),
+        (
+            "non-Int initializer",
+            "fn bad() -> [int; 2] { let mut values: [i32; 2] = [1 < 2, 2 < 3]; return values; } fn main() -> int { return 0; }",
+            "array literal elements other than exact Int expressions",
+        ),
+        (
+            "nested initializer",
+            "fn main() -> int { let mut values: [[int; 1]; 1] = [[1]]; return 0; }",
+            "binding annotation types",
+        ),
+        (
+            "mutable alias initializer",
+            "fn main() -> int { let mut source: [int; 2] = [1, 2]; let mut alias: [i32; 2] = source; return alias[0]; }",
+            "mutable exact-array values as initializer sources",
+        ),
+        (
+            "uninitialized mutable array",
+            "fn main() -> int { let mut values: [int; 2]; return 0; }",
+            "uninitialized bindings",
+        ),
+        (
+            "array-valued element store",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; values[0] = [3, 4]; return values[0]; }",
+            "array values in exact integer expressions",
+        ),
+        (
+            "non-Int runtime selector",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let selector: bool = 1 < 2; values[selector] = 3; return values[0]; }",
+            "non-Int values in exact integer expressions",
+        ),
+        (
+            "non-Int stored value",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let flag: bool = 1 < 2; values[0] = flag; return values[0]; }",
+            "non-Int values in exact integer expressions",
+        ),
+        (
+            "array reference escape",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; let view = &mut values; values[0] = 3; return values[0]; }",
+            "reference expressions",
+        ),
+        (
+            "whole-array reassignment",
+            "fn main() -> int { let mut values: [int; 2] = [1, 2]; values = [3, 4]; return values[0]; }",
+            "array writes",
+        ),
+        (
+            "recursive array transform",
+            "fn bad(source: [int; 1]) -> [i32; 1] { let mut output: [int; 1] = source; output[0] = output[0] + 1; return bad(output); } fn main() -> int { return 0; }",
+            "recursive function call cycles",
+        ),
+    ];
+
+    match check_program(MUTABLE_ARRAY_RESULT_PRODUCTION, exact_options()) {
+        Err(error) => assert_eq!(
+            error, "Language Profile Error: exact-i32-array-v0 rejects mutable array bindings",
+            "only the known CAP-019 red barrier may defer the prospective exclusion matrix"
+        ),
+        Ok(()) => {
+            for (label, source, expected) in exact_rejections {
+                let error = check_program(source, exact_options())
+                    .expect_err("excluded mutable exact-array topology must fail closed");
+                assert!(
+                    error.starts_with("Language Profile Error: exact-i32-array-v0 rejects "),
+                    "{label} crossed the profile boundary: {error}"
+                );
+                assert!(
+                    error.contains(expected),
+                    "{label}: expected `{expected}`, got: {error}"
+                );
+                assert!(
+                    !error.contains("Semantic Analysis Error")
+                        && !error.contains("IR Generation Error"),
+                    "{label} reached a later compiler phase: {error}"
+                );
+            }
+        }
+    }
+
+    let result_only = "fn make() -> [int; 1] { return [1]; } fn main() -> int { return 0; }";
+    assert_eq!(
+        check_program(
+            result_only,
+            CompilerOptions {
+                language_profile: LanguageProfile::StableScalarV0,
+                ..CompilerOptions::default()
+            }
+        ),
+        Err("Language Profile Error: stable-scalar-v0 rejects function result types".to_string())
+    );
+
+    let mutation_only =
+        "fn main() -> int { let mut values: [int; 2] = [1, 2]; values[0] = 3; return values[0]; }";
+    assert_eq!(
+        check_program(
+            mutation_only,
+            CompilerOptions {
+                language_profile: LanguageProfile::StableScalarV0,
+                ..CompilerOptions::default()
+            }
+        ),
+        Err(
+            "Language Profile Error: stable-scalar-v0 rejects binding annotation types".to_string()
+        )
+    );
 }
 
 #[test]

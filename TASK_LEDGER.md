@@ -2,8 +2,8 @@
 
 ## CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION - loop-produced flat-array results
 
-- Date/task/status: 2026-08-12, `CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION`, authorized
-  architecture audit and red-first vertical slice on
+- Date/task/status: 2026-08-12, `CAP-019-EXACT-ARRAY-MUTABLE-PRODUCTION`, red
+  established and two-phase architecture audit green on
   `agent/cap-019-mutable-array-results` from exact accepted master
   `84916e124752b8e7d228855a0969cd9eab8dba26`, tree
   `1fedb29c3cc865b3e4900d9aee47855396d8fa9a`. User/app-owned
@@ -66,8 +66,9 @@
 - Initially allowed files and rollback: this authorization and red phase may change
   only `TASK_LEDGER.md` and
   `src/compiler/tests/fixed_int_array_profile_tests.rs`. After a green architecture
-  audit confirms the phase boundary, production is initially limited to
-  `src/compiler/src/language_profile.rs`; the existing
+  audit confirms the phase boundary, production is limited to
+  `src/compiler/src/language_profile.rs` and
+  `src/compiler/src/code_generator.rs`; the existing
   `examples/fixed_int_array_v0/main.aero` and `.github/workflows/rust.yml` may be
   amended only for the material product/native gate. Any need for another file must
   amend this record before editing. The authorization commit is the rollback boundary;
@@ -91,6 +92,26 @@
   Evidence that returned-value identity cannot be proven without a new IR/verifier
   contract, or that one shared recursive-array slice safely subsumes this capability at
   comparable scope and risk, must stop this task and trigger reranking.
+- Red checkpoint and audited phase boundary: authorization commit
+  `13ebc819fd935aa28a166288bae7fe9c380794d9` precedes the focused red matrix. The
+  exact target runs 17 tests with 16 passing and only
+  `exact_profile_admits_initialized_mutable_array_result_production` failing. Library
+  and public check/build/run all stop pre-semantics at the same
+  `Language Profile Error: exact-i32-array-v0 rejects mutable array bindings`, and a
+  rejected public build leaves no LLVM artifact. Raw-AST checked admission, canonical
+  semantics, implicit/explicit experimental lowering, all prior exact-profile tests,
+  the prospective exclusion matrix, and independent stable result/mutation controls
+  pass. The architecture audit confirms exactly two production phases: the source
+  profile must retain binding mutability and admit only a fully initialized mutable
+  exact-array local plus direct element assignments; independent exact-profile backend
+  admission must admit that array-typed mutable owned place and render its alloca with
+  the existing profile CopyData physical mapper. General semantics, checked IR, the IR
+  verifier, projected-place classification, bounds/trap generation, scalar element
+  stores, whole-array loads/returns, and call transport already own the behavior and
+  require no production change. The backend change must be conservative: exact Int
+  remains `i32`, an admitted exact flat array uses the profile CopyData renderer, and
+  every other owned-place type retains the legacy reference-pointee renderer so Enum
+  and experimental/stable behavior cannot drift.
 
 ## CAP-018-ACCEPTANCE-SYNC - immutable array-result composition accepted truth
 
