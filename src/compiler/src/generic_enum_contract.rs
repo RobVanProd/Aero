@@ -3,9 +3,13 @@ use crate::ast::{
 };
 use crate::generic_struct_contract::{
     canonical_copydata_type_matches_logical, display_source_type,
-    parse_canonical_copydata_type_list,
 };
 use crate::ir::{EnumVariantSchema, LogicalType};
+use crate::specialization_contract::{
+    canonicalize_specialization_type, decode_private_identity, parse_canonical_application,
+    parse_canonical_copydata_type_list, private_identity, specialization_types_equal,
+    valid_source_symbol,
+};
 use crate::struct_contract::StructRegistry;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -539,6 +543,10 @@ impl GenericEnumNormalizer {
                 arguments.len()
             ));
         }
+        let arguments = arguments
+            .iter()
+            .map(canonicalize_specialization_type)
+            .collect::<Vec<_>>();
         let substitutions = definition
             .parameters
             .iter()
@@ -1383,46 +1391,15 @@ fn display_type_diagnostic(ty: &Type) -> String {
 
 fn private_name_for(canonical: &str, variants: &[VariantDecl]) -> Result<String, String> {
     let schema = encode_schema(variants)?;
-    let payload = format!("{canonical}|{schema}");
-    let encoded = payload
-        .as_bytes()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    Ok(format!("{PRIVATE_GENERIC_ENUM_PREFIX}{encoded}"))
+    Ok(private_identity(
+        PRIVATE_GENERIC_ENUM_PREFIX,
+        &[canonical, &schema],
+    ))
 }
 
 fn decode_private_payload(name: &str) -> Option<(String, String)> {
-    let encoded = name.strip_prefix(PRIVATE_GENERIC_ENUM_PREFIX)?;
-    if encoded.is_empty() || !encoded.len().is_multiple_of(2) {
-        return None;
-    }
-    let mut bytes = Vec::with_capacity(encoded.len() / 2);
-    for index in (0..encoded.len()).step_by(2) {
-        bytes.push(u8::from_str_radix(&encoded[index..index + 2], 16).ok()?);
-    }
-    let payload = String::from_utf8(bytes).ok()?;
-    let (canonical, schema) = payload.split_once('|')?;
-    if canonical.is_empty() || schema.is_empty() || schema.contains('|') {
-        return None;
-    }
-    Some((canonical.to_string(), schema.to_string()))
-}
-
-fn parse_canonical_application(source: &str) -> Option<(String, Vec<Type>)> {
-    let opening = source.find('<')?;
-    if !source.ends_with('>') {
-        return None;
-    }
-    let name = &source[..opening];
-    if !valid_source_symbol(name) {
-        return None;
-    }
-    let arguments = parse_canonical_copydata_type_list(&source[opening + 1..source.len() - 1])?;
-    if arguments.is_empty() {
-        return None;
-    }
-    Some((name.to_string(), arguments))
+    let mut parts = decode_private_identity(PRIVATE_GENERIC_ENUM_PREFIX, name, 2)?.into_iter();
+    Some((parts.next()?, parts.next()?))
 }
 
 fn encode_schema(variants: &[VariantDecl]) -> Result<String, String> {
@@ -1556,20 +1533,7 @@ fn types_equal(left: &[Type], right: &[Type]) -> bool {
 }
 
 fn type_equal(left: &Type, right: &Type) -> bool {
-    match (left, right) {
-        (Type::Named(left), Type::Named(right)) => left == right,
-        (Type::Array(left, left_count), Type::Array(right, right_count)) => {
-            left_count == right_count && type_equal(left, right)
-        }
-        (Type::Tuple(left), Type::Tuple(right)) => types_equal(left, right),
-        (Type::Generic(left_name, left), Type::Generic(right_name, right)) => {
-            left_name == right_name && types_equal(left, right)
-        }
-        (Type::Reference(left, left_mutable), Type::Reference(right, right_mutable)) => {
-            left_mutable == right_mutable && type_equal(left, right)
-        }
-        _ => false,
-    }
+    specialization_types_equal(left, right)
 }
 
 fn contains_reference(ty: &Type) -> bool {
@@ -1792,14 +1756,6 @@ fn pattern_mentions_source_generic_enum(
             .any(|(_, pattern)| pattern_mentions_source_generic_enum(pattern, definitions)),
         Pattern::Wildcard | Pattern::Literal(_) | Pattern::Identifier(_) => false,
     }
-}
-
-fn valid_source_symbol(name: &str) -> bool {
-    let mut characters = name.chars();
-    characters
-        .next()
-        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
-        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
 #[cfg(test)]

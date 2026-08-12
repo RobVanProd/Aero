@@ -2,11 +2,14 @@ use crate::ast::{AstNode, Block, Expression, Parameter, Pattern, Statement, Type
 use crate::copydata_trait_dispatch::{TraitDispatchPlan, is_trait_call_marker};
 use crate::generic_struct_contract::{
     GenericStructParametricCatalog, canonical_copydata_type_matches_logical,
-    parse_canonical_copydata_type_list, private_generic_struct_application,
-    private_generic_struct_source_name,
+    private_generic_struct_application, private_generic_struct_source_name,
 };
 use crate::ir::LogicalType;
-use crate::primitive_contract::PrimitiveKind;
+use crate::specialization_contract::{
+    canonical_copydata_source, decode_canonical_hex as decode_hex, decode_private_identity,
+    encode_hex, logical_signature_key, parse_canonical_copydata_type_list, private_identity,
+    specialization_types_equal, valid_source_symbol,
+};
 use crate::struct_contract::StructRegistry;
 use crate::types::Ty;
 use std::collections::{BTreeMap, BTreeSet};
@@ -2021,88 +2024,11 @@ fn ty_to_type(ty: &Ty) -> Option<Type> {
 }
 
 fn display_source_type(ty: &Type) -> Result<String, String> {
-    match ty {
-        Type::Named(name) => {
-            if let Some(primitive) = PrimitiveKind::from_source_name(name) {
-                Ok(match primitive {
-                    PrimitiveKind::Int => "int".to_string(),
-                    PrimitiveKind::Float => "float".to_string(),
-                    PrimitiveKind::Bool => "bool".to_string(),
-                    PrimitiveKind::Char => "char".to_string(),
-                })
-            } else if let Some(source) = private_generic_struct_source_name(name) {
-                Ok(source)
-            } else if valid_source_symbol(name) {
-                Ok(name.clone())
-            } else {
-                Err(format!("invalid CopyData type identity `{name}`"))
-            }
-        }
-        Type::Array(element, count) => Ok(format!("[{};{count}]", display_source_type(element)?)),
-        Type::Tuple(elements) if elements.len() >= 2 => Ok(format!(
-            "({})",
-            elements
-                .iter()
-                .map(display_source_type)
-                .collect::<Result<Vec<_>, _>>()?
-                .join(",")
-        )),
-        Type::Tuple(_) => {
-            Err("generic-function CopyData tuples require arity at least two".to_string())
-        }
-        Type::Generic(_, _) => crate::generic_struct_contract::display_source_type(ty),
-        Type::Reference(_, _) => {
-            Err("generic-function specialization type is not CopyData".to_string())
-        }
-    }
+    canonical_copydata_source(ty, &[private_generic_struct_source_name])
 }
 
 fn types_equal(left: &Type, right: &Type) -> bool {
-    match (left, right) {
-        (Type::Named(left), Type::Named(right)) => {
-            match (
-                PrimitiveKind::from_source_name(left),
-                PrimitiveKind::from_source_name(right),
-            ) {
-                (Some(left), Some(right)) => left == right,
-                _ => left == right,
-            }
-        }
-        (Type::Array(left, left_count), Type::Array(right, right_count)) => {
-            left_count == right_count && types_equal(left, right)
-        }
-        (Type::Tuple(left), Type::Tuple(right)) => {
-            left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right)
-                    .all(|(left, right)| types_equal(left, right))
-        }
-        (Type::Reference(left, left_mut), Type::Reference(right, right_mut)) => {
-            left_mut == right_mut && types_equal(left, right)
-        }
-        (Type::Generic(left, left_args), Type::Generic(right, right_args)) => {
-            left == right
-                && left_args.len() == right_args.len()
-                && left_args
-                    .iter()
-                    .zip(right_args)
-                    .all(|(left, right)| types_equal(left, right))
-        }
-        _ => false,
-    }
-}
-
-fn logical_signature_key(parameters: &[LogicalType], result: &LogicalType) -> String {
-    format!(
-        "({})->{}",
-        parameters
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(","),
-        result
-    )
+    specialization_types_equal(left, right)
 }
 
 fn identity_contract_key(
@@ -2164,9 +2090,10 @@ fn identity_contract_key(
 }
 
 fn private_name_for(canonical: &str, contract: &str, signature: &str) -> String {
-    let payload = format!("{canonical}|{contract}|{signature}");
-    let encoded = encode_hex(&payload);
-    format!("{PRIVATE_GENERIC_FUNCTION_PREFIX}{encoded}")
+    private_identity(
+        PRIVATE_GENERIC_FUNCTION_PREFIX,
+        &[canonical, contract, signature],
+    )
 }
 
 #[cfg(test)]
@@ -2183,44 +2110,9 @@ pub(crate) fn private_name_for_test(
     )
 }
 
-fn encode_hex(value: &str) -> String {
-    value
-        .as_bytes()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
-}
-
-fn decode_hex(encoded: &str) -> Option<String> {
-    if encoded.is_empty()
-        || encoded.len() % 2 != 0
-        || !encoded.bytes().all(|byte| byte.is_ascii_hexdigit())
-    {
-        return None;
-    }
-    let bytes = (0..encoded.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&encoded[index..index + 2], 16).ok())
-        .collect::<Option<Vec<_>>>()?;
-    String::from_utf8(bytes).ok()
-}
-
 fn decode_private_payload(name: &str) -> Option<(String, String, String)> {
-    let encoded = name.strip_prefix(PRIVATE_GENERIC_FUNCTION_PREFIX)?;
-    let payload = decode_hex(encoded)?;
-    let mut parts = payload.split('|');
-    let canonical = parts.next()?;
-    let contract = parts.next()?;
-    let signature = parts.next()?;
-    if canonical.is_empty() || contract.is_empty() || signature.is_empty() || parts.next().is_some()
-    {
-        return None;
-    }
-    Some((
-        canonical.to_string(),
-        contract.to_string(),
-        signature.to_string(),
-    ))
+    let mut parts = decode_private_identity(PRIVATE_GENERIC_FUNCTION_PREFIX, name, 3)?.into_iter();
+    Some((parts.next()?, parts.next()?, parts.next()?))
 }
 
 fn canonical_function_arguments(canonical: &str) -> Option<Vec<Type>> {
@@ -2311,14 +2203,6 @@ fn identity_role_matches(
         IdentityTypeRole::Concrete(expected) => Some(expected),
     };
     expected.is_some_and(|expected| canonical_copydata_type_matches_logical(expected, actual))
-}
-
-fn valid_source_symbol(name: &str) -> bool {
-    let mut characters = name.chars();
-    characters
-        .next()
-        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
-        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
 #[cfg(test)]

@@ -200,6 +200,73 @@
   dependency, release, benchmark, external artifact, quarantined stash, or
   user/app-owned untracked content changed.
 
+### CAP-013 local green candidate checkpoint
+
+- Implementation summary: one shared specialization authority now owns recursive
+  CopyData type keys, canonical source rendering/parsing, alias equivalence,
+  feature-tagged private identity framing, source-symbol validation, and the
+  deterministic struct -> enum -> function phase plan. Generic-struct and
+  generic-enum arguments are canonicalized before substitution, so equivalent
+  aliases produce both the same private identity and the same materialized schema.
+  Feature modules retain their frozen validation, rewriting, substitution, and
+  diagnostic policies; generic functions remain the only parametric body
+  classifier. Semantic analysis and semantic-independent checked admission now
+  call the same phase authority.
+- Executable capability and separation evidence: the focused CAP-013 target passes
+  9/9 across int/i32 and float/f64 struct transport, recursive arrays and tuples,
+  generic-enum transport/Match, fixed-capacity Window algorithms, trait signature
+  interoperability, and single-identity assertions. The 21 established generic-
+  struct, enum, function, Window, and trait controls pass unchanged. Shared unit
+  evidence passes 7/7 for recursive canonicalization, Char/Int, Bool, names, tuple
+  order/arity, array count, application/reference separation, canonical framing,
+  malformed payload rejection, idempotence, and explicit source-declaration-order
+  permutation. The exact candidate's complete library corruption and verifier
+  controls pass 249/249.
+- Representative and native evidence: representative telemetry now passes a
+  Window<i32> seed through canonical Window<int> generic algorithms and implements
+  an int-declared trait method with an i32 parameter while preserving its complete
+  composed workflow. Its focused target passes 3/3 and forbids split i32 private
+  identities. Cached official LLVM/Clang 22.1.8 verifies the generated module;
+  public check and required-verifier build pass; public run and native -O0/-O2
+  execution each print exactly `telemetry score: 91` and exit 91; the known-invalid
+  LLVM corruption control rejects. No workflow source change was needed because the
+  existing Linux/Windows representative gates already exercise these exact paths.
+- Complete local gates and review: formatting, correctness-denying Clippy, every
+  unit/CLI/integration target, Windows native-system contract target, and doc tests
+  pass through repository-root `./tools/test.sh`; `cargo doc --locked --no-deps`
+  passes with inherited warnings; and diff hygiene passes. An independent read-only
+  review found no production blocker or out-of-scope file. Its only requested proof,
+  explicit declaration-order permutation, was added and passes. A fresh exact-content
+  repository-root gate including that proof and this checkpoint passes 249 library
+  tests, every CLI/integration target, correctness-denying Clippy, formatting,
+  Windows system-gate contracts, and doc tests.
+- Files and architecture: the bounded change adds
+  `src/compiler/src/specialization_contract.rs`, replaces duplicated helpers in the
+  four existing generic/trait authorities, and replaces the duplicated semantic/raw
+  phase sequences without changing parser, checked-IR schema, verifier, backend,
+  dependency, package, release, benchmark, or protection behavior. The representative
+  example and its mirrored test are the only program changes. Existing committed
+  authorization/red records and `specialization_architecture_tests.rs` remain part of
+  PR #48. User/app-owned `tmp/` and `.codex-remote-attachments/`, plus quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`, remain untouched.
+- Remaining uncertainty, risks, and recovery: the implementation has no immutable
+  candidate SHA yet, public Linux/Windows exact-head checks and protected integration
+  remain pending, and accepted project truth therefore remains CAP-012. Current
+  identity framing is safe because every admitted part grammar excludes `|`; before
+  any future specialization family admits a broader part grammar, the shared framing
+  contract must enforce that invariant or move to length-delimited parts. General
+  generics, trait semantics, references in specialization identities, nested generic
+  templates, layout/ABI, allocation/drop, accelerator behavior, and performance
+  claims remain excluded. The rollback boundary is this bounded branch/PR.
+- Recommended next action: run the exact-content root gate, commit and push only the
+  authorized candidate, update draft PR #48 to the exact immutable head, require all
+  public and pinned native checks, then merge normally through protection. Only after
+  merge-head evidence passes may a separate record-only synchronization call CAP-013
+  accepted in the project-state, audit, matrix, roadmap, framework, conformance, and
+  README truth surfaces. The next ranked product task remains the exact fixed-width
+  integer fixed-array CPU reference kernel; CAP-013 must not turn into further
+  neighboring specialization enumeration.
+
 ## CAP-012 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-11, `CAP-012-ACCEPTANCE-SYNC`, authorized bounded

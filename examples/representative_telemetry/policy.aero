@@ -3,7 +3,7 @@ trait PolicyValue {
 }
 
 impl PolicyValue for Sensor {
-    fn policy_value(&self, bias: int) -> int {
+    fn policy_value(&self, bias: i32) -> int {
         (*self).value + bias
     }
 }

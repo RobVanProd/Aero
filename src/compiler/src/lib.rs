@@ -36,6 +36,7 @@ pub mod quantization;
 pub mod registry;
 mod scalar_assignment;
 pub mod semantic_analyzer;
+mod specialization_contract;
 mod static_string_equality;
 mod static_string_method;
 mod static_string_predicate;

@@ -6,7 +6,7 @@ fn main() -> int {
     const EXPECTED: int = 91;
 
     let mut batch: Batch = make_batch();
-    let calibration_seed: Window<int> = Window { values: [0, 20, 30] };
+    let calibration_seed: Window<i32> = Window { values: [0, 20, 30] };
     let calibration: Window<int> = window_set(calibration_seed, 0, BASE);
     let mut sensor_index = 0;
     while sensor_index < 3 {

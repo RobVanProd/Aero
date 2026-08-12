@@ -17,9 +17,6 @@ use crate::function_call_contract::{
     FunctionCallDisposition, FunctionCallFacts, FunctionCallParameter, FunctionCallTarget,
     FunctionCallUse, classify_function_call, unsupported_function_call_diagnostic,
 };
-use crate::generic_enum_contract::normalize_generic_copydata_enums;
-use crate::generic_function_contract::normalize_generic_copydata_functions;
-use crate::generic_struct_contract::normalize_generic_copydata_structs;
 use crate::local_reference::{
     LocalReferenceDisposition, LocalReferenceSourceFacts, MutableReferenceAssignmentDisposition,
     MutableReferenceAssignmentFacts, ReferenceCallDisposition, ReferenceFunctionContract,
@@ -45,6 +42,7 @@ use crate::scalar_assignment::{
     ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
     classify_projected_copydata_assignment, projected_copydata_assignment_array_selectors,
 };
+use crate::specialization_contract::normalize_copydata_specializations;
 use crate::struct_contract::{CopyArrayIndexDisposition, StructExecutionContext, StructRegistry};
 use crate::tuple_contract::{
     TupleBindingValidationError, TupleContractDisposition, TupleExecutionContext,
@@ -1210,9 +1208,7 @@ impl Default for SemanticAnalyzer {
 impl SemanticAnalyzer {
     pub fn analyze(&mut self, ast: Vec<AstNode>) -> Result<(String, Vec<AstNode>), String> {
         let ast = normalize_primitive_consts(ast)?;
-        let ast = normalize_generic_copydata_structs(ast)?;
-        let ast = normalize_generic_copydata_enums(ast)?;
-        let ast = normalize_generic_copydata_functions(ast)?;
+        let ast = normalize_copydata_specializations(ast)?;
         let ast = normalize_builtin_carriers(ast)?;
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();
