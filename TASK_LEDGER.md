@@ -97,6 +97,84 @@
   ingestion/error/kernel workload would change the decision and trigger immediate
   reranking toward positive module/name resolution instead.
 
+### CAP-015 readiness green classification and representative-gate authorization
+
+- Observed full-program result: the task-local probe at authorization head
+  `f6dc895dd343499649cdacdde1d80e79974b1dd5` is green without any repository or
+  compiler mutation. Canonical `T=17;H=08;` returns 42; `00/00` returns 0 and
+  `99/99` returns 297. All ten first-invalid-position classes return the exact
+  offending character, and three cross-category multi-error controls return the
+  earliest character. Raw checked admission, semantic checked admission, and the
+  public library route emit identical verified LLVM. Public `check`, externally
+  verified `build`, and `run` pass under the default experimental path. Pinned LLVM
+  22 `opt`, `llc -verify-machineinstrs`, and native `-O0`/`-O2` agree for every
+  value/error case. Runtime indexes `-1` and `10` trap before access at both
+  optimization levels. The canonical LLVM retains `[10 x i32]`, character `i32`,
+  ten ordered lower/upper/trap/safe/conversion/GEP sequences, and no character-to-
+  numeric conversion or `[10 x double]` array. `stable-scalar-v0` and
+  `exact-i32-array-v0` both reject the program as required. The only initial red was
+  an audit environment with LLVM tools absent from `PATH`; the same frozen source
+  passed after selecting the repository-pinned LLVM 22 tools.
+- Classification and real-program delta: this is an already implemented composition,
+  not a missing compiler class. No compiler phase or language-profile change is
+  authorized. Before the tracked gate, Aero's maintained representative program does
+  not interpret a structured character record into its computation. Afterward, the
+  existing telemetry application parses one exact embedded record through
+  `[char; 10]`, runtime guarded reads, equality-only ASCII digit decoding,
+  `Result<int, char>`, and exhaustive `Match`, and feeds the parsed numerical value
+  into ordinary aggregate/generic computation. This is a program-level integration
+  gain and does not justify a new language capability row.
+- Frozen integration mechanism: add one direct `records.aero` module containing the
+  exact readiness parser and small result-observation helpers. `main.aero` must parse
+  `T=17;H=08;`, prove the 0 and 297 boundaries, all ten first-invalid positions, and
+  the three frozen first-error precedence controls, then use canonical 42 as the
+  third calibration sensor. Together with BASE 11 and the second sensor 8, the
+  calibration sum remains 61, so the established exact stdout and exit 91 remain
+  unchanged without cancelling or ignoring the parsed value. A wrong value or
+  unexpected `Err` must alter control/data flow and fail the existing oracle. Digit
+  decoding remains equality against `'0'` through `'9'` returning integer literals;
+  no character cast or arithmetic is permitted. Add only negative-one and equal-to-
+  ten parser-context runtime trap specimens.
+- Red-first and evidence plan: first extend the existing representative Rust test
+  with exact embedded sources, tracked-byte parity, the frozen result matrix, checked
+  `Char`/array/carrier identity, raw/semantic/public verified-route parity, exact
+  parser LLVM guard/GEP counts and ordering, profile-separation controls, two tracked
+  trap sources, and required Linux/Windows workflow anchors. Run that test red while
+  the tracked module/specimens/workflow contract are absent. Then add the smallest
+  tracked application/workflow changes that turn the same test green. Reuse the
+  existing representative Linux and Windows `check`/verified-build/public-run,
+  `opt`, `llc`, Clang `-O0`/`-O2`, exact-output, and runtime-failure loops; do not add
+  another job, standalone application lane, or evidence subsystem.
+- Exact allowed files: only `TASK_LEDGER.md`,
+  `examples/representative_telemetry/main.aero`, new
+  `examples/representative_telemetry/records.aero`, new
+  `examples/representative_telemetry/runtime_fail/parser_negative_index.aero`, new
+  `examples/representative_telemetry/runtime_fail/parser_equal_to_count_index.aero`,
+  `src/compiler/tests/representative_scalar_application_tests.rs`, and
+  `.github/workflows/rust.yml`. No compiler production, profile, other test, state,
+  matrix, roadmap, README, dependency, release, benchmark, or external-artifact
+  change is authorized in this candidate.
+- Decision threshold and detection: the focused representative target, formatting,
+  diff hygiene, complete root gate, documentation, exact pinned local LLVM 22/native
+  lane, independent read-only review, all exact-head public workflows, protected
+  integration, and merge-head workflows must pass. The Windows workflow must retain
+  exactly fifteen reset groups. Detection must bind the parser's ten dynamic accesses
+  to ten complete guard-before-GEP sequences rather than unrelated textual anchors,
+  keep `[char; 10]` physically distinct from numeric arrays, verify exact malformed
+  characters, and prove O0/O2/public agreement. No new checked-IR corruption control
+  is required because no compiler invariant changes.
+- Claim boundary, recovery, and what would change our mind: this remains default
+  experimental representative evidence. It does not compose inside CAP-014's
+  `exact-i32-array-v0`, and it establishes no general parser, string, serialization,
+  file input, Unicode, profile, ABI, safety, performance, or language-completion
+  claim. This branch and the seven-file change are the rollback boundary. Stop and
+  rerank if tracked composition is red despite the isolated probe, requires a
+  compiler/profile edit, changes more than the authorized files, loses exact error
+  identity or guard ordering, cannot preserve the external 91 oracle while using 42
+  materially, or causes evidence administration to exceed the bounded existing gate.
+  After protected acceptance, synchronize current truth and rerank the three highest-
+  leverage gaps; do not automatically select profile fusion.
+
 ## CAP-014 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-014-ACCEPTANCE-SYNC`, authorized bounded
