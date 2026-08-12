@@ -97,6 +97,21 @@
   the exact sync candidate passes public push/PR CI, Rust stable/nightly and pinned
   Windows LLVM 22, CodeQL, protected integration, and fresh merge-head verification.
   No CAP-019 implementation may be stacked on this branch before that boundary.
+- Independent review of the first immutable sync candidate found no current truth
+  error, but correctly stopped publication on four false-green claim-test paths:
+  evidence was not paragraph-scoped, two scored-table surfaces were omitted, matrix
+  uniqueness was case-sensitive, and direct history counterclaims were incomplete.
+  The replacement pre-checkpoint head `f3eacd44fe3adc4b0fb7b99dafc5ade215c2a682`,
+  tree `fd76478b73032cbc5706e6be88c61d84b0fc9465`, closes those paths with exact
+  ordered evidence paragraphs, source-line-consecutive canonical tables across all
+  seven surfaces, case-insensitive unique matrix classifications, and explicit
+  counterclaim negatives. The terminal re-audit reports P0/P1/P2/P3 none; the full
+  root gate and documentation generation pass on that replacement head.
+- The same audit also found one fused bullet in accepted PR #54's rendered body.
+  That metadata-only defect is corrected: ordered parents and exact-head push CI are
+  separate bullets, the body still begins with code point 35 (`#`), contains no BOM,
+  and all accepted identities, conclusions, exclusions, and alert #4 wording remain
+  unchanged. A read-only recheck found no remaining metadata blocker.
 
 ## CAP-018-EXACT-ARRAY-VALUE-COMPOSITION - immutable array-producing CPU pipeline
 
