@@ -99,6 +99,96 @@
   be designed first would change the decision and move CAP-016 behind the higher-
   leverage architecture task rather than broadening semantics.
 
+### CAP-016 readiness result - mandatory architecture stop and rerank
+
+- Decision: `NO IMPLEMENTATION` under the authorized boundary. This is a completed
+  readiness result and strategic rerank, not a blocked project goal. The founding PDF
+  defines only top-level dotted `import identifier(.identifier)* [as identifier];` and
+  says the frontend resolves names; neither founding document defines item visibility,
+  qualified lookup, import shadowing/collisions, cycles, file/module identity, glob or
+  re-export behavior, or migration from flattened compilation. The repository's
+  design-only language documents contain aspirations but explicitly are not executable
+  implementation evidence. Choosing Rust-like rules now would invent Aero semantics.
+- Exhaustive current architecture: the accepted collector resolves only root-level
+  `mod x;` through file-first `x.aero` then `x/mod.aero`, parses each file with its
+  filename, rejects a top-level nested `mod`, and appends every direct-module AST to one
+  root AST. Functions, structs, enums, traits, calls, checked function maps, LLVM
+  symbols, and generic struct/enum/function/trait specialization identities are global
+  and unqualified. Constants alone normalize per source. `use` direct/alias/glob and
+  founding `import` direct/alias shapes remain parsed with locations but reject through
+  one shared semantic/checked-admission cause. `pub` survives only on `ModDecl`; the
+  parser erases it from functions, structs, enums, and traits. General qualified calls
+  and types are not AST-representable; `X::Y` in expression position denotes an enum
+  variant. Cache V1 intentionally frames exact root bytes plus ordered direct-module
+  name/candidate/source without host-root paths.
+- Migration evidence: 43 tracked example roots contain `mod`; all 111 tracked Aero
+  example files contain zero Aero `pub`, `use`, or `import` declarations. CAP-015's
+  representative telemetry program and existing native gates rely on unqualified
+  cross-file calls/types, and accepted tests explicitly require non-`pub` module
+  functions to remain unqualified-callable across root/module/module directions.
+  Keeping flattening while accepting imports would make visibility false; enforcing
+  privacy/imports would regress accepted programs; enabling a source-dependent
+  namespace mode would invent an implicit compatibility profile.
+- Phase and specialization result: a truthful minimum crosses at least five compiler
+  phases: parser/AST provenance and visibility; module graph/elaboration and binding;
+  semantic plus shared specialization qualification; independent checked identity and
+  verifier proof; and collision-free LLVM naming. Cache/compiler-service migration is
+  an additional surface. CAP-013's shared primitive-alias identity does not carry a
+  module qualifier, and inserting feature-local qualification into each generic system
+  would recreate the exact classifier proliferation risk. The task therefore exceeds
+  the two-phase stop threshold before production mutation.
+- Complete topology disposition: the eventual first slice requires one canonical entry
+  root/direct-child identity, preserved file-first physical mapping, default-private
+  declarations plus explicit exports, one selected top-level named direct/alias import
+  syntax, deterministic module-local/imported lookup and collisions, finite acyclic
+  graph diagnostics, root-relative canonical cache/diagnostic identity, qualification
+  before the one shared specialization plan, verifier-bound resolved symbols, and
+  collision-free private LLVM names. Initially reject implicit flattening in that mode,
+  private imports, unimported cross-file access, source-order winners, duplicate module/
+  export/alias identity, glob/list/group/local imports, `pub use/import`, re-exports,
+  nested modules, cycles, undeclared files, forged raw checked names, and stable-profile
+  widening. Preserve package/external roots, separate compilation/ABI, LSP/doc semantic
+  integration, overloading, recursive graphs, and cross-module generic capability for a
+  later explicitly authorized migration architecture.
+- Task-local red evidence: canonical `mod sensor; use sensor::read;` plus public
+  `sensor.aero::read` rejects consistently at `main.aero:2:1` through raw semantics,
+  independent checked admission, `check_file`, `compile_file`, and CLI
+  `check`/`build`/`run`; no requested LLVM or native artifact survives. Direct alias and
+  both founding-import shapes retain their distinct shared rejections. A qualified
+  `sensor::read()` is parsed as an enum variant and rejects as an unknown enum. Public
+  and private flattened `read` controls both pass, while two same-named module
+  functions reject in the global function registry. Existing containment tests pass
+  13/13 and the flattened direct-module control passes 1/1. Probe evidence remains
+  outside the repository under the task-local system temp directory.
+- Newly enumerated false-success boundary: a function/block-local `mod missing;` is
+  accepted by the common statement parser, missed by the root-only collector, and then
+  silently ignored by semantic analysis and checked admission/lowering. This is a real
+  invalid-program false success within the same incomplete module/provenance class.
+  Do not add a lone parser or semantic guard: `ModDecl` lacks a source location and raw
+  checked AST construction must also fail closed, so a trustworthy repair participates
+  in the broader shared provenance/placement architecture and exceeds the current
+  phase boundary. Keep it explicit and reopen it with the module migration task.
+- Decision synchronization authorization: before starting the next behavior task,
+  amend the current ranking/next-action wording in `TASK_LEDGER.md`,
+  `PROJECT_STATE.md`, `CURRENT_CAPABILITY_AUDIT.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `CONFORMANCE_PLAN.md`, `README.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs` only. Record CAP-016 as a
+  completed readiness stop without a capability/profile/matrix promotion, retain
+  modules/imports/visibility as `PARSED_ONLY`, expose the local-`mod` false-success, and
+  move typed `Result` propagation to the next separately authorized readiness/probe.
+  The first change after this amendment must be a failing claim-contract assertion;
+  no production, example, workflow, dependency, release, benchmark, protection, or
+  external-artifact change is authorized.
+- What changes the decision: an explicit module RFC/migration contract that chooses the
+  executable syntax, privacy and shadow rules, flattened-program migration/versioning,
+  canonical qualified specialization identity, cache/diagnostic identity, and a shared
+  provenance-aware AST elaboration authority can reopen CAP-016. Until then, the next
+  ranked executable direction is typed `Result` propagation across ordinary call
+  chains. Its readiness must independently freeze syntax, unchanged-error early return,
+  exact type/ownership compatibility, spans, and explicit-`Match` interaction before
+  any behavior mutation; runtime byte/file acquisition remains third and stopped.
+
 ## CAP-015 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-015-ACCEPTANCE-SYNC`, authorized bounded
