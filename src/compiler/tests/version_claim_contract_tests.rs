@@ -105,6 +105,32 @@ fn table_line(line: &str) -> &str {
     line.trim_start().strip_prefix('>').unwrap_or(line).trim()
 }
 
+fn normalized_markdown_paragraphs(document: &str) -> Vec<String> {
+    let mut paragraphs = Vec::new();
+    let mut current = Vec::new();
+    for line in document.lines() {
+        let line = table_line(line);
+        if line.is_empty() {
+            if !current.is_empty() {
+                paragraphs.push(current.join(" "));
+                current.clear();
+            }
+        } else {
+            current.push(line);
+        }
+    }
+    if !current.is_empty() {
+        paragraphs.push(current.join(" "));
+    }
+    paragraphs
+}
+
+fn table_cells(line: &str) -> Option<Vec<&str>> {
+    let line = table_line(line);
+    line.starts_with('|')
+        .then(|| line.trim_matches('|').split('|').map(str::trim).collect())
+}
+
 fn assert_bounded_acceptance_evidence(
     document_name: &str,
     document: &str,
@@ -112,17 +138,57 @@ fn assert_bounded_acceptance_evidence(
     identities: &[&str],
     require_order: bool,
 ) {
+    let paragraphs = normalized_markdown_paragraphs(document);
+    let matching = paragraphs
+        .iter()
+        .filter(|paragraph| paragraph.contains(identities[0]))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matching.len(),
+        1,
+        "{document_name} must contain exactly one {capability} evidence paragraph"
+    );
+    let paragraph = matching[0];
+    assert!(
+        paragraph.len() < 2_000,
+        "{document_name} has an unbounded {capability} evidence paragraph"
+    );
+
     let mut positions = Vec::with_capacity(identities.len());
     let mut search_from = 0;
     for identity in identities {
-        let relative = document[search_from..].find(identity).unwrap_or_else(|| {
-            panic!("{document_name} is missing ordered {capability} evidence {identity}")
-        });
-        let position = search_from + relative;
+        let count = paragraph.matches(identity).count();
+        if capability == "CAP-018" {
+            assert_eq!(
+                count, 1,
+                "{document_name} must bind {capability} evidence {identity} exactly once"
+            );
+        } else {
+            assert!(
+                count > 0,
+                "{document_name} is missing {capability} evidence {identity}"
+            );
+        }
+        let position = if require_order {
+            search_from
+                + paragraph[search_from..].find(identity).unwrap_or_else(|| {
+                    panic!("{document_name} is missing ordered {capability} evidence {identity}")
+                })
+        } else {
+            paragraph
+                .find(identity)
+                .expect("identity count already proved nonzero")
+        };
         positions.push(position);
         if require_order {
             search_from = position + identity.len();
         }
+    }
+    if require_order {
+        assert!(
+            positions.windows(2).all(|pair| pair[0] < pair[1]),
+            "{document_name} does not preserve ordered {capability} evidence"
+        );
     }
     let start = *positions
         .iter()
@@ -136,36 +202,68 @@ fn assert_bounded_acceptance_evidence(
         .expect("nonempty evidence identities");
     let cursor = positions[final_index] + identities[final_index].len();
     assert!(
-        cursor - start < 2_000,
+        cursor - start < 700,
         "{document_name} detaches the {capability} evidence identities"
     );
-    let conclusion = &document[cursor..document.len().min(cursor + 160)];
-    let normalized = conclusion.to_ascii_lowercase();
-    let pass = normalized.find("pass");
-    let fail = normalized.find("fail");
+    let conclusion = paragraph[cursor..].trim_start();
     assert!(
-        pass.is_some() && fail.map_or(true, |failure| pass.expect("pass checked") < failure),
+        [
+            "` pass.",
+            "` pass,",
+            "` also pass.",
+            "` also pass,",
+            "` all pass.",
+            "` all pass,",
+        ]
+        .iter()
+        .any(|prefix| conclusion.starts_with(prefix)),
         "{document_name} does not bind a passing {capability} conclusion to its exact evidence: {conclusion:?}"
     );
+    if capability == "CAP-018" {
+        let normalized = paragraph.to_ascii_lowercase();
+        for contradiction in ["fail", "pending", "not pass", "did not pass"] {
+            assert!(
+                !normalized.contains(contradiction),
+                "{document_name} gives contradictory {capability} evidence: {contradiction}"
+            );
+        }
+    }
 }
 
 fn assert_post_cap018_ranking_table(document_name: &str, document: &str) {
-    let lines = document.lines().map(table_line).collect::<Vec<_>>();
-    assert_eq!(
-        lines
-            .windows(POST_CAP018_RANKING_ROWS.len())
-            .filter(|window| *window == POST_CAP018_RANKING_ROWS)
-            .count(),
-        1,
+    let rows = document
+        .lines()
+        .filter_map(|line| table_cells(line).map(|cells| (table_line(line), cells)))
+        .collect::<Vec<_>>();
+    let mut indices = Vec::new();
+    for expected in POST_CAP018_RANKING_ROWS {
+        let expected_cells = table_cells(expected).expect("canonical ranking table row");
+        let label = expected_cells[1];
+        let matches = rows
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, cells))| {
+                cells
+                    .get(1)
+                    .is_some_and(|actual| actual.eq_ignore_ascii_case(label))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches.len(),
+            1,
+            "{document_name} must contain one unambiguous ranking row for {label}"
+        );
+        let (index, (actual, _)) = matches[0];
+        assert_eq!(
+            *actual, expected,
+            "{document_name} changes the rank, scores, or total for {label}"
+        );
+        indices.push(index);
+    }
+    assert!(
+        indices.windows(2).all(|pair| pair[1] == pair[0] + 1),
         "{document_name} must preserve one consecutive ordered post-CAP-018 ranking"
     );
-    for expected in POST_CAP018_RANKING_ROWS {
-        assert_eq!(
-            lines.iter().filter(|line| **line == expected).count(),
-            1,
-            "{document_name} must contain exactly one canonical ranking row: {expected}"
-        );
-    }
 }
 
 fn assert_cap014_acceptance_evidence(document_name: &str, document: &str) {
@@ -223,6 +321,7 @@ fn assert_post_cap018_successor_order(document_name: &str, document: &str) {
 
 fn assert_cap018_boundaries(document_name: &str, document: &str) {
     let normalized = normalized_words(document);
+    let normalized_lower = normalized.to_ascii_lowercase();
     for expected in [
         CAP018_PROFILE_HISTORY,
         CAP015_M1_BOUNDARY,
@@ -248,8 +347,30 @@ fn assert_cap018_boundaries(document_name: &str, document: &str) {
         "CAP-018 candidate (not accepted)",
     ] {
         assert!(
-            !normalized.contains(stale),
+            !normalized_lower.contains(&stale.to_ascii_lowercase()),
             "{document_name} retains stale post-CAP-018 wording: {stale}"
+        );
+    }
+    for counterclaim in [
+        "cap-018 creates a new profile",
+        "cap-018 created a new profile",
+        "cap-018 adds a new profile",
+        "cap-018 is a new profile",
+        "cap-018 is a separate profile",
+        "cap-014 is not the profile origin",
+        "cap-014 is no longer the profile origin",
+        "cap-015 changes compiler production",
+        "cap-015 changes language-profile code",
+        "cap-015 widens `exact-i32-array-v0`",
+        "cap-016 is an accepted capability",
+        "cap-017 is an accepted capability",
+        "cap-016 and cap-017 are accepted capabilities",
+        "cap-016 is the next implementation",
+        "cap-017 is the next implementation",
+    ] {
+        assert!(
+            !normalized_lower.contains(counterclaim),
+            "{document_name} contradicts accepted history: {counterclaim}"
         );
     }
 }
@@ -565,10 +686,18 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .split_once("## Compiler, tooling, and ecosystem surfaces")
         .expect("matrix compiler/tooling section")
         .0;
+    let language_feature_rows = language_features
+        .lines()
+        .filter_map(|line| table_cells(line).map(|cells| (table_line(line), cells)))
+        .collect::<Vec<_>>();
     let exact_profile_rows = language_features
         .lines()
         .map(table_line)
-        .filter(|line| line.starts_with("| Selected CPU-only `exact-i32-array-v0` profile"))
+        .filter(|line| {
+            let lower = line.to_ascii_lowercase();
+            lower.starts_with('|')
+                && (lower.contains("exact-i32-array-v0") || lower.contains("cap-018"))
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         exact_profile_rows,
@@ -577,10 +706,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ],
         "CAP-014/CAP-018 must classify in exactly one widened profile row"
     );
-    let stable_rows = language_features
-        .lines()
-        .map(table_line)
-        .filter(|line| line.ends_with("| STABLE |"))
+    let stable_rows = language_feature_rows
+        .iter()
+        .filter(|(_, cells)| {
+            cells
+                .last()
+                .is_some_and(|classification| classification.eq_ignore_ascii_case("stable"))
+        })
+        .map(|(line, _)| *line)
         .collect::<Vec<_>>();
     assert_eq!(
         stable_rows,
@@ -595,6 +728,31 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(language_features.contains(
         "| Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |"
     ));
+    for (label, expected) in [
+        (
+            "Integers/floats and arithmetic",
+            "| Integers/floats and arithmetic | Y | P | Y | — | P | — | P | P | P | Y | P | P | Y | PARTIAL |",
+        ),
+        (
+            "Fixed arrays",
+            "| Fixed arrays | Y | Y | Y | P | P | P | P | P | P | Y | P | P | Y | PARTIAL |",
+        ),
+    ] {
+        let matches = language_feature_rows
+            .iter()
+            .filter(|(_, cells)| {
+                cells
+                    .first()
+                    .is_some_and(|actual| actual.eq_ignore_ascii_case(label))
+            })
+            .map(|(line, _)| *line)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches,
+            [expected],
+            "matrix must preserve one canonical {label} classification row"
+        );
+    }
     assert!(matrix.contains(
         "| Representative scalar application/conformance subset (`M1-001`, enriched by accepted `CAP-015`) | Y | Y | Verified LLVM plus exact Linux/Windows native output and exit 91 | Y | Y | Y | END_TO_END |"
     ));
@@ -746,18 +904,27 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     for (document_name, document) in [
         ("README.md", readme.as_str()),
         ("CURRENT_CAPABILITY_AUDIT.md", audit.as_str()),
+        ("FRAMEWORK_ALIGNMENT.md", alignment.as_str()),
         ("PROJECT_STATE.md", project_state.as_str()),
         ("SPEC_IMPLEMENTATION_MATRIX.md", matrix.as_str()),
         ("Roadmap.md", roadmap.as_str()),
+        ("CONFORMANCE_PLAN.md", conformance.as_str()),
     ] {
         assert_post_cap018_ranking_table(document_name, document);
     }
-    assert!(!matrix.contains("Selected `CAP-015` profile"));
-    assert!(!matrix.contains("Parser feature row (accepted `CAP-015`)"));
-    assert!(!matrix.contains("Selected `CAP-018` profile"));
-    assert!(!matrix.contains("Parser feature row (accepted `CAP-018`)"));
-    assert!(!matrix.contains("Module feature row (accepted `CAP-018`)"));
-    assert!(!matrix.contains("Result-propagation row (accepted `CAP-018`)"));
+    let cap018_matrix_rows = matrix
+        .lines()
+        .map(table_line)
+        .filter(|line| line.starts_with('|') && line.to_ascii_lowercase().contains("cap-018"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cap018_matrix_rows,
+        [
+            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |",
+            "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/trap gates widened by CAP-018 immutable result composition | P | P | PARTIAL |",
+        ],
+        "CAP-018 may classify only in the widened exact profile and its existing CPU platform row"
+    );
     assert!(readme.contains(
         "General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported."
     ));
@@ -948,7 +1115,7 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
         project_state.contains("CAP-006 accepted: explicit user-defined generic CopyData enums")
     );
     assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
-    assert!(project_state.contains(CAP016_CAP017_STOP_BOUNDARY));
+    assert!(normalized_words(&project_state).contains(CAP016_CAP017_STOP_BOUNDARY));
     assert!(project_state.contains("Current accepted public master is CAP-018"));
     assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(!project_state.contains("exact next action is this bounded"));

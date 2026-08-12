@@ -41,8 +41,9 @@ CAP-014 remains the profile origin and first bounded Milestone 3 CPU slice; CAP-
 is the latest accepted compiler/profile capability. CAP-015 remains the accepted
 M1-001 representative-integration checkpoint. CAP-015 changes no compiler production
 or language-profile code. CAP-016 and CAP-017 remain completed readiness/architecture
-stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013 remains the shared specialization identity/
-phase authority, and CAP-018 adds no specialization classifier. The named profile
+stops, not accepted capabilities; neither adds a profile or matrix row. CAP-013 remains
+the shared specialization identity and phase authority, and CAP-018 adds no
+specialization classifier. The named profile
 remains `END_TO_END`; broad integers and fixed arrays remain `PARTIAL`; only
 `stable-scalar-v0` is `STABLE`.
 
