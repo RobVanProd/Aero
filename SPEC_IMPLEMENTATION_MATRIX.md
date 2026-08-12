@@ -2,23 +2,24 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-011 merge
-`34b81eee1d598cbd00693f40301f1a4f72481d07`. Exact candidate
-`dea5714e87e1fe3c059717b3e5aa23b8860b62f2` and the merge have identical tree
-`b16d5f68e791c969a0aa81723801b2d1ae7c7f41`; candidate push/PR CI
-`31546356295`/`31546382195`, Rust CI `31546382191`, CodeQL `31546380741`,
-protected integration, merge-head CI `31546637614`, Rust CI `31546637544`, and
-CodeQL `31546636973` pass, including pinned LLVM/Clang 22 Linux/Windows native
+Latest accepted compiler-capability master is protected CAP-012 merge
+`49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`. Exact candidate
+`79d14866061184bc619ce5c92603c0964a31e74d` and the merge have identical tree
+`83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`; candidate push/PR CI
+`31552115552`/`31552154519`, Rust CI `31552154532`, CodeQL `31552152210`,
+protected integration, merge-head CI `31554826581`, Rust CI `31554826582`, and
+CodeQL `31554826233` pass, including pinned LLVM/Clang 22 Linux/Windows native
 `-O0`/`-O2` gates.
 
-CAP-012 is a candidate, not an accepted row. Its local tree composes immediate
+Accepted CAP-012 composes immediate
 nonescaping immutable/mutable loans over recursive finite CopyData projections with
 ordinary nongeneric reference calls. Shared classification, checked root/source/type
 metadata, explicit loan endings, verifier corruption controls, the telemetry
 application, runtime bounds fixtures, formatting, correctness Clippy, and the complete
-242-library/35-binary/integration/doc gate pass locally. Public exact-head and pinned
-LLVM 22 results remain pending; accepted-master classifications below therefore do
-not rely on CAP-012.
+242-library/35-binary/integration/doc gate pass. Candidate-head pinned LLVM/native,
+protected integration, and exact merge-head results pass. This remains a `PARTIAL`
+reference/ownership slice and does not admit stored references, general aliasing,
+lifetimes/drop, partial moves, public ABI, or general memory-safety claims.
 
 Accepted CAP-011 composes the existing generic-struct,
 generic-function, fixed-array, runtime-index, and projected-write rows into a bounded
@@ -168,7 +169,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Mixed exclusive/shared-reference signatures (`CORE-088` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Multiple exclusive-reference signatures (`CORE-089` accepted) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Static projected CopyData assignment (`CORE-090` accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
-| Nonescaping projected CopyData call loans (`CAP-012` candidate; not accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
+| Nonescaping projected CopyData call loans (accepted `CAP-012`) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |
 | Closures | P | P | P | N | N | N | N | N | N | N | Y | Y | Y | PARSED_ONLY |
 | Modules/imports/visibility | Y | Y | P | P | N | N | N | N | N | P | P | P | Y | PARSED_ONLY |
 | Standard collections | P | Y | P | N | P | P | P | P | ? | P | P | P | P | EXPERIMENTAL |

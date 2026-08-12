@@ -5,12 +5,12 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-11
 
 Current accepted public master:
-protected CAP-011 compiler-capability merge
-`34b81eee1d598cbd00693f40301f1a4f72481d07`.
+protected CAP-012 compiler-capability merge
+`49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`.
 
-### CAP-012 candidate only: nonescaping projected CopyData call loans
+### CAP-012 accepted: nonescaping projected CopyData call loans
 
-The candidate branch admits immediate `&place` and `&mut place` arguments over the
+Accepted CAP-012 admits immediate `&place` and `&mut place` arguments over the
 complete nonempty finite field/tuple/fixed-array projection class rooted in an
 initialized local CopyData owner. Runtime selectors reuse the existing once-evaluated
 bounds-guarded address authority. Mutable conflicts remain conservative at the
@@ -22,9 +22,13 @@ have parity coverage. New checked instructions bind root, projected source, exac
 logical types, mutability, and lifecycle, while corruption controls reject metadata,
 source, operand, duplication, and missing-end changes. Local focused, representative,
 compatibility, format, Clippy, complete 242-library/35-binary/integration/doc, and
-runtime-failure-corpus structure gates pass. Exact public candidate-head and pinned
-LLVM 22 native results are not yet available. Accepted capability remains CAP-011;
-CAP-012 is not public truth until protected integration and merge-head evidence pass.
+runtime-failure-corpus structure gates pass. Exact candidate `79d14866061184bc619ce5c92603c0964a31e74d`
+passed all candidate-head results, including pinned LLVM/Clang 22 native execution.
+Protected PR #46 merged it as `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`;
+candidate and merge share tree `83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`,
+and exact merge-head CI `31554826581`, Rust CI `31554826582`, and CodeQL
+`31554826233` pass. The bounded row is accepted `PARTIAL`, and with CAP-011 it
+satisfies the selected Milestone 2 exit gate; general ownership remains unsupported.
 
 ### CAP-011 accepted: generic fixed-window algorithms
 
@@ -355,11 +359,11 @@ benchmarks, and general memory-safety claims remain excluded.
 | Requirement | State | Evidence and remaining gap |
 |---|---|---|
 | Fatal invalid lexical/syntactic input on trusted paths | Met for the current checked compiler/CLI routes | Strict lexer/parser, CLI status, module, and no-artifact controls pass; unchecked compatibility APIs remain outside certification. |
-| No invented or silently dropped unsupported expressions | Partial | The audited closure/call/method/import classes fail closed and accepted CAP-007 makes the frozen trusted validation routes consume canonical checked admission. The selected stable subset and explicitly uncertified compatibility/parse-only routes remain outside a completed milestone contract. |
+| No invented or silently dropped unsupported expressions | Partial outside the selected profile | The audited closure/call/method/import classes fail closed, accepted CAP-007 makes the frozen trusted validation routes consume canonical checked admission, and CAP-009 exhaustively classifies the selected `stable-scalar-v0` subset. Explicitly uncertified compatibility/parse-only routes and the wider experimental language remain outside that contract. |
 | Function, return, binding, and scope contracts before IR | Partial | Many exact classes are controlled, while generic/context annotation, broader scope, unsupported result, and public-API residuals remain excluded rather than milestone-complete. |
 | Nonzero failure and no invalid artifacts | Met for checked public `check`/`build`/`run` routes | CLI status and artifact-hygiene suites cover admitted failure paths; experimental tools are not promoted into this contract. |
 | Claim inventory by stage | Met and continuously maintained | The matrix, backend status, current audit, claim-verification controls, and README separate parsed, partial, experimental, and unsupported behavior. |
-| Exit: stable subset, canonical diagnostic/artifact contract, full gates, independent boundary verification | Partial | Accepted CAP-007 closes the canonical checked-entrypoint and artifact mechanism for frozen trusted routes, and per-slice full gates plus independent checked-IR/corruption controls exist. No authoritative language subset is yet classified `STABLE`. |
+| Exit: stable subset, canonical diagnostic/artifact contract, full gates, independent boundary verification | Met for the selected profile | Accepted CAP-007 closes the canonical checked-entrypoint and artifact mechanism for frozen trusted routes, CAP-009 classifies `stable-scalar-v0` as `STABLE`, and full public/pinned gates plus independent checked-IR/corruption controls pass. The wider language remains experimental. |
 
 ### Milestone 1 gap classification
 
@@ -374,18 +378,22 @@ benchmarks, and general memory-safety claims remain excluded.
 
 ### Work already attributable to Milestone 2
 
-CORE-043 through CORE-090 and accepted CAP-001 through CAP-008 implemented substantial typed
+CORE-043 through CORE-090 and accepted CAP-001 through CAP-012 implemented substantial typed
 aggregate, enum/`Match`, CopyData composition, CFG ownership, borrowing, and mutation fragments before the
 Milestone 0/1 exits were closed. This work is retained, tested, and useful, but it does
-not satisfy Milestone 2: collections, general generic substitution, trait dispatch, general
+not complete Milestone 2's broader ambitions: collections, general generic substitution, broader trait dispatch, general
 error propagation, general lifetimes/drop/unsafe boundaries, public layout/ABI/
-destruction, and an ownership-intensive representative program remain open. Accepted
+destruction, and ordinary-program breadth remain open. Accepted
 CAP-003 closes a bounded concrete CopyData `Option`/`Result` carrier slice; CAP-004
-closes the generic-data-definition half of the Milestone 2 exit only for explicit
+adds explicit
 recursive finite CopyData structs; CAP-005 adds one bound-free whole-value generic
 transport-function slice. Accepted CAP-006 adds one explicit user-defined
 recursive-CopyData generic-enum specialization slice. CAP-008 adds only terminal
-whole-arm and payload-leaf nonbinding wildcards over that existing enum universe.
+whole-arm and payload-leaf nonbinding wildcards over that existing enum universe;
+CAP-010 adds required-only static trait dispatch; CAP-011 supplies the selected generic
+data structure; and CAP-012 supplies the selected ownership-intensive representative
+program through nested call-only loans. CAP-011 and CAP-012 therefore meet the
+selected Milestone 2 exit gate without making the broader milestone complete.
 General substitution and operations, collections, broader pattern semantics, and
 broader error propagation remain open.
 The project therefore remains **Minimal Prototype / correctness recovery**.
