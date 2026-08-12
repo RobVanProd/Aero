@@ -1290,18 +1290,21 @@ jobs:
           fi
           if [ "${name}" = kernel ]; then
             for anchor in \
-              'define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)' \
+              'define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)' \
               'define [8 x i32] @forward_array([8 x i32] %aero.arg.values)' \
-              'call [8 x i32] @offset_first_lane([8 x i32]' \
+              'call [8 x i32] @increment_each_lane([8 x i32]' \
               'call [8 x i32] @forward_array([8 x i32]' \
               'ret [8 x i32]'; do
               grep -Fq "${anchor}" "${llvm}"
             done
+            kernel_mutation_pattern='(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32 (?<kernel_index>%reg[0-9]+), 0\r?\n  (?<kernel_upper>%reg[0-9]+) = icmp slt i32 \k<kernel_index>, 8\r?\n  (?<kernel_inbounds>%reg[0-9]+) = and i1 \k<kernel_lower>, \k<kernel_upper>\r?\n  br i1 \k<kernel_inbounds>, label %aero\.bounds\.safe\.(?<kernel_place>[0-9]+), label %aero\.bounds\.trap\.\k<kernel_place>\r?\naero\.bounds\.trap\.\k<kernel_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<kernel_place>:\r?\n  (?<kernel_extended>%reg[0-9]+) = sext i32 \k<kernel_index> to i64\r?\n  (?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \[8 x i32\], \[8 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<kernel_extended>\r?\n(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$'
+            kernel_mutation_count="$(grep -Pzo -- "${kernel_mutation_pattern}" "${llvm}" | tr -cd '\000' | wc -c)"
+            test "${kernel_mutation_count}" -eq 1
           fi
           if [ "${dynamic_bounds}" = yes ]; then
             guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'
             guard_count="$(grep -Pzo -- "${guard_block_pattern}" "${llvm}" | tr -cd '\000' | wc -c)"
-            test "${guard_count}" -eq 2
+            test "${guard_count}" -eq 4
           else
             if grep -Eq 'icmp sge i32|call void @llvm\.trap\(\)|sext i32' "${llvm}"; then
               echo "exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
@@ -1336,7 +1339,7 @@ jobs:
           printf '%s\n' "${public_output}" | grep -Fq "Exit code: ${expected}"
         done
 
-        for bounds_file in negative_index.aero equal_to_count_index.aero; do
+        for bounds_file in negative_index.aero equal_to_count_index.aero negative_write_index.aero equal_to_count_write_index.aero; do
           bounds_case="${bounds_file%.aero}"
           bounds_source="examples/fixed_int_array_v0/runtime_fail/${bounds_file}"
           bounds_llvm="${RUNNER_TEMP}/exact_i32_array_${bounds_case}.linux.ll"
@@ -1351,6 +1354,11 @@ jobs:
           grep -Fq 'icmp sge i32' "${bounds_llvm}"
           grep -Fq 'icmp slt i32' "${bounds_llvm}"
           grep -Fq 'sext i32' "${bounds_llvm}"
+          if [[ "${bounds_case}" == *_write_index ]]; then
+            bounds_write_pattern='(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32 (?<bounds_write_index>%reg[0-9]+), 0\r?\n  (?<bounds_write_upper>%reg[0-9]+) = icmp slt i32 \k<bounds_write_index>, 2\r?\n  (?<bounds_write_inbounds>%reg[0-9]+) = and i1 \k<bounds_write_lower>, \k<bounds_write_upper>\r?\n  br i1 \k<bounds_write_inbounds>, label %aero\.bounds\.safe\.(?<bounds_write_place>[0-9]+), label %aero\.bounds\.trap\.\k<bounds_write_place>\r?\naero\.bounds\.trap\.\k<bounds_write_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<bounds_write_place>:\r?\n  (?<bounds_write_extended>%reg[0-9]+) = sext i32 \k<bounds_write_index> to i64\r?\n  (?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \[2 x i32\], \[2 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<bounds_write_extended>\r?\n  store i32 9, i32\* \k<bounds_write_target>, align 4\r?$'
+            bounds_write_count="$(grep -Pzo -- "${bounds_write_pattern}" "${bounds_llvm}" | tr -cd '\000' | wc -c)"
+            test "${bounds_write_count}" -eq 1
+          fi
           opt-22 -passes=verify -disable-output "${bounds_llvm}"
           llc-22 -verify-machineinstrs "${bounds_llvm}" -o "${bounds_machine}"
 
@@ -2350,22 +2358,27 @@ jobs:
           }
           if ($specimen.Name -ceq "kernel") {
             foreach ($anchor in @(
-              "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+              "define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)",
               "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
-              "call [8 x i32] @offset_first_lane([8 x i32]",
+              "call [8 x i32] @increment_each_lane([8 x i32]",
               "call [8 x i32] @forward_array([8 x i32]",
               "ret [8 x i32]"
             )) {
               if (-not $llvmText.Contains($anchor)) {
-                throw "Windows exact-i32-array-v0 kernel omitted immutable array-value anchor $anchor"
+                throw "Windows exact-i32-array-v0 kernel omitted exact array-value anchor $anchor"
               }
+            }
+            $kernelMutationPattern = '(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32 (?<kernel_index>%reg[0-9]+), 0\r?\n  (?<kernel_upper>%reg[0-9]+) = icmp slt i32 \k<kernel_index>, 8\r?\n  (?<kernel_inbounds>%reg[0-9]+) = and i1 \k<kernel_lower>, \k<kernel_upper>\r?\n  br i1 \k<kernel_inbounds>, label %aero\.bounds\.safe\.(?<kernel_place>[0-9]+), label %aero\.bounds\.trap\.\k<kernel_place>\r?\naero\.bounds\.trap\.\k<kernel_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<kernel_place>:\r?\n  (?<kernel_extended>%reg[0-9]+) = sext i32 \k<kernel_index> to i64\r?\n  (?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \[8 x i32\], \[8 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<kernel_extended>\r?\n(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$'
+            $kernelMutationMatches = [regex]::Matches($llvmText, $kernelMutationPattern)
+            if ($kernelMutationMatches.Count -ne 1) {
+              throw "Windows exact-i32-array-v0 kernel omitted its identity-linked guarded mutable store"
             }
           }
           if ($specimen.Dynamic) {
             $guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32 (?<index>%reg[0-9]+), 0\r?\n  (?<upper>%reg[0-9]+) = icmp slt i32 \k<index>, [0-9]+\r?\n  (?<inbounds>%reg[0-9]+) = and i1 \k<lower>, \k<upper>\r?\n  br i1 \k<inbounds>, label %aero\.bounds\.safe\.(?<place>[0-9]+), label %aero\.bounds\.trap\.\k<place>\r?\naero\.bounds\.trap\.\k<place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<place>:\r?\n  (?<extended>%reg[0-9]+) = sext i32 \k<index> to i64\r?\n  %ptr[0-9]+ = getelementptr inbounds (?<aggregate>\[[0-9]+ x i32\]), \k<aggregate>\* %ptr[0-9]+, i64 0, i64 \k<extended>\r?$'
             $guardMatches = [regex]::Matches($llvmText, $guardPattern)
-            if ($guardMatches.Count -ne 2) {
-              throw "Windows exact-i32-array-v0 expected two identity-linked dynamic guard/address blocks"
+            if ($guardMatches.Count -ne 4) {
+              throw "Windows exact-i32-array-v0 expected four identity-linked dynamic guard/address blocks"
             }
           } elseif ($llvmText -match 'icmp sge i32|call void @llvm\.trap\(\)|sext i32') {
             throw "Windows exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
@@ -2406,7 +2419,7 @@ jobs:
           }
         }
 
-        foreach ($boundsFile in @("negative_index.aero", "equal_to_count_index.aero")) {
+        foreach ($boundsFile in @("negative_index.aero", "equal_to_count_index.aero", "negative_write_index.aero", "equal_to_count_write_index.aero")) {
           $boundsCase = [System.IO.Path]::GetFileNameWithoutExtension($boundsFile)
           $boundsSource = "examples/fixed_int_array_v0/runtime_fail/$boundsFile"
           $boundsLlvm = Join-Path $env:RUNNER_TEMP "exact_i32_array_$boundsCase.windows.ll"
@@ -2424,6 +2437,13 @@ jobs:
           foreach ($anchor in @("declare void @llvm.trap()", "icmp sge i32", "icmp slt i32", "sext i32")) {
             if (-not $boundsText.Contains($anchor)) {
               throw "Windows exact-i32-array-v0 $boundsCase omitted $anchor"
+            }
+          }
+          if ($boundsCase.EndsWith("_write_index", [System.StringComparison]::Ordinal)) {
+            $boundsWritePattern = '(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32 (?<bounds_write_index>%reg[0-9]+), 0\r?\n  (?<bounds_write_upper>%reg[0-9]+) = icmp slt i32 \k<bounds_write_index>, 2\r?\n  (?<bounds_write_inbounds>%reg[0-9]+) = and i1 \k<bounds_write_lower>, \k<bounds_write_upper>\r?\n  br i1 \k<bounds_write_inbounds>, label %aero\.bounds\.safe\.(?<bounds_write_place>[0-9]+), label %aero\.bounds\.trap\.\k<bounds_write_place>\r?\naero\.bounds\.trap\.\k<bounds_write_place>:\r?\n  call void @llvm\.trap\(\)\r?\n  unreachable\r?\naero\.bounds\.safe\.\k<bounds_write_place>:\r?\n  (?<bounds_write_extended>%reg[0-9]+) = sext i32 \k<bounds_write_index> to i64\r?\n  (?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \[2 x i32\], \[2 x i32\]\* %ptr[0-9]+, i64 0, i64 \k<bounds_write_extended>\r?\n  store i32 9, i32\* \k<bounds_write_target>, align 4\r?$'
+            $boundsWriteMatches = [regex]::Matches($boundsText, $boundsWritePattern)
+            if ($boundsWriteMatches.Count -ne 1) {
+              throw "Windows exact-i32-array-v0 $boundsCase omitted its identity-linked guarded mutable store"
             }
           }
           & "$llvmBin\opt.exe" -passes=verify -disable-output $boundsLlvm

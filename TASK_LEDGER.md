@@ -133,6 +133,30 @@
   evidence only. The representative application, mutation-specific bounds specimens,
   Linux/Windows O0/O2 lanes, root gate, immutable native evidence, review, and public
   candidate/merge-head checks remain required before acceptance.
+- Material product-gate checkpoint: the representative exact-array application now
+  copies its immutable eight-lane input into a mutable local, increments every lane
+  once through a guarded runtime loop, returns the produced array by value, and feeds
+  it through the accepted forwarding and dot-with-bias kernel. The source asserts all
+  eight original lanes remain unchanged, all eight result lanes equal source plus one,
+  the independent wrapping result remains `2035`, and public execution remains exit
+  `91`. The existing negative and equal-to-count read-trap specimens remain intact;
+  two separately tracked write-index specimens exercise `output[index] = 9` at `-1`
+  and `N`. Both existing Linux and Windows exact-profile workflow steps retain their
+  check/build/opt/llc/Clang O0/O2/public routes, now run all four trap controls, require
+  four complete kernel guard/address blocks, bind the mutable kernel guard/GEP to its
+  eventual same-pointer scalar store, and bind each write-failure guard/GEP to the
+  immediate same-pointer `store i32 9`. The Rust workflow contract scopes every anchor,
+  regex declaration/execution/count, and exact four-name bounds loop to each OS step so
+  one platform cannot mask deletion from the other. The first focused run after this
+  hardening exposed only a test-helper scope defect because LLVM reuses `%ptr` names
+  between functions; scoping each GEP consumer search to its enclosing function closed
+  that evidence bug without weakening the contract. The settled focused target passes
+  17/17, both workflow regex engines match the concrete LLVM exactly once, Bash and
+  PowerShell step bodies parse, workflow topology remains 4 jobs/83 named steps/77 run
+  blocks/15 Windows reset anchors, the public application exits 91, both new public
+  write controls trap with no program-output line, and the full root `./tools/test.sh`
+  gate passes. This remains local pre-candidate evidence; immutable pinned native and
+  public exact-head acceptance are still required.
 
 ## CAP-018-ACCEPTANCE-SYNC - immutable array-result composition accepted truth
 

@@ -8,8 +8,14 @@ fn dot_with_bias(left: [int; 8], right: [int; 8], bias: int) -> int {
     return accumulator;
 }
 
-fn offset_first_lane(values: [int; 8]) -> [i32; 8] {
-    return [values[0] + 1, values[1], values[2], values[3], values[4], values[5], values[6], values[7]];
+fn increment_each_lane(values: [int; 8]) -> [i32; 8] {
+    let mut output: [i32; 8] = values;
+    let mut index: int = 0;
+    while index < 8 {
+        output[index] = values[index] + 1;
+        index = index + 1;
+    }
+    return output;
 }
 
 fn forward_array(values: [i32; 8]) -> [int; 8] {
@@ -19,9 +25,9 @@ fn forward_array(values: [i32; 8]) -> [int; 8] {
 fn main() -> int {
     let activations: [int; 8] = [127, 1073741824, -128, 64, -64, 7, -3, 11];
     let weights: [int; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
-    let transformed = offset_first_lane(activations);
-    let result: int = dot_with_bias(forward_array(transformed), weights, 2147483000);
-    if activations[0] == 127 && transformed[0] == 128 && result == 2035 {
+    let transformed = increment_each_lane(activations);
+    let result: int = dot_with_bias(forward_array(transformed), weights, 2147483001);
+    if activations[0] == 127 && activations[1] == 1073741824 && activations[2] == -128 && activations[3] == 64 && activations[4] == -64 && activations[5] == 7 && activations[6] == -3 && activations[7] == 11 && transformed[0] == 128 && transformed[1] == 1073741825 && transformed[2] == -127 && transformed[3] == 65 && transformed[4] == -63 && transformed[5] == 8 && transformed[6] == -2 && transformed[7] == 12 && result == 2035 {
         return 91;
     }
     return 1;

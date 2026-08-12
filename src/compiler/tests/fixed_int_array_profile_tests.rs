@@ -19,6 +19,11 @@ const NEGATIVE_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_index.aero");
 const EQUAL_TO_COUNT_RUNTIME_INDEX: &str =
     include_str!("../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_index.aero");
+const NEGATIVE_RUNTIME_WRITE_INDEX: &str =
+    include_str!("../../../examples/fixed_int_array_v0/runtime_fail/negative_write_index.aero");
+const EQUAL_TO_COUNT_RUNTIME_WRITE_INDEX: &str = include_str!(
+    "../../../examples/fixed_int_array_v0/runtime_fail/equal_to_count_write_index.aero"
+);
 
 const IMMUTABLE_ARRAY_VALUE_COMPOSITION: &str = r#"
 fn transform(values: [int; 3]) -> [i32; 3] {
@@ -115,17 +120,28 @@ fn exact_options() -> CompilerOptions {
 
 fn reference_kernel() -> i32 {
     let source: [i32; 8] = [127, 1_073_741_824, -128, 64, -64, 7, -3, 11];
-    let mut left = source;
-    left[0] = left[0].wrapping_add(1);
+    let mut transformed = source;
+    for lane in &mut transformed {
+        *lane = lane.wrapping_add(1);
+    }
     let right: [i32; 8] = [8, 2, -7, 6, -5, 4, -3, 2];
-    let result = left
+    let result = transformed
         .into_iter()
         .zip(right)
-        .fold(2_147_483_000_i32, |accumulator, (left, right)| {
+        .fold(2_147_483_001_i32, |accumulator, (left, right)| {
             accumulator.wrapping_add(left.wrapping_mul(right))
         });
-    assert_eq!(source[0], 127, "Copy-array source must remain readable");
-    assert_eq!(left[0], 128, "returned transform must change one lane");
+    assert_eq!(
+        source,
+        [127, 1_073_741_824, -128, 64, -64, 7, -3, 11],
+        "Copy-array source must remain readable in every lane"
+    );
+    assert_eq!(
+        transformed,
+        [128, 1_073_741_825, -127, 65, -63, 8, -2, 12],
+        "returned mutable transform must update every lane"
+    );
+    assert_eq!(result, 2035, "mutable array-result kernel oracle drifted");
     result
 }
 
@@ -196,6 +212,61 @@ fn occurrences(haystack: &str, needle: &str) -> usize {
     haystack.match_indices(needle).count()
 }
 
+fn workflow_named_step<'a>(workflow: &'a str, name: &str) -> &'a str {
+    let header = format!("    - name: {name}");
+    assert_eq!(
+        occurrences(workflow, &header),
+        1,
+        "workflow must contain exactly one `{header}`"
+    );
+    let start = workflow.find(&header).expect("unique workflow step header");
+    let remaining = &workflow[start..];
+    let end = remaining[header.len()..]
+        .find("\n    - name:")
+        .map_or(remaining.len(), |offset| header.len() + offset);
+    &remaining[..end]
+}
+
+fn linux_bounds_loop_names(step: &str) -> Vec<&str> {
+    let header = "for bounds_file in ";
+    assert_eq!(
+        occurrences(step, header),
+        1,
+        "Linux step bounds loop drifted"
+    );
+    let list = step
+        .split_once(header)
+        .expect("Linux bounds loop header")
+        .1
+        .split_once("; do")
+        .expect("Linux bounds loop terminator")
+        .0;
+    list.split_whitespace()
+        .filter(|token| *token != "\\")
+        .collect()
+}
+
+fn windows_bounds_loop_names(step: &str) -> Vec<&str> {
+    let header = "foreach ($boundsFile in @(";
+    assert_eq!(
+        occurrences(step, header),
+        1,
+        "Windows step bounds loop drifted"
+    );
+    let list = step
+        .split_once(header)
+        .expect("Windows bounds loop header")
+        .1
+        .split_once(")) {")
+        .expect("Windows bounds loop terminator")
+        .0;
+    list.split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .map(|name| name.trim_matches('"'))
+        .collect()
+}
+
 fn llvm_body_without_public_route_headers(llvm: &str) -> Vec<&str> {
     llvm.lines()
         .filter(|line| {
@@ -263,39 +334,75 @@ fn assert_dynamic_guard_sequences(llvm: &str, aggregate: &str, expected: usize) 
     }
 }
 
-fn assert_guarded_dynamic_array_read_and_write(llvm: &str, aggregate: &str) {
-    let dynamic_geps = llvm
-        .lines()
-        .filter_map(|line| {
-            (line.contains(&format!("getelementptr inbounds {aggregate}"))
-                && line.contains(", i64 %reg"))
-            .then(|| line.split_once(" = ").map(|(pointer, _)| pointer.trim()))
-            .flatten()
+fn dynamic_array_gep_scopes<'a>(llvm: &'a str, aggregate: &str) -> Vec<(&'a str, usize, &'a str)> {
+    let address_anchor = format!("getelementptr inbounds {aggregate}");
+    llvm.match_indices(&address_anchor)
+        .filter_map(|(address, _)| {
+            let line_start = llvm[..address]
+                .rfind('\n')
+                .map_or(0, |position| position + 1);
+            let line_end = llvm[address..]
+                .find('\n')
+                .map_or(llvm.len(), |position| address + position);
+            let line = &llvm[line_start..line_end];
+            if !line.contains(", i64 %reg") {
+                return None;
+            }
+            let pointer = line
+                .split_once(" = ")
+                .map(|(pointer, _)| pointer.trim())
+                .expect("dynamic array pointer definition");
+            let function_start = llvm[..line_start]
+                .rfind("\ndefine ")
+                .map(|position| position + 1)
+                .expect("dynamic array GEP enclosing function start");
+            let function_end = llvm[line_end..]
+                .find("\n}")
+                .map(|position| line_end + position + 2)
+                .expect("dynamic array GEP enclosing function end");
+            Some((
+                pointer,
+                line_start - function_start,
+                &llvm[function_start..function_end],
+            ))
         })
-        .collect::<Vec<_>>();
+        .collect()
+}
+
+fn assert_guarded_dynamic_array_reads_and_writes(
+    llvm: &str,
+    aggregate: &str,
+    expected_reads: usize,
+    expected_writes: usize,
+) {
+    let dynamic_geps = dynamic_array_gep_scopes(llvm, aggregate);
     assert_eq!(
         dynamic_geps.len(),
-        2,
-        "expected one dynamic read GEP and one dynamic write GEP for {aggregate}:\n{llvm}"
+        expected_reads + expected_writes,
+        "expected {expected_reads} dynamic read GEP(s) and {expected_writes} dynamic write GEP(s) for {aggregate}:\n{llvm}"
     );
 
     let mut loads = 0;
     let mut stores = 0;
-    for pointer in dynamic_geps {
-        let definition = llvm
-            .find(&format!("{pointer} = getelementptr inbounds {aggregate}"))
-            .expect("dynamic array pointer definition");
+    for (pointer, definition, function) in dynamic_geps {
         let load = format!("load i32, i32* {pointer}, align 4");
         let store_prefix = "store i32 ";
         let store_target = format!("i32* {pointer}, align 4");
-        let load_positions = llvm
+        let load_positions = function
             .match_indices(&load)
             .map(|(position, _)| position)
             .collect::<Vec<_>>();
-        let store_positions = llvm
-            .lines()
-            .filter(|line| line.contains(store_prefix) && line.contains(&store_target))
-            .filter_map(|line| llvm.find(line))
+        let store_positions = function
+            .match_indices(&store_target)
+            .filter_map(|(position, _)| {
+                let line_start = function[..position].rfind('\n').map_or(0, |line| line + 1);
+                let line_end = function[position..]
+                    .find('\n')
+                    .map_or(function.len(), |line| position + line);
+                function[line_start..line_end]
+                    .contains(store_prefix)
+                    .then_some(position)
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             load_positions.len() + store_positions.len(),
@@ -312,7 +419,29 @@ fn assert_guarded_dynamic_array_read_and_write(llvm: &str, aggregate: &str) {
         loads += load_positions.len();
         stores += store_positions.len();
     }
-    assert_eq!((loads, stores), (1, 1));
+    assert_eq!(
+        (loads, stores),
+        (expected_reads, expected_writes),
+        "dynamic GEP consumers diverged for {aggregate}:\n{llvm}"
+    );
+}
+
+fn assert_single_dynamic_array_store_value(llvm: &str, aggregate: &str, value: i32) {
+    let dynamic_geps = dynamic_array_gep_scopes(llvm, aggregate);
+    assert_eq!(
+        dynamic_geps.len(),
+        1,
+        "expected one dynamic array store GEP"
+    );
+    let (pointer, definition, function) = dynamic_geps[0];
+    let store = format!("store i32 {value}, i32* {pointer}, align 4");
+    let store_position = function
+        .find(&store)
+        .unwrap_or_else(|| panic!("dynamic pointer {pointer} omitted exact `{store}`:\n{llvm}"));
+    assert!(
+        store_position > definition,
+        "dynamic array store consumed {pointer} before its GEP"
+    );
 }
 
 #[test]
@@ -648,7 +777,7 @@ fn exact_profile_admits_initialized_mutable_array_result_production() {
                 );
             }
             assert_dynamic_guard_sequences(&first, "[4 x i32]", 2);
-            assert_guarded_dynamic_array_read_and_write(&first, "[4 x i32]");
+            assert_guarded_dynamic_array_reads_and_writes(&first, "[4 x i32]", 1, 1);
         }
     }
 
@@ -942,19 +1071,19 @@ fn exact_array_value_composition_retains_topology_and_mutability_separation() {
 }
 
 #[test]
-fn exact_profile_emits_one_guarded_i32_array_lane() {
+fn exact_profile_emits_guarded_mutable_i32_array_kernel() {
     let llvm = compile_program(FIXED_INT_ARRAY_PROGRAM, exact_options())
         .expect("exact fixed-array kernel should compile");
 
     for anchor in [
         "define i32 @dot_with_bias([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right, i32 %aero.arg.bias)",
-        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
+        "define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)",
         "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
         "alloca [8 x i32], align 8",
         "store [8 x i32]",
         "load [8 x i32]",
         "call i32 @dot_with_bias([8 x i32]",
-        "call [8 x i32] @offset_first_lane([8 x i32]",
+        "call [8 x i32] @increment_each_lane([8 x i32]",
         "call [8 x i32] @forward_array([8 x i32]",
         "ret [8 x i32]",
         "load i32",
@@ -989,7 +1118,8 @@ fn exact_profile_emits_one_guarded_i32_array_lane() {
         );
     }
 
-    assert_dynamic_guard_sequences(&llvm, "[8 x i32]", 2);
+    assert_dynamic_guard_sequences(&llvm, "[8 x i32]", 4);
+    assert_guarded_dynamic_array_reads_and_writes(&llvm, "[8 x i32]", 3, 1);
 }
 
 #[test]
@@ -1125,94 +1255,220 @@ fn exact_profile_preserves_compile_time_bounds_rejection_and_runtime_guards() {
         assert!(error.contains("outside 0..2"), "{label}: {error}");
     }
 
-    for source in [NEGATIVE_RUNTIME_INDEX, EQUAL_TO_COUNT_RUNTIME_INDEX] {
+    for (label, source) in [
+        ("negative read", NEGATIVE_RUNTIME_INDEX),
+        ("equal-to-count read", EQUAL_TO_COUNT_RUNTIME_INDEX),
+    ] {
+        check_program(source, exact_options())
+            .unwrap_or_else(|error| panic!("{label} runtime trap specimen should check: {error}"));
         let llvm = compile_program(source, exact_options())
             .expect("runtime bounds-failure specimen should lower to a guard");
         assert_dynamic_guard_sequences(&llvm, "[2 x i32]", 1);
+        assert_guarded_dynamic_array_reads_and_writes(&llvm, "[2 x i32]", 1, 0);
+    }
+
+    for (label, source) in [
+        ("negative write", NEGATIVE_RUNTIME_WRITE_INDEX),
+        ("equal-to-count write", EQUAL_TO_COUNT_RUNTIME_WRITE_INDEX),
+    ] {
+        check_program(source, exact_options())
+            .unwrap_or_else(|error| panic!("{label} runtime trap specimen should check: {error}"));
+        let llvm = compile_program(source, exact_options()).unwrap_or_else(|error| {
+            panic!("{label} runtime trap specimen should compile: {error}")
+        });
+        assert_dynamic_guard_sequences(&llvm, "[2 x i32]", 1);
+        assert_guarded_dynamic_array_reads_and_writes(&llvm, "[2 x i32]", 0, 1);
+        assert_single_dynamic_array_store_value(&llvm, "[2 x i32]", 9);
     }
 }
 
 #[test]
 fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
     let workflow = include_str!("../../../.github/workflows/rust.yml");
-    for step in [
+    let linux = workflow_named_step(
+        workflow,
         "Test exact i32 fixed-array CPU profile at O0 and O2",
+    );
+    let windows = workflow_named_step(
+        workflow,
         "Test exact i32 fixed-array CPU profile on Windows at O0 and O2",
-    ] {
-        assert_eq!(workflow.matches(step).count(), 1, "missing unique `{step}`");
-    }
-    for anchor in [
-        "examples/fixed_int_array_v0/",
-        "wrapping_edges.aero",
-        "runtime_fail/",
+    );
+    let expected_bounds = [
         "negative_index.aero",
         "equal_to_count_index.aero",
-        "--language-profile exact-i32-array-v0",
-        "--require-llvm-verifier",
-        "opt-22 -passes=verify",
-        "llc-22 -verify-machineinstrs",
-        "clang-22 -O0",
-        "clang-22 -O2",
-        "& \"$llvmBin\\opt.exe\" -passes=verify",
-        "& \"$llvmBin\\llc.exe\" -verify-machineinstrs",
-        "& \"$llvmBin\\clang.exe\" -O0",
-        "& \"$llvmBin\\clang.exe\" -O2",
-    ] {
-        assert!(workflow.contains(anchor), "workflow omitted `{anchor}`");
+        "negative_write_index.aero",
+        "equal_to_count_write_index.aero",
+    ];
+    assert_eq!(linux_bounds_loop_names(linux), expected_bounds.to_vec());
+    assert_eq!(windows_bounds_loop_names(windows), expected_bounds.to_vec());
+
+    for (os, step) in [("Linux", linux), ("Windows", windows)] {
+        for anchor in [
+            "examples/fixed_int_array_v0/",
+            "wrapping_edges.aero",
+            "runtime_fail/",
+            "--language-profile exact-i32-array-v0",
+            "--require-llvm-verifier",
+            "define [8 x i32] @increment_each_lane([8 x i32] %aero.arg.values)",
+            "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
+            "call [8 x i32] @increment_each_lane([8 x i32]",
+            "call [8 x i32] @forward_array([8 x i32]",
+            "ret [8 x i32]",
+        ] {
+            assert!(step.contains(anchor), "{os} exact step omitted `{anchor}`");
+        }
+        for bounds_name in expected_bounds {
+            assert_eq!(
+                occurrences(step, bounds_name),
+                1,
+                "{os} exact step must run `{bounds_name}` exactly once"
+            );
+        }
+        for guard_identity in [
+            r"\k<index>, [0-9]+",
+            r"\k<lower>, \k<upper>",
+            r"br i1 \k<inbounds>",
+            r"%aero\.bounds\.trap\.\k<place>",
+            r"sext i32 \k<index> to i64",
+            r"\k<aggregate>\* %ptr",
+            r"i64 \k<extended>\r?$",
+        ] {
+            assert!(
+                step.contains(guard_identity),
+                "{os} exact step lost guard identity link `{guard_identity}`"
+            );
+        }
+        assert!(
+            !step.contains("icmp sge i32|icmp slt i32|sext i32|llvm\\.trap"),
+            "{os} exact step must not mistake unlinked IR fragments for a bounds proof"
+        );
     }
 
-    assert!(
-        !workflow
-            .contains("upper_line=\"$(grep -n -m1 -F 'icmp slt i32' \"${llvm}\" | cut -d: -f1)\""),
-        "Linux must search for an array upper guard only after its lower guard"
-    );
-    assert_eq!(
-        workflow
-            .matches("icmp sge i32|icmp slt i32|sext i32|llvm\\.trap")
-            .count(),
-        0,
-        "ordinary signed comparisons are not sufficient evidence of dynamic bounds IR"
-    );
-    for identity_linked_anchor in [
-        "guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
-        "grep -Pzo -- \"${guard_block_pattern}\" \"${llvm}\"",
-        "test \"${guard_count}\" -eq 2",
-        "$guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
-        "$guardMatches = [regex]::Matches($llvmText, $guardPattern)",
-        "$guardMatches.Count -ne 2",
-    ] {
-        assert_eq!(
-            workflow.matches(identity_linked_anchor).count(),
+    for (anchor, expected) in [
+        ("opt-22 -passes=verify", 2),
+        ("llc-22 -verify-machineinstrs", 2),
+        ("clang-22 -O0", 1),
+        ("clang-22 -O2", 1),
+        ("if [ \"${name}\" = kernel ]; then", 1),
+        (
+            "kernel_mutation_pattern='(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32",
             1,
-            "workflow must retain one identity-linked proof anchor `{identity_linked_anchor}`"
-        );
-    }
-    for shared_identity_link in [
-        r"\k<index>, [0-9]+",
-        r"\k<lower>, \k<upper>",
-        r"br i1 \k<inbounds>",
-        r"%aero\.bounds\.trap\.\k<place>",
-        r"sext i32 \k<index> to i64",
-        r"\k<aggregate>\* %ptr",
-        r"i64 \k<extended>\r?$",
+        ),
+        (
+            "(?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \\[8 x i32\\]",
+            1,
+        ),
+        ("i32\\* \\k<kernel_target>, align 4", 1),
+        (
+            r"(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$",
+            1,
+        ),
+        (
+            "kernel_mutation_count=\"$(grep -Pzo -- \"${kernel_mutation_pattern}\" \"${llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${kernel_mutation_count}\" -eq 1", 1),
+        (
+            "guard_block_pattern='(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "guard_count=\"$(grep -Pzo -- \"${guard_block_pattern}\" \"${llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${guard_count}\" -eq 4", 1),
+        ("if [[ \"${bounds_case}\" == *_write_index ]]; then", 1),
+        (
+            "bounds_write_pattern='(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \\[2 x i32\\]",
+            1,
+        ),
+        ("store i32 9, i32\\* \\k<bounds_write_target>, align 4", 1),
+        (
+            "bounds_write_count=\"$(grep -Pzo -- \"${bounds_write_pattern}\" \"${bounds_llvm}\" | tr -cd '\\000' | wc -c)\"",
+            1,
+        ),
+        ("test \"${bounds_write_count}\" -eq 1", 1),
     ] {
         assert_eq!(
-            workflow.matches(shared_identity_link).count(),
-            2,
-            "Linux and Windows must both retain identity link `{shared_identity_link}`"
+            occurrences(linux, anchor),
+            expected,
+            "Linux exact step must contain `{anchor}` exactly {expected} time(s)"
         );
     }
-    for composition_anchor in [
-        "define [8 x i32] @offset_first_lane([8 x i32] %aero.arg.values)",
-        "define [8 x i32] @forward_array([8 x i32] %aero.arg.values)",
-        "call [8 x i32] @offset_first_lane([8 x i32]",
-        "call [8 x i32] @forward_array([8 x i32]",
-        "ret [8 x i32]",
+    assert!(
+        !linux.contains("test \"${guard_count}\" -eq 2"),
+        "Linux exact step retained the former two-guard kernel contract"
+    );
+    assert!(
+        !linux
+            .contains("upper_line=\"$(grep -n -m1 -F 'icmp slt i32' \"${llvm}\" | cut -d: -f1)\""),
+        "Linux exact step must identity-link its lower and upper guard predicates"
+    );
+
+    for (anchor, expected) in [
+        ("& \"$llvmBin\\opt.exe\" -passes=verify", 2),
+        ("& \"$llvmBin\\llc.exe\" -verify-machineinstrs", 2),
+        ("& \"$llvmBin\\clang.exe\" -O0", 1),
+        ("& \"$llvmBin\\clang.exe\" -O2", 1),
+        ("if ($specimen.Name -ceq \"kernel\") {", 1),
+        (
+            "$kernelMutationPattern = '(?ms)^  (?<kernel_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<kernel_target>%ptr[0-9]+) = getelementptr inbounds \\[8 x i32\\]",
+            1,
+        ),
+        ("i32\\* \\k<kernel_target>, align 4", 1),
+        (
+            r"(?:(?!^\}).)*?^  store i32 [^,\r\n]+, i32\* \k<kernel_target>, align 4\r?$",
+            1,
+        ),
+        (
+            "$kernelMutationMatches = [regex]::Matches($llvmText, $kernelMutationPattern)",
+            1,
+        ),
+        ("$kernelMutationMatches.Count -ne 1", 1),
+        (
+            "$guardPattern = '(?m)^  (?<lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "$guardMatches = [regex]::Matches($llvmText, $guardPattern)",
+            1,
+        ),
+        ("$guardMatches.Count -ne 4", 1),
+        (
+            "$boundsCase.EndsWith(\"_write_index\", [System.StringComparison]::Ordinal)",
+            1,
+        ),
+        (
+            "$boundsWritePattern = '(?m)^  (?<bounds_write_lower>%reg[0-9]+) = icmp sge i32",
+            1,
+        ),
+        (
+            "(?<bounds_write_target>%ptr[0-9]+) = getelementptr inbounds \\[2 x i32\\]",
+            1,
+        ),
+        ("store i32 9, i32\\* \\k<bounds_write_target>, align 4", 1),
+        (
+            "$boundsWriteMatches = [regex]::Matches($boundsText, $boundsWritePattern)",
+            1,
+        ),
+        ("$boundsWriteMatches.Count -ne 1", 1),
     ] {
         assert_eq!(
-            workflow.matches(composition_anchor).count(),
-            2,
-            "Linux and Windows must both retain array-value composition anchor `{composition_anchor}`"
+            occurrences(windows, anchor),
+            expected,
+            "Windows exact step must contain `{anchor}` exactly {expected} time(s)"
         );
     }
+    assert!(
+        !windows.contains("$guardMatches.Count -ne 2"),
+        "Windows exact step retained the former two-guard kernel contract"
+    );
 }
