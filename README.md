@@ -145,7 +145,7 @@ aero lsp
 
 | Category | Features |
 |----------|----------|
-| **Type System** | Static scalar checks. Accepted CORE-072 adds exact Unicode `char` identity and equality/inequality across the complete existing recursive CopyData transport class. Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class; accepted CAP-005 adds bound-free whole-value generic transport functions over exact recursive finite CopyData substitutions; accepted CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization; accepted CAP-010 adds one required-only recursive-CopyData trait-bound static-dispatch class; and accepted CAP-011 adds schema-driven specialization for bounded fixed-capacity generic container algorithms. General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported. |
+| **Type System** | Static scalar checks. Accepted CORE-072 adds exact Unicode `char` identity and equality/inequality across the complete existing recursive CopyData transport class. Accepted CAP-004 adds one explicit user-defined recursive-CopyData generic-struct substitution class; accepted CAP-005 adds bound-free whole-value generic transport functions over exact recursive finite CopyData substitutions; accepted CAP-006 adds exact explicit user-defined recursive-CopyData generic-enum specialization; accepted CAP-010 adds one required-only recursive-CopyData trait-bound static-dispatch class; accepted CAP-011 adds schema-driven specialization for bounded fixed-capacity generic container algorithms; and accepted CAP-013 gives those bounded paths one recursive primitive-alias identity and shared deterministic phase authority. General generic operations/impls/traits beyond those bounded classes, inference/defaults, broader trait-bound enforcement, and where-clause semantics remain parsed, quarantined, or unsupported. |
 | **Memory** | Shallow move tracking plus bounded, publicly accepted whole-place immutable and mutable references and direct reassignment over the exact admitted recursive CopyData universe. Accepted CORE-064–079 add bounded owned-enum replacement, joins, reinitialization, Match results, and loop ownership. Accepted CORE-083–089 add non-escaping enum-reference replacement/observation and mixed/multiple-reference callable signatures. Accepted CORE-090 adds exact static writes through arbitrary finite field/tuple/fixed-array paths rooted at a mutable owned direct local CopyData value. Accepted CAP-002 adds guarded runtime indexes in that same direct-owner write class, and accepted CAP-012 adds immediate nonescaping immutable/mutable call loans over those finite nested CopyData places with conservative complete-root conflicts. Stored projected references, reference-target dynamic writes, partial moves, disjoint alias claims, free enum dereference/transport, enum aggregate storage, and general aliasing remain unsupported. No general borrow checker, general mutable-reference model, lifetime analysis, drop model, stable pointer ABI, or memory-safety guarantee. Reference results remain unsupported. |
 | **Data Types** | Recursive finite CopyData composition and bounded positional recursive CopyData owned enums—including exact variants with two or more fields—are publicly accepted with exhaustive Match, internal transport, exact mutable whole-owner replacement/reinitialization, acyclic conditional ownership joins, and fresh per-iteration loop-local owners. Accepted CAP-008 adds identifier-or-`_` payload leaves and one optional final whole-arm wildcard across the complete admitted concrete enum class while preserving exhaustiveness. Accepted CORE-072 adds `char`; CORE-074–076 add typed Match results; and CORE-083–089 add bounded enum-reference and callable compositions. Accepted CORE-090 composes existing named fields, tuple constants, and integer-literal fixed-array indexes into exact mutable CopyData paths without adding a data topology. Accepted CAP-001 adds guarded runtime reads, CAP-002 adds guarded runtime-indexed writes over the same nonempty recursive CopyData fixed-array class, CAP-003 adds explicitly typed concrete recursive-CopyData `Option<T>`/`Result<T,E>` construction, owned transport/replacement, and exhaustive bound Match, CAP-004 adds explicit user-defined recursive-CopyData generic structs with deterministic substitution and checked identity/schema verification, CAP-006 adds bound-free unit/positional user-defined generic enums at exact recursive-CopyData applications through contextual construction and exhaustive Match, CAP-011 composes fixed arrays plus projected mutation into a bounded fixed-capacity generic CopyData container API, and CAP-012 admits only immediate call-scoped projected loans over that finite CopyData class. `print!` and `println!` are effect-only `Void`, not scalar values. Named-field/bounded/general generic enum variants, general generic substitution/error propagation, guards, nested destructuring and other wider patterns, carrier or enum aggregate/reference storage, enum fields/arrays, free enum dereference or transport through references, dynamic collections, stored/escaping projected references or partial moves, unsupported/cyclic structs, and broader storage or destructuring semantics remain unsupported. |
 | **Control Flow** | Functions, if/else, while/checked fixed-array for/loop, and nearest-loop break/continue are partial. Accepted CORE-066 corrects checked `for` continue and proves fresh per-iteration enum consumption. Accepted CORE-077 adds exact balanced direct enum-owner restoration. Accepted CORE-079 iterates direct-enum header and exit joins to convergence across condition/iterable, fallthrough/continue, and break edges, with return paths excluded and nested transfers attributed to the nearest loop. Labels, loop expressions/break values, non-array checked iterators, non-enum fixed points, and general CFG ownership remain unsupported. Closure syntax is parsed-only; executable closure expressions fail closed before checked IR. |
@@ -158,6 +158,19 @@ aero lsp
 | **Docs & Profiling** | Markdown API generation (`aero doc`), compilation stage timing + trace export (`aero profile`) |
 | **Phase 8 Experimental Slice** | Textual graph rewriting to internal scalar helpers and scalar-`double` quantization helper rewriting with backend metadata. These are not device execution, real FP8/per-channel execution, or numerical-correctness evidence. The slice also includes local `registry.aero` search and dry-run planning plus 3 example cases and 4 deterministic regression checks (not formal-semantics proof). Live registry transport is quarantined pending a reviewed protocol and trust boundary. |
 | **Diagnostics** | Colored errors, source snippets, "did you mean?" suggestions |
+
+> **CAP-013 accepted:** protected master gives the already admitted generic-struct,
+> generic-enum, generic-function, fixed-capacity `Window<T>`, and bounded trait-
+> signature paths one canonical recursive specialization identity and deterministic
+> phase plan. `int`/`i32` and `float`/`f64` now interoperate without duplicate private
+> identities; telemetry mixes `Window<i32>`/`Window<int>` and trait `i32`/`int` at
+> exact output/exit 91. Focused 9/9, established generic/trait 21/21, authority 7/7,
+> representative 3/3, complete 249-library plus integration/doc/format/Clippy,
+> corruption, and pinned LLVM 22 O0/O2 gates pass. Exact candidate `1ecf083`,
+> protected PR #48 merge `856fc1e5`, shared tree `627582e2`, and all candidate and
+> merge-head workflows pass. This does not add general generics/traits, new body
+> semantics, reference specialization, collections, ABI/layout, allocation/drop, accelerators,
+> safety, stability, releases, or completion.
 
 > **CAP-012 accepted:** protected master composes
 > immediate, nonescaping `&place` / `&mut place` arguments over nested finite
@@ -211,17 +224,18 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-012:** Aero remains a Minimal Prototype in correctness
+> **Project status after CAP-013:** Aero remains a Minimal Prototype in correctness
 > recovery, not a complete or stable language. Accepted public and compiler-capability
-> baseline is protected CAP-012 merge
-> `49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`.
+> baseline is protected CAP-013 merge
+> `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`.
 > CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
 > general ownership, generics, collections, layout/ABI/destruction, and ordinary-
 > program breadth remain partial.
-> The corrective roadmap prioritizes one
-> growing representative telemetry application over more neighboring reference/topology partitions. Positive
-> import/name resolution remains high leverage but requires separately frozen namespace
-> and graph semantics first.
+> The next ranked product target is an explicitly profiled exact fixed-width integer
+> fixed-array CPU reference kernel, not further specialization or topology
+> enumeration. Positive import/name resolution, runtime text, and file I/O remain
+> high leverage but require separately frozen namespace, ownership, buffer, error,
+> drop, and platform semantics first.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

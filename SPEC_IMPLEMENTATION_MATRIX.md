@@ -2,14 +2,23 @@
 
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
-Latest accepted compiler-capability master is protected CAP-012 merge
-`49bcdfc3b23d2e1cc22fa3f0f36446fcffbf6e92`. Exact candidate
-`79d14866061184bc619ce5c92603c0964a31e74d` and the merge have identical tree
-`83496c29ce1b8529ed3b18e6bb0d0fb42fdb7333`; candidate push/PR CI
-`31552115552`/`31552154519`, Rust CI `31552154532`, CodeQL `31552152210`,
-protected integration, merge-head CI `31554826581`, Rust CI `31554826582`, and
-CodeQL `31554826233` pass, including pinned LLVM/Clang 22 Linux/Windows native
-`-O0`/`-O2` gates.
+Latest accepted compiler-capability master is protected CAP-013 merge
+`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`. Exact candidate
+`1ecf0831149b99abd55e3d0a48d06eecaa8099b6` and the merge have identical tree
+`627582e27613803949c82ecfa52915ba55db2f0f`; candidate push/PR CI
+`31562192900`/`31562195772`, Rust/Windows LLVM 22 `31562195887`, CodeQL
+`31562193465`, protected integration, merge-head CI `31562387501`, Rust/Windows
+LLVM 22 `31562387504`, and CodeQL `31562387066` pass.
+
+Accepted CAP-013 gives already admitted specialization features one recursive
+canonical type-key, alias-equivalence predicate, private framing contract, and shared
+struct -> enum -> function phase plan. `int`/`i32` and `float`/`f64` now interoperate
+across bounded generic structs, enums, functions, fixed-capacity containers, and trait
+signatures without duplicate private identities. Focused 9/9, existing generic/trait
+21/21, authority 7/7, representative 3/3, complete 249-library/integration/doc gate,
+corruption controls, and pinned LLVM 22 O0/O2 execution pass. These rows remain
+`PARTIAL`: CAP-013 does not add general generics/traits, new body semantics,
+reference specialization, collections, ABI/layout, allocation/drop, accelerators, or stability.
 
 Accepted CAP-012 composes immediate
 nonescaping immutable/mutable loans over recursive finite CopyData projections with
@@ -150,6 +159,7 @@ successful execution; `+/-/D` positive, negative, and diagnostic tests.
 | Generics and substitutions | Y | Y | P | P | P | P | P | P | P | P | P | P | Y | PARTIAL |
 | Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Fixed-capacity generic CopyData container algorithms (accepted `CAP-011`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
+| Canonical alias identity and shared bounded-specialization phase authority (accepted `CAP-013`) | Y | Y | Y | P | P | P | P | P | P | Y | Y | Y | Y | PARTIAL |
 | Traits, bounds, and impls | Y | Y | P | P | P | P | N | N | N | P | P | P | Y | PARTIAL |
 | Moves | Y | — | Y | P | P | P | ? | ? | ? | P | P | P | Y | PARTIAL |
 | Direct mutable Copy-place reassignment | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |

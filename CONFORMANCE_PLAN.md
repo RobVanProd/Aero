@@ -78,6 +78,17 @@
   pinned Linux/Windows `-O0`/`-O2` gates must execute the product and reject both
   runtime-bounds failure directions. This is not stored-reference, general alias,
   lifetime/drop, ABI, or memory-safety conformance.
+- The accepted CAP-013 specialization-authority slice must retain one recursive
+  canonical type key and one deterministic struct -> enum -> function phase plan for
+  semantic and raw checked admission. Positive evidence must mix `int`/`i32` and
+  `float`/`f64` through every already-admitted generic struct, enum, function,
+  fixed-capacity container, and bounded trait-signature path while emitting one
+  private identity. Separation controls must preserve Char versus Int, Bool, user
+  names, tuple order/arity, array counts, feature namespaces, and schema/signature
+  identity. Canonical framing corruption, repeated normalization, declaration-order
+  permutation, representative execution, and pinned Linux/Windows LLVM 22 O0/O2
+  evidence remain mandatory. This is not general generic/trait, reference
+  specialization, collection, ABI/layout, allocation/drop, or stability conformance.
 - Acyclic conditional ownership tests must distinguish mutually exclusive sibling
   consumption from post-merge uncertainty. For each admitted enum schema, cover
   missing else, both fallthrough arms, definitely returning arms, nested else-if,
@@ -107,10 +118,12 @@
 
 ## Real-program progression
 
-The release suite has reached bounded generic-data-structure and ownership-intensive
-telemetry stages. It will continue through file processing, a small parser/interpreter, a CPU
-numerical workload; then real vector, matrix, and tensor accelerator workloads
-after their runtime contracts exist.
+The release suite has reached bounded generic-data-structure, ownership-intensive,
+and canonical-specialization telemetry stages. It will continue with an exact
+fixed-width integer fixed-array CPU reference kernel, then a fixed-capacity
+parser/interpreter; runtime file acquisition follows only after its path/buffer/error/
+ownership contracts are frozen. Real vector, matrix, and tensor accelerator workloads
+follow after their runtime contracts exist.
 
 ## Platform matrix
 
@@ -144,6 +157,17 @@ nonzero result. Focused tests, the complete repository gate, three exact-diff
 reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
+
+Accepted CAP-013 adds one canonical specialization identity/order conformance slice
+across already admitted generic structs, enums, functions, fixed-capacity containers,
+and bounded trait signatures. Mixed `int`/`i32` and `float`/`f64` programs now share
+one recursive private identity; semantic and raw checked routes share the same phase
+orchestrator; feature policy remains separate. Focused 9/9, existing generic/trait
+21/21, authority 7/7, representative 3/3, complete 249-library plus integration/doc/
+format/Clippy, corruption, and pinned LLVM/Clang 22 O0/O2 gates pass. Exact candidate
+`1ecf083`, protected PR #48 merge `856fc1e5`, shared tree `627582e2`, and all exact
+candidate/merge-head CI, Rust/Windows-native, and CodeQL results pass. This remains a
+bounded `PARTIAL` specialization slice, not general generics or traits.
 
 Accepted CAP-012 adds one nonescaping projected CopyData call-loan conformance slice.
 Positive evidence composes immutable and mutable nested field/tuple/fixed-array loans,

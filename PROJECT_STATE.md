@@ -1,8 +1,43 @@
 # Aero Project State
 
-Last updated: 2026-08-11 (America/New_York)
+Last updated: 2026-08-12 (America/New_York)
 
 ## Current objective
+
+### CAP-013 accepted: canonical specialization identity and phase authority
+
+Accepted CAP-013 closes an observed cross-feature specialization defect: the
+primitive contract already treats `int`/`i32` and `float`/`f64` as aliases, but
+generic structs, enums, fixed-capacity containers, and trait signatures previously
+could reject equivalent values or manufacture duplicate private identities. One
+shared authority now owns recursive specialization keys, canonical rendering/parsing,
+feature-tagged private framing, alias equivalence, source-symbol validation, and the
+deterministic idempotent struct -> enum -> function phase plan used by both semantic
+analysis and semantic-independent checked admission. Feature modules retain their
+frozen validation, rewriting, substitution restrictions, diagnostics, and the single
+generic-function body classifier.
+
+The representative telemetry application now passes a `Window<i32>` seed through
+canonical `Window<int>` generic algorithms and implements an `int`-declared trait
+method with an `i32` parameter while preserving exact output and exit 91. Focused
+alias/identity evidence passes 9/9, established generic/trait controls pass 21/21,
+shared authority tests pass 7/7, representative tests pass 3/3, and the complete
+repository gate passes 249 library tests plus every CLI, integration, Windows-system,
+format, correctness-Clippy, and doc target. Exact candidate
+`1ecf0831149b99abd55e3d0a48d06eecaa8099b6` passed push CI `31562192900`, PR CI
+`31562195772`, Rust/Windows LLVM 22 `31562195887`, and CodeQL `31562193465`.
+Protected PR #48 merged it as accepted master
+`856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`; candidate and merge share tree
+`627582e27613803949c82ecfa52915ba55db2f0f`, and exact merge-head CI
+`31562387501`, Rust/Windows LLVM 22 `31562387504`, and CodeQL `31562387066` pass.
+
+This is bounded alias interoperability and shared compile-time architecture, not
+general generics or traits. Nested generic templates, generic impl targets, reference
+specialization, dynamic collections, allocation/drop, layout/ABI, accelerators,
+performance, releases, safety, stability, and language completion remain excluded.
+Current accepted public master is CAP-013. The next ranked product target is an exact
+fixed-width integer fixed-array CPU reference kernel, not further neighboring
+specialization enumeration.
 
 ### CAP-012 accepted: nonescaping projected CopyData call loans
 
@@ -32,7 +67,7 @@ the selected Milestone 2 exit gate without promoting the wider milestone surface
 Stored or escaping references, reference results/fields/containers, partial moves,
 disjoint-projection alias claims, generic/method/trait call expansion, dynamic
 collections, lifetimes/NLL/drop/unsafe, stable ABI, safety, and stability remain
-outside the accepted slice. Current accepted public master is CAP-012.
+outside the accepted slice.
 
 ### CAP-011 accepted: fixed-capacity generic CopyData container algorithms
 
@@ -2880,20 +2915,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Accepted CAP-004 project-truth synchronization merged through protected PR #29 as
-`6c4a1a579dff60db146951d0a2657dd61dbdff59` from exact candidate
-`5e6f30a1e4a8979f38e75423f2021b88d8c92548` with the identical tree. Exact
-merge-head CI `31480903724`, Rust CI `31480903716`, and CodeQL `31480903587` pass.
-
-CAP-006 is accepted through protected PR #33 at merge
-`bdfd4f5a282043ee957c1bf03975e266de5b9b6c`, with exact merge-head CI, CodeQL,
-stable/nightly, and pinned Windows LLVM/Clang 22 native evidence green after the
-documented infrastructure-only checkout retry. The exact next action is this bounded
-accepted-truth synchronization. After it is green and protected-integrated, freshly
-rank at least three remaining project-level gaps before selecting another
-implementation. Do not default to neighboring generic topologies, the quarantined
-CORE-091 topology, releases/packages/benchmarks, force-pushes, or deletion of retained
-integration work.
+After this bounded CAP-013 accepted-truth synchronization is green and protected-
+integrated, the next ranked product target is an explicitly profiled exact fixed-width
+integer fixed-array CPU reference kernel. Begin with the complete representative
+kernel and independent oracle as the red proof; preserve the existing experimental
+aggregate representation and stop if the new profile cannot remain private or would
+imply a stable aggregate ABI. The next-ranked fixed-capacity character-array parser/
+interpreter follows. Positive imports, runtime text, and file I/O remain high leverage
+but are not implementation-ready until their namespace, encoding, buffer, error,
+ownership/drop, and platform contracts are frozen. Do not default to neighboring
+specialization/reference topologies, releases/packages/benchmarks, force-pushes, or
+deletion of retained integration work.
 
 ## Unauthorized actions
 
