@@ -1,5 +1,100 @@
 # Aero Task Ledger
 
+## CAP-020-FLAT-MATVEC-PRODUCT - zero-production flat-buffer 2D CPU gate
+
+- Date/task/status: 2026-08-12, `CAP-020-FLAT-MATVEC-PRODUCT`, authorized
+  ledger-first and red-first product/evidence slice on
+  `agent/cap-020-flat-matvec-product` from exact protected master
+  `13157687f3e955d1c8292ccca133c5a73e29e1a7`, tree
+  `98aeef2dfab3e2736ec07c40d161f659c9554334`. That protected merge preserves
+  the reviewed CAP-019 truth-sync candidate tree and has ordered parents
+  `6ebeb0efb6e83ccc50e12d395e4add1c63ef48b4`, then
+  `1c97ec7be28c21dac9308459ef5576be33067780`. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior, gap, and zero-production hypothesis: accepted CAP-019
+  already admits flat nonempty exact-Int array parameters/results, initialized
+  mutable owned flat-array locals, direct guarded element writes, nested ordinary
+  `while` loops, wrapping exact-Int `+`/`*`, guarded dynamic reads, and by-value
+  Copy transport. The maintained CPU example proves a one-dimensional transform
+  and dot product, but no maintained product proves that the same accepted lane
+  can express a two-dimensional workload through row-major flat indexing. Three
+  independent read-only audits found no missing parser, profile, semantic,
+  checked-IR, verifier, or backend phase: this task must change zero compiler
+  production files. The observable red is missing product/system-gate evidence,
+  not a rejected source program.
+- Frozen application semantics and wording boundary: add one nongeneric helper
+  taking a row-major matrix encoded as `[int; 6]` and a vector `[int; 3]`, fully
+  initializing a mutable `[i32; 2]` result, and using nested loops with the inline
+  wrapping exact-Int expression `row * 3 + column`. The expression result, not
+  the multiplication itself, must flow through the existing signed lower/upper
+  bounds check, trap-before-address sequence, sign extension, and `[6 x i32]`
+  GEP before the matrix load. The same helper must guard the `[3 x i32]` vector
+  read and `[2 x i32]` output write through the existing single bounds authority.
+  “2D” and “row-major” describe this application only; they do not create a
+  matrix type, recursive-array support, checked-overflow arithmetic, a layout or
+  ABI promise, or a workload-specific profile rule.
+- Product oracles: the canonical source must run the ordinary matrix
+  `[1, 2, 3, 4, 5, 6]` by vector `[7, 8, 9]` to exact result `[50, 122]`, and
+  reuse the same helper for a wrapping control
+  `[2147483647, 0, 0, -2147483648, -1, 2]` by `[2, 1, 3]` to exact result
+  `[-2, 5]`. It must reread every lane of both matrices and both vectors after
+  their by-value calls, return `91` only when all source/result oracles hold, and
+  otherwise return `1`. Public execution must contain exactly one
+  `Exit code: 91` line; native O0/O2 execution on Linux and Windows must exit 91
+  with empty stdout/stderr. Preserve `main.aero`, `wrapping_edges.aero`, and all
+  four accepted negative/equal read/write trap specimens byte-for-byte.
+- Red-first sequence and allowed files: this authorization checkpoint may change
+  only `TASK_LEDGER.md`. The red checkpoint may additionally add the explicitly
+  force-tracked ignored file `examples/fixed_int_array_v0/flat_matvec.aero` and
+  change only `src/compiler/tests/fixed_int_array_profile_tests.rs`; verify the
+  specimen with `git ls-files --error-unmatch`. The red test must prove the
+  source/library/public contract and fail solely because each existing Linux and
+  Windows exact-profile workflow step lacks the new specimen/evidence anchors.
+  The green evidence checkpoint may then change only `.github/workflows/rust.yml`
+  to add the specimen to those same two steps. That is exactly four tracked files
+  total. No `src/compiler/src/**`, dependency, profile, other example, other
+  fixture, job, step, or cumulative truth document may change. Accepted truth
+  synchronization remains a later, separate protected-head task.
+- Acceptance tests and immutable evidence contract: the focused test must bind
+  the tracked source bytes, an independent Rust row-major/wrapping oracle,
+  source-copy preservation, library check/compile determinism, public CLI
+  check/build/run, exact `[6 x i32]`/`[3 x i32]` to `[2 x i32]` signatures and
+  calls, aggregate stores/loads/return, and absence of `double`, conversions,
+  `nsw`, `nuw`, SIMD, or nested-array representation. Within the matvec function,
+  capture `mul i32 row, 3`, its result feeding `add i32 ..., column`, and that
+  same linear-index value feeding the lower/upper `< 6` guard, combined branch,
+  trap/safe labels, `sext`, `[6 x i32]` GEP, and same-pointer scalar load. Bind
+  one corresponding guarded `[3 x i32]` load and `[2 x i32]` store, for exactly
+  three complete dynamic guard/address paths. Each existing OS workflow step must
+  run check, verifier-required build, `opt`, `llc`, public run, and Clang O0/O2
+  for this specimen, require exit 91/empty native output, and retain CAP-019's
+  kernel/wrapping evidence and exact four-name trap loop without weakening or
+  duplication. Use symbolic captures/backreferences scoped to the function;
+  never pin generated register numbers.
+- Required gates and publication threshold: after the intentional red is
+  committed, green only by wiring the existing two workflow steps. Run the
+  focused integration target with authenticated LLVM 22.1.8, syntax/static
+  workflow checks, the full root `./tools/test.sh`, independent candidate review,
+  pinned Windows native check/build/run plus `opt`/`llvm-as`/`llc`/Clang O0/O2,
+  and final tracked-byte/scope/cleanliness audits. Publish only an immutable
+  candidate with exact-head push/PR/Rust/CodeQL success; merge through protection
+  and require fresh exact merge-head CI/Rust/CodeQL analyses before CAP-020 is
+  accepted. Do not count stale/foreign SHAs or the PR-only aggregate CodeQL check
+  as default-branch evidence.
+- Preserved exclusions, risks, and stop conditions: no recursive/nested arrays,
+  new type topology, general matrix/tensor support, general mutation, partial or
+  uninitialized arrays, aliases/references, whole-array reassignment, static
+  proof that linearized indexing is safe, overflow checking, stable ABI/layout,
+  performance, accelerator, or safety claim. Risks include hard-coded register
+  IDs, aggregate guard counts that do not bind consumers, one OS masking deletion
+  from the other, accidental drift of accepted CAP-019 controls, or wording that
+  promotes an application encoding into language semantics. Stop and rerank if
+  the source needs any production change, profile exception, unchecked GEP,
+  duplicate bounds authority, new semantic decision, partial array state, another
+  file, job, or workflow step. Revert to this authorization boundary rather than
+  weakening a test or widening the claim.
+
 ## CAP-019-ACCEPTANCE-SYNC - mutable flat-array production accepted truth
 
 - Date/task/status: 2026-08-12, `CAP-019-ACCEPTANCE-SYNC`, authorized bounded
