@@ -1,5 +1,104 @@
 # Aero Task Ledger
 
+## CAP-016-MODULE-RESOLUTION-READINESS - positive module/import/name-resolution architecture and red probe
+
+- Date/task/status: 2026-08-12, `CAP-016-MODULE-RESOLUTION-READINESS`, authorized
+  bounded architecture enumeration and task-local red probe from exact accepted
+  master `7e6b231ff2955d94f2b51a7a69aff01a88de103c` (tree
+  `498beb0d0f741d8d277798471dc5e5997535d347`) on
+  `agent/cap-016-module-resolution-readiness`. Protected PR #53 accepted the
+  CAP-015 project-truth synchronization with ordered parents prior accepted master
+  `b62696272f293f9f378f8a368cc818fcb8ef1074` then candidate
+  `3887ec1b591707da984e1b846a382ff3e06cd1c0`. Fresh merge-head CI
+  `31603287355`, Rust CI `31603287488`, and CodeQL `31603287341` pass,
+  including compiler job `94135757470`, nightly/stable/Windows LLVM 22 jobs
+  `94135757988`/`94135758325`/`94135758096`, CodeQL
+  Actions/Python/Rust jobs `94135761902`/`94135762009`/`94135761972`, and
+  exact default-branch analyses `1607865668`/`1607867361`/`1607874743`.
+  GitHub emits the aggregate CodeQL check for the PR candidate rather than this
+  default-branch push; pre-existing Actions alert #4 remains open and no new
+  synchronization alert surfaced. PR #53 renders exact accepted status. User/app-
+  owned `.codex-remote-attachments/` and `tmp/` remain outside the task, and
+  quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must not be
+  applied, dropped, or treated as evidence.
+- Governing ranking and real-program delta: the synchronized post-CAP-015 decision
+  ranks positive module/import/name resolution first at 23, typed `Result`
+  propagation second at 22, and runtime byte/file acquisition third at 21. Before
+  CAP-016, Aero can collect a bounded root-level direct-module file graph and flatten
+  its declarations for compilation, but maintained programs cannot explicitly bind
+  reusable module APIs through a truthful namespace/visibility contract; `use` is
+  retained only as parsed-but-unsupported syntax. An eventual positive slice must let
+  one ordinary multi-file Aero program deliberately name and reuse a module API while
+  preserving deterministic identity, privacy, diagnostics, checked IR, LLVM, and
+  native behavior. This readiness task itself changes no executable capability; it
+  exists to prevent invented or feature-local import semantics before that vertical
+  slice is authorized.
+- Mechanism and complete architecture class: enumerate one module system rather than
+  one syntax shape at a time. Trace and reconcile (1) namespace roots and the mapping
+  from source files to module identity; (2) declaration visibility and the meaning of
+  `pub`; (3) qualified and explicitly imported lookup; (4) direct and aliased import
+  syntax, with glob and re-export policy stated explicitly; (5) duplicate, ambiguous,
+  local-shadow, and source-order behavior; (6) nested-module, missing-file, duplicate-
+  file, graph-order, recursion, and cycle handling; (7) canonical cache and diagnostic
+  identity with source spans; and (8) canonical generic-struct/function/enum/trait
+  specialization identity for qualified declarations. Audit lexer/parser/AST,
+  module collection, semantic binding, checked admission/IR/verifier, LLVM naming,
+  public library/CLI routes, cache behavior, workflows, and the representative
+  application. Produce one exhaustive disposition table: required for the first
+  useful slice, explicitly rejected, or preserved for later work.
+- Assumptions and present evidence: accepted CORE-070 supplies file-aware compilation
+  and bounded root-level `mod x;` collection; CORE-071 preserves `use` syntax while
+  failing closed before checked IR; CORE-081 gives the CLI one canonical compiler
+  module graph; CAP-013 gives generic specializations shared canonical CopyData
+  identity and phase order. Current cumulative records report flattened module lookup,
+  erased or unfrozen source visibility, and unqualified specialization identities as
+  risks, not as positive semantics. The founding PDFs and roadmap motivate modular
+  reusable programs, but do not implement or authorize any lookup rule. The audit must
+  verify every assumption against source and tests before freezing the implementation
+  contract.
+- CEO/engineering decision test - measurement and evidence: success for readiness is
+  an evidence-backed architecture map, one smallest useful target-program contract,
+  a complete admitted/rejected/preserved topology matrix, and a task-local source
+  probe that is red for the intended missing behavior on semantic, raw checked,
+  public library, and CLI `check`/`build`/`run` routes without producing a trusted
+  artifact. The probe must demonstrate the real-program delta rather than only another
+  argument ordering. The later behavior candidate must begin from a committed red,
+  use one shared name-resolution authority consumed by semantic and independent
+  checked admission, retain canonical specialization identity, execute through the
+  representative Linux/Windows native gate, and add corruption controls only for a
+  genuinely new checked invariant.
+- Failure modes and detection: guard removal or AST flattening could make private names
+  globally visible, bind a same-spelled declaration from the wrong file, accept
+  ambiguous imports by source order, create different identities across semantic/raw
+  routes, split generic specializations by spelling or module path, let a cycle recurse
+  indefinitely, key caches to unstable paths, lose source filenames/spans, or permit an
+  invalid program to reach LLVM. Detect each through paired same-name modules,
+  private/public separation, qualified/imported/local-shadow controls, reversed source
+  order, duplicate and missing files, cycles/nesting, canonical identity assertions,
+  semantic/raw/public parity, no-artifact negatives, checked-IR verification, LLVM
+  symbol/absence checks, O0/O2 native execution, and Linux/Windows workflow evidence.
+- Initial allowed files and stop boundary: before the architecture and probe are
+  classified, only this `TASK_LEDGER.md` authorization may change. Read-only source,
+  test, workflow, Git history, GitHub, and founding-document inspection is permitted;
+  probe files and generated evidence must live in a task-local directory outside the
+  repository. No parser, AST, resolver, semantic, checked-IR, verifier, codegen, cache,
+  example, workflow, state document, dependency, release, benchmark, protection, or
+  external-artifact mutation is authorized yet. Amend this same authorization before
+  adding a committed red test or any production file.
+- Recovery, decision threshold, strategic value, and what would change our mind: this
+  branch and the authorization commit are the rollback boundary. Proceed to a behavior
+  task only if the smallest useful contract is unambiguous, closes one exhaustively
+  enumerated class under shared authority, requires at most two compiler phases, and
+  can end in a composed executable program rather than rejection-only evidence. Stop
+  and rerank if useful positive modules require package management, external crates,
+  separate compilation/ABI, recursive graph semantics, glob/re-export policy, a new
+  runtime ownership rule, more than two compiler phases, or another feature-specific
+  specialization classifier. Evidence that typed `Result` propagation unlocks the
+  representative workload sooner, that current flattening already supplies the useful
+  program without false identity, or that a shared specialization/name authority must
+  be designed first would change the decision and move CAP-016 behind the higher-
+  leverage architecture task rather than broadening semantics.
+
 ## CAP-015 accepted-master project-truth synchronization
 
 - Date/task/status: 2026-08-12, `CAP-015-ACCEPTANCE-SYNC`, authorized bounded
