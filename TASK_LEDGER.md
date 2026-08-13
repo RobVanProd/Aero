@@ -90,8 +90,10 @@
     `claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/`
     containing exactly `manifest.json`, `oracle.json`, and `REPRODUCE.md`.
     Actions uploads are temporary transport only; the tracked canonical files
-    are the immutable public record, and correctness must remain reproducible
-    from tracked subject inputs plus documented commands.
+    are the immutable public record, and target artifacts plus observable
+    results must remain reproducible from tracked subject inputs plus documented
+    commands. The accepted manifest permanently retains the runner-image and
+    kernel observations from its original two capture jobs.
   - `manifest.json` must bind the full subject commit/tree/parent order,
     clean-state checks, compiler/input blob/SHA-256/size identities, schema and
     oracle hashes, capture-tool/workflow hashes, exact normalized argv/cwd/env,
@@ -169,10 +171,15 @@
     `d3f86a106a0bac45b974a628896c90dbdf5c8093`. No floating action, Rust,
     LLVM, archive, package, subject reference, host CRT, host SDK, or host
     linker may determine recorded target bytes. Runner image/version changes
-    are recorded execution-substrate observations, not immutable inputs. A
-    replay on a changed runner image is accepted only if the content-pinned
-    target hashes and exact observable results still match; any drift stops the
-    task and no full-runner reproducibility claim may be substituted.
+    are recorded execution-substrate observations, not immutable inputs. The
+    tool must define one closed canonical replay projection that excludes only
+    those runner-image and kernel observation values. A replay must compare that
+    projection byte-for-byte with the tracked accepted manifest, upload its
+    fresh runner observations separately, and reject every other difference.
+    It must never rewrite the accepted observations. A replay on a changed
+    runner image is accepted only if the content-pinned target hashes and exact
+    observable results still match; any claim-bearing drift stops the task and
+    no full-runner reproducibility claim may be substituted.
 - Allowed files and red/green choreography: cumulative implementation scope is
   exactly `TASK_LEDGER.md`, `.github/workflows/cap023-evidence.yml`,
   `tools/cap024_inference_evidence.py`,
@@ -206,9 +213,12 @@
     standard library. Each platform job must build `.ll`, `.bc`, `.s`, `O0`,
     and `O2` twice at canonical paths; run LLVM verifier, `llvm-as`,
     machine-instruction verification, native `O0`/`O2`, and the public route;
-    compare every artifact pair; and upload only canonical textual records for
-    aggregation. The aggregate job must require both platforms and validate the
-    tracked bundle byte-for-byte when present.
+   compare every artifact pair; and upload only canonical textual records for
+   aggregation. The aggregate job must require both platforms. In initial
+   capture mode it must emit the candidate canonical manifest; in replay mode it
+   must validate the tracked bundle and compare the closed canonical projection
+   byte-for-byte, permitting differences only in the separately reported fresh
+   runner-image and kernel observation values.
   - Run the focused contract, the existing fixed-array profile target, Python
     validator/oracle mutations, formatting/diff checks, then repository-root
     `./tools/test.sh`. Require exact candidate-head existing protected checks
