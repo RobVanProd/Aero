@@ -1,0 +1,229 @@
+fn matvec_2x3(matrix: [int; 6], vector: [int; 3]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 3 {
+            accumulator = accumulator + matrix[row * 3 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn matvec_2x2(matrix: [int; 4], vector: [int; 2]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 2 {
+            accumulator = accumulator + matrix[row * 2 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn infer_record(record: [int; 20]) -> [i32; 8] {
+    let mut result: [i32; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    let mut header: [i32; 3] = [0, 0, 0];
+    let mut header_index: int = 0;
+    while header_index < 3 {
+        header[header_index] = record[header_index];
+        header_index = header_index + 1;
+    }
+
+    if header[0] == 2 && header[1] == 3 && header[2] == 2 {
+        let mut input: [i32; 3] = [0, 0, 0];
+        let mut input_index: int = 0;
+        while input_index < 3 {
+            input[input_index] = record[3 + input_index];
+            input_index = input_index + 1;
+        }
+
+        let mut first_weights: [i32; 6] = [0, 0, 0, 0, 0, 0];
+        let mut first_weight_index: int = 0;
+        while first_weight_index < 6 {
+            first_weights[first_weight_index] = record[6 + first_weight_index];
+            first_weight_index = first_weight_index + 1;
+        }
+
+        let mut first_bias: [i32; 2] = [0, 0];
+        let mut first_bias_index: int = 0;
+        while first_bias_index < 2 {
+            first_bias[first_bias_index] = record[12 + first_bias_index];
+            first_bias_index = first_bias_index + 1;
+        }
+
+        let mut second_weights: [i32; 4] = [0, 0, 0, 0];
+        let mut second_weight_index: int = 0;
+        while second_weight_index < 4 {
+            second_weights[second_weight_index] = record[14 + second_weight_index];
+            second_weight_index = second_weight_index + 1;
+        }
+
+        let mut second_bias: [i32; 2] = [0, 0];
+        let mut second_bias_index: int = 0;
+        while second_bias_index < 2 {
+            second_bias[second_bias_index] = record[18 + second_bias_index];
+            second_bias_index = second_bias_index + 1;
+        }
+
+        let raw: [i32; 2] = matvec_2x3(first_weights, input);
+        let mut hidden: [i32; 2] = [0, 0];
+        let mut hidden_index: int = 0;
+        while hidden_index < 2 {
+            let activated: int = raw[hidden_index] + first_bias[hidden_index];
+            if activated > 0 {
+                hidden[hidden_index] = activated;
+            }
+            hidden_index = hidden_index + 1;
+        }
+
+        let raw_logits: [i32; 2] = matvec_2x2(second_weights, hidden);
+        let mut logits: [i32; 2] = [0, 0];
+        let mut logit_index: int = 0;
+        while logit_index < 2 {
+            logits[logit_index] = raw_logits[logit_index] + second_bias[logit_index];
+            logit_index = logit_index + 1;
+        }
+
+        let mut class: int = 0;
+        if logits[1] > logits[0] {
+            class = 1;
+        }
+        result[0] = 1;
+        result[1] = raw[0];
+        result[2] = raw[1];
+        result[3] = hidden[0];
+        result[4] = hidden[1];
+        result[5] = logits[0];
+        result[6] = logits[1];
+        result[7] = class;
+    }
+    return result;
+}
+
+fn records_equal(left: [int; 20], right: [int; 20]) -> int {
+    let mut equal: int = 1;
+    let mut index: int = 0;
+    while index < 20 {
+        if left[index] != right[index] {
+            equal = 0;
+        }
+        index = index + 1;
+    }
+    return equal;
+}
+
+fn results_equal(left: [int; 8], right: [int; 8]) -> int {
+    let mut equal: int = 1;
+    let mut index: int = 0;
+    while index < 8 {
+        if left[index] != right[index] {
+            equal = 0;
+        }
+        index = index + 1;
+    }
+    return equal;
+}
+
+fn main() -> int {
+    let ordinary_record: [int; 20] =
+        [2, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let wrapping_record: [int; 20] =
+        [2, 3, 2, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2, 7, -2147483648, -3, 13, -7];
+    let activation_record: [int; 20] =
+        [2, 3, 2, 1, 1, 1, -1, -1, -1, 1, 0, -1, 2, 0, 1, 2, 3, 4, 5, 4];
+    let tie_record: [int; 20] =
+        [2, 3, 2, 1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0];
+    let malformed_first_record: [int; 20] =
+        [1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let malformed_second_record: [int; 20] =
+        [2, 4, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let malformed_third_record: [int; 20] =
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+    let ordinary_result: [i32; 8] = infer_record(ordinary_record);
+    let wrapping_result: [i32; 8] = infer_record(wrapping_record);
+    let activation_result: [i32; 8] = infer_record(activation_record);
+    let tie_result: [i32; 8] = infer_record(tie_record);
+    let malformed_first_result: [i32; 8] = infer_record(malformed_first_record);
+    let malformed_second_result: [i32; 8] = infer_record(malformed_second_record);
+    let malformed_third_result: [i32; 8] = infer_record(malformed_third_record);
+
+    let ordinary_preserved: int = records_equal(
+        ordinary_record,
+        [2, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let wrapping_preserved: int = records_equal(
+        wrapping_record,
+        [2, 3, 2, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2, 7, -2147483648, -3, 13, -7]
+    );
+    let activation_preserved: int = records_equal(
+        activation_record,
+        [2, 3, 2, 1, 1, 1, -1, -1, -1, 1, 0, -1, 2, 0, 1, 2, 3, 4, 5, 4]
+    );
+    let tie_preserved: int = records_equal(
+        tie_record,
+        [2, 3, 2, 1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0]
+    );
+    let malformed_first_preserved: int = records_equal(
+        malformed_first_record,
+        [1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let malformed_second_preserved: int = records_equal(
+        malformed_second_record,
+        [2, 4, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let malformed_third_preserved: int = records_equal(
+        malformed_third_record,
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+
+    let ordinary_matches: int = results_equal(
+        ordinary_result,
+        [1, 122, 167, 135, 181, 4940, 5573, 1]
+    );
+    let wrapping_matches: int = results_equal(
+        wrapping_result,
+        [1, -24, 18, 2147483623, 0, -37, 2147483641, 1]
+    );
+    let activation_matches: int = results_equal(
+        activation_result,
+        [1, -3, 0, 0, 0, 5, 4, 0]
+    );
+    let tie_matches: int = results_equal(tie_result, [1, 1, 2, 1, 2, 3, 3, 0]);
+    let malformed_first_matches: int = results_equal(
+        malformed_first_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+    let malformed_second_matches: int = results_equal(
+        malformed_second_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+    let malformed_third_matches: int = results_equal(
+        malformed_third_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+
+    if ordinary_preserved == 1 && wrapping_preserved == 1
+        && activation_preserved == 1 && tie_preserved == 1
+        && malformed_first_preserved == 1 && malformed_second_preserved == 1
+        && malformed_third_preserved == 1
+        && ordinary_matches == 1 && wrapping_matches == 1
+        && activation_matches == 1 && tie_matches == 1
+        && malformed_first_matches == 1 && malformed_second_matches == 1
+        && malformed_third_matches == 1 {
+        return 91;
+    }
+    return 1;
+}

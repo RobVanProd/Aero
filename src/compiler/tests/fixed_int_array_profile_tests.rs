@@ -28,6 +28,8 @@ const FLAT_MATVEC_PRODUCT: &str =
     include_str!("../../../examples/fixed_int_array_v0/flat_matvec.aero");
 const TENSOR_RECORD_SCORING: &str =
     include_str!("../../../examples/fixed_int_array_v0/tensor_record_scoring.aero");
+const RELU_ARGMAX_INFERENCE: &str =
+    include_str!("../../../examples/fixed_int_array_v0/relu_argmax_inference.aero");
 const EXPECTED_FLAT_MATVEC_PRODUCT: &str = r#"fn matvec_2x3(matrix: [int; 6], vector: [int; 3]) -> [i32; 2] {
     let mut output: [i32; 2] = [0, 0];
     let mut row: int = 0;
@@ -214,6 +216,237 @@ fn main() -> int {
                 }
             }
         }
+    }
+    return 1;
+}
+"#;
+
+const EXPECTED_RELU_ARGMAX_INFERENCE: &str = r#"fn matvec_2x3(matrix: [int; 6], vector: [int; 3]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 3 {
+            accumulator = accumulator + matrix[row * 3 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn matvec_2x2(matrix: [int; 4], vector: [int; 2]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 2 {
+            accumulator = accumulator + matrix[row * 2 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn infer_record(record: [int; 20]) -> [i32; 8] {
+    let mut result: [i32; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    let mut header: [i32; 3] = [0, 0, 0];
+    let mut header_index: int = 0;
+    while header_index < 3 {
+        header[header_index] = record[header_index];
+        header_index = header_index + 1;
+    }
+
+    if header[0] == 2 && header[1] == 3 && header[2] == 2 {
+        let mut input: [i32; 3] = [0, 0, 0];
+        let mut input_index: int = 0;
+        while input_index < 3 {
+            input[input_index] = record[3 + input_index];
+            input_index = input_index + 1;
+        }
+
+        let mut first_weights: [i32; 6] = [0, 0, 0, 0, 0, 0];
+        let mut first_weight_index: int = 0;
+        while first_weight_index < 6 {
+            first_weights[first_weight_index] = record[6 + first_weight_index];
+            first_weight_index = first_weight_index + 1;
+        }
+
+        let mut first_bias: [i32; 2] = [0, 0];
+        let mut first_bias_index: int = 0;
+        while first_bias_index < 2 {
+            first_bias[first_bias_index] = record[12 + first_bias_index];
+            first_bias_index = first_bias_index + 1;
+        }
+
+        let mut second_weights: [i32; 4] = [0, 0, 0, 0];
+        let mut second_weight_index: int = 0;
+        while second_weight_index < 4 {
+            second_weights[second_weight_index] = record[14 + second_weight_index];
+            second_weight_index = second_weight_index + 1;
+        }
+
+        let mut second_bias: [i32; 2] = [0, 0];
+        let mut second_bias_index: int = 0;
+        while second_bias_index < 2 {
+            second_bias[second_bias_index] = record[18 + second_bias_index];
+            second_bias_index = second_bias_index + 1;
+        }
+
+        let raw: [i32; 2] = matvec_2x3(first_weights, input);
+        let mut hidden: [i32; 2] = [0, 0];
+        let mut hidden_index: int = 0;
+        while hidden_index < 2 {
+            let activated: int = raw[hidden_index] + first_bias[hidden_index];
+            if activated > 0 {
+                hidden[hidden_index] = activated;
+            }
+            hidden_index = hidden_index + 1;
+        }
+
+        let raw_logits: [i32; 2] = matvec_2x2(second_weights, hidden);
+        let mut logits: [i32; 2] = [0, 0];
+        let mut logit_index: int = 0;
+        while logit_index < 2 {
+            logits[logit_index] = raw_logits[logit_index] + second_bias[logit_index];
+            logit_index = logit_index + 1;
+        }
+
+        let mut class: int = 0;
+        if logits[1] > logits[0] {
+            class = 1;
+        }
+        result[0] = 1;
+        result[1] = raw[0];
+        result[2] = raw[1];
+        result[3] = hidden[0];
+        result[4] = hidden[1];
+        result[5] = logits[0];
+        result[6] = logits[1];
+        result[7] = class;
+    }
+    return result;
+}
+
+fn records_equal(left: [int; 20], right: [int; 20]) -> int {
+    let mut equal: int = 1;
+    let mut index: int = 0;
+    while index < 20 {
+        if left[index] != right[index] {
+            equal = 0;
+        }
+        index = index + 1;
+    }
+    return equal;
+}
+
+fn results_equal(left: [int; 8], right: [int; 8]) -> int {
+    let mut equal: int = 1;
+    let mut index: int = 0;
+    while index < 8 {
+        if left[index] != right[index] {
+            equal = 0;
+        }
+        index = index + 1;
+    }
+    return equal;
+}
+
+fn main() -> int {
+    let ordinary_record: [int; 20] =
+        [2, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let wrapping_record: [int; 20] =
+        [2, 3, 2, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2, 7, -2147483648, -3, 13, -7];
+    let activation_record: [int; 20] =
+        [2, 3, 2, 1, 1, 1, -1, -1, -1, 1, 0, -1, 2, 0, 1, 2, 3, 4, 5, 4];
+    let tie_record: [int; 20] =
+        [2, 3, 2, 1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0];
+    let malformed_first_record: [int; 20] =
+        [1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let malformed_second_record: [int; 20] =
+        [2, 4, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    let malformed_third_record: [int; 20] =
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+    let ordinary_result: [i32; 8] = infer_record(ordinary_record);
+    let wrapping_result: [i32; 8] = infer_record(wrapping_record);
+    let activation_result: [i32; 8] = infer_record(activation_record);
+    let tie_result: [i32; 8] = infer_record(tie_record);
+    let malformed_first_result: [i32; 8] = infer_record(malformed_first_record);
+    let malformed_second_result: [i32; 8] = infer_record(malformed_second_record);
+    let malformed_third_result: [i32; 8] = infer_record(malformed_third_record);
+
+    let ordinary_preserved: int = records_equal(
+        ordinary_record,
+        [2, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let wrapping_preserved: int = records_equal(
+        wrapping_record,
+        [2, 3, 2, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2, 7, -2147483648, -3, 13, -7]
+    );
+    let activation_preserved: int = records_equal(
+        activation_record,
+        [2, 3, 2, 1, 1, 1, -1, -1, -1, 1, 0, -1, 2, 0, 1, 2, 3, 4, 5, 4]
+    );
+    let tie_preserved: int = records_equal(
+        tie_record,
+        [2, 3, 2, 1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0]
+    );
+    let malformed_first_preserved: int = records_equal(
+        malformed_first_record,
+        [1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let malformed_second_preserved: int = records_equal(
+        malformed_second_record,
+        [2, 4, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+    let malformed_third_preserved: int = records_equal(
+        malformed_third_record,
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    );
+
+    let ordinary_matches: int = results_equal(
+        ordinary_result,
+        [1, 122, 167, 135, 181, 4940, 5573, 1]
+    );
+    let wrapping_matches: int = results_equal(
+        wrapping_result,
+        [1, -24, 18, 2147483623, 0, -37, 2147483641, 1]
+    );
+    let activation_matches: int = results_equal(
+        activation_result,
+        [1, -3, 0, 0, 0, 5, 4, 0]
+    );
+    let tie_matches: int = results_equal(tie_result, [1, 1, 2, 1, 2, 3, 3, 0]);
+    let malformed_first_matches: int = results_equal(
+        malformed_first_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+    let malformed_second_matches: int = results_equal(
+        malformed_second_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+    let malformed_third_matches: int = results_equal(
+        malformed_third_result,
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    );
+
+    if ordinary_preserved == 1 && wrapping_preserved == 1
+        && activation_preserved == 1 && tie_preserved == 1
+        && malformed_first_preserved == 1 && malformed_second_preserved == 1
+        && malformed_third_preserved == 1
+        && ordinary_matches == 1 && wrapping_matches == 1
+        && activation_matches == 1 && tie_matches == 1
+        && malformed_first_matches == 1 && malformed_second_matches == 1
+        && malformed_third_matches == 1 {
+        return 91;
     }
     return 1;
 }
@@ -440,6 +673,136 @@ fn reference_tensor_record(record: [i32; 17]) -> TensorRecordOracle {
         hidden,
         score_products,
         result: [1, raw[0], raw[1], hidden[0], hidden[1], score],
+    }
+}
+
+const ORDINARY_INFERENCE_RECORD: [i32; 20] = [
+    2, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+const WRAPPING_INFERENCE_RECORD: [i32; 20] = [
+    2,
+    3,
+    2,
+    2,
+    -3,
+    5,
+    i32::MAX,
+    4,
+    -2,
+    i32::MIN,
+    -1,
+    3,
+    i32::MAX,
+    i32::MAX,
+    2,
+    7,
+    i32::MIN,
+    -3,
+    13,
+    -7,
+];
+const ACTIVATION_INFERENCE_RECORD: [i32; 20] = [
+    2, 3, 2, 1, 1, 1, -1, -1, -1, 1, 0, -1, 2, 0, 1, 2, 3, 4, 5, 4,
+];
+const TIE_INFERENCE_RECORD: [i32; 20] =
+    [2, 3, 2, 1, 2, 3, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 3, 0, 0, 0];
+const MALFORMED_FIRST_INFERENCE_RECORD: [i32; 20] = [
+    1, 3, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+const MALFORMED_SECOND_INFERENCE_RECORD: [i32; 20] = [
+    2, 4, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+const MALFORMED_THIRD_INFERENCE_RECORD: [i32; 20] = [
+    2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct InferenceOracle {
+    first_products: [i32; 6],
+    raw: [i32; 2],
+    biased_hidden: [i32; 2],
+    hidden: [i32; 2],
+    second_products: [i32; 4],
+    raw_logits: [i32; 2],
+    logits: [i32; 2],
+    result: [i32; 8],
+}
+
+fn reference_relu_argmax_inference(record: [i32; 20]) -> InferenceOracle {
+    if [record[0], record[1], record[2]] != [2, 3, 2] {
+        return InferenceOracle {
+            first_products: [0; 6],
+            raw: [0; 2],
+            biased_hidden: [0; 2],
+            hidden: [0; 2],
+            second_products: [0; 4],
+            raw_logits: [0; 2],
+            logits: [0; 2],
+            result: [0; 8],
+        };
+    }
+
+    let input = [record[3], record[4], record[5]];
+    let first_weights = [
+        record[6], record[7], record[8], record[9], record[10], record[11],
+    ];
+    let first_bias = [record[12], record[13]];
+    let second_weights = [record[14], record[15], record[16], record[17]];
+    let second_bias = [record[18], record[19]];
+    let first_products = [
+        first_weights[0].wrapping_mul(input[0]),
+        first_weights[1].wrapping_mul(input[1]),
+        first_weights[2].wrapping_mul(input[2]),
+        first_weights[3].wrapping_mul(input[0]),
+        first_weights[4].wrapping_mul(input[1]),
+        first_weights[5].wrapping_mul(input[2]),
+    ];
+    let raw = [
+        0_i32
+            .wrapping_add(first_products[0])
+            .wrapping_add(first_products[1])
+            .wrapping_add(first_products[2]),
+        0_i32
+            .wrapping_add(first_products[3])
+            .wrapping_add(first_products[4])
+            .wrapping_add(first_products[5]),
+    ];
+    let biased_hidden = [
+        raw[0].wrapping_add(first_bias[0]),
+        raw[1].wrapping_add(first_bias[1]),
+    ];
+    let hidden = biased_hidden.map(|value| if value > 0 { value } else { 0 });
+    let second_products = [
+        second_weights[0].wrapping_mul(hidden[0]),
+        second_weights[1].wrapping_mul(hidden[1]),
+        second_weights[2].wrapping_mul(hidden[0]),
+        second_weights[3].wrapping_mul(hidden[1]),
+    ];
+    let raw_logits = [
+        0_i32
+            .wrapping_add(second_products[0])
+            .wrapping_add(second_products[1]),
+        0_i32
+            .wrapping_add(second_products[2])
+            .wrapping_add(second_products[3]),
+    ];
+    let logits = [
+        raw_logits[0].wrapping_add(second_bias[0]),
+        raw_logits[1].wrapping_add(second_bias[1]),
+    ];
+    let class = i32::from(logits[1] > logits[0]);
+
+    InferenceOracle {
+        first_products,
+        raw,
+        biased_hidden,
+        hidden,
+        second_products,
+        raw_logits,
+        logits,
+        result: [
+            1, raw[0], raw[1], hidden[0], hidden[1], logits[0], logits[1], class,
+        ],
     }
 }
 
@@ -1022,6 +1385,23 @@ fn exact_static_i32_load(function: &str, aggregate: &str, base: &str, lane: usiz
     ssa_value_for_rhs(function, &format!("load i32, i32* {pointer}, align 4"))
 }
 
+fn exact_static_i32_loads(function: &str, aggregate: &str, base: &str, lane: usize) -> Vec<String> {
+    let rhs = format!("getelementptr inbounds {aggregate}, {aggregate}* {base}, i64 0, i64 {lane}");
+    let pointers = function
+        .lines()
+        .filter(|line| line.trim().ends_with(&format!(" = {rhs}")))
+        .map(ssa_definition)
+        .collect::<Vec<_>>();
+    assert!(
+        !pointers.is_empty(),
+        "static {aggregate} lane {lane} is absent"
+    );
+    pointers
+        .into_iter()
+        .map(|pointer| ssa_value_for_rhs(function, &format!("load i32, i32* {pointer}, align 4")))
+        .collect()
+}
+
 fn assert_zero_initialized_array_local(function: &str, aggregate: &str, width: usize, base: &str) {
     let blocks = llvm_blocks(function);
     assert_eq!(
@@ -1275,6 +1655,8 @@ fn assert_decode_loop_binding(
     function: &str,
     blocks: &[LlvmBlock],
     record_base: &str,
+    record_aggregate: &str,
+    record_width: i32,
     name: &'static str,
     expected_aggregate: &str,
     width: i32,
@@ -1282,13 +1664,19 @@ fn assert_decode_loop_binding(
     source: &DynamicI32Access,
     all_accesses: &[DynamicI32Access],
 ) -> DecodeLoopBinding {
-    assert_eq!(source.aggregate, "[17 x i32]");
+    assert_eq!(source.aggregate, record_aggregate);
     assert_eq!(
         source.base, record_base,
         "{name} must read the record local"
     );
     assert_eq!(source.consumer, "load i32");
-    assert_identity_linked_guard_consumer(function, &source.index, 17, "[17 x i32]", "load i32");
+    assert_identity_linked_guard_consumer(
+        function,
+        &source.index,
+        record_width,
+        record_aggregate,
+        "load i32",
+    );
     let raw_index = if offset == 0 {
         source.index.clone()
     } else {
@@ -1364,15 +1752,16 @@ fn assert_tensor_header_gate(
     blocks: &[LlvmBlock],
     header: &DecodeLoopBinding,
     payload: &[DecodeLoopBinding],
-) {
+    expected_header: [i32; 3],
+    result_aggregate: &str,
+) -> (String, String) {
     assert_eq!(header.name, "header");
     assert_header_static_lanes_backreference_dynamic_copy(function, header);
     assert_eq!(
         payload.len(),
         5,
-        "header gate must own all five payload decoders"
+        "header gate must own all payload decoders"
     );
-    let expected_header = [2, 3, 1];
     let predicates = expected_header
         .into_iter()
         .enumerate()
@@ -1470,7 +1859,7 @@ fn assert_tensor_header_gate(
             .lines()
             .skip(merge_block.start + 1)
             .take(merge_block.end - merge_block.start - 1)
-            .any(|line| line.trim().starts_with("ret [6 x i32] ")),
+            .any(|line| line.trim().starts_with(&format!("ret {result_aggregate} "))),
         "post-payload merge must return the initialized result"
     );
     let merge_predecessors = llvm_predecessors(blocks, merge);
@@ -1482,6 +1871,7 @@ fn assert_tensor_header_gate(
         .expect("validated payload predecessor");
     assert!(llvm_dominates(blocks, true_target, payload_predecessor));
     assert!(llvm_reachable(blocks, true_target, merge));
+    (true_target.to_string(), false_target.to_string())
 }
 
 fn exact_aggregate_load(function: &str, aggregate: &str, base: &str) -> String {
@@ -2014,17 +2404,14 @@ fn assert_main_source_preservation(function: &str) {
     }
 }
 
-fn assert_records_equal_contract(function: &str) {
+fn assert_array_equality_contract(function: &str, width: i32, label: &str) {
     let blocks = llvm_blocks(function);
-    let left_base = exact_argument_array_base(function, "[17 x i32]", "left");
-    let right_base = exact_argument_array_base(function, "[17 x i32]", "right");
+    let aggregate = format!("[{width} x i32]");
+    let left_base = exact_argument_array_base(function, &aggregate, "left");
+    let right_base = exact_argument_array_base(function, &aggregate, "right");
     assert_ne!(left_base, right_base);
-    let accesses = dynamic_i32_accesses(function, "[17 x i32]");
-    assert_eq!(
-        accesses.len(),
-        2,
-        "records_equal needs exactly two guarded reads"
-    );
+    let accesses = dynamic_i32_accesses(function, &aggregate);
+    assert_eq!(accesses.len(), 2, "{label} needs exactly two guarded reads");
     assert_eq!(accesses[0].base, left_base);
     assert_eq!(accesses[1].base, right_base);
     for access in &accesses {
@@ -2032,8 +2419,8 @@ fn assert_records_equal_contract(function: &str) {
         assert_identity_linked_guard_consumer(
             function,
             &access.index,
-            17,
-            "[17 x i32]",
+            width,
+            &aggregate,
             "load i32",
         );
     }
@@ -2043,7 +2430,7 @@ fn assert_records_equal_contract(function: &str) {
         index_slot,
         "left and right guarded reads must reuse the exact induction local"
     );
-    let counted = assert_exact_counted_loop(function, &blocks, &index_slot, 17);
+    let counted = assert_exact_counted_loop(function, &blocks, &index_slot, width);
     for access in &accesses {
         for line in [access.line, access.consumer_line] {
             let block = llvm_block_for_line(&blocks, line);
@@ -2069,7 +2456,7 @@ fn assert_records_equal_contract(function: &str) {
     let (mismatch_line, targets) = mismatch_branches[0];
     let (different, equal) = targets
         .split_once(", label %")
-        .expect("records_equal mismatch branch labels");
+        .unwrap_or_else(|| panic!("{label} mismatch branch labels"));
     let mismatch_block = llvm_block_for_line(&blocks, mismatch_line);
     assert_eq!(
         mismatch_block.successors,
@@ -2111,16 +2498,16 @@ fn assert_records_equal_contract(function: &str) {
     assert_eq!(
         equality_initializations.len(),
         1,
-        "records_equal must initialize equality to true exactly once"
+        "{label} must initialize equality to true exactly once"
     );
     let equality_initializer_block = llvm_block_for_line(&blocks, equality_initializations[0]);
     assert!(
         equality_initializations[0] < llvm_block(&blocks, &counted.start).start,
-        "equality initialization must precede the 0..17 loop start"
+        "equality initialization must precede the 0..{width} loop start"
     );
     assert!(
         llvm_dominates(&blocks, &equality_initializer_block.name, &counted.start),
-        "equality initialization block must dominate the 0..17 loop"
+        "equality initialization block must dominate the 0..{width} loop"
     );
     assert_eq!(
         function
@@ -2153,7 +2540,7 @@ fn assert_records_equal_contract(function: &str) {
             function
                 .lines()
                 .position(|line| line.trim() == format!("ret i32 {returned}"))
-                .expect("records_equal return")
+                .unwrap_or_else(|| panic!("{label} return"))
         )
         .name,
         end_block.name
@@ -2161,7 +2548,7 @@ fn assert_records_equal_contract(function: &str) {
     assert_eq!(
         occurrences(function, &format!("ret i32 {returned}")),
         1,
-        "records_equal loop exit must return the exact equality local"
+        "{label} loop exit must return the exact equality local"
     );
 }
 
@@ -2193,6 +2580,391 @@ fn guarded_index_for_bound(function: &str, upper_bound: i32) -> String {
         "expected exactly one guarded index with upper bound {upper_bound}:\n{function}"
     );
     indexes.pop().expect("unique guarded index")
+}
+
+fn exact_branch_targets(
+    function: &str,
+    blocks: &[LlvmBlock],
+    predicate: &str,
+) -> (usize, String, String) {
+    let branches = function
+        .lines()
+        .enumerate()
+        .filter_map(|(line, text)| {
+            text.trim()
+                .strip_prefix(&format!("br i1 {predicate}, label %"))
+                .and_then(|targets| targets.split_once(", label %"))
+                .map(|(true_target, false_target)| {
+                    (line, true_target.to_string(), false_target.to_string())
+                })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        branches.len(),
+        1,
+        "predicate `{predicate}` must control exactly one branch:\n{function}"
+    );
+    let (line, true_target, false_target) = branches[0].clone();
+    assert_eq!(
+        llvm_block_for_line(blocks, line).successors,
+        vec![true_target.clone(), false_target.clone()]
+    );
+    (line, true_target, false_target)
+}
+
+fn assert_row_major_matvec_contract(
+    function: &str,
+    matrix_aggregate: &str,
+    matrix_width: i32,
+    vector_aggregate: &str,
+    columns: i32,
+) {
+    let matrix_base = exact_argument_array_base(function, matrix_aggregate, "matrix");
+    let vector_base = exact_argument_array_base(function, vector_aggregate, "vector");
+    let matrix_accesses = dynamic_i32_accesses(function, matrix_aggregate);
+    let vector_accesses = dynamic_i32_accesses(function, vector_aggregate)
+        .into_iter()
+        .filter(|access| access.base == vector_base && access.consumer == "load i32")
+        .collect::<Vec<_>>();
+    let output_accesses = dynamic_i32_accesses(function, "[2 x i32]")
+        .into_iter()
+        .filter(|access| access.consumer == "store i32")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matrix_accesses.len(),
+        1,
+        "one guarded row-major matrix read"
+    );
+    assert_eq!(vector_accesses.len(), 1, "one guarded vector read");
+    assert_eq!(output_accesses.len(), 1, "one guarded output write");
+    assert_eq!(matrix_accesses[0].base, matrix_base);
+    assert_eq!(vector_accesses[0].base, vector_base);
+    assert_identity_linked_guard_consumer(
+        function,
+        &matrix_accesses[0].index,
+        matrix_width,
+        matrix_aggregate,
+        "load i32",
+    );
+    assert_identity_linked_guard_consumer(
+        function,
+        &vector_accesses[0].index,
+        columns,
+        vector_aggregate,
+        "load i32",
+    );
+    assert_identity_linked_guard_consumer(
+        function,
+        &output_accesses[0].index,
+        2,
+        "[2 x i32]",
+        "store i32",
+    );
+
+    let row_products = function
+        .lines()
+        .filter(|line| {
+            line.contains(" = mul i32 ") && line.trim_end().ends_with(&format!(", {columns}"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        row_products.len(),
+        1,
+        "row-major matvec needs one row-times-{columns} index"
+    );
+    let row_offset = ssa_definition(row_products[0]);
+    let row_value = ssa_rhs(function, row_offset)
+        .strip_prefix("mul i32 ")
+        .and_then(|rhs| rhs.strip_suffix(&format!(", {columns}")))
+        .expect("row-major offset");
+    let row_slot = loaded_i32_pointer(function, row_value);
+    let linear_lines = function
+        .lines()
+        .filter(|line| line.contains(&format!(" = add i32 {row_offset}, ")))
+        .collect::<Vec<_>>();
+    assert_eq!(linear_lines.len(), 1, "one row-plus-column linear index");
+    let linear = ssa_definition(linear_lines[0]);
+    let column_value = ssa_rhs(function, linear)
+        .strip_prefix(&format!("add i32 {row_offset}, "))
+        .expect("row-major column value");
+    let column_slot = loaded_i32_pointer(function, column_value);
+    assert_ne!(row_slot, column_slot);
+    assert_eq!(matrix_accesses[0].index, linear);
+    assert_eq!(
+        loaded_i32_pointer(function, &vector_accesses[0].index),
+        column_slot,
+        "vector read must use the matrix column induction local"
+    );
+    assert_eq!(
+        loaded_i32_pointer(function, &output_accesses[0].index),
+        row_slot,
+        "output write must use the matrix row induction local"
+    );
+    let product = ssa_value_for_rhs(
+        function,
+        &format!(
+            "mul i32 {}, {}",
+            matrix_accesses[0].value, vector_accesses[0].value
+        ),
+    );
+    let accumulator_adds = function
+        .lines()
+        .filter_map(|line| {
+            let (sum, rhs) = line.trim().split_once(" = ")?;
+            let other = rhs
+                .strip_prefix(&format!("add i32 {product}, "))
+                .or_else(|| {
+                    rhs.strip_suffix(&format!(", {product}"))?
+                        .strip_prefix("add i32 ")
+                })?;
+            ssa_rhs(function, other)
+                .starts_with("load i32, i32* ")
+                .then(|| (sum.to_string(), other.to_string()))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        accumulator_adds.len(),
+        1,
+        "wrapping product must feed one exact accumulator add"
+    );
+    let accumulator_slot = loaded_i32_pointer(function, &accumulator_adds[0].1);
+    assert_eq!(
+        occurrences(
+            function,
+            &format!(
+                "store i32 {}, i32* {accumulator_slot}, align 4",
+                accumulator_adds[0].0
+            )
+        ),
+        1,
+        "wrapping sum must update the same accumulator local"
+    );
+    assert!(!function.contains(" nsw ") && !function.contains(" nuw "));
+}
+
+fn assert_inference_result_contract(
+    function: &str,
+    blocks: &[LlvmBlock],
+    valid_target: &str,
+    invalid_target: &str,
+    raw_base: &str,
+    hidden_base: &str,
+    result_logits: [&str; 2],
+    class_value: &str,
+) {
+    let returned = function
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("ret [8 x i32] "))
+        .expect("inference result return value");
+    let result_base = ssa_rhs(function, returned)
+        .strip_prefix("load [8 x i32], [8 x i32]* ")
+        .and_then(|rhs| rhs.strip_suffix(", align 8"))
+        .expect("inference result must return one exact aggregate local");
+    assert_zero_initialized_array_local(function, "[8 x i32]", 8, result_base);
+    let result_load_line = function
+        .lines()
+        .position(|line| {
+            line.trim() == format!("{returned} = load [8 x i32], [8 x i32]* {result_base}, align 8")
+        })
+        .expect("inference result aggregate load");
+    let expected_values = [
+        "1".to_string(),
+        exact_static_i32_load(function, "[2 x i32]", raw_base, 0),
+        exact_static_i32_load(function, "[2 x i32]", raw_base, 1),
+        exact_static_i32_load(function, "[2 x i32]", hidden_base, 0),
+        exact_static_i32_load(function, "[2 x i32]", hidden_base, 1),
+        result_logits[0].to_string(),
+        result_logits[1].to_string(),
+        class_value.to_string(),
+    ];
+    let mut write_lines = Vec::new();
+    for (lane, value) in expected_values.iter().enumerate() {
+        let pointer = static_array_lane_pointer(function, "[8 x i32]", result_base, lane);
+        let store = format!("store i32 {value}, i32* {pointer}, align 4");
+        let matches = function
+            .lines()
+            .enumerate()
+            .filter(|(_, line)| line.trim() == store)
+            .map(|(line, _)| line)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches.len(),
+            1,
+            "inference result lane {lane} must store its exact linked value"
+        );
+        let block = llvm_block_for_line(blocks, matches[0]);
+        assert!(llvm_dominates(blocks, valid_target, &block.name));
+        assert!(
+            !llvm_reachable(blocks, invalid_target, &block.name),
+            "malformed-header flow must bypass result lane {lane}"
+        );
+        assert!(matches[0] < result_load_line);
+        write_lines.push(matches[0]);
+    }
+    assert_eq!(
+        write_lines.len(),
+        8,
+        "all eight valid inference result lanes must be written"
+    );
+    let rooted_geps = function
+        .lines()
+        .filter_map(|line| {
+            let (_, rhs) = line.trim().split_once(" = ")?;
+            rhs.strip_prefix(&format!(
+                "getelementptr inbounds [8 x i32], [8 x i32]* {result_base}, i64 0, i64 "
+            ))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rooted_geps,
+        (0..8).map(|lane| lane.to_string()).collect::<Vec<_>>(),
+        "result local must expose exactly eight ordered static lanes"
+    );
+}
+
+fn assert_relu_contract(
+    function: &str,
+    blocks: &[LlvmBlock],
+    raw_base: &str,
+    first_bias_base: &str,
+) -> String {
+    let accesses = dynamic_i32_accesses(function, "[2 x i32]");
+    let raw_reads = accesses
+        .iter()
+        .filter(|access| access.base == raw_base && access.consumer == "load i32")
+        .collect::<Vec<_>>();
+    let bias_reads = accesses
+        .iter()
+        .filter(|access| access.base == first_bias_base && access.consumer == "load i32")
+        .collect::<Vec<_>>();
+    assert_eq!(raw_reads.len(), 1, "ReLU must read one symbolic raw lane");
+    assert_eq!(
+        bias_reads.len(),
+        1,
+        "ReLU must read one symbolic first-bias lane"
+    );
+    let biased_sum = ssa_value_for_rhs(
+        function,
+        &format!("add i32 {}, {}", raw_reads[0].value, bias_reads[0].value),
+    );
+    let activated_homes = function
+        .lines()
+        .enumerate()
+        .filter_map(|(line, text)| {
+            text.trim()
+                .strip_prefix(&format!("store i32 {biased_sum}, i32* "))
+                .and_then(|rhs| rhs.strip_suffix(", align 4"))
+                .map(|home| (line, home.to_string()))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        activated_homes.len(),
+        1,
+        "biased hidden value must enter one scalar activation local"
+    );
+    let activated_home = &activated_homes[0].1;
+    let activated_loads = function
+        .lines()
+        .filter_map(|line| {
+            let (value, rhs) = line.trim().split_once(" = ")?;
+            (rhs == format!("load i32, i32* {activated_home}, align 4")).then(|| value.to_string())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        activated_loads.len(),
+        2,
+        "activation local must be read once for strict-positive gating and once for storage"
+    );
+    let positive_predicates = activated_loads
+        .iter()
+        .filter_map(|value| {
+            function
+                .lines()
+                .find(|line| {
+                    line.trim()
+                        .ends_with(&format!(" = icmp sgt i32 {value}, 0"))
+                })
+                .map(|line| ssa_definition(line).to_string())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        positive_predicates.len(),
+        1,
+        "ReLU must retain values on exactly one strict-positive predicate"
+    );
+    let (_, positive_target, zero_target) =
+        exact_branch_targets(function, blocks, &positive_predicates[0]);
+    let hidden_stores = accesses
+        .iter()
+        .filter(|access| access.consumer == "store i32" && activated_loads.contains(&access.value))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        hidden_stores.len(),
+        1,
+        "strict-positive activation must feed one hidden destination store"
+    );
+    let hidden = hidden_stores[0];
+    assert_zero_initialized_array_local(function, "[2 x i32]", 2, &hidden.base);
+    let store_block = llvm_block_for_line(blocks, hidden.consumer_line);
+    assert!(llvm_dominates(blocks, &positive_target, &store_block.name));
+    assert_ne!(
+        store_block.name, zero_target,
+        "strict-positive hidden store must remain outside the zero/negative branch"
+    );
+    let zero_block = llvm_block(blocks, &zero_target);
+    assert_eq!(
+        zero_block.successors.len(),
+        1,
+        "zero/negative activation block must flow directly to one shared reconvergence"
+    );
+    let reconvergence = zero_block.successors[0].clone();
+    assert_eq!(
+        store_block.successors,
+        vec![reconvergence.clone()],
+        "strict-positive hidden store must flow to the same activation reconvergence"
+    );
+    let activation_branch = llvm_predecessors(blocks, &positive_target);
+    assert_eq!(
+        activation_branch.len(),
+        1,
+        "strict-positive activation target must have one exact predicate predecessor"
+    );
+    let reconvergence_predecessors = llvm_predecessors(blocks, &reconvergence);
+    assert_eq!(
+        reconvergence_predecessors.len(),
+        2,
+        "activation reconvergence must join only the direct zero/negative edge and positive store edge"
+    );
+    assert!(reconvergence_predecessors.contains(&zero_target));
+    assert!(reconvergence_predecessors.contains(&store_block.name));
+    let reconvergence_block = llvm_block(blocks, &reconvergence);
+    assert!(
+        function
+            .lines()
+            .skip(reconvergence_block.start + 1)
+            .take(reconvergence_block.end - reconvergence_block.start - 1)
+            .all(|line| !line
+                .trim()
+                .ends_with(&format!(", i32* {}, align 4", hidden.pointer))),
+        "shared zero/negative reconvergence must not perform the positive hidden store"
+    );
+    for access in [raw_reads[0], bias_reads[0], hidden] {
+        assert_identity_linked_guard_consumer(
+            function,
+            &access.index,
+            2,
+            "[2 x i32]",
+            &access.consumer,
+        );
+    }
+    let index_slot = loaded_i32_pointer(function, &raw_reads[0].index);
+    assert_eq!(
+        loaded_i32_pointer(function, &bias_reads[0].index),
+        index_slot
+    );
+    assert_eq!(loaded_i32_pointer(function, &hidden.index), index_slot);
+    assert_exact_counted_loop(function, blocks, &index_slot, 2);
+    hidden.base.clone()
 }
 
 fn workflow_named_step<'a>(workflow: &'a str, name: &str) -> &'a str {
@@ -3564,6 +4336,8 @@ fn exact_profile_executes_guarded_tensor_record_two_stage_scoring_product() {
                 decode,
                 &decode_blocks,
                 &record_base,
+                "[17 x i32]",
+                17,
                 name,
                 aggregate,
                 width,
@@ -3589,6 +4363,8 @@ fn exact_profile_executes_guarded_tensor_record_two_stage_scoring_product() {
         &decode_blocks,
         &decode_bindings[0],
         &decode_bindings[1..],
+        [2, 3, 1],
+        "[6 x i32]",
     );
 
     let input_value =
@@ -3720,7 +4496,7 @@ fn exact_profile_executes_guarded_tensor_record_two_stage_scoring_product() {
     );
 
     let compare = llvm_function_body(&first, compare_signature);
-    assert_records_equal_contract(compare);
+    assert_array_equality_contract(compare, 17, "records_equal");
     let main = llvm_function_body(&first, "define i32 @main()");
     assert_main_source_preservation(main);
 
@@ -3807,6 +4583,700 @@ fn exact_profile_executes_guarded_tensor_record_two_stage_scoring_product() {
         1,
         "public scorer route must report the exact sentinel once"
     );
+}
+
+#[test]
+fn exact_profile_executes_relu_argmax_inference_product() {
+    assert_eq!(
+        RELU_ARGMAX_INFERENCE, EXPECTED_RELU_ARGMAX_INFERENCE,
+        "tracked ReLU/argmax source bytes drifted from the frozen CAP-023 contract"
+    );
+
+    let ordinary = reference_relu_argmax_inference(ORDINARY_INFERENCE_RECORD);
+    assert_eq!(ordinary.first_products, [28, 40, 54, 40, 55, 72]);
+    assert_eq!(ordinary.raw, [122, 167]);
+    assert_eq!(ordinary.biased_hidden, [135, 181]);
+    assert_eq!(ordinary.hidden, [135, 181]);
+    assert_eq!(ordinary.second_products, [2025, 2896, 2295, 3258]);
+    assert_eq!(ordinary.raw_logits, [4921, 5553]);
+    assert_eq!(ordinary.logits, [4940, 5573]);
+    assert_eq!(ordinary.result, [1, 122, 167, 135, 181, 4940, 5573, 1]);
+
+    let wrapping = reference_relu_argmax_inference(WRAPPING_INFERENCE_RECORD);
+    assert_eq!(wrapping.first_products, [-2, -12, -10, 0, 3, 15]);
+    assert_eq!(wrapping.raw, [-24, 18]);
+    assert_eq!(wrapping.biased_hidden, [2_147_483_623, -2_147_483_631]);
+    assert_eq!(wrapping.hidden, [2_147_483_623, 0]);
+    assert_eq!(wrapping.second_products, [-50, 0, i32::MIN, 0]);
+    assert_eq!(wrapping.raw_logits, [-50, i32::MIN]);
+    assert_eq!(wrapping.logits, [-37, 2_147_483_641]);
+    assert_eq!(
+        wrapping.result,
+        [1, -24, 18, 2_147_483_623, 0, -37, 2_147_483_641, 1]
+    );
+    assert!(
+        (wrapping.logits[1] as u32) < (wrapping.logits[0] as u32),
+        "wrapping oracle must distinguish signed from unsigned argmax"
+    );
+
+    let activation = reference_relu_argmax_inference(ACTIVATION_INFERENCE_RECORD);
+    assert_eq!(activation.raw, [-3, 0]);
+    assert_eq!(activation.biased_hidden, [-1, 0]);
+    assert_eq!(activation.hidden, [0, 0]);
+    assert_eq!(activation.logits, [5, 4]);
+    assert_eq!(activation.result, [1, -3, 0, 0, 0, 5, 4, 0]);
+
+    let tie = reference_relu_argmax_inference(TIE_INFERENCE_RECORD);
+    assert_eq!(tie.raw, [1, 2]);
+    assert_eq!(tie.hidden, [1, 2]);
+    assert_eq!(tie.logits, [3, 3]);
+    assert_eq!(tie.result, [1, 1, 2, 1, 2, 3, 3, 0]);
+
+    for (lane, malformed) in [
+        MALFORMED_FIRST_INFERENCE_RECORD,
+        MALFORMED_SECOND_INFERENCE_RECORD,
+        MALFORMED_THIRD_INFERENCE_RECORD,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(
+            reference_relu_argmax_inference(malformed),
+            InferenceOracle {
+                first_products: [0; 6],
+                raw: [0; 2],
+                biased_hidden: [0; 2],
+                hidden: [0; 2],
+                second_products: [0; 4],
+                raw_logits: [0; 2],
+                logits: [0; 2],
+                result: [0; 8],
+            },
+            "header lane {lane} malformed control must bypass the payload"
+        );
+    }
+    for (actual, expected) in [
+        (ORDINARY_INFERENCE_RECORD, ORDINARY_INFERENCE_RECORD),
+        (WRAPPING_INFERENCE_RECORD, WRAPPING_INFERENCE_RECORD),
+        (ACTIVATION_INFERENCE_RECORD, ACTIVATION_INFERENCE_RECORD),
+        (TIE_INFERENCE_RECORD, TIE_INFERENCE_RECORD),
+        (
+            MALFORMED_FIRST_INFERENCE_RECORD,
+            MALFORMED_FIRST_INFERENCE_RECORD,
+        ),
+        (
+            MALFORMED_SECOND_INFERENCE_RECORD,
+            MALFORMED_SECOND_INFERENCE_RECORD,
+        ),
+        (
+            MALFORMED_THIRD_INFERENCE_RECORD,
+            MALFORMED_THIRD_INFERENCE_RECORD,
+        ),
+    ] {
+        assert_eq!(actual, expected, "by-value oracle changed a source record");
+    }
+
+    let tokens = try_tokenize_with_locations(RELU_ARGMAX_INFERENCE, None)
+        .expect("ReLU/argmax inference product should lex");
+    let ast = parse_with_locations(tokens).expect("ReLU/argmax inference product should parse");
+    let raw_checked = IrGenerator::new()
+        .try_generate_ir(ast.clone())
+        .expect("raw checked IR should admit the inference product");
+    let mut analyzer = SemanticAnalyzer::new();
+    let (_, analyzed) = analyzer
+        .analyze(ast)
+        .expect("inference product should pass semantic analysis");
+    let analyzed_checked = IrGenerator::new()
+        .try_generate_ir(analyzed)
+        .expect("analyzed checked IR should admit the inference product");
+    let exact_array = |count| LogicalType::Array {
+        element: Box::new(LogicalType::Int),
+        count,
+    };
+    for checked in [&raw_checked, &analyzed_checked] {
+        let metadata = checked.metadata();
+        assert_eq!(metadata.functions.len(), 6);
+        assert_eq!(
+            metadata.functions["matvec_2x3"].signature.parameters,
+            vec![
+                ("matrix".to_string(), exact_array(6)),
+                ("vector".to_string(), exact_array(3)),
+            ]
+        );
+        assert_eq!(
+            metadata.functions["matvec_2x3"].signature.result,
+            exact_array(2)
+        );
+        assert_eq!(
+            metadata.functions["matvec_2x2"].signature.parameters,
+            vec![
+                ("matrix".to_string(), exact_array(4)),
+                ("vector".to_string(), exact_array(2)),
+            ]
+        );
+        assert_eq!(
+            metadata.functions["matvec_2x2"].signature.result,
+            exact_array(2)
+        );
+        assert_eq!(
+            metadata.functions["infer_record"].signature.parameters,
+            vec![("record".to_string(), exact_array(20))]
+        );
+        assert_eq!(
+            metadata.functions["infer_record"].signature.result,
+            exact_array(8)
+        );
+        for (name, count) in [("records_equal", 20), ("results_equal", 8)] {
+            assert_eq!(
+                metadata.functions[name].signature.parameters,
+                vec![
+                    ("left".to_string(), exact_array(count)),
+                    ("right".to_string(), exact_array(count)),
+                ]
+            );
+            assert_eq!(metadata.functions[name].signature.result, LogicalType::Int);
+        }
+        let checked_debug = format!("{checked:#?}");
+        for marker in [
+            "CheckedMutableOwnedPlaceAlloca",
+            "CheckedOwnedPlaceAssignment",
+            "count: 20",
+            "count: 8",
+            "count: 6",
+            "count: 4",
+            "count: 3",
+            "count: 2",
+        ] {
+            assert!(
+                checked_debug.contains(marker),
+                "checked inference IR omitted `{marker}`:\n{checked_debug}"
+            );
+        }
+    }
+
+    check_program(RELU_ARGMAX_INFERENCE, exact_options())
+        .expect("inference product should pass selected-profile checking");
+    let first = compile_program(RELU_ARGMAX_INFERENCE, exact_options())
+        .expect("inference product should compile without production changes");
+    let second = compile_program(RELU_ARGMAX_INFERENCE, exact_options())
+        .expect("inference product should compile deterministically");
+    assert_eq!(first, second, "inference LLVM must be byte deterministic");
+
+    let matvec_2x3_signature =
+        "define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)";
+    let matvec_2x2_signature =
+        "define [2 x i32] @matvec_2x2([4 x i32] %aero.arg.matrix, [2 x i32] %aero.arg.vector)";
+    let infer_signature = "define [8 x i32] @infer_record([20 x i32] %aero.arg.record)";
+    let records_equal_signature =
+        "define i32 @records_equal([20 x i32] %aero.arg.left, [20 x i32] %aero.arg.right)";
+    let results_equal_signature =
+        "define i32 @results_equal([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right)";
+    for anchor in [
+        matvec_2x3_signature,
+        matvec_2x2_signature,
+        infer_signature,
+        records_equal_signature,
+        results_equal_signature,
+        "ret [2 x i32]",
+        "ret [8 x i32]",
+        "declare void @llvm.trap()",
+    ] {
+        assert!(first.contains(anchor), "inference LLVM omitted `{anchor}`");
+    }
+    for aggregate in [
+        "[20 x i32]",
+        "[8 x i32]",
+        "[6 x i32]",
+        "[4 x i32]",
+        "[3 x i32]",
+        "[2 x i32]",
+    ] {
+        assert!(
+            first.contains(&format!("alloca {aggregate}, align 8")),
+            "inference LLVM omitted exact aggregate identity {aggregate}"
+        );
+    }
+    assert_eq!(
+        occurrences(&first, "call [8 x i32] @infer_record([20 x i32]"),
+        7,
+        "main must infer four valid and three independently malformed records"
+    );
+    assert_eq!(
+        occurrences(&first, "call i32 @records_equal([20 x i32]"),
+        7,
+        "main must preserve every lane of all seven source records"
+    );
+    assert_eq!(
+        occurrences(&first, "call i32 @results_equal([8 x i32]"),
+        7,
+        "main must compare all four valid and three malformed results"
+    );
+
+    let infer = llvm_function_body(&first, infer_signature);
+    assert_eq!(
+        occurrences(infer, "call [2 x i32] @matvec_2x3([6 x i32]"),
+        1
+    );
+    assert_eq!(
+        occurrences(infer, "call [2 x i32] @matvec_2x2([4 x i32]"),
+        1
+    );
+    let infer_blocks = llvm_blocks(infer);
+    let record_base = exact_argument_array_base(infer, "[20 x i32]", "record");
+    let record_accesses = dynamic_i32_accesses(infer, "[20 x i32]");
+    assert_eq!(
+        record_accesses.len(),
+        6,
+        "inference decoder needs header plus five payload source loops"
+    );
+    let mut decoded_accesses = Vec::new();
+    for aggregate in ["[3 x i32]", "[6 x i32]", "[4 x i32]", "[2 x i32]"] {
+        decoded_accesses.extend(dynamic_i32_accesses(infer, aggregate));
+    }
+    let record_source = |offset: i32| {
+        let matches = record_accesses
+            .iter()
+            .filter(|access| {
+                let rhs = ssa_rhs(infer, &access.index);
+                if offset == 0 {
+                    rhs.starts_with("load i32, i32* ") && rhs.ends_with(", align 4")
+                } else {
+                    rhs.strip_prefix(&format!("add i32 {offset}, "))
+                        .is_some_and(|raw| {
+                            ssa_rhs(infer, raw).starts_with("load i32, i32* ")
+                                && ssa_rhs(infer, raw).ends_with(", align 4")
+                        })
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            matches.len(),
+            1,
+            "record offset {offset} must identify one exact decode source"
+        );
+        (*matches[0]).clone()
+    };
+    let decode_specs = [
+        ("header", "[3 x i32]", 3, 0),
+        ("input", "[3 x i32]", 3, 3),
+        ("first_weights", "[6 x i32]", 6, 6),
+        ("first_bias", "[2 x i32]", 2, 12),
+        ("second_weights", "[4 x i32]", 4, 14),
+        ("second_bias", "[2 x i32]", 2, 18),
+    ];
+    let decode_bindings = decode_specs
+        .into_iter()
+        .map(|(name, aggregate, width, offset)| {
+            assert_decode_loop_binding(
+                infer,
+                &infer_blocks,
+                &record_base,
+                "[20 x i32]",
+                20,
+                name,
+                aggregate,
+                width,
+                offset,
+                &record_source(offset),
+                &decoded_accesses,
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut destination_bases = decode_bindings
+        .iter()
+        .map(|binding| binding.destination.base.as_str())
+        .collect::<Vec<_>>();
+    destination_bases.sort_unstable();
+    destination_bases.dedup();
+    assert_eq!(destination_bases.len(), 6);
+    let (valid_target, invalid_target) = assert_tensor_header_gate(
+        infer,
+        &infer_blocks,
+        &decode_bindings[0],
+        &decode_bindings[1..],
+        [2, 3, 2],
+        "[8 x i32]",
+    );
+
+    let input_value =
+        exact_aggregate_load(infer, "[3 x i32]", &decode_bindings[1].destination.base);
+    let first_weights_value =
+        exact_aggregate_load(infer, "[6 x i32]", &decode_bindings[2].destination.base);
+    let first_result = ssa_value_for_rhs(
+        infer,
+        &format!(
+            "call [2 x i32] @matvec_2x3([6 x i32] {first_weights_value}, [3 x i32] {input_value})"
+        ),
+    );
+    let first_result_store = infer
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix(&format!("store [2 x i32] {first_result}, [2 x i32]* "))
+                .and_then(|rhs| rhs.strip_suffix(", align 8"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(first_result_store.len(), 1);
+    let raw_base = first_result_store[0];
+    let hidden_base = assert_relu_contract(
+        infer,
+        &infer_blocks,
+        raw_base,
+        &decode_bindings[3].destination.base,
+    );
+
+    let second_weights_value =
+        exact_aggregate_load(infer, "[4 x i32]", &decode_bindings[4].destination.base);
+    let hidden_value = exact_aggregate_load(infer, "[2 x i32]", &hidden_base);
+    let second_result = ssa_value_for_rhs(
+        infer,
+        &format!(
+            "call [2 x i32] @matvec_2x2([4 x i32] {second_weights_value}, [2 x i32] {hidden_value})"
+        ),
+    );
+    let raw_logits_bases = infer
+        .lines()
+        .filter_map(|line| {
+            line.trim()
+                .strip_prefix(&format!("store [2 x i32] {second_result}, [2 x i32]* "))
+                .and_then(|rhs| rhs.strip_suffix(", align 8"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(raw_logits_bases.len(), 1);
+    let raw_logits_base = raw_logits_bases[0];
+    let two_accesses = dynamic_i32_accesses(infer, "[2 x i32]");
+    let raw_logit_reads = two_accesses
+        .iter()
+        .filter(|access| access.base == raw_logits_base && access.consumer == "load i32")
+        .collect::<Vec<_>>();
+    let second_bias_reads = two_accesses
+        .iter()
+        .filter(|access| {
+            access.base == decode_bindings[5].destination.base && access.consumer == "load i32"
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(raw_logit_reads.len(), 1);
+    assert_eq!(second_bias_reads.len(), 1);
+    let biased_logit = ssa_value_for_rhs(
+        infer,
+        &format!(
+            "add i32 {}, {}",
+            raw_logit_reads[0].value, second_bias_reads[0].value
+        ),
+    );
+    let logit_stores = two_accesses
+        .iter()
+        .filter(|access| access.consumer == "store i32" && access.value == biased_logit)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        logit_stores.len(),
+        1,
+        "biased logits need one exact destination"
+    );
+    let logit_store = logit_stores[0];
+    assert_zero_initialized_array_local(infer, "[2 x i32]", 2, &logit_store.base);
+    for access in [raw_logit_reads[0], second_bias_reads[0], logit_store] {
+        assert_identity_linked_guard_consumer(
+            infer,
+            &access.index,
+            2,
+            "[2 x i32]",
+            &access.consumer,
+        );
+    }
+    let logit_index_slot = loaded_i32_pointer(infer, &raw_logit_reads[0].index);
+    assert_eq!(
+        loaded_i32_pointer(infer, &second_bias_reads[0].index),
+        logit_index_slot
+    );
+    assert_eq!(
+        loaded_i32_pointer(infer, &logit_store.index),
+        logit_index_slot
+    );
+    assert_exact_counted_loop(infer, &infer_blocks, &logit_index_slot, 2);
+
+    let logit0_loads = exact_static_i32_loads(infer, "[2 x i32]", &logit_store.base, 0);
+    let logit1_loads = exact_static_i32_loads(infer, "[2 x i32]", &logit_store.base, 1);
+    assert_eq!(
+        logit0_loads.len(),
+        2,
+        "logit0 feeds argmax and result exactly once"
+    );
+    assert_eq!(
+        logit1_loads.len(),
+        2,
+        "logit1 feeds argmax and result exactly once"
+    );
+    let class_comparisons = logit1_loads
+        .iter()
+        .flat_map(|logit1| {
+            logit0_loads.iter().filter_map(move |logit0| {
+                let rhs = format!("icmp sgt i32 {logit1}, {logit0}");
+                infer
+                    .lines()
+                    .find(|line| line.trim().ends_with(&format!(" = {rhs}")))
+                    .map(|line| {
+                        (
+                            ssa_definition(line).to_string(),
+                            logit0.to_string(),
+                            logit1.to_string(),
+                        )
+                    })
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        class_comparisons.len(),
+        1,
+        "argmax needs one exact signed logit1-greater-than-logit0 comparison"
+    );
+    let (class_predicate, class_logit0, class_logit1) = &class_comparisons[0];
+    let result_logit0 = logit0_loads
+        .iter()
+        .find(|value| *value != class_logit0)
+        .expect("result logit0 load");
+    let result_logit1 = logit1_loads
+        .iter()
+        .find(|value| *value != class_logit1)
+        .expect("result logit1 load");
+    assert_eq!(occurrences(infer, "icmp sgt i32"), 2);
+    assert!(!infer.contains("icmp ugt i32") && !infer.contains("icmp uge i32"));
+    let (_, class_one_target, class_zero_target) =
+        exact_branch_targets(infer, &infer_blocks, class_predicate);
+    let class_one_stores = infer
+        .lines()
+        .enumerate()
+        .filter_map(|(line, text)| {
+            text.trim()
+                .strip_prefix("store i32 1, i32* ")
+                .and_then(|rhs| rhs.strip_suffix(", align 4"))
+                .map(|slot| (line, slot.to_string()))
+        })
+        .filter(|(line, _)| llvm_block_for_line(&infer_blocks, *line).name == class_one_target)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        class_one_stores.len(),
+        1,
+        "strict greater alone changes class to 1"
+    );
+    let class_slot = &class_one_stores[0].1;
+    let class_zero_initializers = infer
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.trim() == format!("store i32 0, i32* {class_slot}, align 4"))
+        .map(|(line, _)| line)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        class_zero_initializers.len(),
+        1,
+        "class starts at lower index zero"
+    );
+    assert!(
+        !llvm_reachable(
+            &infer_blocks,
+            &class_zero_target,
+            &llvm_block_for_line(&infer_blocks, class_one_stores[0].0).name,
+        ),
+        "tie/false edge must bypass the class-one assignment"
+    );
+    let class_value = ssa_value_for_rhs(infer, &format!("load i32, i32* {class_slot}, align 4"));
+    assert_inference_result_contract(
+        infer,
+        &infer_blocks,
+        &valid_target,
+        &invalid_target,
+        raw_base,
+        &hidden_base,
+        [result_logit0, result_logit1],
+        &class_value,
+    );
+
+    assert_row_major_matvec_contract(
+        llvm_function_body(&first, matvec_2x3_signature),
+        "[6 x i32]",
+        6,
+        "[3 x i32]",
+        3,
+    );
+    assert_row_major_matvec_contract(
+        llvm_function_body(&first, matvec_2x2_signature),
+        "[4 x i32]",
+        4,
+        "[2 x i32]",
+        2,
+    );
+    assert_array_equality_contract(
+        llvm_function_body(&first, records_equal_signature),
+        20,
+        "records_equal",
+    );
+    assert_array_equality_contract(
+        llvm_function_body(&first, results_equal_signature),
+        8,
+        "results_equal",
+    );
+
+    let main = llvm_function_body(&first, "define i32 @main()");
+    let records = [
+        ORDINARY_INFERENCE_RECORD,
+        WRAPPING_INFERENCE_RECORD,
+        ACTIVATION_INFERENCE_RECORD,
+        TIE_INFERENCE_RECORD,
+        MALFORMED_FIRST_INFERENCE_RECORD,
+        MALFORMED_SECOND_INFERENCE_RECORD,
+        MALFORMED_THIRD_INFERENCE_RECORD,
+    ];
+    let infer_calls =
+        exact_aggregate_call_lines(main, "infer_record", "[8 x i32]", &["[20 x i32]"]);
+    let preservation_calls =
+        exact_aggregate_call_lines(main, "records_equal", "i32", &["[20 x i32]", "[20 x i32]"]);
+    assert_eq!(infer_calls.len(), records.len());
+    assert_eq!(preservation_calls.len(), records.len());
+    assert!(
+        preservation_calls
+            .first()
+            .expect("first source-preservation call")
+            .0
+            > infer_calls.last().expect("seventh inference call").0,
+        "all seven inference calls must finish before source-preservation comparisons begin"
+    );
+    let record_load_base = |value: &str| {
+        ssa_rhs(main, value)
+            .strip_prefix("load [20 x i32], [20 x i32]* ")
+            .and_then(|rhs| rhs.strip_suffix(", align 8"))
+            .unwrap_or_else(|| panic!("`{value}` must load one exact [20 x i32] local"))
+    };
+    for (index, values) in records.iter().enumerate() {
+        let literal_bases = exact_literal_array_bases(main, values);
+        assert_eq!(
+            literal_bases.len(),
+            2,
+            "record {index} needs distinct source and preservation-expected literals"
+        );
+        let source_base = record_load_base(&infer_calls[index].1[0]);
+        assert!(literal_bases.iter().any(|base| base == source_base));
+        assert_eq!(
+            record_load_base(&preservation_calls[index].1[0]),
+            source_base
+        );
+        let expected_base = record_load_base(&preservation_calls[index].1[1]);
+        assert!(literal_bases.iter().any(|base| base == expected_base));
+        assert_ne!(source_base, expected_base);
+        assert_literal_array_initialized_before_load(
+            main,
+            values,
+            source_base,
+            &infer_calls[index].1[0],
+        );
+        assert_literal_array_initialized_before_load(
+            main,
+            values,
+            expected_base,
+            &preservation_calls[index].1[1],
+        );
+    }
+    assert_eq!(exact_literal_array_bases(main, &[0; 8]).len(), 3);
+    for expected in [
+        ordinary.result,
+        wrapping.result,
+        activation.result,
+        tie.result,
+    ] {
+        assert_eq!(exact_literal_array_bases(main, &expected).len(), 1);
+    }
+
+    for forbidden in [
+        "double",
+        "fptosi",
+        "sitofp",
+        " nsw ",
+        " nuw ",
+        "<2 x i32>",
+        "<3 x i32>",
+        "<4 x i32>",
+        "<6 x i32>",
+        "<8 x i32>",
+        "<20 x i32>",
+        "[20 x [",
+        "aero_quant",
+        "quantization",
+        "extractelement",
+        "insertelement",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "inference product leaked forbidden representation `{forbidden}`"
+        );
+    }
+    assert_eq!(
+        occurrences(&first, "call i32 (i8*, ...) @printf"),
+        0,
+        "inference product must not execute the backend's always-declared printf symbol"
+    );
+
+    let workspace = TestWorkspace::new("relu-argmax-inference-public-routes");
+    let source = workspace.path("relu_argmax_inference.aero");
+    fs::write(&source, RELU_ARGMAX_INFERENCE).expect("write ReLU/argmax inference source");
+    check_file(&source, exact_options()).expect("file check should admit inference product");
+    let file_llvm = compile_file(&source, exact_options())
+        .expect("file compile should admit inference product");
+    assert_eq!(file_llvm, first, "source and file inference LLVM diverged");
+    for command in ["check", "build"] {
+        let artifact = workspace.path("relu_argmax_inference.ll");
+        let arguments = if command == "build" {
+            vec![
+                Path::new(command),
+                &source,
+                Path::new("-o"),
+                &artifact,
+                Path::new("--require-llvm-verifier"),
+                Path::new("--language-profile"),
+                Path::new("exact-i32-array-v0"),
+            ]
+        } else {
+            vec![
+                Path::new(command),
+                &source,
+                Path::new("--language-profile"),
+                Path::new("exact-i32-array-v0"),
+            ]
+        };
+        let output = run_cli(&workspace, &arguments);
+        assert!(
+            output.status.success(),
+            "public {command} rejected inference product:\n{}",
+            combined_output(&output)
+        );
+        if command == "build" {
+            let public = fs::read_to_string(&artifact).expect("public inference LLVM artifact");
+            assert_eq!(
+                llvm_body_without_public_route_headers(&public),
+                llvm_body_without_public_route_headers(&first),
+                "public and library inference LLVM bodies diverged"
+            );
+        }
+    }
+    let output = run_cli(
+        &workspace,
+        &[
+            Path::new("run"),
+            &source,
+            Path::new("--language-profile"),
+            Path::new("exact-i32-array-v0"),
+        ],
+    );
+    let public_output = combined_output(&output);
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "public inference run diverged:\n{public_output}"
+    );
+    assert_eq!(
+        occurrences(&public_output, "Exit code: 91"),
+        1,
+        "public route must report the exact sentinel once"
+    );
+    assert!(!RELU_ARGMAX_INFERENCE.contains("print"));
 }
 
 #[test]
@@ -4346,5 +5816,112 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
     assert!(
         missing_scoring_evidence.is_empty(),
         "CAP-021 intentional red: existing Linux and Windows exact-profile steps lack the tensor-record scorer descriptor and structural/native/public evidence: {missing_scoring_evidence:#?}"
+    );
+
+    let required_inference_evidence: [(&str, &str, &[&str]); 2] = [
+        (
+            "Linux",
+            linux,
+            &[
+                "inference:relu_argmax_inference.aero:91:yes",
+                "if [ \"${name}\" = inference ]; then",
+                "inference_second_llvm=\"${RUNNER_TEMP}/exact_i32_array_inference.linux.second.ll\"",
+                "build \"${source}\" -o \"${inference_second_llvm}\" --require-llvm-verifier",
+                "cmp -s \"${llvm}\" \"${inference_second_llvm}\"",
+                "llvm-as-22 \"${llvm}\" -o /dev/null",
+                "inference_decode_pattern='(?ms)^",
+                "inference_decode_count=\"$(grep -Pzo -- \"${inference_decode_pattern}\"",
+                "test \"${inference_decode_count}\" -eq 1",
+                "inference_decode_chain_pattern='(?ms)^",
+                "test \"${inference_decode_chain_count}\" -eq 6",
+                "inference_header_pattern='(?ms)^",
+                "test \"${inference_header_count}\" -eq 1",
+                "inference_relu_pattern='(?ms)^",
+                "test \"${inference_relu_count}\" -eq 1",
+                "inference_logit_pattern='(?ms)^",
+                "test \"${inference_logit_count}\" -eq 1",
+                "inference_argmax_pattern='(?ms)^",
+                "test \"${inference_argmax_count}\" -eq 1",
+                "inference_matvec_2x3_pattern='(?ms)^",
+                "test \"${inference_matvec_2x3_count}\" -eq 1",
+                "inference_matvec_2x2_pattern='(?ms)^",
+                "test \"${inference_matvec_2x2_count}\" -eq 1",
+                "inference_guard_pattern='(?m)^",
+                "test \"${inference_guard_count}\"",
+            ],
+        ),
+        (
+            "Windows",
+            windows,
+            &[
+                "[pscustomobject]@{ Name = \"inference\"; File = \"relu_argmax_inference.aero\"; Expected = 91; Dynamic = $true }",
+                "if ($specimen.Name -ceq \"inference\") {",
+                "$inferenceSecondLlvm = Join-Path $env:RUNNER_TEMP \"exact_i32_array_inference.windows.second.ll\"",
+                "build $source -o $inferenceSecondLlvm --require-llvm-verifier",
+                "[System.Linq.Enumerable]::SequenceEqual([IO.File]::ReadAllBytes($llvm), [IO.File]::ReadAllBytes($inferenceSecondLlvm))",
+                "& \"$llvmBin\\llvm-as.exe\" $llvm -o $null",
+                "$inferenceDecodeFunctionPattern = '(?ms)^define",
+                "$inferenceDecodeFunctionMatches = [regex]::Matches($llvmText, $inferenceDecodeFunctionPattern)",
+                "$inferenceDecodeFunctionMatches.Count -ne 1",
+                "$inferenceDecodeChainPattern = '(?ms)^",
+                "$inferenceDecodeChainMatches.Count -ne 6",
+                "$inferenceHeaderPattern = '(?ms)^",
+                "$inferenceHeaderMatches.Count -ne 1",
+                "$inferenceReluPattern = '(?ms)^",
+                "$inferenceReluMatches.Count -ne 1",
+                "$inferenceLogitPattern = '(?ms)^",
+                "$inferenceLogitMatches.Count -ne 1",
+                "$inferenceArgmaxPattern = '(?ms)^",
+                "$inferenceArgmaxMatches.Count -ne 1",
+                "$inferenceMatvec2x3Pattern = '(?ms)^",
+                "$inferenceMatvec2x3Matches.Count -ne 1",
+                "$inferenceMatvec2x2Pattern = '(?ms)^",
+                "$inferenceMatvec2x2Matches.Count -ne 1",
+                "$inferenceGuardPattern = '(?m)^",
+                "$inferenceGuardMatches.Count -ne",
+            ],
+        ),
+    ];
+    let shared_inference_anchors = [
+        "define [8 x i32] @infer_record([20 x i32] %aero.arg.record)",
+        "define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)",
+        "define [2 x i32] @matvec_2x2([4 x i32] %aero.arg.matrix, [2 x i32] %aero.arg.vector)",
+        "define i32 @records_equal([20 x i32] %aero.arg.left, [20 x i32] %aero.arg.right)",
+        "define i32 @results_equal([8 x i32] %aero.arg.left, [8 x i32] %aero.arg.right)",
+        "call [2 x i32] @matvec_2x3([6 x i32]",
+        "call [2 x i32] @matvec_2x2([4 x i32]",
+        "call [8 x i32] @infer_record([20 x i32]",
+        "call i32 @records_equal([20 x i32]",
+        "call i32 @results_equal([8 x i32]",
+        "(?<inference_record_index>%reg[0-9]+) = add i32",
+        "icmp slt i32 \\k<inference_record_index>, 20",
+        "getelementptr inbounds \\[20 x i32\\]",
+        "(?<inference_relu_sum>%reg[0-9]+) = add i32",
+        "icmp sgt i32 \\k<inference_relu_sum>, 0",
+        "(?<inference_logit_sum>%reg[0-9]+) = add i32",
+        "(?<inference_logit0>%reg[0-9]+) = load i32",
+        "(?<inference_logit1>%reg[0-9]+) = load i32",
+        "icmp sgt i32 \\k<inference_logit1>, \\k<inference_logit0>",
+        "mul i32 \\k<inference_matvec_2x3_row>, 3",
+        "mul i32 \\k<inference_matvec_2x2_row>, 2",
+        "ret [8 x i32]",
+        "double|fptosi|sitofp| nsw | nuw |<2 x i32>|<3 x i32>|<4 x i32>|<6 x i32>|<8 x i32>|<20 x i32>|aero_quant|quantization",
+    ];
+    let mut missing_inference_evidence = Vec::new();
+    for (os, step, anchors) in required_inference_evidence {
+        for &anchor in anchors {
+            if !step.contains(anchor) {
+                missing_inference_evidence.push(format!("{os}: {anchor}"));
+            }
+        }
+        for anchor in shared_inference_anchors {
+            if !step.contains(anchor) {
+                missing_inference_evidence.push(format!("{os}: {anchor}"));
+            }
+        }
+    }
+    assert!(
+        missing_inference_evidence.is_empty(),
+        "CAP-023 intentional red: existing Linux and Windows exact-profile steps lack the ReLU/argmax inference descriptor and structural/deterministic/verifier/native/public evidence: {missing_inference_evidence:#?}"
     );
 }
