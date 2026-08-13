@@ -1,0 +1,144 @@
+fn matvec_2x3(matrix: [int; 6], vector: [int; 3]) -> [i32; 2] {
+    let mut output: [i32; 2] = [0, 0];
+    let mut row: int = 0;
+    while row < 2 {
+        let mut column: int = 0;
+        let mut accumulator: int = 0;
+        while column < 3 {
+            accumulator = accumulator + matrix[row * 3 + column] * vector[column];
+            column = column + 1;
+        }
+        output[row] = accumulator;
+        row = row + 1;
+    }
+    return output;
+}
+
+fn affine_2_to_1(values: [int; 2], weights: [int; 2], bias: int) -> int {
+    let mut score: int = bias;
+    let mut lane: int = 0;
+    while lane < 2 {
+        score = score + values[lane] * weights[lane];
+        lane = lane + 1;
+    }
+    return score;
+}
+
+fn decode_and_score(record: [int; 17]) -> [i32; 6] {
+    let mut result: [i32; 6] = [0, 0, 0, 0, 0, 0];
+    let mut header: [i32; 3] = [0, 0, 0];
+    let mut header_index: int = 0;
+    while header_index < 3 {
+        header[header_index] = record[header_index];
+        header_index = header_index + 1;
+    }
+
+    if header[0] == 2 && header[1] == 3 && header[2] == 1 {
+        let mut input: [i32; 3] = [0, 0, 0];
+        let mut input_index: int = 0;
+        while input_index < 3 {
+            input[input_index] = record[3 + input_index];
+            input_index = input_index + 1;
+        }
+
+        let mut first_weights: [i32; 6] = [0, 0, 0, 0, 0, 0];
+        let mut weight_index: int = 0;
+        while weight_index < 6 {
+            first_weights[weight_index] = record[6 + weight_index];
+            weight_index = weight_index + 1;
+        }
+
+        let mut first_bias: [i32; 2] = [0, 0];
+        let mut bias_index: int = 0;
+        while bias_index < 2 {
+            first_bias[bias_index] = record[12 + bias_index];
+            bias_index = bias_index + 1;
+        }
+
+        let mut score_weights: [i32; 2] = [0, 0];
+        let mut score_weight_index: int = 0;
+        while score_weight_index < 2 {
+            score_weights[score_weight_index] = record[14 + score_weight_index];
+            score_weight_index = score_weight_index + 1;
+        }
+
+        let mut score_bias: [i32; 1] = [0];
+        let mut score_bias_index: int = 0;
+        while score_bias_index < 1 {
+            score_bias[score_bias_index] = record[16 + score_bias_index];
+            score_bias_index = score_bias_index + 1;
+        }
+
+        let raw: [i32; 2] = matvec_2x3(first_weights, input);
+        let mut hidden: [i32; 2] = [0, 0];
+        let mut hidden_index: int = 0;
+        while hidden_index < 2 {
+            hidden[hidden_index] = raw[hidden_index] + first_bias[hidden_index];
+            hidden_index = hidden_index + 1;
+        }
+
+        let score: int = affine_2_to_1(hidden, score_weights, score_bias[0]);
+        result[0] = 1;
+        result[1] = raw[0];
+        result[2] = raw[1];
+        result[3] = hidden[0];
+        result[4] = hidden[1];
+        result[5] = score;
+    }
+    return result;
+}
+
+fn records_equal(left: [int; 17], right: [int; 17]) -> int {
+    let mut equal: int = 1;
+    let mut index: int = 0;
+    while index < 17 {
+        if left[index] != right[index] {
+            equal = 0;
+        }
+        index = index + 1;
+    }
+    return equal;
+}
+
+fn main() -> int {
+    let ordinary_record: [int; 17] =
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+    let wrapping_record: [int; 17] =
+        [2, 3, 1, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2147483647, -1, 13];
+    let malformed_record: [int; 17] =
+        [2, 4, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+
+    let ordinary_result: [i32; 6] = decode_and_score(ordinary_record);
+    let wrapping_result: [i32; 6] = decode_and_score(wrapping_record);
+    let malformed_result: [i32; 6] = decode_and_score(malformed_record);
+    let ordinary_preserved: int = records_equal(
+        ordinary_record,
+        [2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    );
+    let wrapping_preserved: int = records_equal(
+        wrapping_record,
+        [2, 3, 1, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+            2147483647, 2147483647, 2147483647, -1, 13]
+    );
+
+    if ordinary_preserved == 1 && wrapping_preserved == 1 {
+        if ordinary_result[0] == 1
+            && ordinary_result[1] == 122 && ordinary_result[2] == 167
+            && ordinary_result[3] == 135 && ordinary_result[4] == 181
+            && ordinary_result[5] == 4938 {
+            if wrapping_result[0] == 1
+                && wrapping_result[1] == -24 && wrapping_result[2] == 18
+                && wrapping_result[3] == 2147483623
+                && wrapping_result[4] == -2147483631
+                && wrapping_result[5] == -2147483627 {
+                if malformed_result[0] == 0 && malformed_result[1] == 0
+                    && malformed_result[2] == 0 && malformed_result[3] == 0
+                    && malformed_result[4] == 0 && malformed_result[5] == 0 {
+                    return 91;
+                }
+            }
+        }
+    }
+    return 1;
+}
