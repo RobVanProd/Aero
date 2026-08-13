@@ -182,6 +182,74 @@ aero lsp
 > file input, and Unicode text encoding/normalization remain unsupported; accepted
 > CORE-072's bounded Unicode scalar `char` remains `PARTIAL`.
 
+> **CAP-023 accepted product gate:** protected master now carries one source-embedded
+> fixed-shape 3-input/2-hidden/2-output exact-`i32` zero-clamp-and-argmax CPU product
+> over the unchanged `exact-i32-array-v0` profile.
+>
+> Accepted CAP-023 changes no parser, grammar, source semantics, language profile,
+> semantic analysis, checked IR, verifier, backend, ABI, or capability classification.
+> It is a zero-production product/evidence checkpoint over CAP-019's unchanged
+> `exact-i32-array-v0` surface, composes the accepted CAP-020 flat matvec and CAP-021
+> record-to-score product, and does not reverse CAP-022's mandatory
+> runtime-acquisition `NO IMPLEMENTATION` stop.
+>
+> One source-embedded application convention `[int; 20]` with exact header `[2, 3, 2]`
+> drives a flat 3-input/2-hidden/2-output wrapping-`i32` computation with
+> strict-positive zero clamp, two biased logits, signed strict-greater argmax,
+> lower-index tie selection, three independent malformed-header controls, and reread
+> of all 140 source lanes after all seven by-value calls.
+>
+> Exact ordinary, wrapping, activation-boundary, and tie results are respectively
+> `[1, 122, 167, 135, 181, 4940, 5573, 1]`,
+> `[1, -24, 18, 2147483623, 0, -37, 2147483641, 1]`,
+> `[1, -3, 0, 0, 0, 5, 4, 0]`, and `[1, 1, 2, 1, 2, 3, 3, 0]`; malformed results
+> are eight zeros; public and native success is sentinel 91 with empty source
+> stdout/stderr.
+>
+> Exact CAP-023 reviewed candidate
+> `63e6b00b6294de61e3afd292a1e32e2b014714e2`, shared candidate/merge tree
+> `4d234cdfde67f1083773e2c41be4ab92027769db`, accepted base and first merge parent
+> `4bce540dfed6dfffa152067f4e00424501a6cdd8`, and protected PR #62 merge
+> `e9b281504446465cfc8fcbe17c65cce92df0e83a` whose second parent is that candidate are
+> immutable. Candidate push CI `31687464571`, PR CI `31687585904`, Rust CI
+> `31687585893`, CodeQL `31687584263`, and aggregate candidate check `94407323731`;
+> candidate push/PR compiler jobs `94406770929`/`94407177877`,
+> stable/nightly/Windows LLVM 22 jobs
+> `94407178006`/`94407178047`/`94407178042`, CodeQL Actions/Python/Rust jobs
+> `94407175858`/`94407175752`/`94407175820`, and Actions/Python/Rust analyses
+> `1612686978`/`1612687391`/`1612693654`; merge-head CI/Rust CI/CodeQL
+> `31688093145`/`31688093150`/`31688092749`, exact merge
+> compiler/stable/nightly/Windows LLVM 22 jobs
+> `94408808914`/`94408809340`/`94408809458`/`94408809296`, merge CodeQL
+> Actions/Python/Rust jobs `94408812427`/`94408812194`/`94408812175`, and
+> default-branch Actions/Python/Rust analyses
+> `1612715455`/`1612715345`/`1612721829` all pass.
+>
+> CAP-023 adds no general activation, ReLU, argmax, inference, tensor, matrix, record,
+> recursive-array, runtime/file input, serialization, quantization, conversion, stable
+> layout/ABI, performance, resource-usage, accelerator, safety, or language completion
+> capability.
+>
+> Its record and topology are application conventions, its retained local artifacts
+> remain mutable corroboration only, and CAP-019 remains the latest compiler/profile
+> widening.
+>
+> The sole matrix change is the existing CPU backend-summary row remaining `PARTIAL`;
+> no CAP-023 language feature or selected-profile row may be added.
+>
+> Current accepted public master is CAP-023 merge
+> `e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only aggregate is correctly
+> absent on the default branch. Default-branch Actions analysis `1612715455` contains
+> only the pre-existing open alert #4 created 2026-08-09; Python and Rust analyses
+> contain zero results; no new CAP-023 code-scanning alert exists.
+>
+> The selected Milestone 0, Milestone 1, and Milestone 2 exit gates are met for their
+> bounded selected products; their broader milestone ambitions remain partial.
+> Milestone 3 remains open. CAP-023 advances its application and reproducibility
+> boundary but supplies no runtime ingestion, composed CopyData application profile,
+> quantization, runtime-resource measurement, performance evidence, accelerator
+> execution, or broader workload.
+
 > **CAP-021 accepted product gate:** protected master now carries the source-embedded
 > two-stage exact-`i32` scoring product over the existing CPU-only
 > `exact-i32-array-v0` profile and accepted CAP-020 flat matvec.
@@ -442,41 +510,41 @@ aero lsp
 > allocation, lifetimes/drop, unsafe, ABI/FFI, accelerators, benchmarks, and releases
 > remain excluded.
 
-> **Project status after CAP-021:** Aero remains a Minimal Prototype in correctness
-> recovery, not a complete or stable language. The accepted public
-> baseline is protected CAP-021 product merge.
+> **Project status after CAP-023:** Aero remains a Minimal Prototype in correctness
+> recovery, not a complete or stable language.
+> The accepted public baseline is protected CAP-023 merge.
 > CAP-019 is Aero's latest accepted compiler/profile capability widening and remains
 > the compiler boundary beneath the
-> product-only checkpoints. CAP-015 is the latest accepted project integration checkpoint.
+> CAP-020, CAP-021, and CAP-023 product-only checkpoints.
+> CAP-015 is the latest accepted project integration checkpoint.
 > CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-015
 > changes no compiler production or language-profile code. CAP-016 and CAP-017
 > remain completed readiness/architecture stops, not accepted capabilities;
 > neither adds a profile or matrix row. CAP-013
 > remains the single shared specialization identity/phase authority; CAP-018 and
 > CAP-019 add no specialization classifier.
-> CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, but
-> general ownership, generics, collections, layout/ABI/destruction, and ordinary-
-> program breadth remain partial.
+> CAP-011 and CAP-012 satisfy the roadmap's selected Milestone 2 exit product, while
+> CAP-023 supplies another bounded selected product; general ownership, generics,
+> collections, layout/ABI/destruction, and ordinary-program breadth remain partial.
 >
-> The fresh post-CAP-021 ranking uses 1--5 scores; higher risk/evidence favorability
+> The fresh post-CAP-023 ranking uses 1--5 scores; higher risk/evidence favorability
 > means safer and cheaper delivery:
 >
 > | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 > |---:|---|---:|---:|---:|---:|---:|---:|---:|
-> | 1 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
-> | 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
-> | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+> | 1 | Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim | 4 | 5 | 5 | 5 | 5 | 4 | 28 |
+> | 2 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+> | 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
 >
-> The next action is runtime byte/file acquisition readiness and a red probe under one
-> cross-platform bounded-owned-buffer contract. It is readiness and a task-local red
-> probe only, not implementation; path and byte identity, capacity and initialized
-> count, partial-read and EOF behavior, typed errors, ownership and drop, runtime
-> linkage, sandboxing, determinism, and Linux/Windows equivalence remain to be frozen.
-> Rank 2 is small quantized numerical-kernel readiness and a red probe only, not
-> implementation, while representation, conversion, arithmetic, malformed-state, and
-> cross-platform oracle contracts remain unfrozen. Rank 3 remains deferred while flat
-> encoding serves the complete record-to-score workload. None of the three rows
-> authorizes production implementation.
+> The next action is the accepted-head CAP-023 inference correctness,
+> reproducibility, and artifact-footprint evidence gate with no performance claim.
+> It is a zero-production immutable-evidence task, not compiler or benchmark work.
+> Rank 2 is exact CPU plus recursive-CopyData application-profile composition
+> readiness and a task-local red probe only, not implementation; it must freeze one
+> bounded profile-composition contract without widening either existing profile.
+> Rank 3 is small quantized numerical-kernel readiness and a task-local red probe only,
+> not implementation; its arithmetic, representation, malformed-state, and
+> cross-platform oracle contracts remain unfrozen. No row permits implementation.
 
 > **CAP-008 accepted:** terminal `_ => fallback` and ignored
 > payload leaves such as `Err(_)` execute across every already-admitted

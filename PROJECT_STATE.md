@@ -4,6 +4,71 @@ Last updated: 2026-08-13 (America/New_York)
 
 ## Current objective
 
+### CAP-023 accepted: source-embedded fixed-shape exact-i32 inference product
+
+Accepted CAP-023 changes no parser, grammar, source semantics, language profile,
+semantic analysis, checked IR, verifier, backend, ABI, or capability classification.
+It is a zero-production product/evidence checkpoint over CAP-019's unchanged
+`exact-i32-array-v0` surface, composes the accepted CAP-020 flat matvec and CAP-021
+record-to-score product, and does not reverse CAP-022's mandatory runtime-acquisition
+`NO IMPLEMENTATION` stop.
+
+One source-embedded application convention `[int; 20]` with exact header `[2, 3, 2]`
+drives a flat 3-input/2-hidden/2-output wrapping-`i32` computation with strict-positive
+zero clamp, two biased logits, signed strict-greater argmax, lower-index tie selection,
+three independent malformed-header controls, and reread of all 140 source lanes after
+all seven by-value calls.
+
+Exact ordinary, wrapping, activation-boundary, and tie results are respectively
+`[1, 122, 167, 135, 181, 4940, 5573, 1]`,
+`[1, -24, 18, 2147483623, 0, -37, 2147483641, 1]`,
+`[1, -3, 0, 0, 0, 5, 4, 0]`, and `[1, 1, 2, 1, 2, 3, 3, 0]`; malformed results
+are eight zeros; public and native success is sentinel 91 with empty source
+stdout/stderr.
+
+Exact CAP-023 reviewed candidate `63e6b00b6294de61e3afd292a1e32e2b014714e2`,
+shared candidate/merge tree `4d234cdfde67f1083773e2c41be4ab92027769db`,
+accepted base and first merge parent `4bce540dfed6dfffa152067f4e00424501a6cdd8`,
+and protected PR #62 merge `e9b281504446465cfc8fcbe17c65cce92df0e83a`
+whose second parent is that candidate are immutable. Candidate push CI `31687464571`,
+PR CI `31687585904`, Rust CI `31687585893`, CodeQL `31687584263`, and aggregate
+candidate check `94407323731`; candidate push/PR compiler jobs
+`94406770929`/`94407177877`, stable/nightly/Windows LLVM 22 jobs
+`94407178006`/`94407178047`/`94407178042`, CodeQL Actions/Python/Rust jobs
+`94407175858`/`94407175752`/`94407175820`, and Actions/Python/Rust analyses
+`1612686978`/`1612687391`/`1612693654`; merge-head CI/Rust CI/CodeQL
+`31688093145`/`31688093150`/`31688092749`, exact merge
+compiler/stable/nightly/Windows LLVM 22 jobs
+`94408808914`/`94408809340`/`94408809458`/`94408809296`, merge CodeQL
+Actions/Python/Rust jobs `94408812427`/`94408812194`/`94408812175`, and
+default-branch Actions/Python/Rust analyses
+`1612715455`/`1612715345`/`1612721829` all pass.
+
+CAP-023 adds no general activation, ReLU, argmax, inference, tensor, matrix, record,
+recursive-array, runtime/file input, serialization, quantization, conversion, stable
+layout/ABI, performance, resource-usage, accelerator, safety, or language completion
+capability.
+
+Its record and topology are application conventions, its retained local artifacts
+remain mutable corroboration only, and CAP-019 remains the latest compiler/profile
+widening.
+
+The sole matrix change is the existing CPU backend-summary row remaining `PARTIAL`;
+no CAP-023 language feature or selected-profile row may be added.
+
+Current accepted public master is CAP-023 merge
+`e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only aggregate is correctly
+absent on the default branch. Default-branch Actions analysis `1612715455` contains
+only the pre-existing open alert #4 created 2026-08-09; Python and Rust analyses
+contain zero results; no new CAP-023 code-scanning alert exists.
+
+The selected Milestone 0, Milestone 1, and Milestone 2 exit gates are met for their
+bounded selected products; their broader milestone ambitions remain partial.
+Milestone 3 remains open. CAP-023 advances its application and reproducibility
+boundary but supplies no runtime ingestion, composed CopyData application profile,
+quantization, runtime-resource measurement, performance evidence, accelerator
+execution, or broader workload.
+
 ### CAP-021 accepted: source-embedded two-stage exact-i32 scoring product
 
 Accepted CAP-021 changes no parser, grammar, source semantics, language profile,
@@ -59,9 +124,9 @@ The PR-only aggregate CodeQL check is correctly absent on the default branch; th
 open finding remains pre-existing Actions alert #4 from 2026-08-09, and no new CAP-021
 alert surfaced.
 
-Current accepted public master is CAP-021. CAP-019 remains the latest accepted
-compiler/profile capability widening, and CAP-015 remains the latest accepted project
-integration checkpoint.
+CAP-021 remains accepted product history beneath CAP-023. CAP-019 remains the latest
+accepted compiler/profile capability widening, and CAP-015 remains the latest accepted
+project integration checkpoint.
 
 ### CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate
 
@@ -149,8 +214,8 @@ CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-0
 changes no compiler production or language-profile code. CAP-016 and CAP-017 remain
 completed readiness/architecture stops, not accepted capabilities; neither adds a
 profile or matrix row. This retained section records CAP-019's immutable
-compiler/profile widening history beneath the accepted CAP-020 and CAP-021 product
-checkpoints.
+compiler/profile widening history beneath the accepted CAP-020, CAP-021, and CAP-023
+product checkpoints.
 
 ### CAP-018 accepted: immutable exact-array value/result composition
 
@@ -3191,39 +3256,42 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Accepted CAP-021 is the zero-production source-embedded record-to-score product
-checkpoint over the CAP-019 compiler/profile boundary and accepted CAP-020 flat
-matvec. CAP-016 and CAP-017 remain completed architecture stops, not implementation
-queue entries. Runtime byte/file acquisition readiness and red probe under one
-cross-platform bounded-owned-buffer contract ranks first.
+Accepted CAP-023 is the zero-production source-embedded fixed-shape exact-`i32`
+inference product checkpoint over the CAP-019 compiler/profile boundary and accepted
+CAP-020/CAP-021 products. CAP-022 remains a mandatory `NO IMPLEMENTATION` runtime-
+acquisition stop, and CAP-016 and CAP-017 remain completed architecture stops rather
+than implementation queue entries. Accepted-head CAP-023 inference correctness,
+reproducibility, and artifact-footprint evidence with no performance claim ranks
+first.
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
-| 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
-| 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+| 1 | Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim | 4 | 5 | 5 | 5 | 5 | 4 | 28 |
+| 2 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+| 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
 
 `Favorable risk` and `Favorable evidence cost` are delivery-favorability scores:
-higher means lower implementation risk or lower evidence cost. The next action is
-runtime byte/file acquisition readiness and a red probe under one cross-platform
-bounded-owned-buffer contract. It is readiness and a task-local red probe only, not
-implementation. Path and byte identity, capacity and initialized count, partial-read
-and EOF behavior, typed error mapping, ownership and drop, runtime linkage, sandboxing,
-determinism, and Linux/Windows equivalence remain to be frozen before any later
-implementation ranking.
+higher means lower implementation risk or lower evidence cost. The next action is the
+accepted-head CAP-023 inference correctness, reproducibility, and artifact-footprint
+evidence gate with no performance claim. It is a zero-production immutable-evidence
+task, not compiler production or benchmark work. The bundle must bind tracked inputs,
+exact Linux/Windows toolchains and commands, deterministic artifact hashes and byte
+sizes, exact results, limitations, and third-party reproduction without timing,
+throughput, speedup, memory, energy, or performance claims.
 
-Rank 2 is small quantized numerical-kernel readiness and a red probe only, not
-implementation. Stored, accumulator, and result types and domains; scale and
-zero-point representation and scope; rounding, saturation, overflow, conversion, and
-operation order; malformed-state rejection; and the cross-platform reference oracle
-all remain unfrozen.
+Rank 2 is exact CPU plus recursive-CopyData application-profile composition readiness
+and a task-local red probe only, not implementation. It must first freeze admitted
+types and operations, phase ownership, profile selection, physical identity, rejection
+boundaries, verifier evidence, and Linux/Windows oracles without widening either
+existing profile or inventing layout, ABI, ownership, or recursive-array semantics.
 
-Rank 3 remains deferred while flat storage serves the target workload. Recursive
-arrays may return to implementation ranking only if a concrete workload shows that
-flat buffers materially obscure it and a bounded probe proves one shared source and
-physical shape authority within two compiler phases. Do not default to neighboring
+Rank 3 is small quantized numerical-kernel readiness and a task-local red probe only,
+not implementation. Stored, accumulator, and result representation; scale and
+zero-point rules; conversion, rounding, tie, saturation, and overflow behavior;
+calibration provenance; malformed-state rejection; operation order; and the
+cross-platform reference oracle all remain unfrozen. Do not default to neighboring
 topology work, releases/packages/benchmarks, force-pushes, or deletion of retained
-integration work. None of the three rows authorizes production implementation.
+integration work. No readiness row permits implementation.
 
 ## Unauthorized actions
 
