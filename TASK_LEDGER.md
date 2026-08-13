@@ -1,5 +1,222 @@
 # Aero Task Ledger
 
+## CAP-024-ACCEPTED-HEAD-INFERENCE-EVIDENCE - immutable correctness bundle
+
+- Date/task/status: 2026-08-13,
+  `CAP-024-ACCEPTED-HEAD-INFERENCE-EVIDENCE`, authorized evidence-only work on
+  `agent/cap-024-accepted-head-evidence` from exact protected master
+  `918c9222eb61e2435e18847e30b946cd08013238`, tree
+  `aba2876644b0183ab877b2e28d5e14001328c99a`. Its ordered parents are the
+  accepted CAP-023 application merge
+  `e9b281504446465cfc8fcbe17c65cce92df0e83a`, then reviewed truth-sync
+  candidate `d21c91fc312c70c47c6bb865ba1465e762255f0c`; the protected merge tree
+  exactly preserves that candidate tree. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain outside scope.
+- Observed behavior and evidence gap: accepted CAP-023 and its truth sync have
+  exact protected Linux and Windows correctness gates, but
+  `claim-verification/` has no durable Aero-native inference record. Exact
+  merge-head CI `31705069547`, Rust CI `31705069538`, and CodeQL
+  `31705069353` passed, while their Actions artifact counts are zero. The
+  existing workflow compares two inference LLVM emissions and verifies
+  bitcode, machine instructions, native `-O0`/`-O2`, public execution, and
+  oracles, but it does not record artifact hashes and byte sizes or prove
+  repeated bitcode, assembly, and executable byte identity. Retained local
+  artifacts are mutable corroboration only and cannot become claim authority.
+- CEO/engineering selection test: the fresh post-CAP-023 28/24/20 ranking
+  selects rank 1 because it closes the named accepted-head evidence gap with
+  real third-party reproducibility, highest Roadmap criticality,
+  correctness/safety value, architectural leverage, favorable risk, and
+  proportional evidence cost without changing the language. It outranks the
+  rank-2 CopyData-composition and rank-3 quantization readiness probes, which
+  remain explicitly unauthorized for implementation. Change this decision
+  only if an existing immutable bundle already proves the same
+  source/oracle/toolchain/command/hash/size/result/failure/limitation contract,
+  if same-platform artifact bytes are nondeterministic for a reason that
+  cannot be frozen, if Linux and Windows behavior diverges, or if footprint
+  capture cannot remain separate from benchmark/performance semantics.
+- Frozen subject and input authority:
+  - The only evidence subject is protected commit
+    `918c9222eb61e2435e18847e30b946cd08013238`, tree
+    `aba2876644b0183ab877b2e28d5e14001328c99a`, with clean tracked/index state
+    before and after capture. The capture workflow must check out that SHA into
+    a separate subject directory; the evidence branch must never substitute
+    its own compiler or specimen bytes.
+  - The compiler subtree is
+    `0ba0d06899b7e95d6b5b6f90a14804d18651806c`.
+    `examples/fixed_int_array_v0/relu_argmax_inference.aero` is 8,224 bytes,
+    Git blob `5d5fe74e4acc351cb4326e85c4d69f320a37f3c6`, SHA-256
+    `8244ca26fc90ce708801e12ec6a7192bdedfd01e1a1429c1479d36e233b1bb6c`.
+    Every remaining input identity is over canonical Git-blob bytes, never a
+    platform-smudged checkout:
+    `.github/workflows/rust.yml` is blob
+    `888a1d6b699725ebdd8b8fd6c762c1b58cd823a3`, 264,585 bytes, SHA-256
+    `32c820df765c6f42025d46a9f95049610fb8c301233f51920c7182fda74a92f5`;
+    `src/compiler/tests/fixed_int_array_profile_tests.rs` is blob
+    `959033d0fd255b947d16aa83efe914b517ced412`, 257,332 bytes, SHA-256
+    `6300d3e2a9ef51c270c9ea876a54e70be3fae0e55ccaab5bb81a060a36af5103`;
+    `src/compiler/Cargo.toml` is blob
+    `156dee0fc73aad0bf832c216edbfc9d13fb70012`, 1,072 bytes, SHA-256
+    `ee0ab0da24d5706101b37fdf94940fe863e097bcc02b0752b0bccaddf48ab96f`;
+    and `src/compiler/Cargo.lock` is blob
+    `24c4729076801853f7bebb4a3269c050f31b3a5a`, 26,063 bytes, SHA-256
+    `076d1d4f06ed35627c45a93428aab3705fceafcada5f09ae1597ada6922ff280`.
+    Both capture lanes must disable checkout line-ending conversion, prove
+    worktree bytes equal these canonical blob identities before execution, and
+    stop rather than record a transformed input.
+  - Application semantics remain exactly the accepted CAP-023 contract: seven
+    source-embedded `[int; 20]` records with header `[2, 3, 2]`, wrapping-`i32`
+    intermediates, strict-positive clamp, two biased logits, signed
+    strict-greater/lower-index-tie argmax, three malformed-header zero results,
+    reread of all 140 lanes after seven calls, final ordinary/wrapping/
+    activation-boundary/tie arrays
+    `[1, 122, 167, 135, 181, 4940, 5573, 1]`,
+    `[1, -24, 18, 2147483623, 0, -37, 2147483641, 1]`,
+    `[1, -3, 0, 0, 0, 5, 4, 0]`, and
+    `[1, 1, 2, 1, 2, 3, 3, 0]`, malformed arrays of eight zeros, and sentinel
+    91. `oracle.json` must carry all seven exact source records and independently
+    recomputed intermediate/final values; the tool must implement explicit
+    signed wrapping arithmetic rather than trust the Aero outputs.
+- Frozen bundle and schema:
+  - Register claim ID
+    `aero_cap023_inference_correctness_918c9222_20260813`, status
+    `verified_correctness_reproducibility_only`, in the additive schema-v1
+    `claim-verification/claims.json` catalog without weakening or rewriting its
+    six historical claims.
+  - Add schema
+    `claim-verification/schemas/aero-cap023-inference-evidence-v1.schema.json`
+    and bundle directory
+    `claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/`
+    containing exactly `manifest.json`, `oracle.json`, and `REPRODUCE.md`.
+    Actions uploads are temporary transport only; the tracked canonical files
+    are the immutable public record, and correctness must remain reproducible
+    from tracked subject inputs plus documented commands.
+  - `manifest.json` must bind the full subject commit/tree/parent order,
+    clean-state checks, compiler/input blob/SHA-256/size identities, schema and
+    oracle hashes, capture-tool/workflow hashes, exact normalized argv/cwd/env,
+    exact tool versions/paths/payload digests, one `linux-x86_64` and one
+    `windows-x86_64` record, two independent productions of `.ll`, `.bc`,
+    `.s`, `O0`, and `O2`, within-platform pair equality by SHA-256 and byte
+    size, every command exit/stdout/stderr as lossless bytes with size and
+    SHA-256, explicit failures, and explicit limitations.
+  - Native `O0` and `O2` must each exit 91 with empty stdout/stderr. The public
+    route must exit 91 and carry its exact captured streams. Linux and Windows
+    source/oracle identity and observable results must agree; target-dependent
+    LLVM, bitcode, assembly, and executable hashes are platform-specific and
+    must never be required to match across operating systems.
+  - Artifact byte sizes are correctness/reproducibility footprint facts only.
+    The bundle must not contain or imply timing, throughput, speedup, latency,
+    memory, energy, benchmark, accelerator, ABI, safety, general-inference, or
+    performance claims. `REPRODUCE.md` must state all exclusions, failure
+    observations, mutable-transport limits, and the complete third-party
+    procedure.
+- Frozen platform and supply-chain boundary:
+  - Both lanes use Rust `1.97.1`, commit
+    `8bab26f4f68e0e26f0bb7960be334d5b520ea452`, installed explicitly rather
+    than through a floating channel or action. Each lane builds the accepted
+    Aero compiler twice in separate clean Cargo target directories and requires
+    both compilers to emit the same LLVM bytes. Compiler-executable byte
+    identity is recorded for traceability but is not a claim: only the emitted
+    CAP-023 artifacts and behavior are required to reproduce.
+  - Linux uses official
+    `LLVM-22.1.8-Linux-X64.tar.xz`, 1,938,859,476 bytes, SHA-256
+    `df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384`.
+    Windows uses official
+    `clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz`, 862,053,924 bytes,
+    SHA-256
+    `d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234`.
+    Both lanes must verify archive digest and size before extraction, prove
+    exact `opt`, `llvm-as`, `llc`, `clang`, and bundled LLD version/tool hashes,
+    and record the runner image and kernel identity as execution observations.
+  - GitHub-hosted `ubuntu-24.04` and `windows-2025` aliases are scheduling and
+    execution substrates only; their CRT, C library, SDK, startup objects, and
+    host linker must not determine any recorded target artifact byte. The
+    evidence procedure is complete on any compatible x86_64 Linux or Windows
+    kernel because every byte-producing target input is the canonical subject
+    blob, the content-pinned official LLVM archive, or one of the two exact
+    launch-support sources embedded in the standard-library capture tool.
+  - Linux launch support is exact UTF-8/LF `linux-start.S`, 205 bytes, SHA-256
+    `b95dbd79fd7b976862149e5635e148b9a9d2bbf20b2c3912a1f8d76c227379bb`:
+    a `_start` symbol calls `main`, moves its `i32` result to the Linux x86_64
+    exit-status argument, and invokes syscall 60. Linux O0/O2 link with the
+    official archive only, `-nostdlib`, bundled LLD, entry `_start`, and no
+    build ID. Windows launch support is exact UTF-8/LF `windows-chkstk.S`, 378
+    bytes, SHA-256
+    `b971f9c51534aff82d774c26b6a6f2312a3beeac5e1710a69f3d88bd5671f376`:
+    the LLVM compiler-rt 22.1.8 x86_64 stack-probe algorithm exported as the
+    MSVC `__chkstk` symbol. Windows O0/O2 link with the official archive only,
+    `-nostdlib`, bundled LLD, `/entry:main`, `/subsystem:console`,
+    `/nodefaultlib`, and `/brepro`. The tested retained CAP-023 LLVM exits 91
+    with empty streams under both Windows optimizations, and two independent
+    links produced equal bytes; that diagnostic remains local corroboration,
+    not accepted evidence.
+  - The public `aero run` route is recorded as observable behavior only. Its
+    temporary host-linked executable is neither retained nor hashed as a
+    reproducible artifact. Host variation is permitted only when the exact
+    public exit/stdout/stderr remains equal; any result drift stops the task.
+  - The dedicated workflow pins checkout/upload/download actions by full SHAs
+    `11d5960a326750d5838078e36cf38b85af677262`,
+    `ea165f8d65b6e75b540449e92b4886f43607fa02`, and
+    `d3f86a106a0bac45b974a628896c90dbdf5c8093`. No floating action, Rust,
+    LLVM, archive, package, subject reference, host CRT, host SDK, or host
+    linker may determine recorded target bytes. Runner image/version changes
+    are recorded and permitted only as execution-substrate variation; the
+    same target hashes and results must still reproduce or the task stops.
+- Allowed files and red/green choreography: cumulative implementation scope is
+  exactly `TASK_LEDGER.md`, `.github/workflows/cap023-evidence.yml`,
+  `tools/cap024_inference_evidence.py`,
+  `claim-verification/schemas/aero-cap023-inference-evidence-v1.schema.json`,
+  the three frozen bundle files, `claim-verification/claims.json`,
+  `src/compiler/tests/cap024_claim_verification_contract_tests.rs`, and
+  `src/compiler/tests/cli_status_contract_tests.rs`. Commit this ledger-only
+  authorization first. Then add the new contract test and record an intentional
+  red solely because the indexed bundle/tool/workflow is absent. Implement the
+  standard-library cross-platform capture/verify tool, schema, oracle,
+  reproduction contract, and dedicated two-OS capture plus aggregate workflow.
+  Open a draft protected PR to transport the first platform manifests, commit
+  the canonical aggregate bundle, and require a fresh exact-head workflow
+  replay to match it. No compiler production, source specimen, selected
+  profile, existing Rust workflow, Cargo dependency, benchmark harness,
+  performance protocol, release, or unrelated documentation change is
+  authorized.
+- Red/green acceptance:
+  - The new focused Rust contract must fail only on the absent CAP-024 bundle,
+    then require exact subject/input/oracle/platform identities, schema closure,
+    within-platform two-build determinism, exact result streams, complete
+    failures/limitations/reproduction, additive claim indexing, and no
+    unindexed bundle files or performance fields/claims. Mutation controls must
+    reject subject/tree/source drift, platform count/name drift, malformed or
+    duplicate hashes, size drift, nondeterministic artifact pairs, result or
+    oracle drift, missing failure/limitation records, cross-OS artifact-equality
+    claims, floating pins, performance vocabulary used affirmatively, and
+    incomplete reproduction.
+  - The Python tool must independently validate schema/oracles/manifests, fail
+    closed on unknown fields or files, and reproduce/capture with only the
+    standard library. Each platform job must build `.ll`, `.bc`, `.s`, `O0`,
+    and `O2` twice at canonical paths; run LLVM verifier, `llvm-as`,
+    machine-instruction verification, native `O0`/`O2`, and the public route;
+    compare every artifact pair; and upload only canonical textual records for
+    aggregation. The aggregate job must require both platforms and validate the
+    tracked bundle byte-for-byte when present.
+  - Run the focused contract, the existing fixed-array profile target, Python
+    validator/oracle mutations, formatting/diff checks, then repository-root
+    `./tools/test.sh`. Require exact candidate-head existing protected checks
+    plus the dedicated evidence workflow, an independent second platform
+    replay matching the committed manifest, protected merge, and fresh
+    merge-head existing checks before any public evidence claim.
+- Stop conditions and risks: stop and rerank on any subject/tree/input drift;
+  non-clean accepted worktree; unfrozen byte-producing tool/link input; a
+  runner-substrate change that changes recorded bytes or behavior; archive mismatch;
+  oracle mismatch; same-platform `.ll/.bc/.s/O0/O2` byte or size divergence;
+  Linux/Windows behavior divergence; native result other than exit 91 with
+  empty streams; public-route drift; hand-authored or unverifiable hash;
+  missing/extra bundle file; dependency/compiler/profile/source change;
+  timing/performance measurement; or any need to claim general inference,
+  resource usage, ABI, safety, or completion. Executable nondeterminism is
+  evidence that changes the decision, not permission to omit executable hashes.
+  After protected acceptance, perform cumulative truth/ranking synchronization
+  as a separate ledger-first task; do not mix it into this evidence slice.
+
 ## CAP-023-ACCEPTANCE-SYNC - inference product accepted truth
 
 - Date/task/status: 2026-08-13, `CAP-023-ACCEPTANCE-SYNC`, authorized
