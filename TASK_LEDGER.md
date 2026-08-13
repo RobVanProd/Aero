@@ -97,7 +97,9 @@
   - `manifest.json` must bind the full subject commit/tree/parent order,
     clean-state checks, compiler/input blob/SHA-256/size identities, schema and
     oracle hashes, capture-tool/workflow hashes, exact normalized argv/cwd/env,
-    exact tool versions/paths/payload digests, one `linux-x86_64` and one
+    exact pinned-tool versions/paths/payload digests, the two built Aero compiler
+    executable hashes and sizes as traceability observations, one
+    `linux-x86_64` and one
     `windows-x86_64` record, two independent productions of `.ll`, `.bc`,
     `.s`, `O0`, and `O2`, within-platform pair equality by SHA-256 and byte
     size, every command exit/stdout/stderr as lossless bytes with size and
@@ -173,13 +175,16 @@
     linker may determine recorded target bytes. Runner image/version changes
     are recorded execution-substrate observations, not immutable inputs. The
     tool must define one closed canonical replay projection that excludes only
-    those runner-image and kernel observation values. A replay must compare that
-    projection byte-for-byte with the tracked accepted manifest, upload its
-    fresh runner observations separately, and reject every other difference.
-    It must never rewrite the accepted observations. A replay on a changed
-    runner image is accepted only if the content-pinned target hashes and exact
-    observable results still match; any claim-bearing drift stops the task and
-    no full-runner reproducibility claim may be substituted.
+    the runner-image and kernel observation values and the SHA-256/size values of
+    the two locally built Aero compiler executables. Those compiler values are
+    host-linked traceability observations, not pinned-tool or target-artifact
+    identities. A replay must compare that projection byte-for-byte with the
+    tracked accepted manifest, upload all fresh excluded observations separately,
+    and reject every other difference. It must never rewrite the accepted
+    observations. A replay on a changed runner image is accepted only if the
+    content-pinned target hashes, pinned-tool identities, emitted artifacts, and
+    exact observable results still match; any claim-bearing drift stops the task
+    and no full-runner reproducibility claim may be substituted.
 - Allowed files and red/green choreography: cumulative implementation scope is
   exactly `TASK_LEDGER.md`, `.github/workflows/cap023-evidence.yml`,
   `tools/cap024_inference_evidence.py`,
