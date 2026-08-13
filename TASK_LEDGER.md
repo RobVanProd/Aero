@@ -246,7 +246,8 @@
   outcomes while independently validating canonical oracle semantics,
   `REPRODUCE.md`, the additive claim index, and every manifest-bound file hash;
   combined staging-plus-platform failures are mutation-tested and reported
-  together before any output is published. Python self-test, Rust formatting,
+  together before any output is published, including missing, non-file, or
+  unreadable staging entries. Python self-test, Rust formatting,
   and diff hygiene pass. The focused target is exactly 5/6: all five pure and
   adversarial contracts pass, while the repository contract fails only through
   the missing manifest and its direct bundle/validate/replay/copy consequences.
@@ -254,8 +255,8 @@
   candidate manifest is reviewed and committed. Exact pre-capture file
   identities are: workflow 8,480 bytes/SHA-256
   `9e9b81c6bbf966255302cef4a2d1a55e156159b87f4a5e72608987f8892077d1`;
-  tool 132,044 bytes/
-  `1703d931192d9975155b65a8ea7a4085d9124ef6e801e48b8fd265eb7e7e7283`;
+  tool 132,377 bytes/
+  `d882a0989e27349decd5e3047927b2e3b699902cc458cfe528a52c8bca799426`;
   schema 70,076 bytes/
   `493df131b41dd48c01c092d4d69b168eae8f6410a483aa8293d250bb04d4e963`;
   oracle 3,615 bytes/
@@ -264,8 +265,16 @@
   `e61e57eb3ea8273183241e1be207ae46c228029a6087ff0129d5aaeab265428e`;
   claims catalog 7,217 bytes/
   `d15b58523b5af6f71a926456306402b890dd1de9d2cbca9988b251ce249d266a`;
-  and focused Rust contract 201,205 bytes/
-  `5e6209403887d1e381348dc96bdc96a7d642f53f45c2030ddd23f16a8ab6a283`.
+  and focused Rust contract 201,481 bytes/
+  `f0638290fadfeca38fbd8555b6f8f5b4da001b15c45bb31fb26c14c1a4f15e9f`.
+  Exact-head smoke run `31752719344` on superseded pre-hardening commit
+  `523ff1efab3b9560f19f8c2d33406f3624468a70` completed Linux job
+  `94621772227`, Windows job `94621772400`, and aggregate job `94622883919`
+  successfully. Its candidate manifest has both exact platforms, no failures,
+  all 21 commands at their required exits, native O0/O2 and public sentinel 91,
+  and empty application streams. It is diagnostic smoke only and must not be
+  committed because the subsequent regular-file/OSError aggregate hardening
+  changes the claim-bound tool hash; a fresh exact-head capture is mandatory.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,

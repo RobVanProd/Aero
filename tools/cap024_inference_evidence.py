@@ -2020,10 +2020,16 @@ def aggregate_records(args: argparse.Namespace) -> dict[str, Any]:
                     "aggregate staging bundle files invalid: expected only REPRODUCE.md and oracle.json, "
                     f"received {sorted(actual_without_manifest)}"
                 )
+            elif not all(
+                (bundle / name).is_file() for name in ("REPRODUCE.md", "oracle.json")
+            ):
+                failures.append(
+                    "aggregate staging entries must be regular REPRODUCE.md and oracle.json files"
+                )
             else:
                 try:
                     validate_aggregate_staging(bundle)
-                except EvidenceError as exc:
+                except (EvidenceError, OSError) as exc:
                     failures.append(f"aggregate staging contract invalid: {exc}")
     configured_paths = {
         "linux-x86_64": args.linux_record or args.linux or transport / "linux-x86_64" / "capture.json",
@@ -2402,6 +2408,7 @@ def self_test_aggregate_combined_failures() -> None:
         bundle = root / "bundle"
         bundle.mkdir()
         write_json(bundle / "oracle.json", expected_oracle())
+        (bundle / "REPRODUCE.md").mkdir()
         transport = root / "transport"
         linux = transport / "linux-x86_64"
         windows = transport / "windows-x86_64"
@@ -2446,7 +2453,7 @@ def self_test_aggregate_combined_failures() -> None:
             except EvidenceError as exc:
                 message = str(exc)
                 require(
-                    "aggregate staging bundle files invalid" in message
+                    "aggregate staging entries must be regular" in message
                     and "linux-x86_64 capture job result was failure" in message,
                     "aggregate did not report both staging and platform failures",
                 )
