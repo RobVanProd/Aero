@@ -25,7 +25,8 @@
   artifacts are mutable corroboration only and cannot become claim authority.
 - CEO/engineering selection test: the fresh post-CAP-023 28/24/20 ranking
   selects rank 1 because it closes the named accepted-head evidence gap with
-  real third-party reproducibility, highest Roadmap criticality,
+  third-party target-artifact reproducibility and recorded two-OS behavioral
+  corroboration, highest Roadmap criticality,
   correctness/safety value, architectural leverage, favorable risk, and
   proportional evidence cost without changing the language. It outranks the
   rank-2 CopyData-composition and rank-3 quantization readiness probes, which
@@ -109,7 +110,9 @@
     memory, energy, benchmark, accelerator, ABI, safety, general-inference, or
     performance claims. `REPRODUCE.md` must state all exclusions, failure
     observations, mutable-transport limits, and the complete third-party
-    procedure.
+    target-artifact and observable-result procedure. It must explicitly state
+    that the ephemeral hosted-runner image itself is recorded but is not an
+    immutable or reconstructible evidence input.
 - Frozen platform and supply-chain boundary:
   - Both lanes use Rust `1.97.1`, commit
     `8bab26f4f68e0e26f0bb7960be334d5b520ea452`, installed explicitly rather
@@ -130,11 +133,17 @@
     and record the runner image and kernel identity as execution observations.
   - GitHub-hosted `ubuntu-24.04` and `windows-2025` aliases are scheduling and
     execution substrates only; their CRT, C library, SDK, startup objects, and
-    host linker must not determine any recorded target artifact byte. The
-    evidence procedure is complete on any compatible x86_64 Linux or Windows
-    kernel because every byte-producing target input is the canonical subject
-    blob, the content-pinned official LLVM archive, or one of the two exact
-    launch-support sources embedded in the standard-library capture tool.
+    host linker must not determine any recorded target artifact byte. Every
+    byte-producing target input is the canonical subject blob, the
+    content-pinned official LLVM archive, or one of the two exact launch-support
+    sources embedded in the standard-library capture tool. The reproducibility
+    claim is therefore limited to those target artifact bytes. Native and public
+    execution are correctness observations on the exact recorded runner images;
+    the bundle neither claims to reconstruct those ephemeral images nor promises
+    identical behavior on every nominally compatible kernel. A third party can
+    repeat the documented executions on a compatible x86_64 Linux or Windows
+    host, but that repeat is new corroboration rather than proof that the host
+    environment is byte-identical to the accepted runners.
   - Linux launch support is exact UTF-8/LF `linux-start.S`, 205 bytes, SHA-256
     `b95dbd79fd7b976862149e5635e148b9a9d2bbf20b2c3912a1f8d76c227379bb`:
     a `_start` symbol calls `main`, moves its `i32` result to the Linux x86_64
@@ -160,8 +169,10 @@
     `d3f86a106a0bac45b974a628896c90dbdf5c8093`. No floating action, Rust,
     LLVM, archive, package, subject reference, host CRT, host SDK, or host
     linker may determine recorded target bytes. Runner image/version changes
-    are recorded and permitted only as execution-substrate variation; the
-    same target hashes and results must still reproduce or the task stops.
+    are recorded execution-substrate observations, not immutable inputs. A
+    replay on a changed runner image is accepted only if the content-pinned
+    target hashes and exact observable results still match; any drift stops the
+    task and no full-runner reproducibility claim may be substituted.
 - Allowed files and red/green choreography: cumulative implementation scope is
   exactly `TASK_LEDGER.md`, `.github/workflows/cap023-evidence.yml`,
   `tools/cap024_inference_evidence.py`,
