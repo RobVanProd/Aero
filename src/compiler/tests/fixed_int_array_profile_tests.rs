@@ -5825,7 +5825,7 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
             &[
                 "inference:relu_argmax_inference.aero:91:yes",
                 "elif [ \"${name}\" = inference ]; then",
-                "test \"${guard_count}\" -eq 28",
+                "test \"${guard_count}\" -eq \"$((14 * 2))\"",
                 "if [ \"${name}\" = inference ]; then",
                 "inference_second_llvm=\"${RUNNER_TEMP}/exact_i32_array_inference.linux.second.ll\"",
                 "build \"${source}\" -o \"${inference_second_llvm}\" --require-llvm-verifier --language-profile exact-i32-array-v0",
@@ -5914,7 +5914,7 @@ fn exact_i32_array_system_gate_is_anchored_on_linux_and_windows() {
             &[
                 "[pscustomobject]@{ Name = \"inference\"; File = \"relu_argmax_inference.aero\"; Expected = 91; Dynamic = $true }",
                 "} elseif ($specimen.Name -ceq \"inference\") {",
-                "if ($guardMatches.Count -ne 28) {",
+                "if ($guardMatches.Count -ne (14 * 2)) {",
                 "if ($specimen.Name -ceq \"inference\") {",
                 "$inferenceSecondLlvm = Join-Path $env:RUNNER_TEMP \"exact_i32_array_inference.windows.second.ll\"",
                 "build $source -o $inferenceSecondLlvm --require-llvm-verifier --language-profile exact-i32-array-v0",
