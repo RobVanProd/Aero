@@ -1570,6 +1570,13 @@ fn assert_exact_ordered_decision_records(document_name: &str, section: &str, con
 
 fn cap023_matrix_violation(matrix: &str) -> Option<String> {
     let rendered = markdown_outside_fences(matrix);
+    let Some(classified_tables) = rendered
+        .split_once("## Language features")
+        .and_then(|(_, tail)| tail.split_once("## Evidence notes"))
+        .map(|(section, _)| section)
+    else {
+        return Some("missing bounded classified-table region".to_owned());
+    };
     let Some(language_features) = rendered
         .split_once("## Language features")
         .and_then(|(_, tail)| tail.split_once("## Compiler, tooling, and ecosystem surfaces"))
@@ -1582,7 +1589,7 @@ fn cap023_matrix_violation(matrix: &str) -> Option<String> {
     }) {
         return Some("CAP-023 appears in a language-feature/profile row".to_owned());
     }
-    let cap023_rows = rendered
+    let cap023_rows = classified_tables
         .lines()
         .map(table_line)
         .filter(|line| {
@@ -1594,10 +1601,9 @@ fn cap023_matrix_violation(matrix: &str) -> Option<String> {
             "CAP-023 matrix rows are not the sole exact CPU PARTIAL row: {cap023_rows:?}"
         ));
     }
-    let Some(backend) = rendered
+    let Some(backend) = classified_tables
         .split_once("## Backend summary")
-        .and_then(|(_, tail)| tail.split_once("## Evidence notes"))
-        .map(|(section, _)| section)
+        .map(|(_, section)| section)
     else {
         return Some("missing bounded backend-summary section".to_owned());
     };
@@ -5279,7 +5285,7 @@ fn assert_cap023_contract_mutation_fixtures() {
     );
 
     let matrix = format!(
-        "## Language features\n\n| Feature | Class |\n|---|---|\n| Selected exact profile | END_TO_END |\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |\n|---|---|---|---|---|---|---|---|---|\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
+        "{ranking}\n## Language features\n\n| Feature | Class |\n|---|---|\n| Selected exact profile | END_TO_END |\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |\n|---|---|---|---|---|---|---|---|---|\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
     );
     assert!(cap023_matrix_violation(&matrix).is_none());
     for rejected in [
@@ -5290,7 +5296,10 @@ fn assert_cap023_contract_mutation_fixtures() {
             "## Compiler, tooling, and ecosystem surfaces",
             "| CAP-023 | PARTIAL |\n\n## Compiler, tooling, and ecosystem surfaces",
         ),
-        format!("{matrix}\n{CAP023_CPU_MATRIX_ROW}\n"),
+        matrix.replace(
+            "\n\n## Evidence notes",
+            &format!("\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes"),
+        ),
     ] {
         assert!(cap023_matrix_violation(&rejected).is_some(), "{rejected}");
     }
@@ -6696,7 +6705,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     ] {
         assert_post_cap023_ranking_table(document_name, document);
     }
-    let cap021_matrix_rows = matrix
+    let classified_matrix = matrix
+        .split_once("## Language features")
+        .expect("matrix language-feature section")
+        .1
+        .split_once("## Evidence notes")
+        .expect("matrix evidence notes")
+        .0;
+    let cap021_matrix_rows = classified_matrix
         .lines()
         .map(table_line)
         .filter(|line| {
@@ -6708,7 +6724,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         [CAP023_CPU_MATRIX_ROW],
         "CAP-021 may appear in exactly one matrix row, as evidence in the existing CPU platform row"
     );
-    let cap023_matrix_rows = matrix
+    let cap023_matrix_rows = classified_matrix
         .lines()
         .map(table_line)
         .filter(|line| {
