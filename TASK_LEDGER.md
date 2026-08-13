@@ -294,6 +294,16 @@
   candidate manifest input, not final acceptance: after its commit, a fresh
   exact-head two-platform capture must match the closed projection and emit all
   48 excluded observations separately before the root/protected gates close.
+- Root-gate claim-index sync, 2026-08-13: the first repository-root gate after
+  committing the canonical manifest reached `cli_status_contract_tests` and
+  stopped because its exact inventory still froze only the six historical
+  claims while the authorized additive CAP-024 correctness/reproducibility claim
+  is now the seventh record. This is a test-contract synchronization defect, not
+  a compiler or claim-bundle failure. Preserve every historical quarantine and
+  artifact assertion, add the exact CAP-024 ID/status/three-artifact tuple, and
+  require the focused CLI target to pass 11/11 before rerunning the root gate.
+  The synchronized focused target passes 11/11, Rust formatting and diff hygiene
+  pass, and the subsequent repository-root `./tools/test.sh` gate exits zero.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,
