@@ -127,10 +127,12 @@
     `[2,3,2,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]`
     returns `[1,122,167,135,181,4940,5573,1]`;
   - wrapping record
-    `[2,3,2,2,-3,5,2147483647,4,-2,-2147483648,-1,3,2147483647,2147483647,2,1,-1,3,5,-7]`
-    returns `[1,-24,18,2147483623,0,-45,-2147483630,0]` and forces
+    `[2,3,2,2,-3,5,2147483647,4,-2,-2147483648,-1,3,2147483647,2147483647,2,7,-2147483648,-3,13,-7]`
+    returns `[1,-24,18,2147483623,0,-37,2147483641,1]` and forces
     first-stage multiplication wrap, bias-add wrap into a clamped negative, and
-    second-stage multiplication wrap;
+    second-stage multiplication wrap; its positive second logit is greater by
+    signed comparison but lower by unsigned comparison, independently proving
+    the selected signed argmax predicate;
   - activation-boundary record
     `[2,3,2,1,1,1,-1,-1,-1,1,0,-1,2,0,1,2,3,4,5,4]`
     returns `[1,-3,0,0,0,5,4,0]`, independently proving negative and exact-zero
@@ -140,10 +142,11 @@
     returns `[1,1,2,1,2,3,3,0]` and proves the frozen lower-index tie rule;
   - three malformed controls change header lane 0 to 1, lane 1 to 4, or lane 2
     to 1 while retaining the ordinary payload; each returns eight zeros.
-    Every lane of all four valid records must be reread after by-value inference
-    and compare equal to a separately initialized exact literal. `main` returns
-    91 only after every result, malformed control, and preservation oracle
-    passes; otherwise it returns 1. Source stdout/stderr remains empty.
+    Every lane of all four valid records and all three malformed records must be
+    reread after all seven by-value inference calls and compare equal to its own
+    separately initialized exact literal. `main` returns 91 only after every
+    result, malformed control, and preservation oracle passes; otherwise it
+    returns 1. Source stdout/stderr remains empty.
 - Hypothesis and first-red contract: the complete source uses only already
   accepted flat exact-Int literals/parameters/results, fully initialized mutable
   locals, guarded dynamic reads and projected writes, ordinary acyclic calls,
