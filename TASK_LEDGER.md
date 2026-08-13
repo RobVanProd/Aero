@@ -103,10 +103,17 @@
     `windows-x86_64` record, two independent productions of `.ll`, `.bc`,
     `.s`, `O0`, and `O2`, within-platform pair equality by SHA-256 and byte
     size, every command exit/stdout/stderr as lossless bytes with size and
-    SHA-256, explicit failures, and explicit limitations.
+    SHA-256, explicit failures, and explicit limitations. The accepted Aero
+    compiler prints elapsed durations and temporary paths during each of the two
+    LLVM builds and the public run; those three raw diagnostic stream records
+    are traceability observations, while their exit codes and derived semantic
+    results remain claim-bearing.
   - Native `O0` and `O2` must each exit 91 with empty stdout/stderr. The public
-    route must exit 91 and carry its exact captured streams. Linux and Windows
-    source/oracle identity and observable results must agree; target-dependent
+    route must exit 91 and carry its exact raw captured streams plus exact parsed
+    semantic observations: the wrapper reports `Exit code: 91`, reports no
+    application `Output:` or `Error output:`, and therefore proves empty
+    application stdout/stderr. Linux and Windows source/oracle identity and
+    those semantic observable results must agree; target-dependent
     LLVM, bitcode, assembly, and executable hashes are platform-specific and
     must never be required to match across operating systems.
   - Artifact byte sizes are correctness/reproducibility footprint facts only.
@@ -174,14 +181,18 @@
     LLVM, archive, package, subject reference, host CRT, host SDK, or host
     linker may determine recorded target bytes. Runner image/version changes
     are recorded execution-substrate observations, not immutable inputs. The
-    tool must define one closed canonical replay projection that excludes only
-    the runner-image and kernel observation values and the SHA-256/size values of
-    the two locally built Aero compiler executables. Those compiler values are
-    host-linked traceability observations, not pinned-tool or target-artifact
-    identities. A replay must compare that projection byte-for-byte with the
-    tracked accepted manifest, upload all fresh excluded observations separately,
-    and reject every other difference. It must never rewrite the accepted
-    observations. A replay on a changed runner image is accepted only if the
+    tool must define one closed canonical replay projection. Its exclusions are
+    exactly the runner-image and kernel observation values; the SHA-256/size
+    values of the two locally built Aero compiler executables; and the raw
+    stdout/stderr bytes, hashes, and sizes of the two Aero LLVM-build commands
+    and one public-run command. Those compiler and raw-diagnostic values are
+    traceability observations, not pinned-tool, target-artifact, or semantic
+    result identities. Command exit codes and the public route's parsed exit and
+    application-stream observations remain inside the comparison. A replay must
+    compare that projection byte-for-byte with the tracked accepted manifest,
+    upload all fresh excluded observations separately, and reject every other
+    difference. It must never rewrite the accepted observations. A replay on a
+    changed runner image is accepted only if the
     content-pinned target hashes, pinned-tool identities, emitted artifacts, and
     exact observable results still match; any claim-bearing drift stops the task
     and no full-runner reproducibility claim may be substituted.
