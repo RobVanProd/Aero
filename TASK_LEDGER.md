@@ -1,5 +1,78 @@
 # Aero Task Ledger
 
+## CAP-022-RUNTIME-ACQUISITION-READINESS - bounded external-byte architecture and red probe
+
+- Date/task/status: 2026-08-13, `CAP-022-RUNTIME-ACQUISITION-READINESS`,
+  authorized architecture enumeration and task-local probe only on
+  `agent/cap-022-runtime-acquisition-readiness` from exact accepted CAP-021
+  truth-sync master `4bce540dfed6dfffa152067f4e00424501a6cdd8`, tree
+  `3592ff5badf4d21f2b550c611da3399840d1a782`. This record does not authorize
+  implementation or an I/O capability claim. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope, and quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and strategic destination: accepted CAP-021 validates and
+  scores a source-embedded `[int; 17]`; its `decode_and_score(record: [int; 17])`
+  function already proves a bounded by-value computation seam. No trusted Aero
+  source program acquires external bytes. The selected process entry is exact
+  parameterless `fn main() -> int`, the public runner launches it without
+  arguments or stdin, and no accepted source/runtime API supplies a path, byte
+  buffer, initialized count, or typed acquisition failure. The eventual target
+  is one cross-platform, size-bounded owned byte result that can feed the
+  accepted record-to-score boundary without weakening failure containment.
+- Frozen readiness scope and decisions to enumerate: locate the first failure
+  without selecting new semantics, then classify path identity and encoding;
+  raw byte identity and source type; fixed capacity and initialized count;
+  exact-read versus partial-read behavior; EOF and over-capacity handling;
+  typed error identity and platform-error mapping; buffer and file-handle
+  ownership, movement, cleanup, and drop; runtime-call and link authority;
+  relative-path base, symlink and sandbox policy, determinism, mutation races,
+  and artifact behavior; and equivalent observable Linux and Windows behavior.
+  Every item must be marked required for a smallest useful slice, explicitly
+  rejected, or preserved for a later RFC. No convenient integer sentinel,
+  source-record lane, C ABI, current-directory rule, UTF encoding, or error map
+  may be inferred by the probe.
+- Existing evidence and non-authority boundaries: the selected
+  `exact-i32-array-v0` profile admits only exact `int`, `bool`, and flat nonempty
+  `[int; N]` types; it rejects import declarations, String literals, method
+  calls, references, generic `Result`, structs/enums, dynamic collections, and
+  nonexact entrypoints before semantic analysis or checked IR. The Draft RFC
+  `RFCs/standard-library.md` sketches `File::open(path: &str)`, mutable
+  `[u8]`, `Result<_, IoError>`, and `Drop`, but explicitly leaves error types and
+  other standard-library policy unresolved. `stdlib.rs` contains simplified
+  legacy String/Vec helpers whose operations are rejected by the checked
+  verifier/backend; compiler/CLI uses of Rust `std::fs` read Aero source and are
+  host tooling, not Aero runtime capability. Treat all three as architecture
+  clues and false-success risks, never accepted source semantics.
+- Task-local probe and evidence contract: after this authorization is committed,
+  use only a task-local directory outside the repository to exercise the Draft
+  RFC-shaped file API and the narrowest process-input/caller-value alternatives
+  through the existing exact-profile `check`, `build`, and `run` routes. Record
+  the exact earliest fatal boundary and prove that semantic analysis, checked
+  IR, backend emission, native execution, and requested artifacts are
+  unreachable after that failure. A positive control may reuse the accepted
+  by-value `[int; 17]` scorer seam, but it cannot be called external-byte
+  acquisition. Do not commit a source test whose spelling or error behavior is
+  not already authoritative.
+- Initial allowed files and stop conditions: before classification, only this
+  `TASK_LEDGER.md` authorization may change. Read-only source, tests, workflows,
+  RFCs, history, and task-local external probes are permitted. No parser, AST,
+  language profile, semantic, checked-IR, verifier, backend, runtime, CLI,
+  linker, dependency, example, workflow, state/claim document, benchmark,
+  release, protection, or public artifact change is authorized. Stop with
+  `NO IMPLEMENTATION` if any enumerated decision remains unfrozen, if a useful
+  slice needs allocation/drop/runtime ABI invention, if Linux and Windows
+  behavior cannot share one observable authority, if invalid source can reach
+  trusted IR/backend work, or if the complete slice crosses more than two
+  compiler phases.
+- Recovery and what would change the decision: this branch and the authorization
+  commit are the rollback boundary. A later behavior task may be ranked only
+  after an explicit runtime RFC freezes the full contract and a red probe proves
+  one shared cross-platform ownership/error authority within two compiler
+  phases. Evidence that the existing caller-provided `[int; 17]` value seam is
+  sufficient once a host embedding boundary is separately defined, or that a
+  compile-time/source-embedded binary mechanism closes the workload sooner,
+  narrows or defers runtime file acquisition; it does not silently redefine it.
+
 ## CAP-021-ACCEPTANCE-SYNC - two-stage scoring product accepted truth
 
 - Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, local green bounded
