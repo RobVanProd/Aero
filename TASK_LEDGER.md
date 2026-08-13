@@ -1,5 +1,206 @@
 # Aero Task Ledger
 
+## CAP-020-ACCEPTANCE-SYNC - flat matvec product accepted truth
+
+- Date/task/status: 2026-08-12, `CAP-020-ACCEPTANCE-SYNC`, authorized bounded
+  record/claim-contract synchronization on
+  `agent/cap-020-accepted-truth-sync` from exact protected master
+  `d9493d5123840b38ebab6ca275aaba3216728706`, tree
+  `800510de85bd82f3332126ad249c95da109dd3e1`. Its ordered parents are accepted
+  base `13157687f3e955d1c8292ccca133c5a73e29e1a7`, then reviewed candidate
+  `3b61cd1ed34f910f556821942cd06301ba17dd50`; the merge tree exactly preserves
+  the candidate tree. User/app-owned `.codex-remote-attachments/` and `tmp/`
+  remain outside scope. Quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and observability defect: protected PR #58 accepted CAP-020.
+  Exact-candidate push CI `31639493741`, PR CI `31639540134`, Rust CI
+  `31639540030`, and CodeQL `31639535638` passed, including aggregate candidate
+  check `94258433541`. Candidate jobs are stable `94258276078`, nightly
+  `94258275978`, Windows LLVM 22 `94258275899`, and CodeQL
+  Actions/Python/Rust `94258264605`/`94258264489`/`94258264627`. Fresh
+  merge-head CI `31640016314`, Rust CI `31640016316`, and CodeQL
+  `31640015733` passed. Merge jobs are compiler `94259869631`, stable
+  `94259869676`, nightly `94259869637`, Windows LLVM 22 `94259869559`, and
+  CodeQL Actions/Python/Rust
+  `94259873136`/`94259873164`/`94259873086`; exact default-branch analyses are
+  Actions `1610137115`, Python `1610137589`, and Rust `1610144660`. The sole
+  open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+  CAP-020 alert surfaced. Cumulative truth still stops at CAP-019 and therefore
+  presents the accepted flat-buffer matvec product as only a proposed next
+  action.
+- Frozen accepted truth and wording boundary: CAP-020 changes no parser,
+  grammar, source semantics, language profile, semantic analysis, checked IR,
+  verifier, backend, ABI, or capability classification. It is a zero-production
+  product/evidence checkpoint over the CAP-019 `exact-i32-array-v0` surface. The
+  accepted application encodes a 2x3 matrix as `[int; 6]`, consumes an
+  `[int; 3]` vector, computes wrapping `row * 3 + column` in nested loops, and
+  returns a fully initialized mutable-produced `[i32; 2]`. Ordinary and wrapping
+  oracles are `[50, 122]` and `[-2, 5]`; all source lanes remain unchanged and
+  the application exits 91. The computed linear value flows through the
+  existing signed bounds/trap-before-address authority before a `[6 x i32]`
+  load, with corresponding guarded `[3 x i32]` load and `[2 x i32]` store.
+  This proves a maintained application encoding only: it does not add a matrix
+  type, recursive/nested arrays, static index proof, checked-overflow arithmetic,
+  stable layout/ABI, performance, accelerator execution, general mutation, or a
+  safety claim. CAP-019 remains the latest compiler/profile capability widening;
+  CAP-020 is an accepted product gate, not a separate profile or feature row.
+- History and successor-decision contract: preserve CAP-014 as the origin of the
+  selected CPU-only profile, CAP-018 as immutable flat array-result composition,
+  CAP-019 as the bounded mutable flat-array result widening, CAP-015 as the
+  representative M1-001 integration checkpoint, CAP-016/CAP-017 as completed
+  architecture/readiness stops rather than capabilities, and CAP-013 as the
+  specialization identity/phase authority. Re-score the post-CAP-020 successor
+  table from accepted evidence before editing cumulative prose; use all six
+  1-to-5 columns with higher always favorable, publish one canonical ordered
+  three-row table in all seven cumulative truth documents, and freeze exact
+  before/after, stop, and change-of-decision clauses in Roadmap. Do not promote a
+  completed readiness stop or strategic gap into an executable implementation
+  without its unresolved semantics being frozen.
+- Frozen post-CAP-020 ranking (all six scores use 1-to-5 and higher is always
+  favorable, including risk and evidence cost):
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+  | 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+  | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+
+  CAP-020 satisfies the prior decision trigger to defer recursive-array syntax:
+  flat encoding now demonstrably serves the target matvec workload. Rank 1 is a
+  zero-production application/product gate over accepted constructs, not a
+  tensor type, binary-ingestion, quantization, inference-completion,
+  performance, or ABI claim. Rank 2 and rank 3 authorize readiness and red
+  probes only, not implementation. CAP-016 module migration and CAP-017 Result
+  propagation remain completed `NO IMPLEMENTATION` stops because no RFC,
+  grammar, namespace, visibility, propagation-syntax, or CFG decision changed.
+- Frozen post-CAP-020 Roadmap decision clauses, in required order:
+
+  1. Before rank 1, accepted CAP-020 executes one directly initialized
+     2x3-by-3 flat matvec, but no maintained Aero-native product validates and
+     decodes a source-embedded tensor-shaped record or composes that result into
+     a second numerical stage. After rank 1, one fixed `[int; 17]` record with
+     exact header `[2, 3, 1]` and flat input/weight/bias payload must be
+     validated, decoded through guarded reads and fully initialized flat-array
+     writes, consumed by the accepted 2x3 matvec and a second exact-Int affine
+     scoring stage, preserve and reread every source lane, and produce
+     independent ordinary and wrapping oracles plus exact public and native
+     sentinel 91.
+  2. Stop and rerank rank 1 if the exact `[int; 17]` product needs any compiler
+     production change, new language or profile rule, partial or uninitialized
+     array state, unchecked indexing, new arithmetic or quantization semantics,
+     stable layout or ABI, or duplicated guard or type authority.
+  3. Evidence that the complete record-to-score program is not expressible
+     solely through accepted CAP-020 semantics, is only a restatement of the
+     single matvec, or cannot define independent record, header, source, result,
+     and wrapping oracles changes rank 1; clean zero-production execution makes
+     runtime acquisition, not recursive syntax, the next hard boundary.
+  4. Before rank 2, Aero computations consume only source-embedded fixed data and
+     no trusted source program acquires external bytes. After rank 2 readiness,
+     a task-local cross-platform probe and architecture map must locate the first
+     failure and freeze path and byte identity, capacity and initialized count,
+     partial-read and EOF behavior, typed error mapping, ownership and drop,
+     runtime linkage, sandboxing and determinism, and Linux and Windows behavior,
+     either yielding one bounded implementation contract within two compiler
+     phases or an explicit mandatory stop without claiming I/O capability.
+  5. Stop rank 2 before implementation if any contract item remains unfrozen, if
+     allocation, drop, or runtime ABI must be invented, if platform behavior
+     cannot be made equivalent and observable, if a useful slice crosses more
+     than two compiler phases, or if invalid acquisition can reach trusted IR or
+     backend generation without typed failure.
+  6. Evidence that a caller-provided bounded byte slice or source-embedded record
+     feeds the flagship boundary sooner without filesystem or runtime semantics
+     would defer rank 2 implementation; an explicit runtime RFC plus a probe
+     demonstrating one shared cross-platform ownership and error authority
+     within the phase limit would permit later implementation ranking.
+  7. Before rank 3, CAP-020 proves the target 2D matvec through flat `[int; 6]`
+     storage while `exact-i32-array-v0` deliberately rejects nested arrays.
+     After rank 3 readiness, only if it is reopened, a task-local
+     `[[int; 3]; 2]` red probe and topology map must freeze depth,
+     dimension-product bounds, value placements, nested mutation and alias
+     rules, and nested-versus-flat physical identity under one source and
+     physical shape authority, or record a mandatory stop without claiming
+     recursive arrays.
+  8. Stop rank 3 before implementation while flat encoding serves the target
+     workload, or if any recursive-shape decision remains unfrozen, admission
+     and lowering cannot share one canonical shape, the slice exceeds two
+     compiler phases, or it requires stable aggregate layout or ABI, aliases, or
+     rank-specific classifiers.
+  9. Evidence of a concrete workload that flat buffers materially obscure,
+     together with an explicit bounded shape decision and a probe proving one
+     shared source and physical authority within two phases, would restore
+     recursive arrays to implementation ranking; CAP-020's clean flat execution
+     otherwise keeps them deferred.
+- Allowed files and writer boundaries: exactly `TASK_LEDGER.md`, `README.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `FRAMEWORK_ALIGNMENT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `CONFORMANCE_PLAN.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. Writer assignments must
+  be non-overlapping. No production source, example, workflow, fixture,
+  dependency, other test, or historical document may change. This record sync
+  must be a separate protected PR and must not rewrite the accepted CAP-020
+  implementation commits.
+- Acceptance and claim-contract requirements: first make the dedicated version
+  claim contract fail only because the seven cumulative documents still lack
+  accepted CAP-020 truth. It must bind one canonical CAP-020 evidence paragraph
+  per document, exact identity order and immediate all-pass conclusion, globally
+  unique run/job/analysis IDs, accepted boundaries/history, exact successor
+  table topology/order/scores, Roadmap decision clauses, matrix uniqueness and
+  closed classification vocabulary, and case/punctuation-resistant stale or
+  contradictory status claims. The matrix must retain exactly one selected
+  `exact-i32-array-v0` `END_TO_END` row and one CPU platform row while recording
+  CAP-020 only as product evidence. Then update all seven truth documents, run
+  the focused claim target and required root `./tools/test.sh`, obtain fresh
+  read-only factual/contract/diff audits, publish an immutable exact nine-file
+  candidate, require exact-head public gates, protected integration, and fresh
+  merge-head CI/Rust/CodeQL evidence before calling the synchronization accepted.
+- Red claim-contract checkpoint: commit `962139f` adds the dedicated CAP-020
+  accepted-truth contract in only
+  `src/compiler/tests/version_claim_contract_tests.rs`; follow-up `ff3bee5`
+  preserves legitimate historical Roadmap ranking records while retaining one
+  exact canonical current post-CAP-020 table and explicit stale-current-row
+  rejection. The dedicated locked target compiles and is intentionally red
+  `6/8`: the only failures are README missing
+  `**CAP-020 accepted product gate:**` and PROJECT_STATE missing
+  `Current accepted public master is CAP-020`. Static read-only review accepted
+  the exact labeled evidence template, frozen boundaries, current ranking,
+  Roadmap decision clauses, readiness-only successor guards, unchanged profile
+  row, sole CAP-020 CPU row, and closed matrix classification headers/vocabulary.
+- Focused green claim-contract checkpoint: the seven cumulative documents now
+  carry the exact accepted CAP-020 evidence, product-only boundaries, current
+  ranking, and Roadmap decisions. Integration exposed three test-attribution
+  false positives—negative stop/rerank conditions containing `profile`, the
+  noun `change`, and the canonical `accepted product gate, not a separate
+  profile` sentence. Test-only follow-up `4f9fb01` narrows those scanners while
+  retaining the adversarial positive-claim and stale-status controls. With
+  `%USERPROFILE%\.cargo\bin` and the authenticated LLVM 22.1.8 bundle on
+  `PATH`, `cargo test --locked --manifest-path src/compiler/Cargo.toml --test
+  version_claim_contract_tests` passes `8/8`; `cargo fmt --manifest-path
+  src/compiler/Cargo.toml -- --check` and `git diff --check` also pass. The
+  repository root gate and immutable-candidate/public review remain required.
+- Terminal contract-hardening checkpoint: a fresh adversarial review found
+  source-versus-rendered Markdown, passive/wrapped claim ownership, nonlocal
+  negation, contradictory outcome, split readiness/successor, current-ranking
+  scope, and matrix-table topology gaps. The expanded mutation corpus was
+  recorded before the fix: the exact single host test compiled and failed `0/1`
+  at the first unhandled ownership contrast. The final test-only working
+  snapshot now uses same-marker/length Markdown fence handling with
+  hidden-comment removal, rendered claim records, relation-local CAP
+  ownership/negation, exact ordinary/wrapping/exit values, discourse-scoped
+  readiness and successor order, historical-heading-scoped legacy rankings,
+  and rendered matrix rows/cardinality. On the final nine-file snapshot, the
+  locked focused target passes `8/8`, `cargo fmt -- --check` and `git diff
+  --check` pass, and root `./tools/test.sh` passes. The immutable candidate and
+  public review remain required.
+- Risks and stop conditions: risks are calling an application encoding a matrix
+  language feature, calling CAP-020 a compiler/profile widening, erasing CAP-019
+  history, overstating warning-free CodeQL despite pre-existing alert #4,
+  publishing detached or mislabeled evidence, ranking an unfrozen implementation,
+  or weakening the contract with whole-document substring searches. Stop if any
+  factual identity is unresolved, ranking semantics are ambiguous, a writer
+  needs another file, a contract can false-green a concrete contradictory claim,
+  the focused/root gate is red, the cumulative diff exceeds nine files, or
+  protected exact-head/merge-head evidence does not pass. Do not change public
+  truth to hide a failure.
+
 ## CAP-020-FLAT-MATVEC-PRODUCT - zero-production flat-buffer 2D CPU gate
 
 - Date/task/status: 2026-08-12, `CAP-020-FLAT-MATVEC-PRODUCT`, authorized

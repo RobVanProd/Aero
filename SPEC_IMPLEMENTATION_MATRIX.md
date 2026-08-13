@@ -1,6 +1,45 @@
 # Aero Specification-to-Implementation Matrix
 
-Latest accepted compiler/profile master is protected CAP-019 merge.
+Latest accepted public master is protected CAP-020 product merge.
+
+Accepted CAP-020 changes no parser, grammar, source semantics, language profile,
+semantic analysis, checked IR, verifier, backend, ABI, or capability classification;
+it is a zero-production product/evidence checkpoint over CAP-019's
+`exact-i32-array-v0` surface.
+
+The accepted application encodes a 2x3 matrix as `[int; 6]`, consumes an `[int; 3]`
+vector, computes wrapping `row * 3 + column` in nested loops, returns a fully
+initialized mutable-produced `[i32; 2]`, preserves every input lane, produces ordinary
+and wrapping results `[50, 122]` and `[-2, 5]`, and exits `91`.
+
+The computed linear value flows through the existing signed bounds and
+trap-before-address authority before a `[6 x i32]` load, with corresponding guarded
+`[3 x i32]` load and `[2 x i32]` store.
+
+CAP-020 adds no matrix type, recursive or nested arrays, static index proof,
+checked-overflow arithmetic, stable layout or ABI, performance, accelerator execution,
+general mutation, or safety claim.
+
+CAP-019 remains the latest compiler/profile capability widening; CAP-020 is an accepted
+product gate, not a separate profile or feature row.
+
+The sole open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+CAP-020 alert surfaced.
+
+Exact CAP-020 reviewed candidate `3b61cd1ed34f910f556821942cd06301ba17dd50`,
+shared candidate/merge tree `800510de85bd82f3332126ad249c95da109dd3e1`, accepted
+base and first merge parent `13157687f3e955d1c8292ccca133c5a73e29e1a7`, and
+protected PR #58 merge `d9493d5123840b38ebab6ca275aaba3216728706` whose second
+parent is that candidate are immutable. Candidate push CI `31639493741`, PR CI
+`31639540134`, Rust CI `31639540030`, CodeQL `31639535638`, and aggregate candidate check
+`94258433541`; candidate stable/nightly/Windows LLVM 22 jobs
+`94258276078`/`94258275978`/`94258275899` and CodeQL Actions/Python/Rust jobs
+`94258264605`/`94258264489`/`94258264627`; merge-head CI/Rust CI/CodeQL
+`31640016314`/`31640016316`/`31640015733`, exact merge
+compiler/stable/nightly/Windows LLVM 22 jobs
+`94259869631`/`94259869676`/`94259869637`/`94259869559`, merge CodeQL
+Actions/Python/Rust jobs `94259873136`/`94259873164`/`94259873086`, and default-branch
+Actions/Python/Rust analyses `1610137115`/`1610137589`/`1610144660` all pass.
 
 Exact CAP-019 reviewed candidate
 `f2955bedd22708041e36ee90c65c4f08c443d740`, shared candidate/merge tree
@@ -66,23 +105,18 @@ capabilities; neither adds a profile or matrix row. CAP-013 remains the single s
 specialization identity/phase authority; CAP-018 and CAP-019 add no specialization
 classifier.
 
-The fresh post-CAP-019 capability-gap order is:
+The fresh post-CAP-020 capability-gap order is:
 
-| Rank | Capability gap | Usefulness | Roadmap | Leverage | Correctness | Risk favorability | Evidence favorability | Total |
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
-| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
-| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 
-Higher risk/evidence favorability means safer and cheaper delivery. Rank 1 is a
-zero-production flat 2x3-by-3 matrix-vector product gate over the accepted profile;
-stop if the application needs new semantics, compiler production, unchecked linearized
-indexing, partial arrays, ABI/layout, profile exceptions, or duplicated guards. Rank 2
-authorizes only recursive-shape readiness and a red probe, with implementation stopped
-until one canonical source/physical shape and every bound, placement, mutation, alias,
-and identity decision are frozen inside two phases. Rank 3 remains a strategic gap,
-not an authorizable implementation, until its runtime and cross-platform contracts are
-frozen.
+Higher favorable-risk and favorable-evidence scores mean safer and cheaper delivery.
+Rank 1 remains a zero-production product gate over accepted constructs. Rank 2 is
+runtime acquisition readiness and a red probe only; rank 3 keeps recursive-array
+readiness deferred while the accepted flat representation serves the target workload.
 
 CAP-014's originating compiler-capability master is protected merge
 `ca09ebe3c1b981339c8bf56b360e62208ac900e1`. Corrected candidate
@@ -634,7 +668,7 @@ Detailed stage evidence lives in `BACKEND_STATUS.md`.
 
 | Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, and CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps | P | P | PARTIAL |
+| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps, and CAP-020 flat-buffer 2x3-by-3 matvec product with identity-linked guarded [6]/[3]/[2] access and exact ordinary/wrapping/native oracles | P | P | PARTIAL |
 | ROCm | Y | Y | P, temporary/unchecked at AUDIT-024 | N | N | N | External llama.cpp only | EXPERIMENTAL |
 | CUDA | Y | P | N | N | N | N | N | PARSED_ONLY |
 | Graph compilation | Y | Y | — | — | Internal scalar-helper transform only | N | N | EXPERIMENTAL |

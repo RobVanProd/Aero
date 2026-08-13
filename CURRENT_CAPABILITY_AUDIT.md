@@ -5,8 +5,49 @@ Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
 
 Current accepted public master:
-protected CAP-019 compiler/profile merge and its accepted tree, with the exact
+protected CAP-020 product merge and its accepted tree, with the exact
 immutable identities recorded once in the evidence paragraph below.
+
+### CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate
+
+Accepted CAP-020 changes no parser, grammar, source semantics, language profile,
+semantic analysis, checked IR, verifier, backend, ABI, or capability classification;
+it is a zero-production product/evidence checkpoint over CAP-019's
+`exact-i32-array-v0` surface.
+
+The accepted application encodes a 2x3 matrix as `[int; 6]`, consumes an `[int; 3]`
+vector, computes wrapping `row * 3 + column` in nested loops, returns a fully
+initialized mutable-produced `[i32; 2]`, preserves every input lane, produces ordinary
+and wrapping results `[50, 122]` and `[-2, 5]`, and exits `91`.
+
+The computed linear value flows through the existing signed bounds and
+trap-before-address authority before a `[6 x i32]` load, with corresponding guarded
+`[3 x i32]` load and `[2 x i32]` store.
+
+Exact CAP-020 reviewed candidate `3b61cd1ed34f910f556821942cd06301ba17dd50`,
+shared candidate/merge tree `800510de85bd82f3332126ad249c95da109dd3e1`,
+accepted base and first merge parent `13157687f3e955d1c8292ccca133c5a73e29e1a7`,
+and protected PR #58 merge `d9493d5123840b38ebab6ca275aaba3216728706`
+whose second parent is that candidate are immutable. Candidate push CI `31639493741`,
+PR CI `31639540134`, Rust CI `31639540030`, CodeQL `31639535638`, and aggregate
+candidate check `94258433541`; candidate stable/nightly/Windows LLVM 22 jobs
+`94258276078`/`94258275978`/`94258275899` and CodeQL Actions/Python/Rust jobs
+`94258264605`/`94258264489`/`94258264627`; merge-head CI/Rust CI/CodeQL
+`31640016314`/`31640016316`/`31640015733`, exact merge
+compiler/stable/nightly/Windows LLVM 22 jobs
+`94259869631`/`94259869676`/`94259869637`/`94259869559`, merge CodeQL
+Actions/Python/Rust jobs `94259873136`/`94259873164`/`94259873086`, and default-branch
+Actions/Python/Rust analyses `1610137115`/`1610137589`/`1610144660` all pass.
+
+CAP-020 adds no matrix type, recursive or nested arrays, static index proof,
+checked-overflow arithmetic, stable layout or ABI, performance, accelerator execution,
+general mutation, or safety claim.
+
+CAP-019 remains the latest compiler/profile capability widening; CAP-020 is an
+accepted product gate, not a separate profile or feature row.
+
+The sole open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+CAP-020 alert surfaced.
 
 ### CAP-019 accepted: initialized mutable exact-array production
 
@@ -88,8 +129,8 @@ pass; default-branch Actions/Python/Rust analyses `1608636029`, `1608636345`, an
 `1608644785` pass.
 
 CAP-014 remains the profile origin and first bounded Milestone 3 CPU slice. CAP-018
-remains the immutable result-composition checkpoint, and accepted CAP-019 is the
-current compiler/profile capability. CAP-019 closes only the bounded initialized-local,
+remains the immutable result-composition checkpoint, and accepted CAP-019 remains the
+latest compiler/profile capability widening. CAP-019 closes only the bounded initialized-local,
 projected-write, and returned-value delta described above; the broader exclusions and
 experimental classifications remain current.
 
@@ -126,8 +167,8 @@ pass. Exact merge-head CI `31598634185`, Rust CI `31598634090`, and CodeQL
 public-route, external LLVM, machine-verification, native `-O0`/`-O2`, exact-output,
 and clean runtime-trap evidence.
 
-CAP-014 remains the exact-array profile origin; accepted CAP-019 is the current
-compiler/profile capability, with CAP-018 retained as its immutable-result
+CAP-014 remains the exact-array profile origin; accepted CAP-019 remains the latest
+compiler/profile capability widening, with CAP-018 retained as its immutable-result
 predecessor. CAP-015 remains the latest separately classified M1-001 project
 integration checkpoint and enriches only the existing M1-001
 `END_TO_END` row. It creates no parser/grammar/profile/conformance row and promotes
@@ -139,28 +180,23 @@ General error propagation,
 variable-width inputs, dynamic collections, allocation/drop, I/O, public ABI,
 safety, performance, releases, and whole-language completion remain excluded.
 
-The post-CAP-019 order begins with the flat-buffer exact-`i32` 2D matrix-vector CPU
-product gate:
+The post-CAP-020 order begins with the source-embedded fixed-shape tensor-record decode
+plus two-stage flat-buffer exact-`i32` CPU scoring product gate:
 
-| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Flat-buffer exact-`i32` 2D matrix-vector CPU product gate | 5 | 5 | 4 | 5 | 4 | 4 | 27 |
-| 2 | Recursive exact-`i32` array / 2D matrix readiness and red probe under one shared recursive shape authority | 4 | 5 | 5 | 5 | 2 | 2 | 23 |
-| 3 | Runtime byte/file acquisition into a bounded owned buffer | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 
-`Risk` and `Evidence` are delivery-favorability scores: higher means lower risk or
-lower evidence cost. Rank 1 is a flat-buffer exact-`i32` 2D matrix-vector CPU product
-gate that should compose CAP-019's mutable returned arrays with row-major guarded
-indexing without new language or compiler production semantics. Rank 2 is recursive
-exact-`i32` array / 2D matrix readiness and red probe only; it must freeze one shared
-recursive shape authority before any implementation is authorized.
-
-Rank 3 would add size-bounded external bytes, a frozen typed acquisition failure, and
-a handoff into parsing and CPU computation. It is not authorizable until path/byte
-identity, capacity/initialized count, partial-read/EOF, error mapping, ownership/drop,
-runtime linkage, sandboxing, determinism, and Linux/Windows behavior are frozen. A
-platform-neutral caller-provided byte slice or embedded-binary source that unlocks the
-flagship sooner would replace or reorder it.
+`Favorable risk` and `Favorable evidence cost` are delivery-favorability scores:
+higher means lower implementation risk or lower evidence cost. Rank 1 must validate
+and decode one source-embedded fixed `[int; 17]` tensor-shaped record and compose the
+accepted matvec with a second exact-Int affine scoring stage without compiler or
+profile changes. Rank 2 remains readiness and a red probe only until one bounded
+cross-platform ownership and error authority is frozen. Rank 3 remains deferred while
+flat storage serves the target workload; it can be reopened only by a concrete need
+for recursive shape plus one shared source and physical shape authority.
 
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
