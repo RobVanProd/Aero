@@ -1,0 +1,189 @@
+name: CAP-023 accepted-head evidence
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_NET_OFFLINE: "true"
+  RUSTUP_TOOLCHAIN: "1.97.1"
+  CAP024_SUBJECT_COMMIT: 918c9222eb61e2435e18847e30b946cd08013238
+  CAP024_RUST_VERSION: 1.97.1
+  CAP024_RUST_COMMIT: 8bab26f4f68e0e26f0bb7960be334d5b520ea452
+  CAP024_LLVM_VERSION: 22.1.8
+  CAP024_LINUX_LLVM_ARCHIVE: LLVM-22.1.8-Linux-X64.tar.xz
+  CAP024_LINUX_LLVM_ARCHIVE_URL: https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz
+  CAP024_LINUX_LLVM_ARCHIVE_SIZE: "1938859476"
+  CAP024_LINUX_LLVM_ARCHIVE_SHA256: df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384
+  CAP024_WINDOWS_LLVM_ARCHIVE: clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz
+  CAP024_WINDOWS_LLVM_ARCHIVE_URL: https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz
+  CAP024_WINDOWS_LLVM_ARCHIVE_SIZE: "862053924"
+  CAP024_WINDOWS_LLVM_ARCHIVE_SHA256: d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234
+  CAP024_SETUP_BOUNDARY: workflow-acquisition-only
+  CAP024_TOOL_VERIFICATION: verify final cargo rustc clang lld opt llvm-as llc payloads and versions
+  CAP024_FAILURE_RECORD_KIND: canonical-failure-record
+  CAP024_TRANSPORT_POLICY: canonical-text-records-only
+  CAP024_FRESH_OBSERVATIONS: fresh-observations.json
+  CAP024_TRANSPORT_ROOT: ${{ github.workspace }}/cap024-evidence-transport
+
+jobs:
+  capture-linux:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Disable checkout line-ending conversion
+        run: git config --global core.autocrlf false
+
+      - name: Check out the evidence implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the frozen accepted subject
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.CAP024_SUBJECT_COMMIT }}
+          path: cap024-evidence-transport/_workspace/subject
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install exact Rust release
+        run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
+
+      - name: Capture Linux evidence
+        run: python tools/cap024_inference_evidence.py --mode capture --platform linux-x86_64
+
+      - name: upload-linux
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cap024-linux-canonical-text-records
+          path: ${{ env.CAP024_TRANSPORT_ROOT }}/linux-x86_64/*.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  capture-windows:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - name: Disable checkout line-ending conversion
+        run: git config --global core.autocrlf false
+
+      - name: Check out the evidence implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the frozen accepted subject
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.CAP024_SUBJECT_COMMIT }}
+          path: cap024-evidence-transport/_workspace/subject
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install exact Rust release
+        run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
+
+      - name: Capture Windows evidence
+        run: python tools/cap024_inference_evidence.py --mode capture --platform windows-x86_64
+
+      - name: upload-windows
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cap024-windows-canonical-text-records
+          path: ${{ env.CAP024_TRANSPORT_ROOT }}/windows-x86_64/*.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  aggregate:
+    needs: [capture-linux, capture-windows]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CAP024_LINUX_JOB_RESULT: ${{ needs.capture-linux.result }}
+      CAP024_WINDOWS_JOB_RESULT: ${{ needs.capture-windows.result }}
+    steps:
+      - name: Disable checkout line-ending conversion
+        run: git config --global core.autocrlf false
+
+      - name: Check out the evidence implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download Linux canonical text records
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cap024-linux-canonical-text-records
+          path: ${{ env.CAP024_TRANSPORT_ROOT }}/linux-x86_64
+
+      - name: Download Windows canonical text records
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cap024-windows-canonical-text-records
+          path: ${{ env.CAP024_TRANSPORT_ROOT }}/windows-x86_64
+
+      - name: Aggregate both platform outcomes
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        run: python tools/cap024_inference_evidence.py --mode aggregate
+
+      - name: Classify accepted manifest state
+        id: manifest-state
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        shell: bash
+        run: |
+          manifest='claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json'
+          if [[ -f "$manifest" ]]; then
+            echo 'replay_required=true' >> "$GITHUB_OUTPUT"
+          elif [[ '${{ github.event_name }}' == 'pull_request' ]] &&
+               git cat-file -e '${{ github.event.pull_request.base.sha }}:'"$manifest" 2>/dev/null; then
+            echo 'Accepted CAP-024 manifest deletion is forbidden.' >&2
+            exit 1
+          elif [[ '${{ github.event_name }}' == 'workflow_dispatch' ]] &&
+               git cat-file -e 'origin/master:'"$manifest" 2>/dev/null; then
+            echo 'Manual CAP-024 capture cannot downgrade the accepted manifest.' >&2
+            exit 1
+          else
+            echo 'replay_required=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Replay fresh capture against tracked manifest
+        if: always() && steps.manifest-state.outcome == 'success' && steps.manifest-state.outputs.replay_required == 'true'
+        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json
+
+      - name: Upload aggregate canonical text records
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cap024-aggregate-canonical-text-records
+          path: |
+            ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/*.json
+            ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/*.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+      - name: Replay accepted master merge head
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --verify-only

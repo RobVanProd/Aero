@@ -232,6 +232,40 @@
   profile, existing Rust workflow, Cargo dependency, benchmark harness,
   performance protocol, release, or unrelated documentation change is
   authorized.
+- Pre-capture implementation checkpoint, 2026-08-13: the first-transport bytes
+  are complete except for the intentionally absent canonical `manifest.json`.
+  The dedicated workflow selects exact candidate-head bytes, checks out the
+  frozen subject separately with full parent history, rejects PR deletion or
+  manual-ref downgrade of an accepted manifest, captures both platforms, and
+  conditionally performs fresh replay after the manifest exists. The
+  standard-library tool proves detached HEAD/tree/compiler-tree/ordered parents,
+  clean index and worktree state before and after capture, canonical tracked
+  blob bytes, exact Rust selection, all 112 checksummed crates.io lockfile
+  packages in a fresh offline vendor tree, content-pinned LLVM/support inputs,
+  and the closed capture/replay projection. Aggregate now inspects both job
+  outcomes while independently validating canonical oracle semantics,
+  `REPRODUCE.md`, the additive claim index, and every manifest-bound file hash;
+  combined staging-plus-platform failures are mutation-tested and reported
+  together before any output is published. Python self-test, Rust formatting,
+  and diff hygiene pass. The focused target is exactly 5/6: all five pure and
+  adversarial contracts pass, while the repository contract fails only through
+  the missing manifest and its direct bundle/validate/replay/copy consequences.
+  Repository-root testing remains deliberately deferred until the two-platform
+  candidate manifest is reviewed and committed. Exact pre-capture file
+  identities are: workflow 8,480 bytes/SHA-256
+  `9e9b81c6bbf966255302cef4a2d1a55e156159b87f4a5e72608987f8892077d1`;
+  tool 132,044 bytes/
+  `1703d931192d9975155b65a8ea7a4085d9124ef6e801e48b8fd265eb7e7e7283`;
+  schema 70,076 bytes/
+  `493df131b41dd48c01c092d4d69b168eae8f6410a483aa8293d250bb04d4e963`;
+  oracle 3,615 bytes/
+  `37d9d4a587d7650cd53e4971bac1cd6d29a41869c93d3a75ad9662be68b23cb1`;
+  reproduction procedure 10,340 bytes/
+  `e61e57eb3ea8273183241e1be207ae46c228029a6087ff0129d5aaeab265428e`;
+  claims catalog 7,217 bytes/
+  `d15b58523b5af6f71a926456306402b890dd1de9d2cbca9988b251ce249d266a`;
+  and focused Rust contract 201,205 bytes/
+  `5e6209403887d1e381348dc96bdc96a7d642f53f45c2030ddd23f16a8ab6a283`.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,

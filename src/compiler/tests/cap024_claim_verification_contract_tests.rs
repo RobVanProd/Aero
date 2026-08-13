@@ -3580,16 +3580,23 @@ fn fixture_workflow_text() -> String {
         "workflow-acquisition-only",
         "RUSTUP_TOOLCHAIN: \"1.97.1\"",
         "rustup toolchain install 1.97.1 --profile minimal --no-self-update",
+        "rustup toolchain install 1.97.1 --profile minimal --no-self-update",
         "verify final cargo rustc clang lld opt llvm-as llc payloads and versions",
         CHECKOUT_ACTION,
         UPLOAD_ACTION,
         DOWNLOAD_ACTION,
+        "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+        "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+        "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+        "      - name: Check out the frozen accepted subject\n        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n        with:\n          ref: ${{ env.CAP024_SUBJECT_COMMIT }}\n          path: cap024-evidence-transport/_workspace/subject\n          fetch-depth: 0\n          persist-credentials: false",
+        "      - name: Check out the frozen accepted subject\n        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n        with:\n          ref: ${{ env.CAP024_SUBJECT_COMMIT }}\n          path: cap024-evidence-transport/_workspace/subject\n          fetch-depth: 0\n          persist-credentials: false",
         SUBJECT_COMMIT,
         TOOL_PATH,
         "python tools/cap024_inference_evidence.py --mode capture --platform linux-x86_64",
         "python tools/cap024_inference_evidence.py --mode capture --platform windows-x86_64",
         "python tools/cap024_inference_evidence.py --mode aggregate",
-        "python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json",
+        "      - name: Classify accepted manifest state\n        id: manifest-state\n        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')\n        shell: bash\n        run: |\n          manifest='claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json'\n          if [[ -f \"$manifest\" ]]; then\n            echo 'replay_required=true' >> \"$GITHUB_OUTPUT\"\n          elif [[ '${{ github.event_name }}' == 'pull_request' ]] &&\n               git cat-file -e '${{ github.event.pull_request.base.sha }}:'\"$manifest\" 2>/dev/null; then\n            echo 'Accepted CAP-024 manifest deletion is forbidden.' >&2\n            exit 1\n          elif [[ '${{ github.event_name }}' == 'workflow_dispatch' ]] &&\n               git cat-file -e 'origin/master:'\"$manifest\" 2>/dev/null; then\n            echo 'Manual CAP-024 capture cannot downgrade the accepted manifest.' >&2\n            exit 1\n          else\n            echo 'replay_required=false' >> \"$GITHUB_OUTPUT\"\n          fi",
+        "      - name: Replay fresh capture against tracked manifest\n        if: always() && steps.manifest-state.outcome == 'success' && steps.manifest-state.outputs.replay_required == 'true'\n        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json",
         "      - name: Replay accepted master merge head\n        if: github.event_name == 'push' && github.ref == 'refs/heads/master'\n        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --verify-only",
         "core.autocrlf false",
         "CARGO_NET_OFFLINE",
@@ -3628,6 +3635,19 @@ fn fixture_tool_text() -> String {
         "import tomllib",
         "https://static.crates.io/crates/",
         "def materialize_locked_vendor(",
+        "def validate_aggregate_staging(",
+        "validate_aggregate_staging(bundle)",
+        "validate_manifest_file_hashes(bundle, manifest)",
+        "aggregate staging contract invalid",
+        "aggregate staging directory is missing",
+        "aggregate staging bundle files invalid",
+        "aggregate did not report both staging and platform failures",
+        "def run_subject_git(",
+        "def tracked_subject_entries(",
+        "subject tracked/index state is not clean",
+        "subject worktree bytes no longer match the accepted tree",
+        "subject ordered parents drifted",
+        "capture requires a separate Git checkout of the frozen subject",
         ".cargo-checksum.json",
         "target-byte dependency vendor must be lockfile-complete",
         "b971f9c51534aff82d774c26b6a6f2312a3beeac5e1710a69f3d88bd5671f376",
@@ -3662,6 +3682,10 @@ fn fixture_tool_text() -> String {
         "schema_float",
         "schema_duplicate",
         "oracle_drift",
+        "aggregate_oracle_drift",
+        "aggregate_reproduce_drift",
+        "aggregate_claim_index_drift",
+        "aggregate_manifest_hash_drift",
         "artifact_pair",
         "artifact_path",
         "artifact_producer",
@@ -3679,7 +3703,7 @@ fn fixture_tool_text() -> String {
         "extra_bundle_file",
         "reproduce_drift",
         "accepted_manifest_immutable",
-        "subprocess_allowlist = PIPELINE_COMMANDS | TOOL_VERSION_PROBES",
+        "subprocess_allowlist = PIPELINE_COMMANDS | TOOL_VERSION_PROBES | GIT_VERIFICATION_COMMANDS",
         "def run_recorded_subprocess(command_id",
         "def run_tool_version_probe(tool_id",
         "def materialize_command_env(env_spec",
@@ -3740,6 +3764,8 @@ fn fixture_reproduce_text() -> String {
         "parsed Exit code: 91 and no application Output: or Error output:",
         "fresh observations never rewrite accepted observations",
         "core.autocrlf false and canonical Git blob bytes",
+        "separate detached Git checkout",
+        "git status --porcelain=v1 --untracked-files=all",
         "CARGO_NET_OFFLINE true",
         "Native O0 and O2 exit 91 with empty stdout and stderr",
         "The raw Aero LLVM-build and public-run diagnostic streams are traceability-only replay exclusions",
@@ -3898,9 +3924,18 @@ fn reject_affirmative_performance_prose(
 }
 
 fn validate_workflow(text: &str) -> Result<(), String> {
+    const RUST_INSTALL: &str = "rustup toolchain install 1.97.1 --profile minimal --no-self-update";
+    const EXACT_HEAD_REF: &str = "ref: ${{ github.event.pull_request.head.sha || github.sha }}";
+    const SUBJECT_CHECKOUT: &str = "      - name: Check out the frozen accepted subject\n        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n        with:\n          ref: ${{ env.CAP024_SUBJECT_COMMIT }}\n          path: cap024-evidence-transport/_workspace/subject\n          fetch-depth: 0\n          persist-credentials: false";
+    const MANIFEST_STATE: &str = "      - name: Classify accepted manifest state\n        id: manifest-state\n        if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')\n        shell: bash\n        run: |\n          manifest='claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json'\n          if [[ -f \"$manifest\" ]]; then\n            echo 'replay_required=true' >> \"$GITHUB_OUTPUT\"\n          elif [[ '${{ github.event_name }}' == 'pull_request' ]] &&\n               git cat-file -e '${{ github.event.pull_request.base.sha }}:'\"$manifest\" 2>/dev/null; then\n            echo 'Accepted CAP-024 manifest deletion is forbidden.' >&2\n            exit 1\n          elif [[ '${{ github.event_name }}' == 'workflow_dispatch' ]] &&\n               git cat-file -e 'origin/master:'\"$manifest\" 2>/dev/null; then\n            echo 'Manual CAP-024 capture cannot downgrade the accepted manifest.' >&2\n            exit 1\n          else\n            echo 'replay_required=false' >> \"$GITHUB_OUTPUT\"\n          fi";
+    const FRESH_REPLAY: &str = "      - name: Replay fresh capture against tracked manifest\n        if: always() && steps.manifest-state.outcome == 'success' && steps.manifest-state.outputs.replay_required == 'true'\n        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json";
     for required in [
         "RUSTUP_TOOLCHAIN: \"1.97.1\"",
-        "rustup toolchain install 1.97.1 --profile minimal --no-self-update",
+        RUST_INSTALL,
+        EXACT_HEAD_REF,
+        SUBJECT_CHECKOUT,
+        MANIFEST_STATE,
+        FRESH_REPLAY,
         "--fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json",
         CHECKOUT_ACTION,
         UPLOAD_ACTION,
@@ -3957,6 +3992,18 @@ fn validate_workflow(text: &str) -> Result<(), String> {
                 .to_owned(),
         );
     }
+    if text.matches("RUSTUP_TOOLCHAIN: \"1.97.1\"").count() != 1
+        || text.matches(RUST_INSTALL).count() != 2
+        || text.matches(EXACT_HEAD_REF).count() != 3
+        || text.matches(SUBJECT_CHECKOUT).count() != 2
+        || text.matches(MANIFEST_STATE).count() != 1
+        || text.matches(FRESH_REPLAY).count() != 1
+    {
+        return Err(
+            "CAP-024 workflow must select exact Rust twice and run one conditional fresh replay"
+                .to_owned(),
+        );
+    }
     if text.matches("pull_request:").count() != 1
         || text.matches("workflow_dispatch:").count() != 1
         || text.matches("push:").count() != 1
@@ -3985,6 +4032,19 @@ fn validate_tool(text: &str) -> Result<(), String> {
         "import tomllib",
         "https://static.crates.io/crates/",
         "def materialize_locked_vendor(",
+        "def validate_aggregate_staging(",
+        "validate_aggregate_staging(bundle)",
+        "validate_manifest_file_hashes(bundle, manifest)",
+        "aggregate staging contract invalid",
+        "aggregate staging directory is missing",
+        "aggregate staging bundle files invalid",
+        "aggregate did not report both staging and platform failures",
+        "def run_subject_git(",
+        "def tracked_subject_entries(",
+        "subject tracked/index state is not clean",
+        "subject worktree bytes no longer match the accepted tree",
+        "subject ordered parents drifted",
+        "capture requires a separate Git checkout of the frozen subject",
         ".cargo-checksum.json",
         "target-byte dependency vendor must be lockfile-complete",
         "argparse",
@@ -4060,6 +4120,10 @@ fn validate_tool(text: &str) -> Result<(), String> {
             "schema_float",
             "schema_duplicate",
             "oracle_drift",
+            "aggregate_oracle_drift",
+            "aggregate_reproduce_drift",
+            "aggregate_claim_index_drift",
+            "aggregate_manifest_hash_drift",
             "artifact_pair",
             "artifact_path",
             "artifact_producer",
@@ -4077,7 +4141,7 @@ fn validate_tool(text: &str) -> Result<(), String> {
             "extra_bundle_file",
             "reproduce_drift",
             "accepted_manifest_immutable",
-            "subprocess_allowlist = PIPELINE_COMMANDS | TOOL_VERSION_PROBES",
+            "subprocess_allowlist = PIPELINE_COMMANDS | TOOL_VERSION_PROBES | GIT_VERIFICATION_COMMANDS",
             "def run_recorded_subprocess(command_id",
             "def run_tool_version_probe(tool_id",
             "def materialize_command_env(env_spec",
@@ -4166,6 +4230,8 @@ fn validate_reproduce(text: &str) -> Result<(), String> {
         "no application Output: or Error output:",
         "fresh observations never rewrite accepted observations",
         "canonical Git blob bytes",
+        "separate detached Git checkout",
+        "git status --porcelain=v1 --untracked-files=all",
         "CARGO_NET_OFFLINE true",
         "Native O0 and O2 exit 91 with empty stdout and stderr",
         "traceability-only replay exclusions",
@@ -4833,12 +4899,60 @@ fn pure_schema_workflow_tool_and_reproduction_validators_fail_closed() {
     let workflow = fixture_workflow_text();
     validate_workflow(&workflow).expect("canonical workflow fixture");
     assert!(validate_workflow(&workflow.replace(CHECKOUT_ACTION, "actions/checkout@v4")).is_err());
+    assert!(
+        validate_workflow(&workflow.replace(
+            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "ref: ${{ github.sha }}"
+        ))
+        .is_err()
+    );
+    assert!(
+        validate_workflow(&workflow.replace(
+            "ref: ${{ env.CAP024_SUBJECT_COMMIT }}",
+            "ref: ${{ github.sha }}"
+        ))
+        .is_err()
+    );
+    assert!(
+        validate_workflow(
+            &workflow.replace("RUSTUP_TOOLCHAIN: \"1.97.1\"", "RUSTUP_TOOLCHAIN: stable")
+        )
+        .is_err()
+    );
+    assert!(
+        validate_workflow(&workflow.replace(
+            "git cat-file -e '${{ github.event.pull_request.base.sha }}:'\"$manifest\" 2>/dev/null",
+            "false"
+        ))
+        .is_err()
+    );
+    assert!(
+        validate_workflow(&workflow.replace(
+            "git cat-file -e 'origin/master:'\"$manifest\" 2>/dev/null",
+            "false"
+        ))
+        .is_err()
+    );
     assert!(validate_workflow(&format!("{workflow}\nimport time")).is_err());
     assert!(validate_workflow(&format!("{workflow}\n# throughput: 2 results/s")).is_err());
 
     let tool = fixture_tool_text();
     validate_tool(&tool).expect("canonical standard-library tool fixture");
     assert!(validate_tool(&tool.replace(REPLAY_EXCLUSIONS[0], "/too-broad")).is_err());
+    assert!(
+        validate_tool(&tool.replace(
+            "https://static.crates.io/crates/",
+            "https://example.invalid/crates/"
+        ))
+        .is_err()
+    );
+    assert!(
+        validate_tool(&tool.replace(
+            "subject worktree bytes no longer match the accepted tree",
+            "subject checkout marker is trusted without recomputing the tree"
+        ))
+        .is_err()
+    );
     assert!(validate_tool(&format!("{tool}\nimport requests")).is_err());
     assert!(validate_tool(&format!("{tool}\n# speedup: 3x")).is_err());
     assert!(validate_tool(&format!("{tool}\n# performance available")).is_err());
