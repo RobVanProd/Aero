@@ -1,5 +1,207 @@
 # Aero Task Ledger
 
+## CAP-023-ACCEPTANCE-SYNC - inference product accepted truth
+
+- Date/task/status: 2026-08-13, `CAP-023-ACCEPTANCE-SYNC`, authorized
+  documentation-only cumulative truth synchronization on
+  `agent/cap-023-truth-sync` from exact protected merge
+  `e9b281504446465cfc8fcbe17c65cce92df0e83a`, tree
+  `4d234cdfde67f1083773e2c41be4ab92027769db`. Its ordered parents are
+  accepted base `4bce540dfed6dfffa152067f4e00424501a6cdd8`, then reviewed
+  candidate `63e6b00b6294de61e3afd292a1e32e2b014714e2`; the merge tree exactly
+  preserves the candidate tree. User/app-owned `.codex-remote-attachments/`
+  and `tmp/` remain outside scope, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and record defect: protected PR #62 accepted CAP-023 and
+  fresh exact merge-head checks passed, while the cumulative public truth
+  surfaces still stop at CAP-021 and retain the pre-CAP-023 successor order.
+  This task changes records and their claim contract only; it changes no
+  compiler, profile, workflow, example, dependency, benchmark, protection,
+  or release behavior.
+- Canonical accepted evidence paragraph: Exact CAP-023 reviewed candidate
+  `63e6b00b6294de61e3afd292a1e32e2b014714e2`, shared candidate/merge tree
+  `4d234cdfde67f1083773e2c41be4ab92027769db`, accepted base and first merge
+  parent `4bce540dfed6dfffa152067f4e00424501a6cdd8`, and protected PR #62 merge
+  `e9b281504446465cfc8fcbe17c65cce92df0e83a` whose second parent is that
+  candidate are immutable. Candidate push CI `31687464571`, PR CI
+  `31687585904`, Rust CI `31687585893`, CodeQL `31687584263`, and aggregate
+  candidate check `94407323731`; candidate push/PR compiler jobs
+  `94406770929`/`94407177877`, stable/nightly/Windows LLVM 22 jobs
+  `94407178006`/`94407178047`/`94407178042`, CodeQL Actions/Python/Rust jobs
+  `94407175858`/`94407175752`/`94407175820`, and Actions/Python/Rust analyses
+  `1612686978`/`1612687391`/`1612693654`; merge-head CI/Rust CI/CodeQL
+  `31688093145`/`31688093150`/`31688092749`, exact merge
+  compiler/stable/nightly/Windows LLVM 22 jobs
+  `94408808914`/`94408809340`/`94408809458`/`94408809296`, merge CodeQL
+  Actions/Python/Rust jobs `94408812427`/`94408812194`/`94408812175`, and
+  default-branch Actions/Python/Rust analyses
+  `1612715455`/`1612715345`/`1612721829` all pass.
+- Frozen accepted product boundary: accepted CAP-023 changes no parser,
+  grammar, source semantics, language profile, semantic analysis, checked IR,
+  verifier, backend, ABI, or capability classification. It is a
+  zero-production product/evidence checkpoint over CAP-019's unchanged
+  `exact-i32-array-v0` surface, composes the accepted CAP-020 flat matvec and
+  CAP-021 record-to-score product, and does not reverse CAP-022's mandatory
+  runtime-acquisition `NO IMPLEMENTATION` stop.
+- Frozen application and oracle boundary: one source-embedded application
+  convention `[int; 20]` with exact header `[2, 3, 2]` drives a flat
+  3-input/2-hidden/2-output wrapping-`i32` computation with strict-positive
+  zero clamp, two biased logits, signed strict-greater argmax, lower-index tie
+  selection, three independent malformed-header controls, and reread of all
+  140 source lanes after all seven by-value calls. Exact ordinary, wrapping,
+  activation-boundary, and tie results are respectively
+  `[1, 122, 167, 135, 181, 4940, 5573, 1]`,
+  `[1, -24, 18, 2147483623, 0, -37, 2147483641, 1]`,
+  `[1, -3, 0, 0, 0, 5, 4, 0]`, and
+  `[1, 1, 2, 1, 2, 3, 3, 0]`; malformed results are eight zeros; public and
+  native success is sentinel 91 with empty source stdout/stderr.
+- Frozen exclusion and classification boundary: CAP-023 adds no general
+  activation, ReLU, argmax, inference, tensor, matrix, record, recursive-array,
+  runtime/file input, serialization, quantization, conversion, stable
+  layout/ABI, performance, resource-usage, accelerator, safety, or language
+  completion capability. Its record and topology are application conventions,
+  its retained local artifacts remain mutable corroboration only, CAP-019
+  remains the latest compiler/profile widening, and the sole matrix change is
+  the existing CPU backend-summary row remaining `PARTIAL`; no CAP-023 language
+  feature or selected-profile row may be added.
+- Frozen accepted-head and alert boundary: current accepted public master is
+  CAP-023 merge `e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only
+  aggregate is correctly absent on the default branch. Default-branch Actions
+  analysis `1612715455` contains only the pre-existing open alert #4 created
+  2026-08-09; Python and Rust analyses contain zero results; no new CAP-023
+  code-scanning alert exists.
+- Frozen milestone truth: the selected Milestone 0, Milestone 1, and
+  Milestone 2 exit gates are met for their bounded selected products; their
+  broader milestone ambitions remain partial. Milestone 3 remains open.
+  CAP-023 advances its application and reproducibility boundary but supplies
+  no runtime ingestion, composed CopyData application profile, quantization,
+  runtime-resource measurement, performance evidence, accelerator execution,
+  or broader workload.
+- Fresh post-CAP-023 ranking, with every score higher-is-more-favorable:
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim | 4 | 5 | 5 | 5 | 5 | 4 | 28 |
+  | 2 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+  | 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
+
+- Frozen post-CAP-023 decision contracts, in order:
+  1. Before rank 1, accepted CAP-023 proves one source-embedded fixed-shape
+     3-input/2-hidden/2-output exact-`i32` ReLU-and-argmax CPU inference product
+     through deterministic verified LLVM, `llvm-as`, machine verification,
+     native `-O0`/`-O2`, public execution, and independent ordinary, wrapping,
+     activation-boundary, tie, malformed-header, and source-preservation
+     oracles, but `claim-verification/` contains no accepted-head Aero-native
+     inference correctness/reproducibility record and no artifact-footprint
+     manifest. After rank 1, one immutable accepted-head evidence bundle must
+     record the exact commit and clean-tree state, source/input/oracle hashes,
+     pinned Linux and Windows toolchains and commands, deterministic
+     LLVM/bitcode/assembly/executable hashes and byte sizes, exact
+     exit/stdout/stderr results, failures, limitations, and a complete
+     third-party reproduction procedure without timing, throughput, speedup,
+     memory, energy, or performance claims.
+  2. Stop and rerank rank 1 if CAP-023 is not accepted at the exact protected
+     merge head, any recorded artifact cannot be regenerated byte-for-byte
+     within its stated platform/toolchain boundary, correctness depends on
+     retained mutable local artifacts rather than tracked inputs and commands,
+     Linux and Windows results diverge, or the gate would require compiler
+     production, source/profile semantics, benchmark timing, or a public
+     performance claim.
+  3. Evidence that an existing immutable accepted-head bundle already supplies
+     the same source/oracle/toolchain/command/hash/size/result/failure/limitation
+     contract, that artifact bytes are nondeterministic for an unfrozen reason,
+     or that footprint capture cannot be separated from benchmark semantics
+     changes rank 1; a clean zero-production correctness/reproducibility bundle
+     advances Milestone 3 evidence but does not meet its performance or complete
+     resource-usage exit.
+  4. Before rank 2, accepted CAP-023 executes a flat exact-`i32` application
+     convention inside `exact-i32-array-v0`, while accepted recursive finite
+     CopyData structs, enums, `Result`, `Match`, and ownership slices remain
+     bounded `PARTIAL` experimental capabilities that the selected CPU profile
+     deliberately rejects. After rank 2 readiness, a task-local source probe
+     and architecture map must identify the first composition failure and
+     freeze whether one new application profile can reuse the exact-`i32`
+     scalar/flat-array physical authority together with only already-accepted
+     recursive CopyData aggregate, typed-result, `Match`, and bounded ownership
+     contracts; define admitted types and operations, phase ownership, profile
+     selection, physical identity, rejection boundaries, verifier evidence,
+     and Linux and Windows oracles; and yield either one bounded later
+     implementation contract within two compiler phases or an explicit
+     mandatory stop without widening either existing profile.
+  5. Stop rank 2 before implementation if composition requires changing
+     `stable-scalar-v0` or `exact-i32-array-v0`, importing broad experimental
+     defaults, inventing struct, enum, `Result`, layout, or ABI semantics,
+     reconciling duplicate type, physical, or specialization authorities,
+     adding recursive or nested exact arrays, crossing more than two compiler
+     phases, or claiming general CopyData, ownership, error handling,
+     inference, or safety.
+  6. Evidence that the CAP-023 workload can materially exercise existing
+     CopyData aggregates and typed failure under one bounded profile without
+     new semantics and with one shared exact physical/verifier authority raises
+     rank 2 toward implementation; evidence that a flat record remains
+     sufficient, that the application needs runtime ingress first, or that
+     composition requires broad layout or ownership contracts defers it.
+  7. Before rank 3, accepted CAP-023 proves exact wrapping `i32` matvec,
+     positive-only ReLU, two biased logits, and signed strict-greater argmax,
+     but Aero has no frozen quantized stored, accumulator, or result
+     representation; scale or zero-point contract; conversion, rounding, tie,
+     saturation, or overflow behavior; calibration provenance; malformed-state
+     rule; or maintained cross-platform quantized oracle. After rank 3
+     readiness, a task-local source-embedded probe and architecture map must
+     locate the first failure and freeze every such decision plus operation
+     order and Linux/Windows equivalence, yielding either one bounded later
+     implementation contract within two compiler phases or an explicit
+     mandatory stop without claiming quantization capability.
+  8. Stop rank 3 before implementation if any arithmetic or representation
+     decision remains unfrozen; if the slice requires implicit conversion,
+     fallback typing, unfounded division or rounding semantics, or a second
+     numerical authority; if the existing scalar-double helper is treated as
+     source-language proof; if CAP-023 wrapping order changes; if malformed
+     quantization state can reach trusted IR or backend generation; if the
+     slice crosses more than two compiler phases; or if deterministic Linux and
+     Windows oracle parity cannot be proved.
+  9. Evidence that accepted-head artifact evidence and exact CPU plus CopyData
+     application composition must precede a meaningful quantized oracle, or
+     that exact `i32` continues to advance the next workload without lossy
+     representation, keeps rank 3 at readiness scope; only an explicit
+     quantization RFC plus a probe demonstrating one shared cross-platform
+     representation, arithmetic, malformed-state, and oracle authority within
+     the phase limit raises it toward implementation.
+- Allowed files and red/green split: cumulative scope is exactly
+  `TASK_LEDGER.md`, `README.md`, `PROJECT_STATE.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`,
+  `FRAMEWORK_ALIGNMENT.md`, `CONFORMANCE_PLAN.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. Commit this ledger-only
+  authorization first. Then change only the claim-contract test to produce an
+  intentional red against stale cumulative truth; after review, update the
+  seven record surfaces. No production, profile, workflow, example, dependency,
+  claim-verification payload, benchmark protocol, protection, release, or
+  external artifact change is authorized.
+- Acceptance tests and stop conditions: the claim contract must require one
+  rendered canonical evidence paragraph with all 33 run/job/analysis and Git
+  identities labeled, ordered, globally unique where appropriate, and ending
+  exactly in `` ` all pass.``; require every accepted boundary above; preserve
+  and order every historical Roadmap ranking/decision section; require one
+  canonical current 28/24/20 table and the nine exact ordered decisions; reject
+  stale CAP-021/current-CAP-022/CAP-023-candidate claims, excluded CAP-023
+  overclaims, rank-2/3 implementation promotion, milestone overclaim, fenced or
+  comment-hidden truth, contradictory oracles/status/evidence, and alternate
+  current rankings. The matrix must retain the byte-exact selected profile row,
+  classify CAP-023 only in the existing CPU `PARTIAL` row, retain three exact
+  classified-table topologies, and reject semantic spelling variants and
+  unknown/decorated classifications. First run the focused contract to prove a
+  stale-document red; after record updates run it green, then run exact root
+  `./tools/test.sh`, `git diff --check`, independent factual/contract/diff
+  audits, one bounded draft PR, exact-head checks, protected merge, and fresh
+  merge-head checks. Stop if any identity differs, semantics must broaden, a
+  historical decision changes, a non-record path changes, an accepted negative
+  becomes false, or the baseline is red.
+- Recommended next action: commit this ledger-only authorization, add the
+  reviewed red claim contract, then synchronize all seven cumulative records
+  without editing CAP-023 implementation/evidence bytes. Do not start the
+  rank-1 evidence gate until this accepted-truth synchronization itself is
+  protected-merge accepted.
+
 ## CAP-023-RELU-ARGMAX-INFERENCE-PRODUCT - fixed 3x2x2 exact-Int CPU gate
 
 - Date/task/status: 2026-08-13, `CAP-023-RELU-ARGMAX-INFERENCE-PRODUCT`,

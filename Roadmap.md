@@ -88,6 +88,69 @@ The PR-only aggregate CodeQL check is correctly absent on the default branch; th
 open finding remains pre-existing Actions alert #4 from 2026-08-09, and no new CAP-021
 alert surfaced.
 
+CAP-023 is accepted as a zero-production fixed-shape ReLU-and-argmax inference
+product/evidence checkpoint.
+
+Exact CAP-023 reviewed candidate
+`63e6b00b6294de61e3afd292a1e32e2b014714e2`, shared candidate/merge tree
+`4d234cdfde67f1083773e2c41be4ab92027769db`, accepted base and first merge parent
+`4bce540dfed6dfffa152067f4e00424501a6cdd8`, and protected PR #62 merge
+`e9b281504446465cfc8fcbe17c65cce92df0e83a` whose second parent is that candidate are
+immutable. Candidate push CI `31687464571`, PR CI `31687585904`, Rust CI
+`31687585893`, CodeQL `31687584263`, and aggregate candidate check `94407323731`;
+candidate push/PR compiler jobs `94406770929`/`94407177877`, stable/nightly/Windows
+LLVM 22 jobs `94407178006`/`94407178047`/`94407178042`, CodeQL Actions/Python/Rust
+jobs `94407175858`/`94407175752`/`94407175820`, and Actions/Python/Rust analyses
+`1612686978`/`1612687391`/`1612693654`; merge-head CI/Rust CI/CodeQL
+`31688093145`/`31688093150`/`31688092749`, exact merge compiler/stable/nightly/Windows
+LLVM 22 jobs `94408808914`/`94408809340`/`94408809458`/`94408809296`, merge CodeQL
+Actions/Python/Rust jobs `94408812427`/`94408812194`/`94408812175`, and default-branch
+Actions/Python/Rust analyses `1612715455`/`1612715345`/`1612721829` all pass.
+
+Accepted CAP-023 changes no parser, grammar, source semantics, language profile,
+semantic analysis, checked IR, verifier, backend, ABI, or capability classification.
+It is a zero-production product/evidence checkpoint over CAP-019's unchanged
+`exact-i32-array-v0` surface, composes the accepted CAP-020 flat matvec and CAP-021
+record-to-score product, and does not reverse CAP-022's mandatory runtime-acquisition
+`NO IMPLEMENTATION` stop.
+
+One source-embedded application convention `[int; 20]` with exact header `[2, 3, 2]`
+drives a flat 3-input/2-hidden/2-output wrapping-`i32` computation with strict-positive
+zero clamp, two biased logits, signed strict-greater argmax, lower-index tie selection,
+three independent malformed-header controls, and reread of all 140 source lanes after
+all seven by-value calls.
+
+Exact ordinary, wrapping, activation-boundary, and tie results are respectively
+`[1, 122, 167, 135, 181, 4940, 5573, 1]`,
+`[1, -24, 18, 2147483623, 0, -37, 2147483641, 1]`,
+`[1, -3, 0, 0, 0, 5, 4, 0]`, and `[1, 1, 2, 1, 2, 3, 3, 0]`; malformed results are
+eight zeros; public and native success is sentinel 91 with empty source stdout/stderr.
+
+CAP-023 adds no general activation, ReLU, argmax, inference, tensor, matrix, record,
+recursive-array, runtime/file input, serialization, quantization, conversion, stable
+layout/ABI, performance, resource-usage, accelerator, safety, or language completion
+capability.
+
+Its record and topology are application conventions, its retained local artifacts
+remain mutable corroboration only, and CAP-019 remains the latest compiler/profile
+widening.
+
+The sole matrix change is the existing CPU backend-summary row remaining `PARTIAL`;
+no CAP-023 language feature or selected-profile row may be added.
+
+Current accepted public master is CAP-023 merge
+`e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only aggregate is correctly absent
+on the default branch. Default-branch Actions analysis `1612715455` contains only the
+pre-existing open alert #4 created 2026-08-09; Python and Rust analyses contain zero
+results; no new CAP-023 code-scanning alert exists.
+
+The selected Milestone 0, Milestone 1, and Milestone 2 exit gates are met for their
+bounded selected products; their broader milestone ambitions remain partial.
+Milestone 3 remains open. CAP-023 advances its application and reproducibility
+boundary but supplies no runtime ingestion, composed CopyData application profile,
+quantization, runtime-resource measurement, performance evidence, accelerator
+execution, or broader workload.
+
 CAP-018 is accepted as immutable exact-array value/result composition and remains the
 historical immutable-result checkpoint in this same profile.
 
@@ -217,12 +280,14 @@ Focused, corruption, complete-root, pinned LLVM 22 O0/O2, exact candidate, prote
 PR #48 merge `856fc1e5f310b2b458f97d7b6aebb1ecf5c28572`, and exact merge-head gates
 pass. This does not complete generics or traits.
 
-The post-CAP-021 ranking now controls task selection. Runtime byte/file acquisition,
-small quantized numerical-kernel work, and recursive exact-array/2D matrix work remain
-readiness and red-probe decisions only. The exact scored order and full
+The post-CAP-023 ranking now controls task selection. An accepted-head inference
+correctness/reproducibility/artifact-footprint evidence gate with no performance claim
+ranks first. Exact CPU plus recursive-CopyData application-profile composition ranks
+second at readiness and red-probe scope only, and a small quantized numerical kernel
+ranks third at readiness and red-probe scope only. The exact scored order and full
 before/after/stop/change-mind contracts appear below. CAP-016 and CAP-017 remain
-completed stops: no import semantics or propagation syntax may be invented merely to
-revive their earlier rank.
+completed stops, and CAP-022 remains a mandatory `NO IMPLEMENTATION` stop: no import,
+propagation, or runtime-ingestion semantics may be invented to revive those paths.
 
 CAP-012 is an accepted Milestone 2 capability. It closes the remaining selected exit
 half by letting the representative telemetry program call ordinary
@@ -565,7 +630,7 @@ partial. The previously accumulated Milestone 2 fragments remain bounded.
 | Milestone 0 | Checked public CLI failures are nonzero and artifact-clean; accepted CAP-007 supplies one canonical checked-program entrypoint and artifact contract across frozen trusted validation routes; accepted CAP-009 classifies and executes the selected `stable-scalar-v0` subset as `STABLE`. | The wider compiler, component feature rows, experimental default, ABI, ownership, modules, aggregates, and release surface remain unstabilized. | Milestone 0 exit is met; preserve the selected profile while ranking the next broad real-program capability. |
 | Milestone 1 | Trusted build/run routes verify LLVM before object generation; accepted M1-001 supplies one maintained representative application, compile-fail corpus, Linux/Windows exact execution, and `-O0`/`-O2` equivalence classified `END_TO_END`. Accepted CAP-015 enriches that same application with exact embedded-character interpretation through guarded reads and typed `Result`, materially composed into the unchanged exit-91 oracle. | The bounded conformance subset is authoritative for its workflow, while component language rows and the wider checked-IR/CFG/ownership invariant surface remain `PARTIAL`; CAP-015 adds no parser or profile row. | No remaining M1-001 exit item; broader grammar, invariants, and ordinary-program breadth are later capability work and do not become `STABLE` through this gate. |
 | Milestone 2 | Structs, fixed arrays, tuples, enums, `Match`, CopyData composition, bounded ownership, references, projected mutation, accepted CAP-003 concrete CopyData `Option`/`Result` carriers, accepted CAP-004 explicit generic CopyData structs, accepted CAP-005 bound-free whole-value generic transport functions, accepted CAP-006 explicit user-defined recursive-CopyData generic enums, accepted CAP-008 nonbinding enum wildcards, accepted CAP-010 required-only CopyData trait dispatch, accepted CAP-011 fixed-capacity generic container algorithms, accepted CAP-012 projected call loans, and accepted CAP-013 canonical bounded-specialization identity/phase authority have executable slices. CAP-011 and CAP-012 satisfy the selected generic-data-structure plus ownership-intensive-program exit product. | Layout and evaluation behavior are private and bounded; ownership is not general. CAP-003 is monomorphic built-in-family evidence; CAP-004 through CAP-006 supply exact generic data-definition, function-transport, and enum-specialization slices; CAP-008 adds only terminal whole-arm and payload-leaf wildcards; CAP-010 adds one verifier-bound static-dispatch class; CAP-011 and CAP-012 close only the selected exit gate; CAP-013 closes alias/identity/phase drift without adding general semantics. | The selected Milestone 2 exit gate is met. General collections and generic operations, broader traits, broader patterns/error propagation, general lifetimes/drop/unsafe, public ABI/destruction, and ordinary-program breadth remain higher-milestone capability work. |
-| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence; accepted CAP-018 widens the same profile with immutable exact-array value/result composition; accepted CAP-019 adds initialized mutable owned locals, guarded projected writes, and returned flat-array values; accepted CAP-020 adds the zero-production flat-buffer 2x3-by-3 matvec product gate over that unchanged profile; accepted CAP-021 adds the zero-production source-embedded flat `[int; 17]` record decode and two-stage exact-`i32` scoring product gate over that unchanged profile. | The CPU lane remains one private named profile over flat integer arrays. CAP-021 composes the maintained flat matvec into a complete record-to-score application only and adds no runtime ingestion, file input, general parsing, broader error propagation, collections, streaming, quantization/tensors, recursive arrays/matrices, resource measurement, accelerator execution, or larger-workload capability. CAP-015's embedded-literal evidence belongs only to M1-001 representative integration. | The milestone exit is not met. Follow the post-CAP-021 ranking with runtime byte/file acquisition readiness and a red probe under one cross-platform bounded-owned-buffer contract; keep the quantized numerical-kernel and recursive shapes at readiness/red-probe scope, with recursive syntax explicitly deferred while flat encoding serves the workload. |
+| Milestone 3 | Accepted CAP-014 supplies the first bounded exact-`i32` fixed-array CPU reference kernel with guarded indexing and Linux/Windows native oracle evidence; accepted CAP-018 widens the same profile with immutable exact-array value/result composition; accepted CAP-019 adds initialized mutable owned locals, guarded projected writes, and returned flat-array values; accepted CAP-020 adds the zero-production flat-buffer 2x3-by-3 matvec product gate; accepted CAP-021 adds source-embedded flat-record decode and two-stage scoring; accepted CAP-023 adds the zero-production fixed-shape 3-input/2-hidden/2-output ReLU-and-argmax inference product/evidence checkpoint over that unchanged profile. | The CPU lane remains one private named profile over flat integer arrays. CAP-023 adds an application convention and reproducibility evidence only, with no runtime ingestion, composed CopyData profile, general parsing or error propagation, collections, streaming, quantization/tensors, recursive arrays/matrices, resource measurement, performance evidence, accelerator execution, or larger-workload capability. CAP-022's runtime-acquisition stop remains mandatory, and CAP-015's embedded-literal evidence belongs only to M1-001 representative integration. | The milestone exit is not met. The accepted-head inference correctness/reproducibility/artifact-footprint evidence gate ranks first without a performance claim; exact CPU plus recursive-CopyData composition and the small quantized numerical kernel remain ranks 2 and 3 at readiness/red-probe scope only. |
 
 Accepted CAP-009 closes the selected-stable-subset portion of the Milestone 0 row with
 protected exact-head and merge-head evidence. It does not promote neighboring
@@ -700,7 +765,7 @@ recursive-CopyData generic enums (25) ahead of the canonical Milestone 0 contrac
 (24) and owned dynamic collections (22). CAP-006 is accepted through protected PR #33
 and exact merge-head evidence; no neighboring generic topology inherits priority.
 
-## Milestone 0 - Establish compiler truth (in progress)
+## Milestone 0 - Establish compiler truth (selected exit met; broader scope partial)
 
 - Make invalid lexical and syntactic input fatal on every trusted path.
 - Close false-success paths that invent values or silently drop unsupported
@@ -714,9 +779,10 @@ subset; one canonical diagnostic/artifact contract; full repository gate and
 independent review for each accepted boundary.
 
 Accepted CAP-007 closes the canonical entrypoint mechanism for the currently frozen
-trusted validation routes and is full-root/public-system green. The exit remains in
-progress until the chosen stable subset has no unclassified critical false-success
-defect.
+trusted validation routes and is full-root/public-system green. Accepted CAP-009
+classifies and executes the selected `stable-scalar-v0` subset as `STABLE`, so the
+selected exit gate is met. The wider compiler, component feature rows, experimental
+default, ABI, ownership, modules, aggregates, and release surface remain partial.
 
 ## Milestone 1 - Trustworthy scalar CPU core
 
@@ -912,6 +978,103 @@ CAP-021's clean flat record-to-score execution otherwise keeps them deferred.
 All three successors remain readiness and task-local red-probe work; none authorizes
 production implementation.
 
+### Post-CAP-023 ranking
+
+CAP-023 closes the maintained source-embedded fixed-shape ReLU-and-argmax inference
+product gap without changing compiler production or the selected profile. The
+accepted-head inference correctness/reproducibility/artifact-footprint evidence gate
+ranks first with no performance claim. Exact CPU plus recursive-CopyData
+application-profile composition readiness ranks second, and small quantized
+numerical-kernel readiness ranks third. Scores are 1--5 with higher better; `Risk` and
+`Evidence` are delivery favorability, so 5 means lower implementation risk or lower
+evidence cost.
+
+| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim | 4 | 5 | 5 | 5 | 5 | 4 | 28 |
+| 2 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+| 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
+
+Before rank 1, accepted CAP-023 proves one source-embedded fixed-shape
+3-input/2-hidden/2-output exact-`i32` ReLU-and-argmax CPU inference product through
+deterministic verified LLVM, `llvm-as`, machine verification, native `-O0`/`-O2`,
+public execution, and independent ordinary, wrapping, activation-boundary, tie,
+malformed-header, and source-preservation oracles, but `claim-verification/` contains
+no accepted-head Aero-native inference correctness/reproducibility record and no
+artifact-footprint manifest. After rank 1, one immutable accepted-head evidence bundle
+must record the exact commit and clean-tree state, source/input/oracle hashes, pinned
+Linux and Windows toolchains and commands, deterministic
+LLVM/bitcode/assembly/executable hashes and byte sizes, exact exit/stdout/stderr
+results, failures, limitations, and a complete third-party reproduction procedure
+without timing, throughput, speedup, memory, energy, or performance claims.
+
+Stop and rerank rank 1 if CAP-023 is not accepted at the exact protected merge head,
+any recorded artifact cannot be regenerated byte-for-byte within its stated
+platform/toolchain boundary, correctness depends on retained mutable local artifacts
+rather than tracked inputs and commands, Linux and Windows results diverge, or the
+gate would require compiler production, source/profile semantics, benchmark timing,
+or a public performance claim.
+
+Evidence that an existing immutable accepted-head bundle already supplies the same
+source/oracle/toolchain/command/hash/size/result/failure/limitation contract, that
+artifact bytes are nondeterministic for an unfrozen reason, or that footprint capture
+cannot be separated from benchmark semantics changes rank 1; a clean zero-production
+correctness/reproducibility bundle advances Milestone 3 evidence but does not meet its
+performance or complete resource-usage exit.
+
+Before rank 2, accepted CAP-023 executes a flat exact-`i32` application convention
+inside `exact-i32-array-v0`, while accepted recursive finite CopyData structs, enums,
+`Result`, `Match`, and ownership slices remain bounded `PARTIAL` experimental
+capabilities that the selected CPU profile deliberately rejects. After rank 2
+readiness, a task-local source probe and architecture map must identify the first
+composition failure and freeze whether one new application profile can reuse the
+exact-`i32` scalar/flat-array physical authority together with only already-accepted
+recursive CopyData aggregate, typed-result, `Match`, and bounded ownership contracts;
+define admitted types and operations, phase ownership, profile selection, physical
+identity, rejection boundaries, verifier evidence, and Linux and Windows oracles; and
+yield either one bounded later implementation contract within two compiler phases or
+an explicit mandatory stop without widening either existing profile.
+
+Stop rank 2 before implementation if composition requires changing
+`stable-scalar-v0` or `exact-i32-array-v0`, importing broad experimental defaults,
+inventing struct, enum, `Result`, layout, or ABI semantics, reconciling duplicate type,
+physical, or specialization authorities, adding recursive or nested exact arrays,
+crossing more than two compiler phases, or claiming general CopyData, ownership, error
+handling, inference, or safety.
+
+Evidence that the CAP-023 workload can materially exercise existing CopyData
+aggregates and typed failure under one bounded profile without new semantics and with
+one shared exact physical/verifier authority raises rank 2 toward implementation;
+evidence that a flat record remains sufficient, that the application needs runtime
+ingress first, or that composition requires broad layout or ownership contracts defers
+it.
+
+Before rank 3, accepted CAP-023 proves exact wrapping `i32` matvec, positive-only ReLU,
+two biased logits, and signed strict-greater argmax, but Aero has no frozen quantized
+stored, accumulator, or result representation; scale or zero-point contract;
+conversion, rounding, tie, saturation, or overflow behavior; calibration provenance;
+malformed-state rule; or maintained cross-platform quantized oracle. After rank 3
+readiness, a task-local source-embedded probe and architecture map must locate the
+first failure and freeze every such decision plus operation order and Linux/Windows
+equivalence, yielding either one bounded later implementation contract within two
+compiler phases or an explicit mandatory stop without claiming quantization
+capability.
+
+Stop rank 3 before implementation if any arithmetic or representation decision
+remains unfrozen; if the slice requires implicit conversion, fallback typing,
+unfounded division or rounding semantics, or a second numerical authority; if the
+existing scalar-double helper is treated as source-language proof; if CAP-023 wrapping
+order changes; if malformed quantization state can reach trusted IR or backend
+generation; if the slice crosses more than two compiler phases; or if deterministic
+Linux and Windows oracle parity cannot be proved.
+
+Evidence that accepted-head artifact evidence and exact CPU plus CopyData application
+composition must precede a meaningful quantized oracle, or that exact `i32` continues
+to advance the next workload without lossy representation, keeps rank 3 at readiness
+scope; only an explicit quantization RFC plus a probe demonstrating one shared
+cross-platform representation, arithmetic, malformed-state, and oracle authority
+within the phase limit raises it toward implementation.
+
 ## Milestone 3 - Aero-native AI/ML infrastructure flagship
 
 - Accepted CAP-014 provides the first bounded CPU computation toward this milestone:
@@ -926,9 +1089,14 @@ production implementation.
   a zero-production source-embedded flat `[int; 17]` record decode and two-stage
   exact-`i32` scoring product with header, ordinary, wrapping, malformed, source-
   preservation, public, and Linux/Windows native evidence over the unchanged profile.
-  The next task is runtime byte/file acquisition readiness and a red probe under one
-  cross-platform bounded-owned-buffer contract only. Together these still do not meet
-  the milestone exit.
+  Accepted CAP-023 composes the maintained products into one source-embedded flat
+  `[int; 20]` 3-input/2-hidden/2-output zero-clamp-and-argmax application with exact
+  ordinary, wrapping, activation-boundary, tie, malformed-header, source-preservation,
+  public, and Linux/Windows evidence over the same profile. The accepted-head
+  inference correctness/reproducibility/artifact-footprint evidence gate is next and
+  makes no performance claim; exact CPU plus recursive-CopyData composition and the
+  small quantized numerical kernel remain readiness/red-probe work only. Together
+  these still do not meet the milestone exit.
 - Build a correct CPU reference workload for binary/tensor ingestion and a small
   quantized numerical kernel.
 - Grow it into a streaming data or inference component that exercises Aero's
