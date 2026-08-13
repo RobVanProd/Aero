@@ -196,6 +196,51 @@
   tensor, matrix, quantization, ABI, performance, accelerator, safety, or
   language completion.
 
+### CAP-023 local red/green checkpoint (not accepted public truth)
+
+- Exact committed red history: source/product red `b6b39fdcceced73a8c81a89c8c0b4cff2ccb3a39`,
+  workflow-identity binding `6b9d2c5259c7a443362df6fe18c3c7d5a2c19879`, ReLU
+  value-home binding `e5c83f2924fe2775bbe1299f63c52c2a21512f13`, and the
+  closed Linux/Windows evidence contract
+  `a8c5786179fea5296201d8a0d229974ef05a7c76`. On that exact red contract, the
+  pinned focused target ran 20 tests: 19 passed and the sole failure was the
+  final collected absence of CAP-023 evidence from both existing exact-profile
+  workflow steps. All source/profile/checked-IR/LLVM/oracle/public-route tests
+  were already green.
+- The first workflow closure correctly exposed one test-contract spelling
+  collision before any candidate was formed: literal guard count `28` contained
+  the legacy forbidden substring for the former two-guard contract. Test-only
+  correction `c620279b083616e5616a118023532eca2ca2aa37` and the workflow now spell
+  the same exact value as `14 * 2`; neither changes the frozen guard count or
+  weakens the legacy exclusion.
+- Exact local green implementation is workflow commit
+  `d46afa8daa00fd446884aa05adb7025228fc90e4`, tree
+  `29f7dfefa0f943e47311cea513e38511d7b603d7`. Its parent is the corrected red
+  contract `c620279b083616e5616a118023532eca2ca2aa37`. The cumulative accepted-base
+  diff remains exactly this ledger, the force-tracked 8,224-byte
+  `relu_argmax_inference.aero` specimen, its focused regression, and the two
+  existing exact-profile workflow step bodies; no compiler production,
+  dependency, prior specimen, job, or step changes.
+- The exact specimen SHA-256 is
+  `8244ca26fc90ce708801e12ec6a7192bdedfd01e1a1429c1479d36e233b1bb6c`.
+  Final pinned focused evidence is 20/20. The repository-root `./tools/test.sh`
+  passes formatting, correctness Clippy, all library/integration tests, and
+  doc tests. Linux and Windows workflow patterns independently match retained
+  exact source-generated LLVM at six decode chains, five exact payload offsets,
+  one header gate, one ReLU value-home chain, one biased-logit chain, one signed
+  strict-greater argmax, one identity-linked 2x3 matvec, one identity-linked 2x2
+  matvec, and complete guard counts 28/18/3/3. The four prior bounds-trap controls
+  and every prior specimen remain byte-identical.
+- Retained Windows LLVM/native artifacts under
+  `D:\CodexArtifacts\aero-cap023-native-f92e6cc` are mutable local evidence only,
+  not accepted or published evidence. Their source hash matches the tracked
+  specimen; deterministic LLVM SHA-256 is
+  `74a317e704bd62bd79d96f1399fb6e31a22304e6889c898748f3289c7a0a8d29`,
+  and retained O0/O2 executables return 91 with empty stdout/stderr. Exact-head
+  protected GitHub checks, independent hosted Linux/Windows execution, protected
+  merge, and fresh merge-head checks remain mandatory before any CAP-023
+  capability or cumulative truth claim.
+
 ## CAP-022-RUNTIME-ACQUISITION-READINESS - bounded external-byte architecture and red probe
 
 - Date/task/status: 2026-08-13, `CAP-022-RUNTIME-ACQUISITION-READINESS`,
