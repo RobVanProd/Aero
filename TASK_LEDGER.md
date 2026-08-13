@@ -1,5 +1,405 @@
 # Aero Task Ledger
 
+## CAP-023-RELU-ARGMAX-INFERENCE-PRODUCT - fixed 3x2x2 exact-Int CPU gate
+
+- Date/task/status: 2026-08-13, `CAP-023-RELU-ARGMAX-INFERENCE-PRODUCT`,
+  authorized red-first zero-production product slice on
+  `agent/cap-023-relu-argmax-inference-product` from exact CAP-022 readiness
+  record head `cda9e960c044c52003afc7b72ca9640b76ce5967`, tree
+  `dc4618f8247df59bb866b130c3e091eb60aaca50`. Accepted public truth remains
+  CAP-021 sync merge `4bce540dfed6dfffa152067f4e00424501a6cdd8`; CAP-022 is a
+  ledger-only `NO IMPLEMENTATION` readiness stop, not a runtime capability.
+  User/app-owned `.codex-remote-attachments/` and `tmp/` remain outside scope,
+  and quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  must remain untouched.
+- Fresh post-CAP-022 decision: do not automatically promote the old rank-2
+  quantization readiness row. A complete fixed-shape exact-`i32` inference
+  product is already expressible on the accepted profile and advances the CPU
+  reference workload before lossy representation is designed. The canonical
+  comparison is:
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Source-embedded fixed-shape 3-input/2-hidden/2-output exact-`i32` ReLU-and-argmax CPU inference product gate over the unchanged selected profile | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
+  | 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
+  | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+
+- Frozen post-CAP-022 decision contracts, in order:
+  1. Before rank 1, accepted CAP-021 validates one source-embedded flat
+     `[int; 17]` record and produces one exact wrapping scalar affine score,
+     but it has no activation, two-logit result, deterministic class decision,
+     or general inference capability. After rank 1, one fixed source-embedded
+     `[int; 20]` application record with exact header `[2, 3, 2]`, three
+     inputs, six first-stage weights, two first-stage biases, four second-stage
+     weights, and two second-stage biases must compose the accepted guarded
+     flat-array and wrapping-`i32` authorities into a
+     3-input/2-hidden/2-output computation with explicit zero clamp, two exact
+     logits, one frozen deterministic tie rule, complete source-lane
+     preservation, independent ordinary, wrapping, malformed-header,
+     activation-boundary, and tie oracles, and exact public and Linux/Windows
+     native sentinel 91 without changing compiler production or the selected
+     profile.
+  2. Stop and rerank rank 1 if the complete product requires any parser,
+     profile, semantic, checked-IR, verifier, backend, ABI, or runtime change;
+     division, remainder, shifts, implicit conversion, quantization, or new
+     overflow semantics; partial or uninitialized arrays; unchecked indexing;
+     recursive shapes; stable layout or callable ABI; a duplicated guard or
+     type authority; or if it is only cosmetic postprocessing of CAP-021's
+     existing scalar score.
+  3. Evidence that the complete 3-input/2-hidden/2-output
+     zero-clamp-and-argmax program is not expressible solely through accepted
+     CAP-021 semantics, cannot define independent source, activation,
+     two-logit, wrapping, malformed, and tie oracles, or does not materially
+     advance beyond the existing single-score product changes rank 1; clean
+     zero-production execution establishes a stronger exact CPU reference and
+     defers lossy quantization rather than claiming general activation or
+     inference capability.
+  4. Before rank 2, accepted CAP-021 executes exact wrapping `i32` matvec,
+     bias, and affine scoring, CAP-022 has stopped runtime acquisition before
+     implementation, and Aero has no frozen quantized representation,
+     conversion, arithmetic, calibration, or maintained numerical oracle.
+     After rank 2 readiness, a task-local source-embedded red probe and
+     architecture map must locate the first failure and freeze stored,
+     accumulator, and result types and domains; scale and zero-point presence,
+     representation, and scope; rounding and tie behavior; saturation and
+     overflow behavior; conversion boundaries and operation order; calibration
+     provenance; malformed-state rejection; the reference oracle; and Linux
+     and Windows equivalence, either yielding one bounded implementation
+     contract within two compiler phases or an explicit mandatory stop without
+     claiming quantization capability.
+  5. Stop rank 2 before implementation if any arithmetic or representation
+     decision remains unfrozen; if the slice requires implicit conversion,
+     fallback typing, division or rounding semantics not already authoritative,
+     reuse of the existing scalar-double rewrite as numerical proof, or a
+     second numerical authority; if it silently changes accepted wrapping
+     order; if malformed quantization state can reach trusted IR or backend
+     generation; if a useful slice crosses more than two compiler phases; or if
+     deterministic Linux and Windows oracle parity cannot be proved.
+  6. Evidence that the rank-1 exact-`i32` product advances the next workload
+     without lossy representation, that external-byte ownership and error
+     semantics must precede meaningful calibrated input, or that current
+     scalar-double helper rewriting cannot serve as a source-language
+     arithmetic authority defers rank 2 implementation; only an explicit
+     quantization RFC plus a red probe demonstrating one shared cross-platform
+     representation, arithmetic, malformed-state, and oracle authority within
+     the phase limit permits later implementation ranking.
+  7. Before rank 3, accepted CAP-021 proves fixed-record decode and two-stage
+     scoring through flat `[int; 17]`, `[int; 6]`, `[int; 3]`, and
+     `[int; 2]` storage while `exact-i32-array-v0` deliberately rejects nested
+     arrays. After rank 3 readiness, only if it is reopened, a task-local
+     `[[int; 3]; 2]` red probe and topology map must freeze depth,
+     dimension-product bounds, value placements, nested mutation and alias
+     rules, and nested-versus-flat physical identity under one source and
+     physical shape authority, or record a mandatory stop without claiming
+     recursive arrays.
+  8. Stop rank 3 before implementation while flat encoding serves the selected
+     record, matvec, and successor inference workloads, or if any
+     recursive-shape decision remains unfrozen, admission and lowering cannot
+     share one canonical shape, the slice exceeds two compiler phases, or it
+     requires stable aggregate layout or ABI, aliases, partial initialization,
+     or rank-specific classifiers.
+  9. Evidence of a concrete workload that flat buffers materially obscure,
+     together with an explicit bounded recursive-shape decision and a probe
+     proving one shared source and physical authority within two phases, would
+     restore recursive arrays to implementation ranking; successful flat
+     execution of CAP-021 and the proposed rank-1 product otherwise keeps them
+     deferred.
+- Frozen application representation: one source-embedded flat `[int; 20]` is
+  an application convention only. Lanes `0..2` are exact header `[2, 3, 2]`;
+  `3..5` are the three inputs; `6..11` are row-major 2x3 first-stage weights;
+  `12..13` are first-stage biases; `14..17` are row-major 2x2 second-stage
+  weights; and `18..19` are second-stage biases. No tensor, matrix, record,
+  activation, class, quantized, nested-array, serialization, or stable physical
+  type is added. All helpers remain same-file private source composition.
+- Frozen computation and result identity: both matvec accumulators start at
+  exact zero and evaluate columns from lower to higher index with existing
+  wrapping `i32` multiply then wrapping add. First-stage bias is added after
+  each first matvec result. ReLU is exactly zero clamp: a strictly positive
+  biased value is retained and zero or a negative value becomes zero. The
+  second 2x2 matvec runs over those two hidden lanes, then adds its two biases.
+  Argmax starts at class 0 and changes to class 1 only when
+  `logit1 > logit0`; equality therefore selects lower index 0. The returned
+  `[i32; 8]` is exactly
+  `[valid, raw0, raw1, hidden0, hidden1, logit0, logit1, class]`. Header
+  mismatch returns eight initialized zeros without decoding any payload.
+- Frozen independent source records and oracles:
+  - ordinary record
+    `[2,3,2,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]`
+    returns `[1,122,167,135,181,4940,5573,1]`;
+  - wrapping record
+    `[2,3,2,2,-3,5,2147483647,4,-2,-2147483648,-1,3,2147483647,2147483647,2,7,-2147483648,-3,13,-7]`
+    returns `[1,-24,18,2147483623,0,-37,2147483641,1]` and forces
+    first-stage multiplication wrap, bias-add wrap into a clamped negative, and
+    second-stage multiplication wrap; its positive second logit is greater by
+    signed comparison but lower by unsigned comparison, independently proving
+    the selected signed argmax predicate;
+  - activation-boundary record
+    `[2,3,2,1,1,1,-1,-1,-1,1,0,-1,2,0,1,2,3,4,5,4]`
+    returns `[1,-3,0,0,0,5,4,0]`, independently proving negative and exact-zero
+    clamp behavior;
+  - tie record
+    `[2,3,2,1,2,3,1,0,0,0,1,0,0,0,1,1,3,0,0,0]`
+    returns `[1,1,2,1,2,3,3,0]` and proves the frozen lower-index tie rule;
+  - three malformed controls change header lane 0 to 1, lane 1 to 4, or lane 2
+    to 1 while retaining the ordinary payload; each returns eight zeros.
+    Every lane of all four valid records and all three malformed records must be
+    reread after all seven by-value inference calls and compare equal to its own
+    separately initialized exact literal. `main` returns 91 only after every
+    result, malformed control, and preservation oracle passes; otherwise it
+    returns 1. Source stdout/stderr remains empty.
+- Hypothesis and first-red contract: the complete source uses only already
+  accepted flat exact-Int literals/parameters/results, fully initialized mutable
+  locals, guarded dynamic reads and projected writes, ordinary acyclic calls,
+  `while`, comparisons, `if`, and wrapping add/subtract/multiply. Therefore the
+  source and all compiler/product assertions should be green without production
+  changes. After this authorization commit, one red checkpoint may add the exact
+  source specimen and one focused regression. Its sole intentional failure must
+  be the absence of the new specimen and its structural/native/public evidence
+  from both existing exact-profile workflow steps; any parse/profile/semantic,
+  checked-IR, verifier, LLVM, oracle, or native failure is a mandatory stop.
+- Focused evidence contract: freeze the exact source bytes and an independent
+  Rust wrapping oracle; require public `check`, verifier-required deterministic
+  `build`, and `run` with exactly one `Exit code: 91`; require exact function,
+  call, result, and aggregate identities for `[20]`, `[8]`, `[6]`, `[4]`,
+  `[3]`, and `[2]`; bind all six record-decode loops to their exact source
+  offsets and initialized destination locals; bind each header comparison to
+  lanes 0/1/2 and prove the false edge bypasses all payload access; bind
+  first/second matvec row-major indexes through the existing signed guard,
+  trap-before-address, `sext`, typed GEP, and same-pointer consumer authority;
+  bind biased hidden values to the strict-positive zero clamp and initialized
+  hidden destination; bind both logit values and strict-greater class decision;
+  prove every returned lane and every 20-lane preservation comparison. Require
+  no `double`, `fptosi`, `sitofp`, `nsw`, `nuw`, SIMD vector, quantization
+  helper, or second bounds/type authority.
+- Allowed files and red/green split: cumulative CAP-023 scope is exactly this
+  `TASK_LEDGER.md`; new force-tracked
+  `examples/fixed_int_array_v0/relu_argmax_inference.aero` (the directory is
+  intentionally ignored); `src/compiler/tests/fixed_int_array_profile_tests.rs`;
+  and `.github/workflows/rust.yml`. The red checkpoint may change only the new
+  specimen and focused test after this ledger-only authorization. Green may
+  change only the bodies of the two existing exact-profile workflow steps to
+  add one `inference` descriptor and exact Linux/Windows structural,
+  deterministic, `llvm-as`, `opt`, `llc`, Clang `-O0`/`-O2`, native, and public
+  evidence. Do not add or rename jobs/steps, alter prior specimen descriptors,
+  weaken the four trap controls, or edit any compiler production, dependency,
+  state/claim document, benchmark, release, protection, or public artifact.
+- Acceptance, risks, and stop conditions: focused tests must first demonstrate
+  one intentional workflow-evidence red, then green completely; `cargo fmt
+  --check`, `git diff --check`, and repository-root `./tools/test.sh` must pass.
+  Exact candidate-head protected checks, independent Linux/Windows evidence,
+  protected merge, and fresh merge-head checks remain mandatory before any
+  accepted capability or cumulative truth claim. Stop and record
+  `NO IMPLEMENTATION` if production must change, the exact source cannot remain
+  fully initialized and bounds-checked, tie or wrapping behavior diverges, any
+  result is not independently reproducible, workflow topology must change, or
+  the product becomes a claim of general ReLU, argmax, activation, inference,
+  tensor, matrix, quantization, ABI, performance, accelerator, safety, or
+  language completion.
+
+### CAP-023 local red/green checkpoint (not accepted public truth)
+
+- Exact committed red history: source/product red `b6b39fdcceced73a8c81a89c8c0b4cff2ccb3a39`,
+  workflow-identity binding `6b9d2c5259c7a443362df6fe18c3c7d5a2c19879`, ReLU
+  value-home binding `e5c83f2924fe2775bbe1299f63c52c2a21512f13`, and the
+  closed Linux/Windows evidence contract
+  `a8c5786179fea5296201d8a0d229974ef05a7c76`. On that exact red contract, the
+  pinned focused target ran 20 tests: 19 passed and the sole failure was the
+  final collected absence of CAP-023 evidence from both existing exact-profile
+  workflow steps. All source/profile/checked-IR/LLVM/oracle/public-route tests
+  were already green.
+- The first workflow closure correctly exposed one test-contract spelling
+  collision before any candidate was formed: literal guard count `28` contained
+  the legacy forbidden substring for the former two-guard contract. Test-only
+  correction `c620279b083616e5616a118023532eca2ca2aa37` and the workflow now spell
+  the same exact value as `14 * 2`; neither changes the frozen guard count or
+  weakens the legacy exclusion.
+- Exact local green implementation is workflow commit
+  `d46afa8daa00fd446884aa05adb7025228fc90e4`, tree
+  `29f7dfefa0f943e47311cea513e38511d7b603d7`. Its parent is the corrected red
+  contract `c620279b083616e5616a118023532eca2ca2aa37`. The cumulative accepted-base
+  diff remains exactly this ledger, the force-tracked 8,224-byte
+  `relu_argmax_inference.aero` specimen, its focused regression, and the two
+  existing exact-profile workflow step bodies; no compiler production,
+  dependency, prior specimen, job, or step changes.
+- The exact specimen SHA-256 is
+  `8244ca26fc90ce708801e12ec6a7192bdedfd01e1a1429c1479d36e233b1bb6c`.
+  Final pinned focused evidence is 20/20. The repository-root `./tools/test.sh`
+  passes formatting, correctness Clippy, all library/integration tests, and
+  doc tests. Linux and Windows workflow patterns independently match retained
+  exact source-generated LLVM at six decode chains, five exact payload offsets,
+  one header gate, one ReLU value-home chain, one biased-logit chain, one signed
+  strict-greater argmax, one identity-linked 2x3 matvec, one identity-linked 2x2
+  matvec, and complete guard counts 28/18/3/3. The four prior bounds-trap controls
+  and every prior specimen remain byte-identical.
+- Retained Windows LLVM/native artifacts under
+  `D:\CodexArtifacts\aero-cap023-native-f92e6cc` are mutable local evidence only,
+  not accepted or published evidence. Their source hash matches the tracked
+  specimen; deterministic LLVM SHA-256 is
+  `74a317e704bd62bd79d96f1399fb6e31a22304e6889c898748f3289c7a0a8d29`,
+  and retained O0/O2 executables return 91 with empty stdout/stderr. Exact-head
+  protected GitHub checks, independent hosted Linux/Windows execution, protected
+  merge, and fresh merge-head checks remain mandatory before any CAP-023
+  capability or cumulative truth claim.
+
+## CAP-022-RUNTIME-ACQUISITION-READINESS - bounded external-byte architecture and red probe
+
+- Date/task/status: 2026-08-13, `CAP-022-RUNTIME-ACQUISITION-READINESS`,
+  authorized architecture enumeration and task-local probe only on
+  `agent/cap-022-runtime-acquisition-readiness` from exact accepted CAP-021
+  truth-sync master `4bce540dfed6dfffa152067f4e00424501a6cdd8`, tree
+  `3592ff5badf4d21f2b550c611da3399840d1a782`. This record does not authorize
+  implementation or an I/O capability claim. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope, and quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and strategic destination: accepted CAP-021 validates and
+  scores a source-embedded `[int; 17]`; its `decode_and_score(record: [int; 17])`
+  function already proves a bounded by-value computation seam. No trusted Aero
+  source program acquires external bytes. The selected process entry is exact
+  parameterless `fn main() -> int`, the public runner launches it without
+  arguments or stdin, and no accepted source/runtime API supplies a path, byte
+  buffer, initialized count, or typed acquisition failure. The eventual target
+  is one cross-platform, size-bounded owned byte result that can feed the
+  accepted record-to-score boundary without weakening failure containment.
+- Frozen readiness scope and decisions to enumerate: locate the first failure
+  without selecting new semantics, then classify path identity and encoding;
+  raw byte identity and source type; fixed capacity and initialized count;
+  exact-read versus partial-read behavior; EOF and over-capacity handling;
+  typed error identity and platform-error mapping; buffer and file-handle
+  ownership, movement, cleanup, and drop; runtime-call and link authority;
+  relative-path base, symlink and sandbox policy, determinism, mutation races,
+  and artifact behavior; and equivalent observable Linux and Windows behavior.
+  Every item must be marked required for a smallest useful slice, explicitly
+  rejected, or preserved for a later RFC. No convenient integer sentinel,
+  source-record lane, C ABI, current-directory rule, UTF encoding, or error map
+  may be inferred by the probe.
+- Existing evidence and non-authority boundaries: the selected
+  `exact-i32-array-v0` profile admits only exact `int`, `bool`, and flat nonempty
+  `[int; N]` types; it rejects import declarations, String literals, method
+  calls, references, generic `Result`, structs/enums, dynamic collections, and
+  nonexact entrypoints before semantic analysis or checked IR. The Draft RFC
+  `RFCs/standard-library.md` sketches `File::open(path: &str)`, mutable
+  `[u8]`, `Result<_, IoError>`, and `Drop`, but explicitly leaves error types and
+  other standard-library policy unresolved. `stdlib.rs` contains simplified
+  legacy String/Vec helpers whose operations are rejected by the checked
+  verifier/backend; compiler/CLI uses of Rust `std::fs` read Aero source and are
+  host tooling, not Aero runtime capability. Treat all three as architecture
+  clues and false-success risks, never accepted source semantics.
+- Task-local probe and evidence contract: after this authorization is committed,
+  use only a task-local directory outside the repository to exercise the Draft
+  RFC-shaped file API and the narrowest process-input/caller-value alternatives
+  through the existing exact-profile `check`, `build`, and `run` routes. Record
+  the exact earliest fatal boundary and prove that semantic analysis, checked
+  IR, backend emission, native execution, and requested artifacts are
+  unreachable after that failure. A positive control may reuse the accepted
+  by-value `[int; 17]` scorer seam, but it cannot be called external-byte
+  acquisition. Do not commit a source test whose spelling or error behavior is
+  not already authoritative.
+- Initial allowed files and stop conditions: before classification, only this
+  `TASK_LEDGER.md` authorization may change. Read-only source, tests, workflows,
+  RFCs, history, and task-local external probes are permitted. No parser, AST,
+  language profile, semantic, checked-IR, verifier, backend, runtime, CLI,
+  linker, dependency, example, workflow, state/claim document, benchmark,
+  release, protection, or public artifact change is authorized. Stop with
+  `NO IMPLEMENTATION` if any enumerated decision remains unfrozen, if a useful
+  slice needs allocation/drop/runtime ABI invention, if Linux and Windows
+  behavior cannot share one observable authority, if invalid source can reach
+  trusted IR/backend work, or if the complete slice crosses more than two
+  compiler phases.
+- Recovery and what would change the decision: this branch and the authorization
+  commit are the rollback boundary. A later behavior task may be ranked only
+  after an explicit runtime RFC freezes the full contract and a red probe proves
+  one shared cross-platform ownership/error authority within two compiler
+  phases. Evidence that the existing caller-provided `[int; 17]` value seam is
+  sufficient once a host embedding boundary is separately defined, or that a
+  compile-time/source-embedded binary mechanism closes the workload sooner,
+  narrows or defers runtime file acquisition; it does not silently redefine it.
+
+### CAP-022 readiness result - mandatory runtime-contract stop
+
+- Decision: `NO IMPLEMENTATION`. CAP-022 is a completed architecture/readiness
+  stop and requires a fresh ranking; it is not a blocked goal, runtime feature,
+  selected-profile widening, or I/O capability. Every Roadmap stop predicate is
+  true: the complete contract is unfrozen, allocation/drop/runtime ABI would
+  have to be invented, a shared Linux/Windows authority does not exist, and the
+  smallest useful file slice crosses more than two compiler phases.
+- Exact first-failure evidence: task-local probes under
+  `D:\CodexArtifacts\aero-cap022-readiness-8b808cd` used the accepted-tree
+  compiler binary SHA-256
+  `32bf224727c61499ca5c53650c2de0266e9a1bee9e4a099307e4022bad2e2027`.
+  Draft-RFC-shaped `use io::File;` parses, then the selected profile rejects
+  `import declarations`; `File::open("input.bin")` is represented by the
+  current parser as enum construction and the profile rejects `enum value
+  construction`; `file.read(buffer)` rejects as `method calls`; a `String` path
+  parameter rejects as `function parameter types`; and
+  `fn main(input: [int; 17]) -> int` rejects as an entrypoint other than exact
+  parameterless `fn main() -> int`. CLI `check`, `build`, and `run` produce the
+  same case-specific cause, exit nonzero, and leave no requested LLVM artifact.
+  Missing-path and existing-path `File::open` probes produce byte-identical
+  selected-profile and experimental causes, proving that neither route observes
+  filesystem state before its fatal boundary. A companion fixed buffer plus
+  initialized-count process-entry probe reaches the same exact-entry rejection.
+  Under the experimental profile the same shapes progress only to existing
+  semantic stops: unsupported `use`, unknown `File` enum, undeclared `file`, no
+  admitted executable String signature, and forbidden aggregate process-entry
+  parameters. These are failure boundaries, not alternative semantics.
+- Positive control and seam classification: the unchanged accepted
+  `tensor_record_scoring.aero` source, SHA-256
+  `d590928c4a72870d8ba0cc068edc6cdb2530cb8c0654a8344828b1948122c8fe`,
+  passes selected-profile `check`, externally verified `build`, and native
+  `run`, exiting 91. Its private `decode_and_score(record: [int; 17])` function
+  proves that a bounded value can feed the computation once it is already in
+  Aero. Exact `i32` lanes are not bytes, its source literals are not external
+  input, and its private by-value LLVM signature is not a host-callable or
+  stable ABI. The public runner still invokes the executable with no stdin or
+  arguments. Task-local run cleanup left zero program-artifact entries.
+- Required-before-reentry decisions: an explicit runtime RFC must choose one
+  path source and byte encoding; distinguish bytes from `int`/`char`; choose a
+  fixed-capacity-plus-initialized-count or owned dynamic representation; define
+  exact, partial, EOF, truncation, oversize, and mutation-race behavior; freeze
+  one typed error identity and platform mapping; define buffer and handle
+  movement, cleanup, and drop on every edge; own one checked acquisition
+  operation and verifier corruption boundary; freeze linker/runtime symbols and
+  process-entry or embedding transport; define the relative-path root, symlink,
+  sandbox, and determinism policy; and prove observably equivalent Linux and
+  Windows behavior. None is decided by this probe.
+- Explicitly rejected shortcuts: do not reuse the malformed-record six-zero
+  result, an exit code, a magic negative integer, or an uninitialized lane as an
+  acquisition error; do not call `int`, `char`, or `[int; 17]` a byte type or
+  slice; do not expose the current aggregate lowering as ABI; do not call host
+  compiler/module/LSP/registry file reads Aero runtime behavior; do not activate
+  legacy unchecked String/Vec helpers; and do not lower directly to a platform
+  function before semantic, ownership, checked-IR, and verifier authority.
+  Text decoding, serialization, async/streaming I/O, directories, writes, seeks,
+  networking, variable-capacity collections, and stable public ABI remain
+  preserved for later design rather than silently joining a first slice.
+- Phase result: a truthful minimum needs at least four production authorities:
+  (1) source/profile identity for the API, path, byte/buffer, result, and entry
+  transport; (2) semantic type, initialization, error, ownership, and drop
+  rules; (3) checked-IR representation plus verifier proof for acquisition and
+  partially initialized capacity; and (4) backend/runtime/link and
+  Linux/Windows platform mapping. Runner/embedding and sandbox policy add
+  another public surface. A feature-specific direct call or duplicate
+  classifier would not reduce this count and is prohibited.
+- Non-authority quarantine: Draft RFC 0001 remains a proposal whose exact error
+  types, core traits, iterators, async strategy, and advanced filesystem module
+  are unresolved. `stdlib.rs` is an uncalled simplified compatibility helper;
+  the checked verifier/backend reject its Vec and collection IR. Compiler and
+  module resolver `std::fs` calls read UTF-8 Aero source into Rust-owned values,
+  while the LSP, registry, verifier process, and `printf` output path are host
+  tooling with unrelated trust and ownership contracts. None can satisfy or
+  narrow the runtime RFC by analogy.
+- Frozen re-entry decision: reopen runtime acquisition only after the RFC makes
+  every required decision above, identifies one shared Linux/Windows ownership
+  and error authority, and demonstrates a complete useful slice within the
+  two-phase limit. A separately frozen host embedding API that supplies a
+  bounded byte buffer could avoid filesystem, handle, path, and partial-read
+  semantics, but it still needs byte identity, initialized length, ownership,
+  entry transport, checked verification, and ABI decisions. If that narrower
+  seam reaches the workload sooner, defer file acquisition rather than relabel
+  CAP-021. Carry this readiness record forward without changing cumulative
+  accepted capability documents until a later executable checkpoint requires
+  one synchronized truth update.
+
 ## CAP-021-ACCEPTANCE-SYNC - two-stage scoring product accepted truth
 
 - Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, local green bounded
