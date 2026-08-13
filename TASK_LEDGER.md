@@ -1,5 +1,141 @@
 # Aero Task Ledger
 
+## CAP-021-TENSOR-RECORD-SCORING-PRODUCT - source-embedded two-stage CPU gate
+
+- Date/task/status: 2026-08-12, `CAP-021-TENSOR-RECORD-SCORING-PRODUCT`,
+  semantics and evidence contract frozen for a red-first zero-production product
+  slice on `agent/cap-021-tensor-record-scoring-product` from exact protected
+  master `df0626916d190d8a7580f783e3ac24a89f691617`, tree
+  `5d473093e2d8b5ef8e30cb19bcc34de763869d91`. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and hypothesis: accepted CAP-020 proves one directly
+  initialized flat 2x3-by-3 matrix-vector computation, but no maintained
+  Aero-native product validates a source-embedded fixed record, decodes every
+  payload family through the shared guarded array authority, composes that
+  result into a second numerical stage, or exposes independent header,
+  intermediate, final, and wrapping oracles. The selected
+  `exact-i32-array-v0` profile already admits every required construct: bounded
+  nonempty flat exact-Int arrays, by-value parameters/results/calls, initialized
+  mutable flat locals, direct projected writes, dynamic guarded reads, `while`,
+  comparisons, and wrapping exact-Int add/multiply. The hypothesis is therefore
+  a zero-compiler-production application/evidence slice. Any required parser,
+  profile, semantic, checked-IR, verifier, or backend change falsifies the
+  hypothesis and triggers an immediate stop and rerank.
+- Frozen record identity and lane layout: “tensor record” is only an application
+  convention over one source-embedded flat `[int; 17]`; it is not a tensor,
+  matrix, struct, nested-array, serialization, layout, or ABI feature. Lanes
+  `0..2` are the exact header `[output_rows=2, input_columns=3, score_rows=1]`.
+  Lanes `3..5` are the three input values. Lanes `6..11` are the first-stage
+  2x3 weights in row-major order. Lanes `12..13` are the first-stage two-lane
+  bias. Lanes `14..15` are the second-stage two-lane weights. Lane `16` is the
+  scalar score bias. Every payload lane participates in the result. There is no
+  activation, quantization, division, checked-overflow arithmetic, alternate
+  lane order, or padding.
+- Frozen application shape and arithmetic order: one same-file specimen
+  `examples/fixed_int_array_v0/tensor_record_scoring.aero` defines the accepted
+  CAP-020-style `matvec_2x3([int; 6], [int; 3]) -> [i32; 2]`, then
+  `affine_2_to_1([int; 2], [int; 2], int) -> int`, then
+  `decode_and_score([int; 17]) -> [i32; 6]`, and `main() -> int`.
+  `decode_and_score` initializes its return to six zeros, dynamically copies
+  the header to a fully initialized mutable `[i32; 3]`, and decodes no payload
+  unless that header is exactly `[2, 3, 1]`. A valid record dynamically copies
+  input `[3]`, first-stage weights `[6]`, first-stage bias `[2]`, score weights
+  `[2]`, and score bias `[1]` from the record into fully initialized mutable flat
+  locals. It calls the matvec, forms hidden lane `i` as wrapping
+  `raw[i] + first_bias[i]` through guarded reads and a guarded local write, and
+  accumulates the score left-to-right from `score_bias` as wrapping
+  `score = score + hidden[i] * score_weight[i]`. It returns
+  `[valid, raw0, raw1, hidden0, hidden1, score]`. An invalid header returns the
+  initialized `[0, 0, 0, 0, 0, 0]` without decoding payload.
+- Frozen ordinary oracle: the exact ordinary record is
+  `[2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]`.
+  Its raw matvec result is `[122, 167]`; its biased hidden result is
+  `[135, 181]`; its final score is `4938`; and its complete scorer result is
+  `[1, 122, 167, 135, 181, 4938]`. Unique sequential payload values make lane
+  transposition or offset drift observable.
+- Frozen wrapping oracle: the exact wrapping record is
+  `[2, 3, 1, 2, -3, 5, 2147483647, 4, -2, -2147483648, -1, 3,
+  2147483647, 2147483647, 2147483647, -1, 13]`. Its raw matvec result is
+  `[-24, 18]`; first-stage bias produces `[2147483623, -2147483631]`;
+  second-stage products are `[25, 2147483631]`; left-to-right accumulation from
+  bias 13 produces final score `-2147483627`; and its complete scorer result is
+  `[1, -24, 18, 2147483623, -2147483631, -2147483627]`. This record exercises
+  wrapping in matvec multiplication/accumulation, first-stage bias addition,
+  second-stage multiplication, and final accumulation. LLVM arithmetic remains
+  ordinary `i32` add/mul with no `nsw`, `nuw`, vector, float, or cast claim.
+- Frozen negative and preservation oracles: `main` also scores the exact
+  malformed-header record
+  `[2, 4, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]` and requires
+  `[0, 0, 0, 0, 0, 0]`. It rereads and compares all 17 lanes of both valid
+  source records after their by-value calls, checks every lane of both six-lane
+  scorer results and the malformed result, returns sentinel 91 only when all
+  checks pass, and otherwise returns 1. Public execution must contain exactly
+  one `Exit code: 91` line; native O0/O2 executions must return 91 with empty
+  stdout and stderr. Test-local payload/header mutations must change or reject
+  the oracle rather than silently preserving the accepted result.
+- Frozen authority and evidence boundary: dynamic record reads and local-array
+  writes must use the existing signed lower/upper comparison, trap-before-GEP,
+  `sext`, typed aggregate GEP, and same-pointer load/store authority. Evidence
+  must identity-link loaded record values to the intended decoded local stores,
+  the row-major `row * 3 + column` value to the `[6 x i32]` guard/GEP/load,
+  hidden-index reads to the `[2 x i32]` write, and affine-index reads to the
+  second-stage accumulator. Capture symbolic SSA identities within exact
+  function bodies; never pin numeric `%regN`, `%ptrN`, or bounds-label suffixes.
+  Existing checked-IR schema/count/base/index/use-before-definition corruption
+  controls and the four accepted negative/equal read/write runtime trap fixtures
+  remain the independent invalid-program and trap-path authorities. CAP-021 adds
+  no duplicate bounds fixture, checked-IR opcode, or backend guard implementation.
+- Allowed implementation files and writer boundary: exactly `TASK_LEDGER.md`,
+  new force-tracked
+  `examples/fixed_int_array_v0/tensor_record_scoring.aero`,
+  `src/compiler/tests/fixed_int_array_profile_tests.rs`, and
+  `.github/workflows/rust.yml`. The example is intentionally under an ignored
+  directory and must be added explicitly, then proven tracked. No `.gitignore`,
+  compiler production source, dependency, accepted CAP-019/CAP-020 specimen,
+  existing runtime-failure fixture, other test, document, job, or named workflow
+  step may change in this implementation PR. Accepted-truth documentation and
+  its claim contract belong to a later separate protected synchronization only
+  after fresh merge-head acceptance.
+- Red-first checkpoint contract: after this ledger authorization is committed,
+  add the exact specimen and focused regression only. The regression must freeze
+  the source bytes, independent Rust wrapping calculations and every
+  intermediate, selected-profile check/build/public routes, deterministic exact
+  LLVM, aggregate signatures/calls/returns, source preservation, invalid-header
+  gating, exact identity-linked guard/load/store paths, representation
+  exclusions, and unchanged CAP-019/CAP-020 and corruption/trap controls. The
+  dedicated target must compile with all product/compiler assertions green and
+  fail only because both existing Linux and Windows exact-profile workflow steps
+  lack the named CAP-021 specimen and structural/native/public evidence. Commit
+  that intentional red before workflow work. Do not weaken an existing test or
+  accept a different red reason.
+- Green and acceptance contract: green may edit only the bodies of the two
+  existing exact-profile workflow steps. Add one scorer descriptor to each
+  existing specimen list and a scorer-specific, function-scoped structural
+  branch; preserve job/step names and counts, the CAP-019 kernel count/mutation
+  proof, the CAP-020 matvec guard/identity proof, wrapping exclusions, and the
+  exact four-name bounds loops. Both platforms must run selected-profile check,
+  verifier-required build, deterministic LLVM checks, `opt` verification,
+  `llvm-as`, `llc -verify-machineinstrs`, Clang O0/O2, public run, exact exit 91,
+  and empty native streams. Run the focused test, formatting/diff checks, then
+  root `./tools/test.sh`; obtain independent scope/architecture/native audits;
+  publish a draft PR from an immutable candidate; require exact-head protected
+  CI/Rust/CodeQL and Windows LLVM 22 evidence; merge only through protection;
+  require fresh exact merge-head checks and unchanged alert chronology before
+  acceptance. Then synchronize cumulative public truth in its own ledger-first
+  protected PR.
+- Risks and mandatory stops: stop immediately if the complete specimen requires
+  any new syntax, source type, profile exception, compiler production change,
+  partial/uninitialized array, whole-array assignment, unchecked or manually
+  linearized address, different arithmetic order, new activation/quantization,
+  module/import, external bytes or runtime I/O, stable layout/ABI, performance,
+  accelerator, generalized tensor/matrix, recursive-array, safety, or inference
+  claim. Stop if any source lane is not reread, invalid header can produce a
+  valid result, an intermediate/final oracle drifts, unsupported/corrupt state
+  reaches IR/backend generation, the slice needs a second bounds/type authority,
+  either OS cannot prove exact O0/O2/native/public parity, or the worktree scope
+  exceeds the four authorized files.
+
 ## CAP-020-ACCEPTANCE-SYNC - flat matvec product accepted truth
 
 - Date/task/status: 2026-08-12, `CAP-020-ACCEPTANCE-SYNC`, authorized bounded
