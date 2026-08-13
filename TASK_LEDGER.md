@@ -275,6 +275,25 @@
   and empty application streams. It is diagnostic smoke only and must not be
   committed because the subsequent regular-file/OSError aggregate hardening
   changes the claim-bound tool hash; a fresh exact-head capture is mandatory.
+  The mandatory replacement capture on exact hardened head
+  `5a9e6343779949f696038eff152ce17923de41a9` is run `31753210490`: Linux job
+  `94623307972`, Windows job `94623308167`, and aggregate job `94624536813`
+  all completed successfully. Its Linux/Windows/aggregate transport artifacts
+  are respectively `9201871876`/`9201844448`/`9201876232` with archive digests
+  `5c9bca45eb1c9c124b0928a44c8d5051ba46969af215af92b3835430f98deb16`,
+  `27d24520abb5f2a87bf2880a3a1b4cf6246a684db97cbfc64f0538d7d31e11c2`,
+  and `541c5945294a92cd7424fb1e0d9c90ad78a463c57cb7d02d9e56fad19eb28f1b`.
+  The reviewed canonical manifest is 83,890 bytes, SHA-256
+  `19b05e921b027b22c0c3fb1b9d85b568d1f4f331e71498b7f0f729c14f874a97`.
+  Standard-library bundle validation and verify-only replay pass; an independent
+  strict/canonical JSON and byte-record audit proves the exact subject/tree/
+  parent order, two ordered platforms, zero root/platform failures, 21 commands
+  and five equal artifact pairs per platform, exact sentinel-91 native/public
+  results, empty application streams, seven pinned final tools, and exactly 48
+  replay exclusions. The focused Rust contract is now 6/6. This is the accepted
+  candidate manifest input, not final acceptance: after its commit, a fresh
+  exact-head two-platform capture must match the closed projection and emit all
+  48 excluded observations separately before the root/protected gates close.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,
