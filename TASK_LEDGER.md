@@ -213,12 +213,12 @@
     standard library. Each platform job must build `.ll`, `.bc`, `.s`, `O0`,
     and `O2` twice at canonical paths; run LLVM verifier, `llvm-as`,
     machine-instruction verification, native `O0`/`O2`, and the public route;
-   compare every artifact pair; and upload only canonical textual records for
-   aggregation. The aggregate job must require both platforms. In initial
-   capture mode it must emit the candidate canonical manifest; in replay mode it
-   must validate the tracked bundle and compare the closed canonical projection
-   byte-for-byte, permitting differences only in the separately reported fresh
-   runner-image and kernel observation values.
+    compare every artifact pair; and upload only canonical textual records for
+    aggregation. The aggregate job must require both platforms. In initial
+    capture mode it must emit the candidate canonical manifest; in replay mode it
+    must validate the tracked bundle and compare the closed canonical projection
+    byte-for-byte, permitting differences only in the separately reported fresh
+    runner-image and kernel observation values.
   - Run the focused contract, the existing fixed-array profile target, Python
     validator/oracle mutations, formatting/diff checks, then repository-root
     `./tools/test.sh`. Require exact candidate-head existing protected checks
