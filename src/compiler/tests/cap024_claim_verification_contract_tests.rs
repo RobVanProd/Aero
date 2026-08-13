@@ -1357,6 +1357,7 @@ fn command_environment(platform: &str, name: &str) -> Value {
     json!({
         "inheritance": command_inheritance(name),
         "overrides": json!({
+            "CARGO_HOME": format!("${{WORK}}/{platform}/cargo-home"),
             "CARGO_NET_OFFLINE": "true",
             "LC_ALL": "C",
             "RUSTC": format!("${{RUST}}/bin/rustc{suffix}"),
@@ -1421,6 +1422,8 @@ fn expected_command_spec(
                     "${SUBJECT}/src/compiler".into(),
                     "${SUBJECT}/src/compiler/Cargo.toml".into(),
                     "${SUBJECT}/src/compiler/Cargo.lock".into(),
+                    format!("${{WORK}}/{platform}/cargo-home/config.toml"),
+                    format!("${{WORK}}/{platform}/cargo-vendor"),
                 ],
                 vec![output],
                 0,
@@ -1868,6 +1871,7 @@ fn fixture_schema() -> Value {
         (
             "overrides",
             closed_object_schema(vec![
+                ("CARGO_HOME", string_schema()),
                 ("CARGO_NET_OFFLINE", string_schema()),
                 ("LC_ALL", string_schema()),
                 ("RUSTC", string_schema()),
@@ -2976,14 +2980,15 @@ fn validate_manifest(value: &Value) -> Result<(), String> {
             "${WORK}/linux-x86_64/linux-start.S"
         };
         let mut available: BTreeSet<String> = [
-            "${SUBJECT}/src/compiler/Cargo.toml",
-            "${SUBJECT}/src/compiler/Cargo.lock",
-            "${SUBJECT}/src/compiler",
-            "${SUBJECT}/examples/fixed_int_array_v0/relu_argmax_inference.aero",
-            support_path,
+            "${SUBJECT}/src/compiler/Cargo.toml".to_owned(),
+            "${SUBJECT}/src/compiler/Cargo.lock".to_owned(),
+            "${SUBJECT}/src/compiler".to_owned(),
+            "${SUBJECT}/examples/fixed_int_array_v0/relu_argmax_inference.aero".to_owned(),
+            format!("${{WORK}}/{name}/cargo-home/config.toml"),
+            format!("${{WORK}}/{name}/cargo-vendor"),
+            support_path.to_owned(),
         ]
         .into_iter()
-        .map(str::to_owned)
         .collect();
         for command_name in COMMAND_NAMES {
             let command = object(commands.get(command_name).unwrap(), "command")?;
@@ -3573,6 +3578,8 @@ fn fixture_workflow_text() -> String {
         "needs.capture-windows.result",
         "canonical-failure-record",
         "workflow-acquisition-only",
+        "RUSTUP_TOOLCHAIN: \"1.97.1\"",
+        "rustup toolchain install 1.97.1 --profile minimal --no-self-update",
         "verify final cargo rustc clang lld opt llvm-as llc payloads and versions",
         CHECKOUT_ACTION,
         UPLOAD_ACTION,
@@ -3582,6 +3589,7 @@ fn fixture_workflow_text() -> String {
         "python tools/cap024_inference_evidence.py --mode capture --platform linux-x86_64",
         "python tools/cap024_inference_evidence.py --mode capture --platform windows-x86_64",
         "python tools/cap024_inference_evidence.py --mode aggregate",
+        "python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json",
         "      - name: Replay accepted master merge head\n        if: github.event_name == 'push' && github.ref == 'refs/heads/master'\n        run: python tools/cap024_inference_evidence.py --mode replay --bundle claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813 --verify-only",
         "core.autocrlf false",
         "CARGO_NET_OFFLINE",
@@ -3617,6 +3625,11 @@ fn fixture_tool_text() -> String {
         "b95dbd79fd7b976862149e5635e148b9a9d2bbf20b2c3912a1f8d76c227379bb",
         "LINUX_START_SIZE = 205",
         "windows-chkstk.S",
+        "import tomllib",
+        "https://static.crates.io/crates/",
+        "def materialize_locked_vendor(",
+        ".cargo-checksum.json",
+        "target-byte dependency vendor must be lockfile-complete",
         "b971f9c51534aff82d774c26b6a6f2312a3beeac5e1710a69f3d88bd5671f376",
         "WINDOWS_CHKSTK_SIZE = 378",
         "-nostdlib",
@@ -3684,6 +3697,7 @@ fn fixture_tool_text() -> String {
         "workflow-acquisition-only",
         "runner-substrate-observation-only",
         "\"inheritance\": \"none\"",
+        "\"CARGO_HOME\"",
         "verify final cargo rustc clang lld opt llvm-as llc payloads and versions",
         "capture exceptions become failure records",
         "sorted-compact-json-plus-lf-v1",
@@ -3885,6 +3899,9 @@ fn reject_affirmative_performance_prose(
 
 fn validate_workflow(text: &str) -> Result<(), String> {
     for required in [
+        "RUSTUP_TOOLCHAIN: \"1.97.1\"",
+        "rustup toolchain install 1.97.1 --profile minimal --no-self-update",
+        "--fresh-manifest ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/manifest.json --emit-fresh-observations ${{ env.CAP024_TRANSPORT_ROOT }}/aggregate/fresh-observations.json",
         CHECKOUT_ACTION,
         UPLOAD_ACTION,
         DOWNLOAD_ACTION,
@@ -3965,6 +3982,11 @@ fn validate_workflow(text: &str) -> Result<(), String> {
 
 fn validate_tool(text: &str) -> Result<(), String> {
     for required in [
+        "import tomllib",
+        "https://static.crates.io/crates/",
+        "def materialize_locked_vendor(",
+        ".cargo-checksum.json",
+        "target-byte dependency vendor must be lockfile-complete",
         "argparse",
         "base64",
         "hashlib",
@@ -4072,6 +4094,7 @@ fn validate_tool(text: &str) -> Result<(), String> {
             "canonical-failure-record",
             "runner-substrate-observation-only",
             "\"inheritance\": \"none\"",
+            "\"CARGO_HOME\"",
             "capture exceptions become failure records",
             "sorted-compact-json-plus-lf-v1",
             "{\"mode\":\"self-test\",\"ok\":true}",

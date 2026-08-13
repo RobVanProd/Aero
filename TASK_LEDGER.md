@@ -65,6 +65,17 @@
     Both capture lanes must disable checkout line-ending conversion, prove
     worktree bytes equal these canonical blob identities before execution, and
     stop rather than record a transformed input.
+  - Dependency acquisition is derived only from the canonical
+    `src/compiler/Cargo.lock` bytes. The standard-library capture tool must
+    parse its version-4 package records, require every nonlocal package to use
+    the crates.io registry source and carry one exact SHA-256 checksum, acquire
+    each exact name/version `.crate` payload, verify that payload against the
+    lockfile checksum before extraction, and construct a per-platform closed
+    Cargo vendor directory plus checksum metadata. Both compiler builds must
+    use that vendor through one explicit per-platform `CARGO_HOME` and remain
+    `--locked --offline`; a hosted-runner Cargo cache, live registry resolution,
+    unchecksummed package, alternate source, or undeclared dependency is a
+    mandatory stop and never an evidence input.
   - Application semantics remain exactly the accepted CAP-023 contract: seven
     source-embedded `[int; 20]` records with header `[2, 3, 2]`, wrapping-`i32`
     intermediates, strict-positive clamp, two biased logits, signed
@@ -132,6 +143,9 @@
     both compilers to emit the same LLVM bytes. Compiler-executable byte
     identity is recorded for traceability but is not a claim: only the emitted
     CAP-023 artifacts and behavior are required to reproduce.
+    The workflow must select `RUSTUP_TOOLCHAIN=1.97.1`, and the tool must choose
+    an installed exact-`1.97.1` payload before considering any runner default;
+    a floating or different default toolchain may not select the capture tools.
   - Linux uses official
     `LLVM-22.1.8-Linux-X64.tar.xz`, 1,938,859,476 bytes, SHA-256
     `df0e1ecf16caf3489a272a5eea4eec9b0d82878f6477fa309504f918a0006384`.
@@ -209,7 +223,12 @@
   reproduction contract, and dedicated two-OS capture plus aggregate workflow.
   Open a draft protected PR to transport the first platform manifests, commit
   the canonical aggregate bundle, and require a fresh exact-head workflow
-  replay to match it. No compiler production, source specimen, selected
+  replay to match it. Before the tracked manifest exists, aggregate emits only
+  the candidate manifest for review and commit. Once it exists, every PR or
+  manual two-platform capture must feed that fresh aggregate manifest to replay,
+  compare the closed canonical projection byte-for-byte, and emit the exact 48
+  fresh observation leaves separately; validation-only replay is not fresh
+  platform evidence. No compiler production, source specimen, selected
   profile, existing Rust workflow, Cargo dependency, benchmark harness,
   performance protocol, release, or unrelated documentation change is
   authorized.
