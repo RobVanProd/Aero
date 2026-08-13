@@ -135,6 +135,45 @@
   reaches IR/backend generation, the slice needs a second bounds/type authority,
   either OS cannot prove exact O0/O2/native/public parity, or the worktree scope
   exceeds the four authorized files.
+- Authorization checkpoint: ledger-only commit
+  `46b1cfd77d3dddc6ee02e4b8fa48a107d5489895` freezes the exact schema, lane
+  offsets, arithmetic order, observable six-lane result, ordinary/wrapping and
+  malformed-header oracles, source-preservation rule, four-file boundary,
+  red/green split, and zero-production stop conditions before any product source
+  or test change.
+- Intentional-red checkpoint: commit
+  `f453303e4eb437028b01f7153c1fcdbdf1549cd7` force-tracks the exact scorer
+  specimen and adds the focused regression only. On the final red bytes, the
+  locked `fixed_int_array_profile_tests` target is intentionally `18/19`: every
+  product, oracle, checked-IR, public route, source-preservation, CFG, guard,
+  initialization, corruption, and prior CAP-019/CAP-020 assertion passes; the
+  sole final failure collects the absent scorer descriptor and structural
+  evidence from both existing OS workflow steps. Independent architecture and
+  evidence reviews found no remaining P0-P2 in the red contract.
+- Workflow-only green checkpoint: commit
+  `c487076c003e55d51e8aa5984c658fc3aca35f2c`, tree
+  `23c1afd8fb7ccc037dfd90efad3a4490f0cbbd20`, changes only the bodies of the
+  existing exact-profile workflow steps. The locked focused target passes
+  `19/19`. Linux PCRE and Windows .NET match the exact emitted scorer LLVM with
+  decoder function 1, six decode chains, five explicit payload-bound identities,
+  hidden chain 1, affine chain 1, matvec chain 1, decoder-scoped guards 15, and
+  module-wide guards 22. Job topology remains four jobs and 83 byte-identical
+  named steps; the CAP-019 kernel, wrapping control, CAP-020 matvec, and four
+  read/write trap controls remain present. Two read-only final green audits found
+  no P0-P2 or masking path. The required root `./tools/test.sh` passes on these
+  exact executable bytes.
+- Independent native/public checkpoint: pinned LLVM 22.1.8 Windows evidence on
+  exact green commit `c487076c003e55d51e8aa5984c658fc3aca35f2c` passes all
+  eight selected-profile check/build lanes, `opt`, `llvm-as`,
+  `llc -verify-machineinstrs`, Clang O0/O2, native stream/exit checks, and public
+  execution. Positive O0/O2/public exits are kernel 91, wrapping 93, matvec 91,
+  and scorer 91; each public run has exactly one exit line. All four read/write
+  trap controls fail nonzero (`-1073741795` natively) with empty native streams.
+  The two verifier-required scorer builds are byte-identical at LLVM SHA-256
+  `055A9E2EE5F6B97FAFD1D28A98AE3CEB4F319B4B91EBC21C9F7867C7215AC643`.
+  Exact-head protected CI, protected integration, fresh merge-head checks, and a
+  separate accepted-truth synchronization remain mandatory; none of this local
+  evidence is accepted public truth yet.
 
 ## CAP-020-ACCEPTANCE-SYNC - flat matvec product accepted truth
 
