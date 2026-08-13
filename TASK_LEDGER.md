@@ -1,5 +1,229 @@
 # Aero Task Ledger
 
+## CAP-021-ACCEPTANCE-SYNC - two-stage scoring product accepted truth
+
+- Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, local green bounded
+  record/claim-contract synchronization pending exact-head protected evidence on
+  `agent/cap-021-accepted-truth-sync`
+  from exact protected master `59af445ea02c1759d337d698be9c4f4472587aaf`,
+  tree `7e34b4b8e817a7aafaaabc6326fa0a4d616fcc91`. Its ordered parents are
+  accepted base `df0626916d190d8a7580f783e3ac24a89f691617`, then reviewed
+  candidate `f91df56084540d30f3c8d09e71c5f30db280fd93`; the merge tree
+  exactly preserves the candidate tree. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope. Quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and observability defect: protected PR #60 accepted CAP-021.
+  Exact candidate push CI `31670574143`, PR CI `31670599830`, Rust CI
+  `31670599826`, and CodeQL `31670598033` passed, including aggregate
+  candidate check `94354297550`. Candidate jobs are push compiler
+  `94354135184`, PR compiler `94354214336`, stable `94354214389`, nightly
+  `94354214394`, Windows LLVM 22 `94354214410`, and CodeQL
+  Actions/Python/Rust `94354210797`/`94354210770`/`94354210832`; exact
+  candidate analyses are Actions `1611711722`, Python `1611712334`, and Rust
+  `1611716646`, each with zero results. Fresh merge-head CI `31671091285`,
+  Rust CI `31671091296`, and CodeQL `31671091099` passed. Merge jobs are
+  compiler `94355683766`, stable `94355683532`, nightly `94355683515`,
+  Windows LLVM 22 `94355683534`, and CodeQL Actions/Python/Rust
+  `94355685544`/`94355685480`/`94355685574`; exact default-branch analyses
+  are Actions `1611737053`, Python `1611737605`, and Rust `1611740699`.
+  The PR-only aggregate is correctly absent on the default branch. The sole
+  open finding remains pre-existing Actions alert #4 from 2026-08-09; no new
+  CAP-021 alert surfaced. Cumulative public truth still stops at CAP-020 and
+  therefore presents the accepted two-stage scorer as only a proposed next
+  action.
+- Canonical accepted evidence paragraph: Exact CAP-021 reviewed candidate
+  `f91df56084540d30f3c8d09e71c5f30db280fd93`, shared candidate/merge tree
+  `7e34b4b8e817a7aafaaabc6326fa0a4d616fcc91`, accepted base and first merge
+  parent `df0626916d190d8a7580f783e3ac24a89f691617`, and protected PR #60
+  merge `59af445ea02c1759d337d698be9c4f4472587aaf` whose second parent is that
+  candidate are immutable. Candidate push CI `31670574143`, PR CI
+  `31670599830`, Rust CI `31670599826`, CodeQL `31670598033`, and aggregate
+  candidate check `94354297550`; candidate push/PR compiler jobs
+  `94354135184`/`94354214336`, stable/nightly/Windows LLVM 22 jobs
+  `94354214389`/`94354214394`/`94354214410`, CodeQL Actions/Python/Rust jobs
+  `94354210797`/`94354210770`/`94354210832`, and Actions/Python/Rust analyses
+  `1611711722`/`1611712334`/`1611716646`; merge-head CI/Rust CI/CodeQL
+  `31671091285`/`31671091296`/`31671091099`, exact merge
+  compiler/stable/nightly/Windows LLVM 22 jobs
+  `94355683766`/`94355683532`/`94355683515`/`94355683534`, merge CodeQL
+  Actions/Python/Rust jobs `94355685544`/`94355685480`/`94355685574`, and
+  default-branch Actions/Python/Rust analyses
+  `1611737053`/`1611737605`/`1611740699` all pass.
+- Frozen accepted product boundary: accepted CAP-021 changes no parser, grammar,
+  source semantics, language profile, semantic analysis, checked IR, verifier,
+  backend, ABI, or capability classification; it is a zero-production
+  product/evidence checkpoint over CAP-019's `exact-i32-array-v0` surface and
+  composes the accepted CAP-020 flat matvec. The application treats one
+  source-embedded flat `[int; 17]` as an application record with exact header
+  `[2, 3, 1]`, dynamically decodes input, row-major first-stage weights,
+  first-stage bias, second-stage weights, and score bias into fully initialized
+  flat locals, then composes the accepted 2x3 matvec with wrapping bias and
+  affine scoring. It returns `[valid, raw0, raw1, hidden0, hidden1, score]`.
+  The ordinary result is `[1, 122, 167, 135, 181, 4938]`; the wrapping result
+  is `[1, -24, 18, 2147483623, -2147483631, -2147483627]`; an invalid header
+  returns six zeros. The maintained application rereads all 17 lanes of both
+  valid source records, preserves them across by-value calls, and exits 91.
+  Every dynamic read and write uses the existing signed bounds,
+  trap-before-address, `sext`, typed-GEP, and same-pointer consumer authority;
+  exact public and pinned Linux/Windows LLVM 22 verifier, O0/O2, native, and
+  deterministic-emission evidence passes.
+- Frozen claim exclusions and history: CAP-021 adds no tensor, matrix, struct,
+  record, recursive-array, nested-array, serialization, runtime/file-input,
+  quantization, activation, checked-overflow, stable layout/ABI, performance,
+  accelerator, safety, general inference, or language-completion capability.
+  The flat record is an application convention, not a source or physical type.
+  CAP-019 remains the latest compiler/profile capability widening; CAP-020 and
+  CAP-021 are accepted product gates, not separate profiles or feature rows.
+  Preserve CAP-014 as the selected CPU-only profile origin, CAP-018 as immutable
+  flat array-result composition, CAP-019 as the bounded mutable flat-array
+  result widening, CAP-015 as the representative M1-001 integration checkpoint,
+  CAP-016/CAP-017 as completed architecture/readiness stops rather than
+  capabilities, and CAP-013 as the specialization identity/phase authority.
+- Frozen post-CAP-021 ranking (all six scores use 1-to-5 and higher is always
+  favorable, including risk and evidence cost):
+
+  | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+  | 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
+  | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
+
+  CAP-021 consumes the former rank-1 product authorization and makes runtime
+  acquisition the next hard boundary. Roadmap Milestone 3 independently names
+  binary/tensor ingestion and a small quantized numerical kernel; both remain
+  architecture/readiness and task-local red-probe work because their runtime,
+  ownership, representation, arithmetic, and error contracts are unfrozen.
+  Recursive syntax remains deferred because flat encoding now serves both the
+  matvec and complete record-to-score workload. None of the three rows
+  authorizes production implementation.
+- Frozen post-CAP-021 Roadmap decision clauses, in required order:
+
+  1. Before rank 1, accepted CAP-021 validates and scores one source-embedded
+     fixed `[int; 17]` record, but no trusted Aero source program acquires
+     external bytes. After rank 1 readiness, a task-local cross-platform probe
+     and architecture map must locate the first failure and freeze path and byte
+     identity, capacity and initialized count, partial-read and EOF behavior,
+     typed error mapping, ownership and drop, runtime linkage, sandboxing and
+     determinism, and Linux and Windows behavior, either yielding one bounded
+     implementation contract within two compiler phases or an explicit
+     mandatory stop without claiming I/O capability.
+  2. Stop rank 1 before implementation if any contract item remains unfrozen,
+     if allocation, drop, or runtime ABI must be invented, if platform behavior
+     cannot be made equivalent and observable, if a useful slice crosses more
+     than two compiler phases, or if invalid acquisition can reach trusted IR or
+     backend generation without typed failure.
+  3. Evidence that a caller-provided bounded byte slice can feed the accepted
+     record-to-score boundary without filesystem or runtime acquisition
+     semantics would narrow the readiness target or defer later rank 1
+     implementation; an explicit runtime RFC plus a probe demonstrating one
+     shared cross-platform ownership and error authority within the phase limit
+     would permit later implementation ranking.
+  4. Before rank 2, accepted CAP-021 executes exact wrapping `i32` matvec, bias,
+     and affine scoring, but Aero has no frozen quantized representation,
+     conversion, or arithmetic contract and no maintained quantized oracle.
+     After rank 2 readiness, a task-local source-embedded red probe and
+     architecture map must locate the first failure and freeze stored,
+     accumulator, and result types and domains; scale and zero-point presence,
+     representation, and scope; rounding and tie behavior; saturation and
+     overflow behavior; conversion boundaries and operation order; calibration
+     provenance; malformed-state rejection; the reference oracle; and Linux
+     and Windows equivalence, either yielding one bounded implementation
+     contract within two compiler phases or an explicit mandatory stop without
+     claiming quantization capability.
+  5. Stop rank 2 before implementation if any arithmetic or representation
+     decision remains unfrozen, if the slice requires implicit conversion,
+     fallback typing, or a second numerical authority, if it silently changes
+     CAP-021 wrapping order or semantics, if malformed quantization state can
+     reach trusted IR or backend generation, if a useful slice crosses more
+     than two compiler phases, or if deterministic Linux and Windows oracle
+     parity cannot be proved.
+  6. Evidence that external-byte ownership and error semantics must be
+     established before a quantized oracle can be meaningful, or that an
+     exact-`i32` kernel advances the next workload without lossy representation, would
+     defer rank 2 implementation; an explicit quantization RFC plus a probe
+     demonstrating one shared cross-platform representation, arithmetic, and
+     error authority within the phase limit would permit later implementation
+     ranking.
+  7. Before rank 3, accepted CAP-021 proves fixed-record decode and two-stage
+     scoring through flat `[int; 17]`, `[int; 6]`, `[int; 3]`, and `[int; 2]`
+     storage while `exact-i32-array-v0` deliberately rejects nested arrays.
+     After rank 3 readiness, only if it is reopened, a task-local
+     `[[int; 3]; 2]` red probe and topology map must freeze depth,
+     dimension-product bounds, value placements, nested mutation and alias
+     rules, and nested-versus-flat physical identity under one source and
+     physical shape authority, or record a mandatory stop without claiming
+     recursive arrays.
+  8. Stop rank 3 before implementation while flat encoding serves the target
+     workload, or if any recursive-shape decision remains unfrozen, admission
+     and lowering cannot share one canonical shape, the slice exceeds two
+     compiler phases, or it requires stable aggregate layout or ABI, aliases,
+     or rank-specific classifiers.
+  9. Evidence of a concrete workload that flat buffers materially obscure,
+     together with an explicit bounded shape decision and a probe proving one
+     shared source and physical authority within two phases, would restore
+     recursive arrays to implementation ranking; CAP-021's clean flat
+     record-to-score execution otherwise keeps them deferred.
+- Allowed files and writer boundaries: exactly `TASK_LEDGER.md`, `README.md`,
+  `CURRENT_CAPABILITY_AUDIT.md`, `FRAMEWORK_ALIGNMENT.md`, `PROJECT_STATE.md`,
+  `SPEC_IMPLEMENTATION_MATRIX.md`, `Roadmap.md`, `CONFORMANCE_PLAN.md`, and
+  `src/compiler/tests/version_claim_contract_tests.rs`. Writer assignments must
+  be non-overlapping. No production source, example, workflow, fixture,
+  dependency, other test, or historical document may change. This record sync
+  must be a separate protected PR and must not rewrite the accepted CAP-021
+  implementation commits.
+- Red-first claim-contract and matrix requirements: after this ledger
+  authorization is committed, update only the dedicated version-claim contract
+  and require an intentional failure solely because the seven cumulative
+  documents still lack accepted CAP-021 truth. Bind one rendered, unfenced,
+  canonical labeled CAP-021 evidence paragraph per document; the exact thirty-three
+  evidence identities, roles, order, global uniqueness, and immediate `all
+  pass.` conclusion; accepted product/history/exclusion/alert boundaries;
+  punctuation-resistant stale CAP-020 current/ranking and contradictory CAP-021
+  status/product/oracle checks; one exact current three-row table; all nine
+  ordered Roadmap clauses; retained historical ranking blocks; readiness-only
+  successor guards; and rendered Markdown table topology. The matrix must
+  retain the exact selected `exact-i32-array-v0` `END_TO_END` row, preserve the
+  closed classification vocabulary, contain no CAP-021 language/profile row,
+  and record CAP-021 only by extending the existing sole CPU `PARTIAL` row.
+- Red-first chronology: authorization commit
+  `1ca2719a6c73cbf34391a540a43ca50397a0fbae` precedes the initial claim-contract
+  red `33a51a72b4ceb90f240ec07e5200d5cc44b80344`. Final adversarial review found
+  two contract-attribution false-greens, so test-only corrective-red commit
+  `8111de4611a7821ea6b46c42fba22a020f8ae0f2` adds their mutation controls plus
+  bounded rendered-Markdown,
+  oracle, readiness, ordering, and history hardening. An isolated detached
+  execution of that exact corrective-red tree remains intentionally 6/8, with
+  only the stale README and PROJECT_STATE accepted-truth assertions failing;
+  no document bytes are part of that checkpoint.
+- Green and acceptance contract: update all seven cumulative truth documents
+  without changing the test contract, run the locked focused claim target,
+  formatting and diff checks, then root `./tools/test.sh`; obtain fresh
+  read-only factual, adversarial-contract, and cumulative-diff audits; publish
+  an immutable exact nine-file draft candidate; require exact-head protected
+  CI/Rust/CodeQL and Windows LLVM 22 evidence; merge only through protection;
+  require fresh exact merge-head checks, correct absence of the PR-only
+  aggregate, and unchanged alert chronology before calling the synchronization
+  accepted. Finally synchronize the merged PR title/body to that exact accepted
+  evidence and verify rendered metadata without a BOM.
+- Local green checkpoint: the locked focused
+  `version_claim_contract_tests` target passes 8/8, `cargo fmt --check` passes,
+  `git diff --check` passes, and the root `./tools/test.sh` baseline gate passes
+  on the complete nine-file synchronization diff. These results authorize
+  formation of the immutable candidate only; exact-head protected checks,
+  protected merge, fresh merge-head checks, alert chronology, and rendered
+  merged-PR metadata remain mandatory before acceptance.
+- Risks and stop conditions: risks are calling the flat application record a
+  tensor/record/matrix source feature, calling CAP-021 a compiler/profile
+  widening, erasing CAP-019/CAP-020 history, overstating alert-free CodeQL,
+  publishing detached or mislabeled evidence, promoting readiness to
+  implementation, inventing quantization or runtime semantics, or weakening the
+  claim contract with raw/fenced Markdown or nonlocal claim attribution. Stop
+  if any factual identity is unresolved, ranking semantics are ambiguous, a
+  writer needs another file, a concrete contradictory claim false-greens, a
+  truthful boundary false-reds, the focused/root gate is red, the diff exceeds
+  nine files, or protected exact-head/merge-head evidence does not pass. Do not
+  change public truth to hide a failure.
+
 ## CAP-021-TENSOR-RECORD-SCORING-PRODUCT - source-embedded two-stage CPU gate
 
 - Date/task/status: 2026-08-12, `CAP-021-TENSOR-RECORD-SCORING-PRODUCT`,

@@ -2,11 +2,32 @@
 
 Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
-Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-12
+Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-13
 
 Current accepted public master:
-protected CAP-020 product merge and its accepted tree, with the exact
+protected CAP-021 product merge and its accepted tree, with the exact
 immutable identities recorded once in the evidence paragraph below.
+
+### CAP-021 accepted: source-embedded two-stage exact-i32 scoring product
+
+Accepted CAP-021 is a zero-production product/evidence checkpoint for one
+source-embedded flat-record two-stage exact-`i32` CPU scoring application.
+
+Accepted CAP-021 changes no parser, grammar, source semantics, language profile, semantic analysis, checked IR, verifier, backend, ABI, or capability classification; it is a zero-production product/evidence checkpoint over CAP-019's `exact-i32-array-v0` surface and composes the accepted CAP-020 flat matvec.
+
+The accepted application treats one source-embedded flat `[int; 17]` as an application record with exact header `[2, 3, 1]`, dynamically decodes input, row-major first-stage weights, first-stage bias, second-stage weights, and score bias into fully initialized flat locals, then composes the accepted 2x3 matvec with wrapping bias and affine scoring.
+
+The accepted scorer returns `[valid, raw0, raw1, hidden0, hidden1, score]`; its ordinary result is `[1, 122, 167, 135, 181, 4938]`, its wrapping result is `[1, -24, 18, 2147483623, -2147483631, -2147483627]`, an invalid header returns six zeros, both valid source records preserve and reread all 17 lanes, and the application exits `91`.
+
+Every dynamic read and write uses the existing signed bounds, trap-before-address, `sext`, typed-GEP, and same-pointer consumer authority; exact public and pinned Linux/Windows LLVM 22 verifier, O0/O2, native, and deterministic-emission evidence passes.
+
+Exact CAP-021 reviewed candidate `f91df56084540d30f3c8d09e71c5f30db280fd93`, shared candidate/merge tree `7e34b4b8e817a7aafaaabc6326fa0a4d616fcc91`, accepted base and first merge parent `df0626916d190d8a7580f783e3ac24a89f691617`, and protected PR #60 merge `59af445ea02c1759d337d698be9c4f4472587aaf` whose second parent is that candidate are immutable. Candidate push CI `31670574143`, PR CI `31670599830`, Rust CI `31670599826`, CodeQL `31670598033`, and aggregate candidate check `94354297550`; candidate push/PR compiler jobs `94354135184`/`94354214336`, stable/nightly/Windows LLVM 22 jobs `94354214389`/`94354214394`/`94354214410`, CodeQL Actions/Python/Rust jobs `94354210797`/`94354210770`/`94354210832`, and Actions/Python/Rust analyses `1611711722`/`1611712334`/`1611716646`; merge-head CI/Rust CI/CodeQL `31671091285`/`31671091296`/`31671091099`, exact merge compiler/stable/nightly/Windows LLVM 22 jobs `94355683766`/`94355683532`/`94355683515`/`94355683534`, merge CodeQL Actions/Python/Rust jobs `94355685544`/`94355685480`/`94355685574`, and default-branch Actions/Python/Rust analyses `1611737053`/`1611737605`/`1611740699` all pass.
+
+CAP-021 adds no tensor, matrix, struct, record, recursive-array, nested-array, serialization, runtime/file-input, quantization, activation, checked-overflow, stable layout/ABI, performance, accelerator, safety, general inference, or language-completion capability; the flat record is an application convention, not a source or physical type.
+
+CAP-019 remains the latest compiler/profile capability widening; CAP-020 and CAP-021 are accepted product gates, not separate profiles or feature rows.
+
+The PR-only aggregate CodeQL check is correctly absent on the default branch; the sole open finding remains pre-existing Actions alert #4 from 2026-08-09, and no new CAP-021 alert surfaced.
 
 ### CAP-020 accepted: flat-buffer 2x3-by-3 matvec product gate
 
@@ -180,23 +201,28 @@ General error propagation,
 variable-width inputs, dynamic collections, allocation/drop, I/O, public ABI,
 safety, performance, releases, and whole-language completion remain excluded.
 
-The post-CAP-020 order begins with the source-embedded fixed-shape tensor-record decode
-plus two-stage flat-buffer exact-`i32` CPU scoring product gate:
+The post-CAP-021 order begins with runtime byte/file acquisition readiness and a red probe under one cross-platform bounded-owned-buffer contract:
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
-| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 1 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
 | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 
 `Favorable risk` and `Favorable evidence cost` are delivery-favorability scores:
-higher means lower implementation risk or lower evidence cost. Rank 1 must validate
-and decode one source-embedded fixed `[int; 17]` tensor-shaped record and compose the
-accepted matvec with a second exact-Int affine scoring stage without compiler or
-profile changes. Rank 2 remains readiness and a red probe only until one bounded
-cross-platform ownership and error authority is frozen. Rank 3 remains deferred while
-flat storage serves the target workload; it can be reopened only by a concrete need
-for recursive shape plus one shared source and physical shape authority.
+higher means lower implementation risk or lower evidence cost. Runtime byte/file
+acquisition readiness and red probe under one cross-platform bounded-owned-buffer
+contract ranks first. Rank 1 remains architecture/readiness and a task-local red
+probe only, not implementation. A task-local cross-platform probe and architecture
+map must locate the first failure and freeze path and byte identity, capacity and
+initialized count, partial-read and EOF behavior, typed error mapping, ownership and
+drop behavior, runtime linkage, sandboxing and determinism, and Linux and Windows
+behavior, yielding either one bounded implementation contract within two compiler
+phases or an explicit mandatory stop without claiming I/O capability.
+Small quantized numerical-kernel work remains readiness and a red probe under one
+frozen cross-platform arithmetic-and-representation contract. Recursive exact-`i32`
+arrays / 2D matrices remain deferred. None of these rankings authorizes production
+implementation.
 
 ### CAP-014 accepted: exact `i32` fixed-array CPU reference kernel
 
