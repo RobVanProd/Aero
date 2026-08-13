@@ -2,8 +2,9 @@
 
 ## CAP-021-ACCEPTANCE-SYNC - two-stage scoring product accepted truth
 
-- Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, authorized bounded
-  record/claim-contract synchronization on `agent/cap-021-accepted-truth-sync`
+- Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, local green bounded
+  record/claim-contract synchronization pending exact-head protected evidence on
+  `agent/cap-021-accepted-truth-sync`
   from exact protected master `59af445ea02c1759d337d698be9c4f4472587aaf`,
   tree `7e34b4b8e817a7aafaaabc6326fa0a4d616fcc91`. Its ordered parents are
   accepted base `df0626916d190d8a7580f783e3ac24a89f691617`, then reviewed
@@ -184,6 +185,16 @@
   retain the exact selected `exact-i32-array-v0` `END_TO_END` row, preserve the
   closed classification vocabulary, contain no CAP-021 language/profile row,
   and record CAP-021 only by extending the existing sole CPU `PARTIAL` row.
+- Red-first chronology: authorization commit
+  `1ca2719a6c73cbf34391a540a43ca50397a0fbae` precedes the initial claim-contract
+  red `33a51a72b4ceb90f240ec07e5200d5cc44b80344`. Final adversarial review found
+  two contract-attribution false-greens, so test-only corrective-red commit
+  `8111de4611a7821ea6b46c42fba22a020f8ae0f2` adds their mutation controls plus
+  bounded rendered-Markdown,
+  oracle, readiness, ordering, and history hardening. An isolated detached
+  execution of that exact corrective-red tree remains intentionally 6/8, with
+  only the stale README and PROJECT_STATE accepted-truth assertions failing;
+  no document bytes are part of that checkpoint.
 - Green and acceptance contract: update all seven cumulative truth documents
   without changing the test contract, run the locked focused claim target,
   formatting and diff checks, then root `./tools/test.sh`; obtain fresh
@@ -194,6 +205,13 @@
   aggregate, and unchanged alert chronology before calling the synchronization
   accepted. Finally synchronize the merged PR title/body to that exact accepted
   evidence and verify rendered metadata without a BOM.
+- Local green checkpoint: the locked focused
+  `version_claim_contract_tests` target passes 8/8, `cargo fmt --check` passes,
+  `git diff --check` passes, and the root `./tools/test.sh` baseline gate passes
+  on the complete nine-file synchronization diff. These results authorize
+  formation of the immutable candidate only; exact-head protected checks,
+  protected merge, fresh merge-head checks, alert chronology, and rendered
+  merged-PR metadata remain mandatory before acceptance.
 - Risks and stop conditions: risks are calling the flat application record a
   tensor/record/matrix source feature, calling CAP-021 a compiler/profile
   widening, erasing CAP-019/CAP-020 history, overstating alert-free CodeQL,

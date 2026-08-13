@@ -1,6 +1,6 @@
 # Aero Framework Alignment
 
-Last reviewed: 2026-08-12 (America/New_York)
+Last reviewed: 2026-08-13 (America/New_York)
 
 ## Source basis
 
@@ -59,8 +59,28 @@ data-pipeline, and AI-infrastructure direction, not proof of current GPU support
 
 ## Current alignment and gaps
 
-The latest accepted public head and tree are the protected CAP-020 product merge and
+The latest accepted public head and tree are the protected CAP-021 product merge and
 shared tree identified once in the acceptance evidence paragraph below.
+
+Accepted CAP-021 advances the founding high-performance and data-pipeline direction
+with one maintained source-embedded flat-record two-stage exact-`i32` CPU scoring
+product while preserving the existing language and compiler boundary.
+
+Accepted CAP-021 changes no parser, grammar, source semantics, language profile, semantic analysis, checked IR, verifier, backend, ABI, or capability classification; it is a zero-production product/evidence checkpoint over CAP-019's `exact-i32-array-v0` surface and composes the accepted CAP-020 flat matvec.
+
+The accepted application treats one source-embedded flat `[int; 17]` as an application record with exact header `[2, 3, 1]`, dynamically decodes input, row-major first-stage weights, first-stage bias, second-stage weights, and score bias into fully initialized flat locals, then composes the accepted 2x3 matvec with wrapping bias and affine scoring.
+
+The accepted scorer returns `[valid, raw0, raw1, hidden0, hidden1, score]`; its ordinary result is `[1, 122, 167, 135, 181, 4938]`, its wrapping result is `[1, -24, 18, 2147483623, -2147483631, -2147483627]`, an invalid header returns six zeros, both valid source records preserve and reread all 17 lanes, and the application exits `91`.
+
+Every dynamic read and write uses the existing signed bounds, trap-before-address, `sext`, typed-GEP, and same-pointer consumer authority; exact public and pinned Linux/Windows LLVM 22 verifier, O0/O2, native, and deterministic-emission evidence passes.
+
+Exact CAP-021 reviewed candidate `f91df56084540d30f3c8d09e71c5f30db280fd93`, shared candidate/merge tree `7e34b4b8e817a7aafaaabc6326fa0a4d616fcc91`, accepted base and first merge parent `df0626916d190d8a7580f783e3ac24a89f691617`, and protected PR #60 merge `59af445ea02c1759d337d698be9c4f4472587aaf` whose second parent is that candidate are immutable. Candidate push CI `31670574143`, PR CI `31670599830`, Rust CI `31670599826`, CodeQL `31670598033`, and aggregate candidate check `94354297550`; candidate push/PR compiler jobs `94354135184`/`94354214336`, stable/nightly/Windows LLVM 22 jobs `94354214389`/`94354214394`/`94354214410`, CodeQL Actions/Python/Rust jobs `94354210797`/`94354210770`/`94354210832`, and Actions/Python/Rust analyses `1611711722`/`1611712334`/`1611716646`; merge-head CI/Rust CI/CodeQL `31671091285`/`31671091296`/`31671091099`, exact merge compiler/stable/nightly/Windows LLVM 22 jobs `94355683766`/`94355683532`/`94355683515`/`94355683534`, merge CodeQL Actions/Python/Rust jobs `94355685544`/`94355685480`/`94355685574`, and default-branch Actions/Python/Rust analyses `1611737053`/`1611737605`/`1611740699` all pass.
+
+CAP-021 adds no tensor, matrix, struct, record, recursive-array, nested-array, serialization, runtime/file-input, quantization, activation, checked-overflow, stable layout/ABI, performance, accelerator, safety, general inference, or language-completion capability; the flat record is an application convention, not a source or physical type.
+
+CAP-019 remains the latest compiler/profile capability widening; CAP-020 and CAP-021 are accepted product gates, not separate profiles or feature rows.
+
+The PR-only aggregate CodeQL check is correctly absent on the default branch; the sole open finding remains pre-existing Actions alert #4 from 2026-08-09, and no new CAP-021 alert surfaced.
 
 Accepted CAP-020 advances the founding high-performance and data-pipeline direction
 with one maintained flat-buffer 2x3-by-3 CPU matvec product while preserving the
@@ -201,9 +221,10 @@ negative/equal-to-count trap specimens preserve exact behavior under public and 
 Linux/Windows LLVM/Clang 22 `-O0`/`-O2` execution.
 CAP-015 remains the accepted M1-001 representative-integration checkpoint.
 CAP-015 changes no compiler production or language-profile code. CAP-019 remains the
-bounded compiler/profile capability widening after CAP-018's immutable-result
-checkpoint; CAP-020 adds product evidence only, and CAP-015 enriches only the existing
-M1-001 `END_TO_END` evidence. Both named profiles continue to reject the parser.
+latest bounded compiler/profile capability widening after CAP-018's immutable-result
+checkpoint; CAP-020 and CAP-021 add product evidence only, and CAP-015 enriches only
+the existing M1-001 `END_TO_END` evidence. Both named profiles continue to reject the
+parser.
 General-purpose text parsing, runtime Strings, serialization, runtime ingestion, file input,
 and Unicode text encoding/normalization remain unsupported; accepted CORE-072's
 bounded Unicode scalar `char` remains `PARTIAL`.
@@ -219,19 +240,25 @@ general ingestion claim.
 CAP-016 and CAP-017 remain completed readiness/architecture stops, not accepted
 capabilities; neither adds a profile or matrix row.
 
-Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer
-exact-`i32` CPU scoring product gate ranks first.
+Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract ranks first.
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate | 5 | 5 | 5 | 5 | 4 | 4 | 28 |
-| 2 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 1 | Runtime byte/file acquisition readiness and red probe under one cross-platform bounded-owned-buffer contract | 5 | 5 | 5 | 4 | 1 | 1 | 21 |
+| 2 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
 | 3 | Recursive exact-`i32` array / 2D matrix readiness deferred pending one shared recursive-shape contract | 3 | 3 | 4 | 5 | 2 | 2 | 19 |
 
-The post-CAP-020 order starts with a zero-production source-embedded record-to-scoring
-product over accepted constructs. Runtime acquisition remains readiness and red-probe
-work only, while successful flat execution defers recursive-array syntax until a
-concrete workload and one bounded shared-shape decision justify reopening it.
+The post-CAP-021 order starts with runtime acquisition readiness and task-local
+red-probe work only. A task-local cross-platform probe and architecture map must
+locate the first failure and freeze path and byte identity, capacity and initialized
+count, partial-read and EOF behavior, typed error mapping, ownership and drop,
+runtime linkage, sandboxing and determinism, and Linux and Windows behavior, yielding
+either one bounded implementation contract within two compiler phases or an explicit
+mandatory stop without claiming I/O capability. Quantized numerical kernels remain
+readiness and red-probe work under one frozen arithmetic-and-representation contract,
+while successful flat execution defers recursive-array syntax until a concrete
+workload and one bounded shared-shape decision justify reopening it. This ranking
+authorizes no production implementation.
 
 Accepted CAP-013 advances the founding generic and compile-time monomorphization
 direction by making already-admitted specialization features coherent rather than by
@@ -824,7 +851,7 @@ claim.
 |---|---|---|
 | Clear, strongly typed source language | Numeric, function, binding, and selected control-flow slices are partial; several composite forms are parser-only or fail closed. Closures are explicitly parsed-only and cannot acquire a fabricated scalar type or reach trusted IR. Accepted CORE-071 preserves Rust-like `use` syntax only for future work and rejects it before checked IR; accepted CORE-080 similarly preserves the founding dotted `import` syntax with a distinct AST identity and rejects it through the same shared authority. Accepted CORE-072 preserves exact Unicode-character identity across the existing recursive CopyData execution surface under one primitive authority and a pinned native exit-197 gate. Accepted CORE-067 closes fabricated intrinsic-method results; accepted CORE-068 similarly requires one exact named-call contract before semantic success or checked IR. Accepted ARCH-002 normalizes binding-annotation topology and phase routing without changing any accepted or quarantined type behavior. | A specified stable subset with exact positive, negative, diagnostic, and execution tests; separately freeze import/name-resolution semantics before any positive path |
 | Ownership-based safety | Shallow move checks remain partial. CORE-048/053 through accepted CORE-066 establish bounded immutable/mutable whole-place ownership, internal reference transport, recursive finite CopyData composition, direct CopyData owner reassignment, owned enum transport/replacement, exact acyclic conditional joins, independent enum-owner CFG consumption proof, and fresh per-iteration enum owners. Accepted CORE-073–077 add acyclic reinitialization, owned Match results, and balanced loop restoration. Accepted CORE-079 adds convergent `Owned`/`Moved`/`MaybeMoved` direct-enum loop headers/exits under shared source/admission classification and independent verifier proof. Accepted CORE-083–089 compose enum reference behavior and mixed/multiple reference callable signatures. Accepted CORE-090 admits exact static projected writes through arbitrary finite field/tuple/fixed-array paths over mutable owned CopyData roots under one shared classifier. Accepted CAP-001 guards runtime fixed-array reads before conversion or address formation, accepted CAP-002 guards runtime indexes in the same mutable direct-owner projected write class before effects or memory access, and accepted CAP-012 admits immediate call-only immutable/mutable loans over those nested CopyData places with conservative complete-root conflicts. Stored/escaping projected references, reference-target dynamic writes, partial moves, disjoint alias reasoning, reference results, free enum dereference/transport, enum aggregate storage, stable reference ABI, general non-enum CFG ownership, NLL, drop, lifetime inference, and memory-safety claims remain absent; 16 broader semantic/lossy-shape Phase 5 tests remain quarantined. | Rank the post-Milestone-2 real-program blockers; promote shared ownership architecture only when it unlocks multiple useful programs or closes a serious correctness boundary |
-| Structs, arrays, enums, traits, and Match | The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`. CAP-013 retains one canonical specialization identity/phase authority. CAP-014 created the selected `exact-i32-array-v0` CPU lane, CAP-018 widened it with immutable flat-array result composition, and CAP-019 now adds fully initialized mutable owned locals, direct projected element writes, and returned flat-array values without promoting broad arrays. CAP-020 adds one maintained flat-buffer matvec product without changing that language row. CAP-015 remains M1-001 representative integration only. General generic operations/error propagation, recursive/nested/general arrays, mutable parameters/results/aliases, whole-array reassignment, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Follow the post-CAP-020 order: first the source-embedded fixed-shape tensor-record decode plus two-stage flat-buffer exact-`i32` CPU scoring product gate, then runtime byte/file acquisition readiness; keep recursive exact-`i32` array / 2D matrix readiness deferred while the accepted flat encoding serves the target workload. |
+| Structs, arrays, enums, traits, and Match | The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`. CAP-013 retains one canonical specialization identity/phase authority. CAP-014 created the selected `exact-i32-array-v0` CPU lane, CAP-018 widened it with immutable flat-array result composition, and CAP-019 now adds fully initialized mutable owned locals, direct projected element writes, and returned flat-array values without promoting broad arrays. CAP-020 adds one maintained flat-buffer matvec product and CAP-021 adds one maintained source-embedded flat-record two-stage scoring product without changing that language row. CAP-015 remains M1-001 representative integration only. General generic operations/error propagation, recursive/nested/general arrays, mutable parameters/results/aliases, whole-array reassignment, dynamic collections, stored projected references/partial moves, unsupported/cyclic structs, general traits, and stable aggregate/reference/runtime ABI remain open. | Follow the post-CAP-021 order: first runtime byte/file acquisition readiness and a red probe, then quantized numerical-kernel readiness and a red probe; keep recursive exact-`i32` array / 2D matrix readiness deferred while the accepted flat encoding serves the target workload. None authorizes implementation before its frozen contract. |
 | Typed SSA-style IR and LLVM backend | LLVM text and a partial CPU object/link/run path exist. Pinned Linux LLVM 22 execution and bounded Windows x86_64 MSVC system evidence are accepted through CORE-078; CAP-014 additionally proves an exact wrapping `i32` flat-array lane with signed trap-before-GEP guards under public/O0/O2 execution. Typed-IR invariants and verification remain incomplete. | Retain exact object/link/runtime gates on each supported platform and extend only with separately frozen contracts |
 | Zero-cost performance | A benchmark protocol now exists, but no audited public Aero runtime or device performance claim passes it | Correct real programs, raw samples, reproducible baselines, and separately reported compile/runtime/resource costs |
 | Modern concurrency | Interfaces and library-like helpers exist, but the language/runtime concurrency model is not end-to-end | Ownership-safe tasks/channels or another frozen model with race and runtime evidence |
