@@ -73,6 +73,92 @@
   compile-time/source-embedded binary mechanism closes the workload sooner,
   narrows or defers runtime file acquisition; it does not silently redefine it.
 
+### CAP-022 readiness result - mandatory runtime-contract stop
+
+- Decision: `NO IMPLEMENTATION`. CAP-022 is a completed architecture/readiness
+  stop and requires a fresh ranking; it is not a blocked goal, runtime feature,
+  selected-profile widening, or I/O capability. Every Roadmap stop predicate is
+  true: the complete contract is unfrozen, allocation/drop/runtime ABI would
+  have to be invented, a shared Linux/Windows authority does not exist, and the
+  smallest useful file slice crosses more than two compiler phases.
+- Exact first-failure evidence: task-local probes under
+  `D:\CodexArtifacts\aero-cap022-readiness-8b808cd` used the accepted-tree
+  compiler binary SHA-256
+  `32bf224727c61499ca5c53650c2de0266e9a1bee9e4a099307e4022bad2e2027`.
+  Draft-RFC-shaped `use io::File;` parses, then the selected profile rejects
+  `import declarations`; `File::open("input.bin")` is represented by the
+  current parser as enum construction and the profile rejects `enum value
+  construction`; `file.read(buffer)` rejects as `method calls`; a `String` path
+  parameter rejects as `function parameter types`; and
+  `fn main(input: [int; 17]) -> int` rejects as an entrypoint other than exact
+  parameterless `fn main() -> int`. CLI `check`, `build`, and `run` produce the
+  same case-specific cause, exit nonzero, and leave no requested LLVM artifact.
+  Missing-path and existing-path `File::open` probes produce byte-identical
+  selected-profile and experimental causes, proving that neither route observes
+  filesystem state before its fatal boundary. A companion fixed buffer plus
+  initialized-count process-entry probe reaches the same exact-entry rejection.
+  Under the experimental profile the same shapes progress only to existing
+  semantic stops: unsupported `use`, unknown `File` enum, undeclared `file`, no
+  admitted executable String signature, and forbidden aggregate process-entry
+  parameters. These are failure boundaries, not alternative semantics.
+- Positive control and seam classification: the unchanged accepted
+  `tensor_record_scoring.aero` source, SHA-256
+  `d590928c4a72870d8ba0cc068edc6cdb2530cb8c0654a8344828b1948122c8fe`,
+  passes selected-profile `check`, externally verified `build`, and native
+  `run`, exiting 91. Its private `decode_and_score(record: [int; 17])` function
+  proves that a bounded value can feed the computation once it is already in
+  Aero. Exact `i32` lanes are not bytes, its source literals are not external
+  input, and its private by-value LLVM signature is not a host-callable or
+  stable ABI. The public runner still invokes the executable with no stdin or
+  arguments. Task-local run cleanup left zero program-artifact entries.
+- Required-before-reentry decisions: an explicit runtime RFC must choose one
+  path source and byte encoding; distinguish bytes from `int`/`char`; choose a
+  fixed-capacity-plus-initialized-count or owned dynamic representation; define
+  exact, partial, EOF, truncation, oversize, and mutation-race behavior; freeze
+  one typed error identity and platform mapping; define buffer and handle
+  movement, cleanup, and drop on every edge; own one checked acquisition
+  operation and verifier corruption boundary; freeze linker/runtime symbols and
+  process-entry or embedding transport; define the relative-path root, symlink,
+  sandbox, and determinism policy; and prove observably equivalent Linux and
+  Windows behavior. None is decided by this probe.
+- Explicitly rejected shortcuts: do not reuse the malformed-record six-zero
+  result, an exit code, a magic negative integer, or an uninitialized lane as an
+  acquisition error; do not call `int`, `char`, or `[int; 17]` a byte type or
+  slice; do not expose the current aggregate lowering as ABI; do not call host
+  compiler/module/LSP/registry file reads Aero runtime behavior; do not activate
+  legacy unchecked String/Vec helpers; and do not lower directly to a platform
+  function before semantic, ownership, checked-IR, and verifier authority.
+  Text decoding, serialization, async/streaming I/O, directories, writes, seeks,
+  networking, variable-capacity collections, and stable public ABI remain
+  preserved for later design rather than silently joining a first slice.
+- Phase result: a truthful minimum needs at least four production authorities:
+  (1) source/profile identity for the API, path, byte/buffer, result, and entry
+  transport; (2) semantic type, initialization, error, ownership, and drop
+  rules; (3) checked-IR representation plus verifier proof for acquisition and
+  partially initialized capacity; and (4) backend/runtime/link and
+  Linux/Windows platform mapping. Runner/embedding and sandbox policy add
+  another public surface. A feature-specific direct call or duplicate
+  classifier would not reduce this count and is prohibited.
+- Non-authority quarantine: Draft RFC 0001 remains a proposal whose exact error
+  types, core traits, iterators, async strategy, and advanced filesystem module
+  are unresolved. `stdlib.rs` is an uncalled simplified compatibility helper;
+  the checked verifier/backend reject its Vec and collection IR. Compiler and
+  module resolver `std::fs` calls read UTF-8 Aero source into Rust-owned values,
+  while the LSP, registry, verifier process, and `printf` output path are host
+  tooling with unrelated trust and ownership contracts. None can satisfy or
+  narrow the runtime RFC by analogy.
+- Frozen re-entry decision: reopen runtime acquisition only after the RFC makes
+  every required decision above, identifies one shared Linux/Windows ownership
+  and error authority, and demonstrates a complete useful slice within the
+  two-phase limit. A separately frozen host embedding API that supplies a
+  bounded byte buffer could avoid filesystem, handle, path, and partial-read
+  semantics, but it still needs byte identity, initialized length, ownership,
+  entry transport, checked verification, and ABI decisions. If that narrower
+  seam reaches the workload sooner, defer file acquisition rather than relabel
+  CAP-021. Carry this readiness record forward without changing cumulative
+  accepted capability documents until a later executable checkpoint requires
+  one synchronized truth update.
+
 ## CAP-021-ACCEPTANCE-SYNC - two-stage scoring product accepted truth
 
 - Date/task/status: 2026-08-13, `CAP-021-ACCEPTANCE-SYNC`, local green bounded
