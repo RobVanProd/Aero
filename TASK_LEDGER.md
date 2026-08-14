@@ -354,6 +354,21 @@
   candidate manifest only with a fresh two-platform aggregate produced by the
   corrected exact tool/schema/reproduction bytes, then require a second fresh
   replay before acceptance.
+- Corrected projection recapture, 2026-08-13: red checkpoint
+  `d44b6ed72338aaf78990055dbfd970bc34fd7e44` ran the corrected dedicated
+  workflow as run `31764141858`. Linux job `94656431407` and Windows job
+  `94656431366` both passed; aggregate job `94657346743` built and uploaded
+  artifact `9205766560`, then failed exactly at replay against the stale tracked
+  48-leaf manifest. The artifact's canonical manifest is 88,734 bytes with
+  SHA-256
+  `4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34`.
+  Standard-library validation passes, its exclusion list contains 132 unique
+  exact pointers, both platform failure lists are empty, all ten artifact pairs
+  are equal within platform, public semantics remain exact exit 91, and an
+  independent audit proves that after substituting only the corrected
+  tool/schema/reproduction bindings, its claim-bearing projection is byte-equal
+  to the prior candidate. Commit only this exact candidate manifest, then require
+  a fresh two-platform replay on the resulting immutable head before acceptance.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,
