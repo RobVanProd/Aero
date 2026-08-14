@@ -175,6 +175,54 @@ const CAP023_ACCEPTANCE_EVIDENCE: [&str; 33] = [
     "1612721829",
 ];
 
+const CAP024_ACCEPTANCE_EVIDENCE: [&str; 45] = [
+    "617bfce86feb879ee5eef61b44cf4e2a5520f022",
+    "9520f24e4f1626f16782a9775480f9653f6059bb",
+    "918c9222eb61e2435e18847e30b946cd08013238",
+    "2f7ec325e423461a8e867f4ee2573ae6dcf15dfd",
+    "31764763341",
+    "31764765501",
+    "31764765563",
+    "31764763584",
+    "31764765495",
+    "94658200345",
+    "94658206474",
+    "94658207134",
+    "94658207170",
+    "94658207086",
+    "94658203257",
+    "94658203263",
+    "94658203316",
+    "94658280067",
+    "1617260890",
+    "1617261159",
+    "1617264144",
+    "94658206500",
+    "94658206555",
+    "94659098928",
+    "9205970753",
+    "bd5e609b4ce829579331a23170d6d9e4fc4d5906cb32779876a78bc24294812c",
+    "62780d81e9dcaa6e85c08d0805608a58283816dd062c3a8bb1a8c67971ac551f",
+    "4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34",
+    "31765227712",
+    "31765227675",
+    "31765227317",
+    "31765227673",
+    "94659602474",
+    "94659602479",
+    "94659602493",
+    "94659602501",
+    "94659604078",
+    "94659604103",
+    "94659604064",
+    "1617281747",
+    "1617282341",
+    "1617285598",
+    "94659602932",
+    "94659621233",
+    "94659603455",
+];
+
 const CAP019_EVIDENCE_PREFIX: &str = "Exact CAP-019 reviewed candidate \
 `f2955bedd22708041e36ee90c65c4f08c443d740`, shared candidate/merge tree \
 `c520729e7b081087bbe431e97d937fb77f519b37`, accepted base and first merge parent \
@@ -238,6 +286,37 @@ const CAP023_EVIDENCE_PARAGRAPH: &str = "Exact CAP-023 reviewed candidate \
   LLVM 22 jobs `94408808914`/`94408809340`/`94408809458`/`94408809296`, merge CodeQL \
   Actions/Python/Rust jobs `94408812427`/`94408812194`/`94408812175`, and default-branch \
   Actions/Python/Rust analyses `1612715455`/`1612715345`/`1612721829` all pass.";
+const CAP024_EVIDENCE_PREFIX: &str = "Exact CAP-024 reviewed candidate \
+  `617bfce86feb879ee5eef61b44cf4e2a5520f022`, shared candidate/merge tree \
+  `9520f24e4f1626f16782a9775480f9653f6059bb`, accepted base and first merge parent \
+  `918c9222eb61e2435e18847e30b946cd08013238`, and protected PR #64 merge \
+  `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd` whose second parent is that candidate are immutable.";
+const CAP024_EVIDENCE_PARAGRAPH: &str = "Exact CAP-024 reviewed candidate \
+  `617bfce86feb879ee5eef61b44cf4e2a5520f022`, shared candidate/merge tree \
+  `9520f24e4f1626f16782a9775480f9653f6059bb`, accepted base and first merge parent \
+  `918c9222eb61e2435e18847e30b946cd08013238`, and protected PR #64 merge \
+  `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd` whose second parent is that candidate are immutable. \
+  Candidate push CI `31764763341`, PR CI `31764765501`, Rust CI `31764765563`, CodeQL \
+  `31764763584`, and CAP-024 evidence run `31764765495`; candidate push/PR compiler jobs \
+  `94658200345`/`94658206474`, stable/nightly/Windows LLVM 22 jobs \
+  `94658207134`/`94658207170`/`94658207086`, CodeQL Actions/Python/Rust jobs \
+  `94658203257`/`94658203263`/`94658203316`, aggregate candidate CodeQL check \
+  `94658280067`, and Actions/Python/Rust analyses \
+  `1617260890`/`1617261159`/`1617264144` all pass. Candidate CAP-024 \
+  Linux/Windows/aggregate jobs `94658206500`/`94658206555`/`94659098928` pass and artifact \
+  `9205970753` carries fresh manifest \
+  `bd5e609b4ce829579331a23170d6d9e4fc4d5906cb32779876a78bc24294812c` plus 132 fresh observations \
+  `62780d81e9dcaa6e85c08d0805608a58283816dd062c3a8bb1a8c67971ac551f`; \
+  its claim-bearing projection matches accepted canonical manifest \
+  `4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34`. \
+  Merge-head CI `31765227712`, Rust CI `31765227675`, CodeQL `31765227317`, and CAP-024 \
+  replay `31765227673`; exact merge compiler/stable/nightly/Windows LLVM 22 jobs \
+  `94659602474`/`94659602479`/`94659602493`/`94659602501`, CodeQL Actions/Python/Rust jobs \
+  `94659604078`/`94659604103`/`94659604064`, default-branch analyses \
+  `1617281747`/`1617282341`/`1617285598`, and CAP-024 aggregate replay job \
+  `94659602932` all pass. The two default-branch capture jobs \
+  `94659621233`/`94659603455` are correctly skipped because protected master validates the tracked \
+  bundle rather than replacing accepted observations.";
 const CAP018_CANDIDATE_LEADIN: &str = "Exact CAP-018 candidate \
 `409eca9ed2dd8b4ba79f34e14ecfefcc0386e3df`";
 
@@ -373,8 +452,9 @@ const CAP023_CLASSIFICATION_BOUNDARY: &str = "The sole matrix change is the exis
   backend-summary row remaining `PARTIAL`; no CAP-023 language feature or selected-profile \
   row may be added.";
 
-const CAP023_ALERT_BOUNDARY: &str = "Current accepted public master is CAP-023 merge \
-  `e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only aggregate is correctly absent \
+const CAP023_ALERT_BOUNDARY: &str = "CAP-023 merge \
+  `e9b281504446465cfc8fcbe17c65cce92df0e83a` is an accepted historical product checkpoint, \
+  not the current public master. The PR-only aggregate is correctly absent \
   on the default branch. Default-branch Actions analysis `1612715455` contains only the \
   pre-existing open alert #4 created 2026-08-09; Python and Rust analyses contain zero \
   results; no new CAP-023 code-scanning alert exists.";
@@ -385,6 +465,55 @@ const CAP023_MILESTONE_BOUNDARY: &str = "The selected Milestone 0, Milestone 1, 
   application and reproducibility boundary but supplies no runtime ingestion, composed \
   CopyData application profile, quantization, runtime-resource measurement, performance \
   evidence, accelerator execution, or broader workload.";
+
+const CAP024_CURRENT_HEAD_BOUNDARY: &str = "Current accepted public master and public \
+  evidence checkpoint is protected CAP-024 merge \
+  `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd`, tree \
+  `9520f24e4f1626f16782a9775480f9653f6059bb`; its ordered parents are accepted base \
+  `918c9222eb61e2435e18847e30b946cd08013238` then reviewed candidate \
+  `617bfce86feb879ee5eef61b44cf4e2a5520f022`.";
+
+const CAP024_ZERO_PRODUCTION_BOUNDARY: &str = "CAP-024 is the current accepted public \
+  evidence checkpoint and protected public master. It adds no compiler production, parser, \
+  grammar, source semantics, profile, semantic analysis, checked IR, verifier, backend, \
+  example, product oracle, runtime behavior, ABI, capability classification, benchmark, \
+  resource-usage, performance, accelerator, safety, or general-inference capability. Its \
+  only claim is immutable accepted-head CAP-023 correctness, within-platform target-artifact \
+  reproducibility, exact observable behavior, and artifact byte-size footprint under the \
+  closed recorded boundary.";
+
+const CAP024_CLASSIFICATION_BOUNDARY: &str = "CAP-019 remains the latest compiler/profile \
+  widening; CAP-023 remains the latest product checkpoint. The selected \
+  `exact-i32-array-v0` row and the existing CAP-023 CPU backend-summary row remain \
+  byte-identical, and CAP-024 adds no language, selected-profile, or backend-summary row.";
+
+const CAP024_BUNDLE_BOUNDARY: &str = "The accepted catalog record remains \
+  `aero_cap023_inference_correctness_918c9222_20260813`, status \
+  `verified_correctness_reproducibility_only`, with exactly the tracked schema, canonical \
+  88,734-byte manifest SHA-256 \
+  `4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34`, oracle, and \
+  reproduction contract.";
+
+const CAP024_ALERT_BOUNDARY: &str = "The PR-only aggregate CodeQL check is correctly absent \
+  on the default branch. Default-branch Actions analysis `1617281747` carries only the \
+  pre-existing open alert #4 created and last updated 2026-08-09; Python and Rust analyses \
+  contain zero results, and no new CAP-024 alert exists.";
+
+const CAP024_MILESTONE_BOUNDARY: &str = "The selected Milestone 0, Milestone 1, and \
+  Milestone 2 exits remain met for their bounded selected products; broader ambitions \
+  remain partial. Milestone 3 remains open. CAP-024 closes the prior accepted-head \
+  correctness/reproducibility/artifact-footprint gap, but supplies no runtime ingestion, \
+  composed CopyData application profile, quantization, runtime-resource measurement, \
+  performance evidence, accelerator execution, or broader workload.";
+
+const CAP016_LOCAL_MODDECL_STOP_BOUNDARY: &str = "Block-local `mod missing;` remains a \
+  demonstrated invalid-program false success because the common statement parser accepts \
+  it, `ModDecl` has no source location, and semantic plus checked admission silently discard \
+  it. CAP-016 already audited that exact defect and found that trustworthy \
+  placement/provenance rejection participates in the unfrozen module migration across more \
+  than two compiler phases. No new module RFC or decision-changing evidence exists, so \
+  CAP-016 remains a mandatory `NO IMPLEMENTATION` stop until its explicit re-entry condition \
+  is met.";
 
 const CAP015_M1_BOUNDARY: &str = "CAP-015 remains the accepted M1-001 \
 representative-integration checkpoint. CAP-015 changes no compiler production or \
@@ -462,7 +591,29 @@ const POST_CAP023_DECISION_CONTRACTS: [&str; 9] = [
     "Evidence that accepted-head artifact evidence and exact CPU plus CopyData application composition must precede a meaningful quantized oracle, or that exact `i32` continues to advance the next workload without lossy representation, keeps rank 3 at readiness scope; only an explicit quantization RFC plus a probe demonstrating one shared cross-platform representation, arithmetic, malformed-state, and oracle authority within the phase limit raises it toward implementation.",
 ];
 
+const POST_CAP024_RANKING_HEADER: &str = "| Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |";
+
+const POST_CAP024_RANKING_ROWS: [&str; 3] = [
+    "| 1 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |",
+    "| 2 | Owned dynamic collection/streaming foundation readiness and red probe, including its shared allocation/ownership/drop architecture, only | 5 | 5 | 5 | 5 | 1 | 1 | 22 |",
+    "| 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |",
+];
+
+const POST_CAP024_DECISION_CONTRACTS: [&str; 9] = [
+    "Before rank 1, CAP-024 proves the exact accepted flat CAP-023 application and its immutable correctness/reproducibility boundary, while recursive finite CopyData structs, enums, typed `Result`, `Match`, and ownership slices remain separate bounded `PARTIAL` experimental authorities rejected by `exact-i32-array-v0`. After rank 1 readiness, a task-local source probe and architecture map must identify the first composition failure and freeze whether one new application profile can reuse exact-`i32` scalar/flat-array physical authority together with only already-accepted recursive CopyData, typed-result, `Match`, and bounded ownership contracts; define admitted types and operations, phase ownership, profile selection, physical identity, rejection boundaries, verifier evidence, and Linux and Windows oracles; and yield either one bounded later implementation contract within two compiler phases or an explicit mandatory stop without widening either existing profile.",
+    "Stop rank 1 before implementation if composition requires changing `stable-scalar-v0` or `exact-i32-array-v0`, importing broad experimental defaults, inventing struct, enum, `Result`, layout, ABI, ownership, or error semantics, reconciling duplicate type, physical, or specialization authorities, adding recursive or nested exact arrays, crossing more than two compiler phases, or claiming general CopyData, inference, safety, or language completion.",
+    "Evidence that the CAP-023 workload can materially exercise existing CopyData aggregates and typed failure under one bounded profile without new semantics and with one shared exact physical/verifier authority raises rank 1 toward later implementation; evidence that a flat record remains sufficient, that runtime ingress is prerequisite, or that composition requires broad layout or ownership contracts defers it and changes the decision.",
+    "Before rank 2, accepted CAP-011 provides one fixed-capacity recursive-CopyData `Window<T>` algorithm and the representative program composes only statically bounded storage; Aero has no accepted owned dynamic collection, allocation, capacity growth, initialized-length, reallocation, alias, failure, or drop contract. Legacy `stdlib.rs` String/Vec helpers and their rejected checked-IR/backend instructions are not source-language authority. After rank 2 readiness, a task-local owned-collection/streaming source probe and architecture map must first freeze the public type/API name, then the minimal useful element class and operations; length/capacity/growth and initialized-state rules; allocation, failure, move/borrow/alias, reallocation, iteration/indexing, and drop behavior; one physical and verifier authority; rejection boundaries; and deterministic Linux and Windows oracles, yielding either one bounded later implementation contract within two compiler phases or a mandatory stop without claiming dynamic collections.",
+    "Stop rank 2 before implementation if allocation, OOM/error, ownership, alias, reallocation invalidation, lifetime, drop, runtime ABI, or element destruction semantics remain unfrozen; if uninitialized elements can become observable; if legacy unchecked helpers or verifier-rejected instructions would be activated; if the useful slice crosses more than two compiler phases; or if invalid collection state can reach trusted IR/backend or Linux and Windows behavior cannot be made equivalent and observable.",
+    "Evidence that fixed-capacity `Window<T>` plus flat source records serves the next useful workload, that runtime ingress is prerequisite, or that one owned collection requires broad allocator/drop/lifetime architecture keeps rank 2 at readiness scope; only an explicit collection RFC plus a probe demonstrating one shared cross-platform initialized-state, ownership, physical, error, and verifier authority within the phase limit raises it toward later implementation.",
+    "Before rank 3, CAP-024 preserves exact wrapping `i32` matvec, positive-only zero clamp, two biased logits, and signed strict-greater argmax, but Aero has no frozen quantized stored, accumulator, or result representation; scale or zero-point contract; conversion, rounding, tie, saturation, or overflow behavior; calibration provenance; malformed-state rule; or maintained cross-platform quantized oracle. After rank 3 readiness, a task-local source-embedded red probe and architecture map must locate the first failure and freeze every such decision plus operation order and Linux/Windows equivalence, yielding either one bounded later implementation contract within two compiler phases or an explicit mandatory stop without claiming quantization capability.",
+    "Stop rank 3 before implementation if any arithmetic or representation decision remains unfrozen; if the slice requires implicit conversion, fallback typing, unfounded division or rounding semantics, or a second numerical authority; if the scalar-double helper is treated as source-language proof; if CAP-023 wrapping order changes; if malformed quantization state can reach trusted IR or backend generation; if the slice crosses more than two compiler phases; or if deterministic Linux and Windows oracle parity cannot be proved.",
+    "Evidence that exact CPU plus CopyData application composition must precede a meaningful quantized oracle, or that exact `i32` continues to advance the next workload without lossy representation, keeps rank 3 at readiness scope; only an explicit quantization RFC plus a probe demonstrating one shared cross-platform representation, arithmetic, malformed-state, and oracle authority within the phase limit raises it toward later implementation.",
+];
+
 const CAP021_CPU_MATRIX_ROW: &str = "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps, CAP-020 flat-buffer 2x3-by-3 matvec product with identity-linked guarded [6]/[3]/[2] access and exact ordinary/wrapping/native oracles, and CAP-021 source-embedded flat [17]-lane record decode plus two-stage exact-i32 scoring with header/ordinary/wrapping/malformed/source-preservation oracles | P | P | PARTIAL |";
+
+const CAP019_SELECTED_PROFILE_MATRIX_ROW: &str = "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |";
 
 const CAP023_CPU_MATRIX_ROW: &str = "| CPU | Y | Y | P | P | P; pinned Linux and bounded Windows x86_64 evidence accepted, including CAP-014 exact-i32-array-v0 kernel/wrapping/read-trap gates, CAP-018 immutable result composition, CAP-019 initialized mutable-local/result production with guarded projected writes and negative/equal write traps, CAP-020 flat-buffer 2x3-by-3 matvec product with identity-linked guarded [6]/[3]/[2] access and exact ordinary/wrapping/native oracles, CAP-021 source-embedded flat [17]-lane record decode plus two-stage exact-i32 scoring with header/ordinary/wrapping/malformed/source-preservation oracles, and CAP-023 source-embedded flat [int; 20] 3-input/2-hidden/2-output exact-i32 zero-clamp/argmax product with header/ordinary/wrapping/activation-boundary/tie/malformed/source-preservation oracles | P | P | PARTIAL |";
 
@@ -734,7 +885,6 @@ fn inline_link_destination_end(line: &str, start: usize) -> Option<usize> {
             }
             '<' | '>' if !angle => return None,
             '>' if angle => {
-                angle = false;
                 index += 1;
                 if line[index..].starts_with(')') {
                     return Some(index + 1);
@@ -2218,6 +2368,144 @@ fn assert_post_cap023_ranking_table(document_name: &str, document: &str) {
     );
 }
 
+fn assert_post_cap024_ranking_table(document_name: &str, document: &str) {
+    const SEPARATOR: &str = "|---:|---|---:|---:|---:|---:|---:|---:|---:|";
+    let rendered = markdown_outside_fences(document);
+    let lines = rendered.lines().map(table_line).collect::<Vec<_>>();
+    let exact_blocks = lines
+        .iter()
+        .enumerate()
+        .filter(|(index, line)| {
+            **line == POST_CAP024_RANKING_HEADER
+                && lines.get(index + 1).is_some_and(|line| *line == SEPARATOR)
+                && lines
+                    .get(index + 2..index + 5)
+                    .is_some_and(|rows| rows == POST_CAP024_RANKING_ROWS)
+                && lines.get(index + 5).is_none_or(|line| line.is_empty())
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        exact_blocks.len(),
+        1,
+        "{document_name} must contain one rendered exact post-CAP-024 ranking table"
+    );
+    let current_index = exact_blocks[0];
+    if document_name == "Roadmap.md" {
+        let heading = lines[..current_index]
+            .iter()
+            .rfind(|line| line.starts_with('#'))
+            .copied()
+            .unwrap_or("");
+        assert_eq!(
+            heading, "### Post-CAP-024 ranking",
+            "Roadmap.md detaches the current ranking from its exact heading"
+        );
+    }
+
+    for row in POST_CAP024_RANKING_ROWS {
+        let cells = table_cells(row).expect("canonical post-CAP-024 row");
+        let scores = cells[2..8]
+            .iter()
+            .map(|cell| cell.parse::<u8>().expect("numeric canonical score"))
+            .collect::<Vec<_>>();
+        assert!(scores.iter().all(|score| (1..=5).contains(score)));
+        assert_eq!(
+            scores.iter().sum::<u8>(),
+            cells[8].parse::<u8>().expect("numeric canonical total")
+        );
+        let historical_count = if document_name == "Roadmap.md" {
+            POST_CAP020_RANKING_ROWS
+                .iter()
+                .chain(&POST_CAP021_RANKING_ROWS)
+                .chain(&POST_CAP023_RANKING_ROWS)
+                .filter(|historical| **historical == row)
+                .count()
+        } else {
+            0
+        };
+        assert_eq!(
+            lines.iter().filter(|line| **line == row).count(),
+            historical_count + 1,
+            "{document_name} duplicates, omits, or changes current post-CAP-024 row {row}"
+        );
+    }
+
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| **line == POST_CAP024_RANKING_HEADER)
+            .count(),
+        if document_name == "Roadmap.md" { 4 } else { 1 },
+        "{document_name} changes current/historical favorable-ranking topology"
+    );
+    for row in POST_CAP020_RANKING_ROWS
+        .iter()
+        .chain(&POST_CAP021_RANKING_ROWS)
+        .chain(&POST_CAP023_RANKING_ROWS)
+    {
+        let historical_count = if document_name == "Roadmap.md" {
+            POST_CAP020_RANKING_ROWS
+                .iter()
+                .chain(&POST_CAP021_RANKING_ROWS)
+                .chain(&POST_CAP023_RANKING_ROWS)
+                .filter(|historical| *historical == row)
+                .count()
+        } else {
+            0
+        };
+        let current_count = usize::from(POST_CAP024_RANKING_ROWS.contains(row));
+        assert_eq!(
+            lines.iter().filter(|line| *line == row).count(),
+            historical_count + current_count,
+            "{document_name} erases Roadmap history or retains a consumed ranking row as current: {row}"
+        );
+    }
+
+    for (line_index, line) in lines.iter().enumerate() {
+        let Some(cells) = table_cells(line) else {
+            continue;
+        };
+        let rank_total = cells
+            .first()
+            .is_some_and(|cell| cell.eq_ignore_ascii_case("rank"))
+            && cells
+                .last()
+                .is_some_and(|cell| cell.eq_ignore_ascii_case("total"));
+        if !rank_total || *line == POST_CAP024_RANKING_HEADER {
+            continue;
+        }
+        let heading = lines[..line_index]
+            .iter()
+            .rfind(|candidate| candidate.starts_with('#'))
+            .copied()
+            .unwrap_or("");
+        let legacy_heading = [
+            "### ROADMAP-001 ranked gaps and M1-001 outcome",
+            "### Post-M1 ranking and accepted CAP-001",
+            "### Post-CAP-001 ranking and accepted CAP-002",
+            "### Post-CAP-002 ranking and accepted CAP-003",
+        ]
+        .contains(&heading)
+            || (document_name == "CURRENT_CAPABILITY_AUDIT.md"
+                && heading == "### ROADMAP-001 ranking and M1-001 outcome");
+        let legacy_shape = cells.iter().any(|cell| cell == &"Risk")
+            && cells.iter().any(|cell| cell == &"Evidence")
+            && !cells.iter().any(|cell| cell == &"Favorable risk")
+            && !cells.iter().any(|cell| cell == &"Favorable evidence cost");
+        assert!(
+            legacy_heading && legacy_shape,
+            "{document_name} adds a competing current ranking header: {line}"
+        );
+    }
+    assert!(
+        lines
+            .get(current_index + 5)
+            .is_none_or(|line| line.is_empty()),
+        "{document_name} appends an uncontracted row to the post-CAP-024 ranking table"
+    );
+}
+
 fn ordered_decision_records_violation(section: &str, contracts: &[&str]) -> Option<String> {
     let rendered = markdown_outside_fences(section);
     let records = normalized_claim_records_from_rendered(&rendered)
@@ -2263,18 +2551,7 @@ fn cap023_matrix_violation(matrix: &str) -> Option<String> {
             table_cells(line).is_some() && has_semantic_capability(&semantic_words(line), "023")
         })
         .collect::<Vec<_>>();
-    if all_cap023_rows.len() != 2
-        || all_cap023_rows
-            .iter()
-            .filter(|row| **row == CAP023_CPU_MATRIX_ROW)
-            .count()
-            != 1
-        || all_cap023_rows
-            .iter()
-            .filter(|row| **row == POST_CAP023_RANKING_ROWS[0])
-            .count()
-            != 1
-    {
+    if all_cap023_rows != [CAP023_CPU_MATRIX_ROW] {
         return Some(format!(
             "CAP-023 appears in an uncontracted matrix table row: {all_cap023_rows:?}"
         ));
@@ -2330,6 +2607,104 @@ fn cap023_matrix_violation(matrix: &str) -> Option<String> {
     if cpu_rows != [CAP023_CPU_MATRIX_ROW] {
         return Some(format!(
             "backend summary does not retain one exact CPU CAP-023 PARTIAL row: {cpu_rows:?}"
+        ));
+    }
+    None
+}
+
+fn cap024_matrix_violation(matrix: &str) -> Option<String> {
+    let rendered = markdown_outside_fences(matrix);
+    let Some(classified_tables) = rendered
+        .split_once("## Language features")
+        .and_then(|(_, tail)| tail.split_once("## Evidence notes"))
+        .map(|(section, _)| section)
+    else {
+        return Some("missing bounded classified-table region".to_owned());
+    };
+    let classified_cap024_rows = classified_tables
+        .lines()
+        .map(table_line)
+        .filter(|line| {
+            table_cells(line).is_some() && has_semantic_capability(&semantic_words(line), "024")
+        })
+        .collect::<Vec<_>>();
+    if !classified_cap024_rows.is_empty() {
+        return Some(format!(
+            "CAP-024 appears in a classified feature/profile/backend row: {classified_cap024_rows:?}"
+        ));
+    }
+    let Some(language_features) = classified_tables
+        .split_once("## Compiler, tooling, and ecosystem surfaces")
+        .map(|(section, _)| section)
+    else {
+        return Some("missing bounded language-feature section".to_owned());
+    };
+    if language_features.lines().map(table_line).any(|line| {
+        table_cells(line).is_some() && has_semantic_capability(&semantic_words(line), "024")
+    }) {
+        return Some("CAP-024 appears in a language-feature or selected-profile row".to_owned());
+    }
+    let Some(backend) = classified_tables
+        .split_once("## Backend summary")
+        .map(|(_, section)| section)
+    else {
+        return Some("missing bounded backend-summary section".to_owned());
+    };
+    let cpu_rows = backend
+        .lines()
+        .map(table_line)
+        .filter(|line| {
+            table_cells(line).is_some_and(|cells| {
+                cells
+                    .first()
+                    .is_some_and(|label| label.eq_ignore_ascii_case("cpu"))
+            })
+        })
+        .collect::<Vec<_>>();
+    if cpu_rows != [CAP023_CPU_MATRIX_ROW] {
+        return Some(format!(
+            "backend summary does not retain one byte-identical CAP-023 CPU PARTIAL row: {cpu_rows:?}"
+        ));
+    }
+    None
+}
+
+fn frozen_cap024_matrix_source_row_violation(matrix_source: &str) -> Option<String> {
+    let Some(language_features) = matrix_source
+        .split_once("## Language features")
+        .and_then(|(_, tail)| tail.split_once("## Compiler, tooling, and ecosystem surfaces"))
+        .map(|(section, _)| section)
+    else {
+        return Some("missing raw language-feature source region".to_owned());
+    };
+    let selected_profile_rows = language_features
+        .lines()
+        .filter(|line| line.contains("exact-i32-array-v0") || line.contains("CAP-018"))
+        .collect::<Vec<_>>();
+    if selected_profile_rows != [CAP019_SELECTED_PROFILE_MATRIX_ROW] {
+        return Some(format!(
+            "selected-profile source row is not the sole byte-identical frozen row: {selected_profile_rows:?}"
+        ));
+    }
+
+    let Some(backend_summary) = matrix_source
+        .split_once("## Backend summary")
+        .and_then(|(_, tail)| tail.split_once("## Evidence notes"))
+        .map(|(section, _)| section)
+    else {
+        return Some("missing raw backend-summary source region".to_owned());
+    };
+    let cpu_rows = backend_summary
+        .lines()
+        .filter(|line| {
+            line.contains("| CPU |")
+                || line.contains("&#124; CPU &#124;")
+                || line.contains("&vert; CPU &vert;")
+        })
+        .collect::<Vec<_>>();
+    if cpu_rows != [CAP023_CPU_MATRIX_ROW] {
+        return Some(format!(
+            "CPU source row is not the sole byte-identical frozen row: {cpu_rows:?}"
         ));
     }
     None
@@ -2619,6 +2994,221 @@ fn assert_cap023_acceptance_evidence(document_name: &str, document: &str) {
         "CAP-023",
         &CAP023_ACCEPTANCE_EVIDENCE,
         true,
+    );
+}
+
+fn evidence_identity_shaped(word: &str) -> bool {
+    word.len() >= 7 && word != "256" && word.chars().all(|character| character.is_ascii_hexdigit())
+}
+
+fn cap024_role_identity_violation(words: &[String]) -> Option<String> {
+    const ROLE_SPECS: &[(&[&str], &[usize])] = &[
+        (&["candidate", "push", "ci"], &[4]),
+        (&["pr", "ci"], &[5]),
+        (&["rust", "ci"], &[6, 29]),
+        (&["cap", "024", "evidence", "run"], &[8]),
+        (&["evidence", "run"], &[8]),
+        (&["candidate", "push", "compiler", "jobs"], &[9]),
+        (&["candidate", "push", "compiler", "job"], &[9]),
+        (&["pr", "compiler", "jobs"], &[10]),
+        (&["pr", "compiler", "job"], &[10]),
+        (&["aggregate", "candidate", "codeql", "check"], &[17]),
+        (&["codeql", "actions", "jobs"], &[14, 36]),
+        (&["codeql", "actions", "job"], &[14, 36]),
+        (&["actions", "analyses"], &[18, 39]),
+        (&["actions", "analysis"], &[18, 39]),
+        (&["python", "analyses"], &[19, 40]),
+        (&["python", "analysis"], &[19, 40]),
+        (&["rust", "analyses"], &[20, 41]),
+        (&["rust", "analysis"], &[20, 41]),
+        (&["linux", "jobs"], &[21, 43]),
+        (&["linux", "job"], &[21, 43]),
+        (&["windows", "jobs"], &[13, 22, 35, 44]),
+        (&["windows", "job"], &[13, 22, 35, 44]),
+        (&["aggregate", "replay", "job"], &[42]),
+        (&["aggregate", "jobs"], &[23, 42]),
+        (&["aggregate", "job"], &[23, 42]),
+        (&["capture", "jobs"], &[43, 44]),
+        (&["capture", "job"], &[43, 44]),
+        (&["merge", "head", "ci"], &[28]),
+        (&["merge", "compiler", "job"], &[32]),
+        (&["replay", "run"], &[31]),
+        (&["canonical", "manifest"], &[27]),
+        (&["fresh", "manifest"], &[25]),
+        (&["fresh", "observations"], &[26]),
+        (&["fresh", "observation"], &[26]),
+        (&["artifact"], &[24]),
+        (&["stable", "job"], &[11, 33]),
+        (&["nightly", "job"], &[12, 34]),
+        (&["python", "job"], &[15, 37]),
+        (&["rust", "job"], &[16, 38]),
+        (&["codeql"], &[7, 30]),
+        (&["candidate"], &[0]),
+        (&["tree"], &[1]),
+        (&["base"], &[2]),
+        (&["merge"], &[3]),
+    ];
+
+    for (descriptor, expected_indices) in ROLE_SPECS {
+        for position in words
+            .windows(descriptor.len())
+            .enumerate()
+            .filter(|(_, candidate)| {
+                candidate
+                    .iter()
+                    .map(String::as_str)
+                    .eq(descriptor.iter().copied())
+            })
+            .map(|(position, _)| position)
+        {
+            let next = words.get(position + descriptor.len()).map(String::as_str);
+            if descriptor.len() == 1
+                && descriptor[0] == "candidate"
+                && next.is_some_and(|word| matches!(word, "push" | "tree" | "check" | "codeql"))
+            {
+                continue;
+            }
+            if descriptor.len() == 1
+                && descriptor[0] == "merge"
+                && next.is_some_and(|word| {
+                    matches!(word, "tree" | "parent" | "push" | "head" | "compiler")
+                })
+            {
+                continue;
+            }
+            if descriptor.len() == 1
+                && descriptor[0] == "codeql"
+                && (next.is_some_and(|word| word == "actions")
+                    || words[position.saturating_sub(3)..position]
+                        .iter()
+                        .any(|word| word == "aggregate"))
+            {
+                continue;
+            }
+            let identity = words[position + descriptor.len()..]
+                .iter()
+                .find(|identity| evidence_identity_shaped(identity));
+            let Some(identity) = identity else {
+                continue;
+            };
+            if !expected_indices
+                .iter()
+                .any(|index| identity.as_str() == CAP024_ACCEPTANCE_EVIDENCE[*index])
+            {
+                return Some(format!(
+                    "CAP-024 evidence role {} is assigned to the wrong identity {identity}",
+                    descriptor.join(" ")
+                ));
+            }
+        }
+    }
+
+    for (position, identity) in words.iter().enumerate() {
+        if !evidence_identity_shaped(identity)
+            || CAP024_ACCEPTANCE_EVIDENCE.contains(&identity.as_str())
+        {
+            continue;
+        }
+        let role_prefix = &words[position.saturating_sub(8)..position];
+        if role_prefix.iter().any(|word| {
+            matches!(
+                word.as_str(),
+                "run" | "runs" | "job" | "jobs" | "analysis" | "analyses" | "ci" | "check"
+            )
+        }) {
+            return Some(format!(
+                "CAP-024 assigns an unknown run/job/analysis identity {identity}"
+            ));
+        }
+    }
+    None
+}
+
+fn cap024_evidence_violation(document: &str) -> Option<String> {
+    let rendered = markdown_outside_fences(document);
+    let normalized = normalized_words(&rendered);
+    if normalized
+        .matches("Exact CAP-024 reviewed candidate")
+        .count()
+        != 1
+    {
+        return Some("CAP-024 evidence lead-in must occur exactly once".to_owned());
+    }
+    if normalized.matches(CAP024_EVIDENCE_PREFIX).count() != 1 {
+        return Some("CAP-024 evidence prefix is missing or duplicated".to_owned());
+    }
+    for (position, identity) in CAP024_ACCEPTANCE_EVIDENCE.iter().enumerate() {
+        let expected = 1 + usize::from(matches!(position, 0..=3 | 27 | 39));
+        let count = normalized.matches(identity).count();
+        if count != expected {
+            return Some(format!(
+                "CAP-024 evidence identity {identity} occurs {count} times instead of {expected}"
+            ));
+        }
+    }
+    let evidence_paragraphs = normalized_markdown_paragraphs(&rendered)
+        .into_iter()
+        .filter(|paragraph| paragraph.starts_with(CAP024_EVIDENCE_PREFIX))
+        .collect::<Vec<_>>();
+    if evidence_paragraphs.len() != 1 {
+        return Some(format!(
+            "CAP-024 canonical evidence paragraph count is {}",
+            evidence_paragraphs.len()
+        ));
+    }
+    let paragraph = &evidence_paragraphs[0];
+    if paragraph.len() >= 4_000 {
+        return Some("CAP-024 evidence paragraph exceeds its bounded size".to_owned());
+    }
+    if paragraph != CAP024_EVIDENCE_PARAGRAPH {
+        return Some(
+            "CAP-024 evidence labels, roles, order, punctuation, results, or skip conclusion changed"
+                .to_owned(),
+        );
+    }
+    let mut search_from = 0;
+    for identity in CAP024_ACCEPTANCE_EVIDENCE {
+        let Some(offset) = paragraph[search_from..].find(identity) else {
+            return Some(format!(
+                "CAP-024 evidence paragraph is missing ordered identity {identity}"
+            ));
+        };
+        search_from += offset + identity.len();
+    }
+
+    let mut section_owner: Option<(usize, String)> = None;
+    for record in normalized_claim_records_from_rendered(&rendered) {
+        if record == CAP024_EVIDENCE_PARAGRAPH {
+            continue;
+        }
+        if let Some((level, owner)) = claim_heading(&record) {
+            if let Some(owner) = owner {
+                section_owner = Some((level, owner));
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(owned_level, _)| level <= *owned_level)
+            {
+                section_owner = None;
+            }
+        }
+        let words = semantic_words(&record);
+        if !has_semantic_capability(&words, "024")
+            && section_owner.as_ref().map(|(_, owner)| owner.as_str()) != Some("024")
+        {
+            continue;
+        }
+        if let Some(violation) = cap024_role_identity_violation(&words) {
+            return Some(violation);
+        }
+    }
+    None
+}
+
+fn assert_cap024_acceptance_evidence(document_name: &str, document: &str) {
+    assert!(
+        cap024_evidence_violation(document).is_none(),
+        "{document_name} violates the canonical CAP-024 evidence contract: {:?}",
+        cap024_evidence_violation(document)
     );
 }
 
@@ -3259,6 +3849,292 @@ fn assert_post_cap023_successor_order(document_name: &str, document: &str) {
     );
 }
 
+fn post_cap024_category(words: &[String]) -> Option<u8> {
+    if words
+        .iter()
+        .any(|word| matches!(word.as_str(), "quantized" | "quantization"))
+    {
+        Some(3)
+    } else if words.iter().any(|word| {
+        matches!(
+            word.as_str(),
+            "vec" | "vector" | "vectors" | "list" | "lists"
+        )
+    }) || words.iter().any(|word| word == "string")
+        && words
+            .iter()
+            .any(|word| matches!(word.as_str(), "owned" | "dynamic"))
+        || words
+            .iter()
+            .any(|word| matches!(word.as_str(), "collection" | "collections" | "streaming"))
+            && words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "owned" | "dynamic" | "allocation" | "allocator" | "drop" | "foundation"
+                )
+            })
+    {
+        Some(2)
+    } else if words.iter().any(|word| word == "copydata")
+        && words
+            .iter()
+            .any(|word| matches!(word.as_str(), "application" | "profile" | "composition"))
+    {
+        Some(1)
+    } else {
+        None
+    }
+}
+
+fn rank_word(word: &str) -> Option<u8> {
+    match word {
+        "one" | "first" | "top" | "highest" | "primary" => Some(1),
+        "two" | "second" => Some(2),
+        "three" | "third" | "last" | "lowest" => Some(3),
+        "four" | "fourth" => Some(4),
+        _ => word.parse::<u8>().ok(),
+    }
+}
+
+fn post_cap024_successor_order_violation(text: &str) -> Option<String> {
+    let ranked_rendered = markdown_with_ordered_list_ranks(text);
+    let ranked_lines = ranked_rendered.lines().map(table_line).collect::<Vec<_>>();
+    for (header_index, header) in ranked_lines.iter().enumerate() {
+        let Some(cells) = table_cells(header) else {
+            continue;
+        };
+        let rank_column = cells.iter().position(|cell| {
+            cell.eq_ignore_ascii_case("rank") || cell.eq_ignore_ascii_case("priority")
+        });
+        let capability_column = cells.iter().position(|cell| {
+            cell.eq_ignore_ascii_case("capability")
+                || cell.eq_ignore_ascii_case("capability gap")
+                || cell.eq_ignore_ascii_case("work")
+        });
+        let (Some(rank_column), Some(capability_column)) = (rank_column, capability_column) else {
+            continue;
+        };
+        if !ranked_lines
+            .get(header_index + 1)
+            .and_then(|line| table_cells(line))
+            .is_some_and(|delimiter| {
+                delimiter.len() == cells.len()
+                    && delimiter
+                        .iter()
+                        .all(|cell| valid_markdown_delimiter_cell(cell))
+            })
+        {
+            continue;
+        }
+        for row in ranked_lines[header_index + 2..]
+            .iter()
+            .take_while(|line| !line.is_empty() && table_cells(line).is_some())
+        {
+            let row_cells = table_cells(row).expect("table row");
+            if row_cells.len() != cells.len() {
+                continue;
+            }
+            let claimed = semantic_words(row_cells[rank_column])
+                .iter()
+                .find_map(|word| rank_word(word));
+            let expected = post_cap024_category(&semantic_words(row_cells[capability_column]));
+            if matches!((claimed, expected), (Some(claimed), Some(expected)) if claimed != expected)
+            {
+                return Some((*row).to_owned());
+            }
+        }
+    }
+
+    let mut section_category: Option<(usize, u8)> = None;
+    for record in normalized_claim_records_from_rendered(&ranked_rendered) {
+        let normalized_record = normalized_words(&record);
+        let decision_record = normalized_record
+            .strip_prefix("Rank ")
+            .and_then(|rest| rest.split_once(' ').map(|(_, decision)| decision))
+            .unwrap_or(&normalized_record);
+        if POST_CAP024_DECISION_CONTRACTS.contains(&decision_record) {
+            continue;
+        }
+        if let Some((level, _)) = claim_heading(&record) {
+            if let Some(category) = post_cap024_category(&semantic_words(&record)) {
+                section_category = Some((level, category));
+            } else if section_category.is_some_and(|(owned_level, _)| level <= owned_level) {
+                section_category = None;
+            }
+        }
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            let historical = words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "historical" | "historically" | "former" | "formerly" | "previously"
+                )
+            }) && !words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "now" | "current" | "today" | "still" | "remains"
+                )
+            });
+            if historical {
+                continue;
+            }
+            let mut categories = Vec::new();
+            for (position, word) in words.iter().enumerate() {
+                let category = if matches!(word.as_str(), "quantized" | "quantization") {
+                    Some(3)
+                } else if word == "copydata"
+                    && words.iter().any(|word| {
+                        matches!(word.as_str(), "application" | "profile" | "composition")
+                    })
+                {
+                    Some(1)
+                } else if matches!(
+                    word.as_str(),
+                    "vec" | "vector" | "vectors" | "list" | "lists"
+                ) || word == "string"
+                    && words
+                        .iter()
+                        .any(|word| matches!(word.as_str(), "owned" | "dynamic"))
+                    || matches!(word.as_str(), "collection" | "collections" | "streaming")
+                        && words.iter().any(|word| {
+                            matches!(
+                                word.as_str(),
+                                "owned"
+                                    | "dynamic"
+                                    | "allocation"
+                                    | "allocator"
+                                    | "drop"
+                                    | "foundation"
+                            )
+                        })
+                {
+                    Some(2)
+                } else {
+                    None
+                };
+                if let Some(category) = category {
+                    categories.push((position, category));
+                }
+            }
+            categories.sort_unstable();
+            categories.dedup_by_key(|(_, category)| *category);
+            if categories.is_empty()
+                && section_category.is_some()
+                && words
+                    .first()
+                    .is_some_and(|word| matches!(word.as_str(), "it" | "this" | "that"))
+            {
+                categories.push((0, section_category.expect("section category").1));
+            }
+            if categories.is_empty() {
+                continue;
+            }
+            let nearest_category = |position: usize| {
+                categories
+                    .iter()
+                    .min_by_key(|(candidate, _)| candidate.abs_diff(position))
+                    .copied()
+            };
+            for (position, word) in words.iter().enumerate() {
+                let Some(claimed) = rank_word(word) else {
+                    continue;
+                };
+                let rank_relation = words
+                    .get(position.wrapping_sub(1))
+                    .is_some_and(|word| word == "rank")
+                    || words[position.saturating_sub(3)..position]
+                        .iter()
+                        .any(|word| {
+                            matches!(word.as_str(), "rank" | "ranks" | "ranked" | "placed")
+                        })
+                    || words
+                        .get(position + 1)
+                        .is_some_and(|word| word == "priority")
+                    || words
+                        .get(position.wrapping_sub(1))
+                        .is_some_and(|word| word == "priority");
+                if rank_relation
+                    && !preceded_by_local_negation(&words, position)
+                    && nearest_category(position).is_some_and(|(_, expected)| expected != claimed)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            for (position, relation) in words.iter().enumerate() {
+                let left_before_right = match relation.as_str() {
+                    "precede" | "precedes" | "before" | "ahead" => Some(true),
+                    "follow" | "follows" | "after" | "behind" => Some(false),
+                    _ => None,
+                };
+                let Some(left_before_right) = left_before_right else {
+                    continue;
+                };
+                if preceded_by_local_negation(&words, position) {
+                    continue;
+                }
+                let left = categories
+                    .iter()
+                    .filter(|(candidate, _)| *candidate < position)
+                    .max_by_key(|(candidate, _)| *candidate)
+                    .map(|(_, rank)| *rank);
+                let right = categories
+                    .iter()
+                    .filter(|(candidate, _)| *candidate > position)
+                    .min_by_key(|(candidate, _)| *candidate)
+                    .map(|(_, rank)| *rank);
+                if matches!((left, right), (Some(left), Some(right)) if left != right && (left < right) != left_before_right)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn assert_post_cap024_successor_order(document_name: &str, document: &str) {
+    let current_surface = if document_name == "Roadmap.md" {
+        let historical_start = document
+            .find("### Post-CAP-020 ranking")
+            .expect("Roadmap.md historical post-CAP-020 ranking");
+        let current_start = document
+            .find("### Post-CAP-024 ranking")
+            .expect("Roadmap.md current post-CAP-024 ranking");
+        format!(
+            "{}{}",
+            &document[..historical_start],
+            &document[current_start..]
+        )
+    } else if document_name == "CURRENT_CAPABILITY_AUDIT.md" {
+        let historical_start = document
+            .find("### ROADMAP-001 ranking and M1-001 outcome")
+            .expect("CURRENT_CAPABILITY_AUDIT.md historical ROADMAP-001 ranking");
+        let historical_end = document[historical_start..]
+            .find("## Verified progress after the audit commit")
+            .map(|offset| historical_start + offset)
+            .expect("CURRENT_CAPABILITY_AUDIT.md post-ROADMAP-001 audit history");
+        format!(
+            "{}{}",
+            &document[..historical_start],
+            &document[historical_end..]
+        )
+    } else {
+        document.to_owned()
+    };
+    let normalized = normalized_words(&markdown_outside_fences(&current_surface));
+    for row in POST_CAP024_RANKING_ROWS {
+        assert!(
+            normalized.contains(table_cells(row).expect("canonical successor row")[1]),
+            "{document_name} is missing a post-CAP-024 successor"
+        );
+    }
+    assert!(
+        post_cap024_successor_order_violation(&current_surface).is_none(),
+        "{document_name} states a contradictory post-CAP-024 successor order: {:?}",
+        post_cap024_successor_order_violation(&current_surface)
+    );
+}
+
 fn clause_words(clause: &str) -> Vec<&str> {
     clause
         .split(|character: char| !character.is_ascii_alphanumeric() && character != '-')
@@ -3538,6 +4414,79 @@ fn stale_pre_cap023_current_violation(document: &str) -> Option<String> {
     None
 }
 
+fn stale_cap023_current_head_violation(document: &str) -> Option<String> {
+    for record in normalized_claim_records(document) {
+        let mut carried_owner = None;
+        for clause in record.split(['.', ';', '!', '?', ',']) {
+            let words = semantic_words(clause);
+            let mentions = capability_mentions(&words);
+            if let Some((_, _, owner)) = mentions.last() {
+                carried_owner = Some(owner.clone());
+            }
+            if !has_semantic_capability(&words, "023")
+                && !(mentions.is_empty() && carried_owner.as_deref() == Some("023"))
+            {
+                continue;
+            }
+            let has = |word: &str| words.iter().any(|candidate| candidate == word);
+            let state_positions = words
+                .iter()
+                .enumerate()
+                .filter(|(_, word)| {
+                    matches!(word.as_str(), "master" | "head" | "baseline" | "incumbent")
+                })
+                .map(|(position, _)| position)
+                .collect::<Vec<_>>();
+            let cap023_state = state_positions.iter().copied().find(|position| {
+                nearest_capability_owner(&words, *position, 1).as_deref() == Some("023")
+                    || mentions.is_empty() && carried_owner.as_deref() == Some("023")
+            });
+            let Some(state_position) = cap023_state else {
+                continue;
+            };
+            let historical = has("historical")
+                || has("formerly")
+                || has("former")
+                || has("previously")
+                || has("archived")
+                || has("was")
+                || has("were")
+                || (has("before") && has_semantic_capability(&words, "024"));
+            let state_negated = preceded_by_local_negation(&words, state_position)
+                || contains_semantic_phrase(&words, &["no", "longer"])
+                || contains_semantic_phrase(&words, &["not", "current"])
+                || contains_semantic_phrase(&words, &["ceased", "to", "be"]);
+            let current = has("current")
+                || has("latest")
+                || has("present")
+                || has("today")
+                || has("protected")
+                || has("remains")
+                || has("still")
+                || has("continues")
+                || has("is");
+            if !state_negated && current && !historical {
+                return Some(clause.trim().to_owned());
+            }
+            if !state_negated
+                && historical
+                && (words.iter().any(|word| {
+                    matches!(
+                        word.as_str(),
+                        "now" | "today" | "still" | "remains" | "continues"
+                    )
+                }) || words
+                    .iter()
+                    .any(|word| matches!(word.as_str(), "but" | "yet" | "however"))
+                    && has("is"))
+            {
+                return Some(clause.trim().to_owned());
+            }
+        }
+    }
+    None
+}
+
 fn capability_mentions(words: &[String]) -> Vec<(usize, usize, String)> {
     let mut mentions = Vec::new();
     let mut index = 0;
@@ -3664,6 +4613,10 @@ fn relation_is_negated(words: &[String], subject_start: usize, subject_len: usiz
                     | "creates"
                     | "change"
                     | "changes"
+                    | "edit"
+                    | "edits"
+                    | "modify"
+                    | "modifies"
                     | "implement"
                     | "implements"
                     | "guarantee"
@@ -3901,6 +4854,7 @@ fn cap020_product_violation(text: &str) -> Option<String> {
         &["parser"],
         &["grammar"],
         &["source", "semantics"],
+        &["profile"],
         &["language", "profile"],
         &["compiler", "profile"],
         &["language", "feature"],
@@ -3910,6 +4864,13 @@ fn cap020_product_violation(text: &str) -> Option<String> {
         &["verifier"],
         &["backend"],
         &["compiler", "production"],
+        &["compiler"],
+        &["compiler", "edits"],
+        &["code", "generation"],
+        &["codegen"],
+        &["production"],
+        &["source", "code"],
+        &["production", "source", "code"],
         &["production", "compiler"],
         &["production", "code"],
         &["production", "source", "code"],
@@ -4102,6 +5063,7 @@ fn cap021_product_violation(text: &str) -> Option<String> {
         &["memory", "safety"],
         &["safety", "claim"],
         &["general", "inference"],
+        &["inference"],
         &["inference", "completion"],
         &["general", "mutation"],
         &["language", "completion"],
@@ -4283,7 +5245,7 @@ fn cap023_product_violation(text: &str) -> Option<String> {
     ];
     let mut section_owner: Option<(usize, String)> = None;
     for record in normalized_claim_records(text) {
-        if record == CAP023_EVIDENCE_PARAGRAPH {
+        if record == CAP023_EVIDENCE_PARAGRAPH || cap024_record_is_canonical(&record) {
             continue;
         }
         if let Some((level, owner)) = claim_heading(&record) {
@@ -5227,7 +6189,7 @@ fn cap023_status_violation(text: &str) -> Option<String> {
     ];
     let mut section_owner: Option<(usize, String)> = None;
     for record in normalized_claim_records(text) {
-        if record == CAP023_EVIDENCE_PARAGRAPH {
+        if record == CAP023_EVIDENCE_PARAGRAPH || cap024_record_is_canonical(&record) {
             continue;
         }
         if let Some((level, owner)) = claim_heading(&record) {
@@ -5243,7 +6205,10 @@ fn cap023_status_violation(text: &str) -> Option<String> {
         let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
         for clause in record.split(['.', ';', '!', '?']) {
             let words = semantic_words(clause);
-            if let Some((_, _, owner)) = capability_mentions(&words).last() {
+            let explicit_owner = capability_mentions(&words)
+                .last()
+                .map(|(_, _, owner)| owner.clone());
+            if let Some(owner) = &explicit_owner {
                 carried_owner = Some(owner.clone());
             }
             if !has_semantic_capability(&words, "023") && carried_owner.as_deref() != Some("023") {
@@ -5611,6 +6576,785 @@ fn cap023_milestone_violation(text: &str) -> Option<String> {
     None
 }
 
+fn cap024_record_is_canonical(record: &str) -> bool {
+    let normalized = normalized_words(record);
+    [
+        CAP024_EVIDENCE_PARAGRAPH,
+        CAP024_CURRENT_HEAD_BOUNDARY,
+        CAP024_ZERO_PRODUCTION_BOUNDARY,
+        CAP024_CLASSIFICATION_BOUNDARY,
+        CAP024_BUNDLE_BOUNDARY,
+        CAP024_ALERT_BOUNDARY,
+        CAP024_MILESTONE_BOUNDARY,
+    ]
+    .iter()
+    .any(|canonical| normalized == *canonical)
+        || POST_CAP024_DECISION_CONTRACTS
+            .iter()
+            .any(|canonical| normalized == *canonical)
+}
+
+fn cap024_product_violation(text: &str) -> Option<String> {
+    const EXCLUDED: &[&[&str]] = &[
+        &["compiler", "production"],
+        &["compiler"],
+        &["compiler", "edits"],
+        &["code", "generation"],
+        &["codegen"],
+        &["production"],
+        &["parser"],
+        &["grammar"],
+        &["source", "semantics"],
+        &["source", "code"],
+        &["language", "profile"],
+        &["selected", "profile"],
+        &["profile"],
+        &["semantic", "analysis"],
+        &["checked", "ir"],
+        &["verifier"],
+        &["backend"],
+        &["example"],
+        &["product", "oracle"],
+        &["runtime", "behavior"],
+        &["runtime", "ingestion"],
+        &["runtime", "acquisition"],
+        &["runtime", "byte", "file", "acquisition"],
+        &["file", "input"],
+        &["file", "ingestion"],
+        &["abi"],
+        &["capability", "classification"],
+        &["classification"],
+        &["language", "feature"],
+        &["benchmark"],
+        &["resource", "usage"],
+        &["performance"],
+        &["accelerator"],
+        &["safety"],
+        &["general", "inference"],
+        &["activation"],
+        &["relu"],
+        &["argmax"],
+        &["tensor"],
+        &["matrix"],
+        &["record"],
+        &["recursive", "array"],
+        &["recursive", "arrays"],
+        &["serialization"],
+        &["quantization"],
+        &["conversion"],
+        &["product", "capability"],
+        &["product", "checkpoint"],
+        &["compiler", "widening"],
+        &["profile", "widening"],
+    ];
+    let mut section_owner: Option<(usize, String)> = None;
+    for record in normalized_claim_records(text) {
+        if cap024_record_is_canonical(&record) {
+            continue;
+        }
+        if let Some((level, owner)) = claim_heading(&record) {
+            if let Some(owner) = owner {
+                section_owner = Some((level, owner));
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(owned_level, _)| level <= *owned_level)
+            {
+                section_owner = None;
+            }
+        }
+        let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            if let Some((_, _, owner)) = capability_mentions(&words).last() {
+                carried_owner = Some(owner.clone());
+            }
+            if !has_semantic_capability(&words, "024") && carried_owner.as_deref() != Some("024") {
+                continue;
+            }
+            let conditional = words.first().is_some_and(|word| word == "stop");
+            if conditional {
+                continue;
+            }
+            let standalone_classification = words
+                .iter()
+                .position(|word| {
+                    matches!(
+                        word.as_str(),
+                        "stable" | "partial" | "experimental" | "designed"
+                    )
+                })
+                .or_else(|| semantic_phrase_position(&words, &["end", "to", "end"]))
+                .or_else(|| semantic_phrase_position(&words, &["parsed", "only"]));
+            if let Some(position) = standalone_classification {
+                let classification_context = words.iter().any(|word| {
+                    matches!(
+                        word.as_str(),
+                        "class" | "classified" | "classification" | "row"
+                    )
+                });
+                let direct_cap024_classification = capability_mentions(&words)
+                    .iter()
+                    .filter(|(_, end, owner)| owner == "024" && *end <= position)
+                    .any(|(_, end, _)| {
+                        words.get(*end).is_some_and(|word| {
+                            matches!(word.as_str(), "is" | "remains" | "becomes")
+                        }) && words[*end + 1..position].iter().all(|word| {
+                            matches!(
+                                word.as_str(),
+                                "a" | "an" | "as" | "classified" | "currently" | "now" | "still"
+                            )
+                        })
+                    });
+                if !preceded_by_local_negation(&words, position)
+                    && (classification_context || direct_cap024_classification)
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            for subject in EXCLUDED {
+                let Some(position) = semantic_phrase_position(&words, subject) else {
+                    continue;
+                };
+                let zero_production = subject.len() == 1
+                    && subject[0] == "production"
+                    && words
+                        .get(position.wrapping_sub(1))
+                        .is_some_and(|word| word == "zero");
+                let reversed_zero_production = zero_production
+                    && (words
+                        .get(position.wrapping_sub(2))
+                        .is_some_and(|word| matches!(word.as_str(), "non" | "not"))
+                        || position >= 3
+                            && words[position - 3..position]
+                                .iter()
+                                .map(String::as_str)
+                                .eq(["no", "longer", "zero"]));
+                if reversed_zero_production {
+                    return Some(format!(
+                        "CAP-024 contradicts zero-production status: {}",
+                        clause.trim()
+                    ));
+                }
+                if zero_production {
+                    continue;
+                }
+                let extra_positive = words.iter().enumerate().any(|(verb_position, word)| {
+                    matches!(
+                        word.as_str(),
+                        "change"
+                            | "changes"
+                            | "changed"
+                            | "edit"
+                            | "edits"
+                            | "edited"
+                            | "modify"
+                            | "modifies"
+                            | "modified"
+                            | "widen"
+                            | "widens"
+                            | "widened"
+                            | "promote"
+                            | "promotes"
+                            | "promoted"
+                            | "classify"
+                            | "classifies"
+                            | "classified"
+                            | "deliver"
+                            | "delivers"
+                            | "supply"
+                            | "supplies"
+                            | "establish"
+                            | "establishes"
+                            | "guarantee"
+                            | "guarantees"
+                            | "has"
+                            | "is"
+                            | "becomes"
+                            | "proves"
+                    ) && !preceded_by_local_negation(&words, verb_position)
+                });
+                if (has_affirmative_relation(&words, position, subject.len()) || extra_positive)
+                    && !relation_is_negated(&words, position, subject.len())
+                {
+                    return Some(format!(
+                        "CAP-024 overclaims {}: {}",
+                        subject.join(" "),
+                        clause.trim()
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn cap024_status_violation(text: &str) -> Option<String> {
+    let mut section_owner: Option<(usize, String)> = None;
+    for record in normalized_claim_records(text) {
+        if cap024_record_is_canonical(&record) {
+            continue;
+        }
+        if let Some((level, owner)) = claim_heading(&record) {
+            if let Some(owner) = owner {
+                section_owner = Some((level, owner));
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(owned_level, _)| level <= *owned_level)
+            {
+                section_owner = None;
+            }
+        }
+        let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            if let Some((_, _, owner)) = capability_mentions(&words).last() {
+                carried_owner = Some(owner.clone());
+            }
+            if !has_semantic_capability(&words, "024") && carried_owner.as_deref() != Some("024") {
+                continue;
+            }
+            if words.first().is_some_and(|word| word == "stop") {
+                continue;
+            }
+            let historical = words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "before" | "prior" | "previously" | "formerly" | "historical"
+                )
+            }) && !words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "remains" | "still" | "current" | "today" | "now"
+                )
+            });
+            if historical {
+                continue;
+            }
+            if contains_semantic_phrase(&words, &["not", "accepted"])
+                || contains_semantic_phrase(&words, &["not", "yet", "accepted"])
+                || contains_semantic_phrase(&words, &["has", "not", "been", "accepted"])
+                || contains_semantic_phrase(&words, &["has", "not", "yet", "been", "accepted"])
+                || contains_semantic_phrase(&words, &["not", "merged"])
+                || contains_semantic_phrase(&words, &["no", "longer", "accepted"])
+                || contains_semantic_phrase(&words, &["not", "current", "public", "master"])
+                || contains_semantic_phrase(&words, &["not", "the", "current", "public", "master"])
+                || contains_semantic_phrase(&words, &["no", "longer", "current"])
+                || contains_semantic_phrase(&words, &["no", "longer", "the", "current"])
+                || contains_semantic_phrase(&words, &["has", "been", "superseded"])
+            {
+                return Some(clause.trim().to_owned());
+            }
+            for phrase in [&["awaits", "acceptance"][..], &["awaiting", "acceptance"]] {
+                if semantic_phrase_position(&words, phrase)
+                    .is_some_and(|position| !preceded_by_local_negation(&words, position))
+                {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            if words
+                .iter()
+                .any(|word| matches!(word.as_str(), "alert" | "alerts"))
+            {
+                let alert_position = words
+                    .iter()
+                    .position(|word| matches!(word.as_str(), "alert" | "alerts"))
+                    .expect("checked alert token");
+                let new_alert = words
+                    .iter()
+                    .position(|word| word == "new")
+                    .is_some_and(|position| !preceded_by_local_negation(&words, position));
+                let open_alert = words
+                    .iter()
+                    .position(|word| word == "open")
+                    .is_some_and(|position| !preceded_by_local_negation(&words, position));
+                let surfaced_alert = words
+                    .iter()
+                    .position(|word| {
+                        matches!(word.as_str(), "surfaced" | "created" | "exists" | "exist")
+                    })
+                    .is_some_and(|position| !preceded_by_local_negation(&words, position));
+                let has_alert =
+                    words
+                        .iter()
+                        .position(|word| word == "has")
+                        .is_some_and(|position| {
+                            position < alert_position
+                                && !preceded_by_local_negation(&words, position)
+                                && !words[position + 1..=alert_position]
+                                    .iter()
+                                    .any(|word| matches!(word.as_str(), "no" | "not" | "without"))
+                        });
+                let wrong_alert_number = words[alert_position + 1..]
+                    .iter()
+                    .enumerate()
+                    .find_map(|(offset, word)| {
+                        word.parse::<u32>().ok().map(|number| (offset, number))
+                    })
+                    .is_some_and(|(offset, number)| {
+                        number != 4
+                            && !preceded_by_local_negation(&words, alert_position + 1 + offset)
+                    });
+                if new_alert || open_alert || surfaced_alert || has_alert || wrong_alert_number {
+                    return Some(clause.trim().to_owned());
+                }
+            }
+            for status in [
+                "candidate",
+                "pending",
+                "draft",
+                "unaccepted",
+                "revoked",
+                "reverted",
+                "withdrawn",
+                "rejected",
+                "failed",
+                "broken",
+                "superseded",
+                "unmerged",
+                "unpublished",
+                "proposed",
+            ] {
+                if let Some(position) = words.iter().position(|word| word == status) {
+                    if !preceded_by_local_negation(&words, position) {
+                        return Some(clause.trim().to_owned());
+                    }
+                }
+            }
+            if contains_semantic_phrase(&words, &["local", "only"])
+                && !words
+                    .iter()
+                    .position(|word| word == "local")
+                    .is_some_and(|position| preceded_by_local_negation(&words, position))
+            {
+                return Some(clause.trim().to_owned());
+            }
+        }
+    }
+    None
+}
+
+fn stopped_capability_violation(text: &str) -> Option<String> {
+    const POSITIVE: &[&[&str]] = &[
+        &["authorized", "for", "implementation"],
+        &["approved", "for", "implementation"],
+        &["approved", "to", "proceed"],
+        &["cleared", "for", "implementation"],
+        &["implementation", "is", "authorized"],
+        &["implementation", "is", "approved"],
+        &["implementation", "is", "underway"],
+        &["implementation", "is", "in", "progress"],
+        &["implementation", "has", "begun"],
+        &["implementation", "has", "started"],
+        &["implementation", "is", "planned"],
+        &["implementation", "is", "scheduled"],
+        &["is", "implemented"],
+        &["implements"],
+        &["ready", "for", "implementation"],
+        &["implementation", "ready"],
+        &["implementation", "approval"],
+        &["active", "implementation"],
+        &["active", "development"],
+        &["will", "implement"],
+        &["may", "proceed"],
+        &["can", "proceed"],
+    ];
+    let rendered = markdown_outside_fences(text);
+    let mut section_owner: Option<(usize, String)> = None;
+    let mut historical_section: Option<usize> = None;
+    for record in normalized_claim_records_from_rendered(&rendered) {
+        let normalized = normalized_words(&record);
+        if normalized == CAP016_LOCAL_MODDECL_STOP_BOUNDARY
+            || normalized == CAP023_ZERO_PRODUCTION_BOUNDARY
+            || POST_CAP020_DECISION_CONTRACTS.contains(&normalized.as_str())
+            || POST_CAP021_DECISION_CONTRACTS.contains(&normalized.as_str())
+            || POST_CAP023_DECISION_CONTRACTS.contains(&normalized.as_str())
+            || POST_CAP024_DECISION_CONTRACTS.contains(&normalized.as_str())
+        {
+            continue;
+        }
+        if let Some((level, owner)) = claim_heading(&record) {
+            let heading_words = semantic_words(&record);
+            let historical_ranking = heading_words.iter().any(|word| word == "post")
+                && heading_words.iter().any(|word| word == "ranking")
+                && capability_mentions(&heading_words)
+                    .iter()
+                    .any(|(_, _, owner)| matches!(owner.as_str(), "020" | "021" | "023"));
+            if historical_ranking {
+                historical_section = Some(level);
+            } else if historical_section.is_some_and(|owned_level| level <= owned_level) {
+                historical_section = None;
+            }
+            if let Some(owner) = owner {
+                section_owner = Some((level, owner));
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(owned_level, _)| level <= *owned_level)
+            {
+                section_owner = None;
+            }
+        }
+        let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            if let Some((_, _, owner)) = capability_mentions(&words).last() {
+                carried_owner = Some(owner.clone());
+            }
+            let runtime_acquisition_subject =
+                contains_semantic_phrase(&words, &["runtime", "byte", "file", "acquisition"])
+                    || contains_semantic_phrase(&words, &["runtime", "acquisition"]);
+            let moddecl_subject = words.iter().any(|word| word == "moddecl");
+            let continuation = words.first().is_some_and(|word| {
+                matches!(
+                    word.as_str(),
+                    "it" | "its" | "this" | "that" | "implementation" | "work"
+                )
+            });
+            let owner = if has_semantic_capability(&words, "016") || moddecl_subject {
+                Some("016")
+            } else if has_semantic_capability(&words, "022") || runtime_acquisition_subject {
+                Some("022")
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(_, owner)| matches!(owner.as_str(), "016" | "022"))
+            {
+                section_owner.as_ref().map(|(_, owner)| owner.as_str())
+            } else if continuation {
+                carried_owner.as_deref()
+            } else {
+                None
+            };
+            let Some(owner) = owner.filter(|owner| matches!(*owner, "016" | "022")) else {
+                continue;
+            };
+            let historical = historical_section.is_some()
+                || words.iter().any(|word| {
+                    matches!(
+                        word.as_str(),
+                        "historical" | "historically" | "former" | "formerly" | "previously"
+                    )
+                }) && !words.iter().any(|word| {
+                    matches!(
+                        word.as_str(),
+                        "now" | "current" | "today" | "still" | "remains"
+                    )
+                });
+            let conditional_stop = words.iter().any(|word| word == "stop")
+                && words
+                    .iter()
+                    .any(|word| matches!(word.as_str(), "if" | "unless" | "before" | "until"));
+            if historical || conditional_stop {
+                continue;
+            }
+            for phrase in POSITIVE {
+                if let Some(position) = semantic_phrase_position(&words, phrase) {
+                    let predicate_position = position + phrase.len() - 1;
+                    if !preceded_by_local_negation(&words, predicate_position)
+                        && !relation_is_negated(&words, position, phrase.len())
+                    {
+                        return Some(format!(
+                            "stopped CAP-{owner} is promoted by {}: {}",
+                            phrase.join(" "),
+                            clause.trim()
+                        ));
+                    }
+                }
+            }
+            for predicate in ["authorized", "approved", "cleared"] {
+                if let Some(position) = words.iter().position(|word| word == predicate) {
+                    if !preceded_by_local_negation(&words, position) {
+                        return Some(format!(
+                            "stopped CAP-{owner} receives current authorization: {}",
+                            clause.trim()
+                        ));
+                    }
+                }
+            }
+            if words.iter().any(|word| word == "implementation") {
+                for predicate in [
+                    "underway",
+                    "active",
+                    "current",
+                    "now",
+                    "begun",
+                    "started",
+                    "planned",
+                    "scheduled",
+                    "ready",
+                ] {
+                    if let Some(position) = words.iter().position(|word| word == predicate) {
+                        if !preceded_by_local_negation(&words, position) {
+                            return Some(format!(
+                                "stopped CAP-{owner} has current implementation state: {}",
+                                clause.trim()
+                            ));
+                        }
+                    }
+                }
+            }
+            for (position, word) in words.iter().enumerate() {
+                let Some(rank) = rank_word(word) else {
+                    continue;
+                };
+                let rank_relation = words
+                    .get(position.wrapping_sub(1))
+                    .is_some_and(|word| word == "rank")
+                    || words[position.saturating_sub(3)..position]
+                        .iter()
+                        .any(|word| {
+                            matches!(word.as_str(), "rank" | "ranks" | "ranked" | "priority")
+                        })
+                    || words
+                        .get(position + 1)
+                        .is_some_and(|word| word == "priority");
+                if rank_relation && rank <= 3 && !preceded_by_local_negation(&words, position) {
+                    return Some(format!(
+                        "stopped CAP-{owner} receives current rank {rank}: {}",
+                        clause.trim()
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn core_mentions(words: &[String]) -> Vec<(usize, usize, String)> {
+    let mut mentions = Vec::new();
+    let mut index = 0;
+    while index < words.len() {
+        let compact = words[index]
+            .strip_prefix("core")
+            .filter(|number| !number.is_empty() && number.chars().all(char::is_numeric));
+        let split = (words[index] == "core")
+            .then(|| words.get(index + 1))
+            .flatten()
+            .filter(|number| number.chars().all(char::is_numeric))
+            .map(String::as_str);
+        if let Some(number) = compact.or(split) {
+            let end = index + 1 + usize::from(words[index] == "core");
+            mentions.push((index, end, number.to_owned()));
+            index = end;
+            continue;
+        }
+        index += 1;
+    }
+    mentions
+}
+
+fn core090_overclaim_violation(text: &str) -> Option<String> {
+    const EXCLUDED: &[&[&str]] = &[
+        &["general", "memory", "safety"],
+        &["memory", "safety"],
+        &["complete", "ownership"],
+        &["general", "ownership"],
+        &["projected", "borrowing"],
+        &["borrowing"],
+        &["lifetime"],
+        &["drop"],
+        &["abi"],
+        &["accelerator"],
+        &["accelerators"],
+    ];
+    let rendered = markdown_outside_fences(text);
+    let mut section_owner: Option<(usize, String)> = None;
+    for record in normalized_claim_records_from_rendered(&rendered) {
+        let words = semantic_words(&record);
+        let heading_owner = core_mentions(&words)
+            .into_iter()
+            .find(|(start, _, _)| *start <= 1)
+            .map(|(_, _, owner)| owner);
+        let bold_core_heading = record.trim_start().starts_with("**")
+            && record.trim_start()[2..].contains("**")
+            && heading_owner.is_some();
+        if let Some(level) = atx_heading_level(&record).or(bold_core_heading.then_some(3)) {
+            if let Some(owner) = heading_owner {
+                section_owner = Some((level, owner));
+            } else if section_owner
+                .as_ref()
+                .is_some_and(|(owned_level, _)| level <= *owned_level)
+            {
+                section_owner = None;
+            }
+        }
+        let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            if let Some((_, _, owner)) = core_mentions(&words).last() {
+                carried_owner = Some(owner.clone());
+            }
+            if !core_mentions(&words)
+                .iter()
+                .any(|(_, _, owner)| owner == "090")
+                && carried_owner.as_deref() != Some("090")
+            {
+                continue;
+            }
+            let classification_context = words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "class" | "classified" | "classification" | "row"
+                )
+            });
+            let direct_classification = |position: usize| {
+                let relation = words[..position]
+                    .iter()
+                    .rposition(|word| matches!(word.as_str(), "is" | "remains" | "becomes"));
+                relation.is_some_and(|relation| {
+                    words[relation + 1..position].iter().all(|word| {
+                        matches!(
+                            word.as_str(),
+                            "a" | "an" | "as" | "classified" | "currently" | "now" | "still"
+                        )
+                    })
+                })
+            };
+            let stable = words.iter().position(|word| word == "stable");
+            let end_to_end = semantic_phrase_position(&words, &["end", "to", "end"]);
+            for (position, label) in stable
+                .map(|position| (position, "STABLE"))
+                .into_iter()
+                .chain(end_to_end.map(|position| (position, "END_TO_END")))
+            {
+                if !preceded_by_local_negation(&words, position)
+                    && (classification_context || direct_classification(position))
+                {
+                    return Some(format!(
+                        "CORE-090 is promoted to {label}: {}",
+                        clause.trim()
+                    ));
+                }
+            }
+            let shared_predicate_denial = |subject_start: usize| {
+                let fragment_start = words[..subject_start]
+                    .iter()
+                    .rposition(|word| {
+                        matches!(word.as_str(), "but" | "yet" | "however" | "whereas")
+                    })
+                    .map_or(0, |position| position + 1);
+                let relation = words[fragment_start..subject_start]
+                    .iter()
+                    .rposition(|word| {
+                        matches!(
+                            word.as_str(),
+                            "provide"
+                                | "provides"
+                                | "support"
+                                | "supports"
+                                | "enable"
+                                | "enables"
+                                | "implement"
+                                | "implements"
+                                | "establish"
+                                | "establishes"
+                                | "guarantee"
+                                | "guarantees"
+                        )
+                    })
+                    .map(|position| fragment_start + position);
+                let Some(relation) = relation else {
+                    return false;
+                };
+                preceded_by_local_negation(&words, relation)
+            };
+            for subject in EXCLUDED {
+                let Some(position) = semantic_phrase_position(&words, subject) else {
+                    continue;
+                };
+                let positive = has_affirmative_relation(&words, position, subject.len())
+                    || words.iter().enumerate().any(|(verb_position, word)| {
+                        matches!(
+                            word.as_str(),
+                            "is" | "are"
+                                | "has"
+                                | "have"
+                                | "guarantees"
+                                | "establish"
+                                | "establishes"
+                                | "complete"
+                                | "completes"
+                        ) && !preceded_by_local_negation(&words, verb_position)
+                    });
+                if positive
+                    && !relation_is_negated(&words, position, subject.len())
+                    && !shared_predicate_denial(position)
+                {
+                    return Some(format!(
+                        "CORE-090 overclaims {}: {}",
+                        subject.join(" "),
+                        clause.trim()
+                    ));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn consumed_cap024_evidence_ranking_violation(text: &str) -> Option<String> {
+    for record in normalized_claim_records(text) {
+        if cap024_record_is_canonical(&record) {
+            continue;
+        }
+        for clause in record.split(['.', ';', '!', '?']) {
+            let words = semantic_words(clause);
+            let evidence_subject =
+                contains_semantic_phrase(&words, &["inference", "reproducibility"])
+                    || (contains_semantic_phrase(&words, &["accepted", "head"])
+                        && words.iter().any(|word| {
+                            matches!(
+                                word.as_str(),
+                                "artifact"
+                                    | "artifacts"
+                                    | "footprint"
+                                    | "reproducibility"
+                                    | "evidence"
+                                    | "bundle"
+                                    | "gate"
+                            )
+                        }))
+                    || (capability_mentions(&words)
+                        .iter()
+                        .any(|(_, _, owner)| matches!(owner.as_str(), "023" | "024"))
+                        && (contains_semantic_phrase(&words, &["artifact", "footprint"])
+                            || contains_semantic_phrase(&words, &["evidence", "gate"])));
+            if !evidence_subject {
+                continue;
+            }
+            let historical_or_completed = words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "historical"
+                        | "historically"
+                        | "previously"
+                        | "former"
+                        | "formerly"
+                        | "completed"
+                        | "closed"
+                        | "consumed"
+                )
+            }) && !words.iter().any(|word| {
+                matches!(
+                    word.as_str(),
+                    "current" | "now" | "still" | "remains" | "today"
+                )
+            });
+            if historical_or_completed {
+                continue;
+            }
+            let ranking = words.iter().enumerate().find(|(_, word)| {
+                matches!(
+                    word.as_str(),
+                    "rank" | "ranks" | "ranked" | "priority" | "top" | "first" | "next"
+                )
+            });
+            if ranking.is_some_and(|(position, _)| !preceded_by_local_negation(&words, position)) {
+                return Some(clause.trim().to_owned());
+            }
+        }
+    }
+    None
+}
+
 fn cap020_status_violation(text: &str) -> Option<String> {
     const NEGATABLE_STATUS: &[&[&str]] = &[
         &["remains", "a", "candidate"],
@@ -5840,6 +7584,11 @@ fn cap020_status_violation(text: &str) -> Option<String> {
 }
 
 fn readiness_promotion_violation(text: &str) -> Option<String> {
+    let rendered = markdown_outside_fences(text);
+    readiness_promotion_violation_from_rendered(&rendered)
+}
+
+fn readiness_promotion_violation_from_rendered(rendered: &str) -> Option<String> {
     const POSITIVE: &[&[&str]] = &[
         &["approved", "to", "proceed"],
         &["authorized", "for", "implementation"],
@@ -5851,6 +7600,9 @@ fn readiness_promotion_violation(text: &str) -> Option<String> {
         &["implementation", "has", "started"],
         &["implementation", "is", "scheduled"],
         &["implementation", "is", "planned"],
+        &["ready", "for", "implementation"],
+        &["implementation", "ready"],
+        &["implementation", "approval"],
         &["implementation", "begins"],
         &["production", "implementation"],
         &["implementation", "task"],
@@ -5868,7 +7620,7 @@ fn readiness_promotion_violation(text: &str) -> Option<String> {
         &["active", "development"],
         &["will", "ship", "next"],
     ];
-    for record in normalized_claim_records(text) {
+    for record in normalized_claim_records_from_rendered(rendered) {
         let mut carried_readiness = false;
         for sentence in record.split(['.', '!', '?']) {
             let sentence_words = semantic_words(sentence);
@@ -6064,6 +7816,46 @@ fn post_cap023_readiness_promotion_violation(text: &str) -> Option<String> {
                 } else {
                     section_readiness.map(|(_, rank)| rank)
                 };
+            if let Some(rank) = rank {
+                readiness_records.push(format!("Rank {rank} {}", fragment.trim()));
+            }
+        }
+    }
+    readiness_promotion_violation(&readiness_records.join("\n\n"))
+}
+
+fn post_cap024_readiness_promotion_violation(text: &str) -> Option<String> {
+    let ranked_rendered = markdown_with_ordered_list_ranks(text);
+    let mut readiness_records = Vec::new();
+    let mut section_readiness: Option<(usize, u8)> = None;
+    for record in normalized_claim_records_from_rendered(&ranked_rendered) {
+        let normalized = normalized_words(&record);
+        let decision_record = normalized
+            .strip_prefix("Rank ")
+            .and_then(|rest| rest.split_once(' ').map(|(_, decision)| decision))
+            .unwrap_or(&normalized);
+        if POST_CAP024_DECISION_CONTRACTS.contains(&decision_record) {
+            continue;
+        }
+        if let Some((level, _)) = claim_heading(&record) {
+            if let Some(rank) = post_cap024_category(&semantic_words(&record)) {
+                section_readiness = Some((level, rank));
+            } else if section_readiness.is_some_and(|(owned_level, _)| level <= owned_level) {
+                section_readiness = None;
+            }
+        }
+        for fragment in record.split(['.', ';', '!', '?', ',']) {
+            let fragment_words = semantic_words(fragment);
+            if fragment_words.is_empty() {
+                continue;
+            }
+            let explicit_rank = fragment_words
+                .windows(2)
+                .find_map(|pair| (pair[0] == "rank").then(|| rank_word(&pair[1])).flatten());
+            let category = post_cap024_category(&fragment_words);
+            let rank = explicit_rank
+                .or(category)
+                .or_else(|| section_readiness.map(|(_, rank)| rank));
             if let Some(rank) = rank {
                 readiness_records.push(format!("Rank {rank} {}", fragment.trim()));
             }
@@ -7062,7 +8854,7 @@ fn assert_cap023_contract_mutation_fixtures() {
     );
 
     let matrix = format!(
-        "{ranking}\n## Language features\n\n| Feature | Class |\n|---|---|\n| Selected exact profile | END_TO_END |\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |\n|---|---|---|---|---|---|---|---|---|\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
+        "## Language features\n\n| Feature | Class |\n|---|---|\n| Selected exact profile | END_TO_END |\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |\n|---|---|---|---|---|---|---|---|---|\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
     );
     assert!(cap023_matrix_violation(&matrix).is_none());
     for rejected in [
@@ -7080,6 +8872,448 @@ fn assert_cap023_contract_mutation_fixtures() {
         format!("{matrix}\n| Feature | Status |\n|---|---|\n| CAP-023 profile | Supported |\n"),
     ] {
         assert!(cap023_matrix_violation(&rejected).is_some(), "{rejected}");
+    }
+}
+
+fn assert_cap024_contract_mutation_fixtures() {
+    let canonical_evidence_surface = [
+        CAP024_EVIDENCE_PARAGRAPH,
+        CAP024_CURRENT_HEAD_BOUNDARY,
+        CAP024_BUNDLE_BOUNDARY,
+        CAP024_ALERT_BOUNDARY,
+    ]
+    .join("\n\n");
+    assert!(
+        cap024_evidence_violation(&canonical_evidence_surface).is_none(),
+        "the canonical CAP-024 evidence/identity surface must pass: {:?}",
+        cap024_evidence_violation(&canonical_evidence_surface)
+    );
+    let (evidence_head, evidence_tail) = CAP024_EVIDENCE_PARAGRAPH
+        .split_once(" Candidate push CI")
+        .expect("canonical CAP-024 evidence split point");
+    for rejected in [
+        format!(
+            "```text\n{CAP024_EVIDENCE_PARAGRAPH}\n```\n\n{CAP024_CURRENT_HEAD_BOUNDARY}\n\n{CAP024_BUNDLE_BOUNDARY}\n\n{CAP024_ALERT_BOUNDARY}"
+        ),
+        format!(
+            "<!-- {CAP024_EVIDENCE_PARAGRAPH} -->\n\n{CAP024_CURRENT_HEAD_BOUNDARY}\n\n{CAP024_BUNDLE_BOUNDARY}\n\n{CAP024_ALERT_BOUNDARY}"
+        ),
+        format!(
+            "- {evidence_head}\n- Candidate push CI{evidence_tail}\n\n{CAP024_CURRENT_HEAD_BOUNDARY}\n\n{CAP024_BUNDLE_BOUNDARY}\n\n{CAP024_ALERT_BOUNDARY}"
+        ),
+        format!("{canonical_evidence_surface}\n\n{CAP024_EVIDENCE_PARAGRAPH}"),
+        format!(
+            "{canonical_evidence_surface}\n\nCAP-024 accepted base SHA is {}.",
+            CAP024_ACCEPTANCE_EVIDENCE[3]
+        ),
+        format!(
+            "{canonical_evidence_surface}\n\nCAP-024 merge commit SHA is {}.",
+            CAP024_ACCEPTANCE_EVIDENCE[0]
+        ),
+        format!("{canonical_evidence_surface}\n\nCAP-024 candidate SHA is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 tree identity is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 base identifier is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 merge exact SHA is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 evidence run is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 Linux job is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 Actions analysis is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 unknown job is deadbeef."),
+        format!("{canonical_evidence_surface}\n\nCAP-024 canonical manifest SHA is deadbeef."),
+        canonical_evidence_surface.replace("Candidate push CI", "Candidate PR CI"),
+        canonical_evidence_surface.replace(
+            "31764763341`, PR CI `31764765501",
+            "31764765501`, PR CI `31764763341",
+        ),
+    ] {
+        assert!(cap024_evidence_violation(&rejected).is_some(), "{rejected}");
+    }
+    let raw_plus_fenced =
+        format!("{canonical_evidence_surface}\n\n```text\n{CAP024_EVIDENCE_PARAGRAPH}\n```");
+    assert!(
+        cap024_evidence_violation(&raw_plus_fenced).is_none(),
+        "fenced duplicate CAP-024 evidence must not count"
+    );
+
+    let canonical_contract_surface = [
+        CAP024_CURRENT_HEAD_BOUNDARY,
+        CAP024_ZERO_PRODUCTION_BOUNDARY,
+        CAP024_CLASSIFICATION_BOUNDARY,
+        CAP024_BUNDLE_BOUNDARY,
+        CAP024_ALERT_BOUNDARY,
+        CAP024_MILESTONE_BOUNDARY,
+    ]
+    .into_iter()
+    .chain(POST_CAP024_DECISION_CONTRACTS)
+    .collect::<Vec<_>>()
+    .join("\n\n");
+    assert!(
+        cap024_product_violation(&canonical_contract_surface).is_none(),
+        "canonical CAP-024 boundaries/decisions must remain evidence-only: {:?}",
+        cap024_product_violation(&canonical_contract_surface)
+    );
+    assert!(
+        cap024_status_violation(&canonical_contract_surface).is_none(),
+        "canonical CAP-024 boundaries/decisions must retain accepted status: {:?}",
+        cap024_status_violation(&canonical_contract_surface)
+    );
+    assert!(
+        post_cap024_readiness_promotion_violation(&canonical_contract_surface).is_none(),
+        "canonical post-CAP-024 decisions must keep all successors at readiness scope: {:?}",
+        post_cap024_readiness_promotion_violation(&canonical_contract_surface)
+    );
+
+    for accepted in [
+        "CAP-024 is accepted, not a candidate.",
+        "Before acceptance, CAP-024 was an unpublished candidate.",
+        "No new CAP-024 alert exists.",
+        "CAP-024 does not await acceptance.",
+        "CAP-024 is not awaiting acceptance.",
+    ] {
+        assert!(cap024_status_violation(accepted).is_none(), "{accepted}");
+    }
+    for rejected in [
+        "CAP-024 remains a candidate.",
+        "CAP-024 acceptance is pending.",
+        "CAP-024 acceptance was revoked.",
+        "CAP-024 merge CI failed.",
+        "CAP-024 is not the current public master.",
+        "CAP-024 is no longer the current public master.",
+        "CAP-024 has been superseded.",
+        "CAP-024 remains unmerged.",
+        "CAP-024 is unpublished.",
+        "CAP-024 is a proposed checkpoint.",
+        "CAP-024 is local-only.",
+        "CAP-024 is not yet accepted.",
+        "CAP-024 has not been accepted.",
+        "CAP-024 has not yet been accepted.",
+        "CAP-024 awaits acceptance.",
+        "CAP-024 is awaiting acceptance.",
+        "A new CAP-024 alert #5 is open.",
+        "CAP-024 alert #5 exists.",
+    ] {
+        assert!(cap024_status_violation(rejected).is_some(), "{rejected}");
+    }
+
+    for accepted in [
+        "CAP-024 adds no compiler production, profile, product, or performance capability.",
+        "CAP-024 is an evidence checkpoint, not a product capability.",
+        "CAP-024 is zero-production evidence.",
+        "CAP-024 classification is absent and it adds no classification.",
+        "CAP-024 milestone progress remains partial.",
+        "CAP-024 supplies no performance evidence.",
+        "CAP-024 changes no production source code.",
+        "CAP-024 does not change the compiler.",
+        "CAP-024 makes no compiler edits.",
+        "CAP-024 does not modify code generation.",
+        "CAP-024 adds no runtime/file ingestion, activation, tensor, serialization, quantization, or conversion capability.",
+    ] {
+        assert!(cap024_product_violation(accepted).is_none(), "{accepted}");
+    }
+    for rejected in [
+        "Before rank 1, CAP-024 adds compiler production.",
+        "After rank 1, CAP-024 changes backend behavior.",
+        "CAP-024 adds a profile.",
+        "CAP-024 changes production source code.",
+        "CAP-024 changes the compiler.",
+        "CAP-024 makes compiler edits.",
+        "CAP-024 modifies code generation.",
+        "CAP-024 changes codegen.",
+        "CAP-024 adds a product capability.",
+        "CAP-024 is the latest product checkpoint.",
+        "CAP-024 supplies performance evidence.",
+        "CAP-024 is non-zero-production.",
+        "CAP-024 is not zero-production.",
+        "CAP-024 is no longer zero-production.",
+        "CAP-024 is STABLE.",
+        "CAP-024 is END_TO_END.",
+        "CAP-024 is classified PARTIAL.",
+        "CAP-024 is PARSED_ONLY.",
+        "CAP-024 is EXPERIMENTAL.",
+        "CAP-024 is DESIGNED.",
+        "CAP-024 adds a classification.",
+        "CAP-024 adds general inference capability.",
+        "CAP-024 adds runtime ingestion.",
+        "CAP-024 supports runtime byte/file acquisition.",
+        "CAP-024 enables file input.",
+        "CAP-024 adds activation support.",
+        "CAP-024 implements ReLU and argmax.",
+        "CAP-024 supports tensors, matrices, records, and recursive arrays.",
+        "CAP-024 adds serialization.",
+        "CAP-024 adds quantization support and conversion semantics.",
+        "### CAP-024\n\nGeneral inference is now supported.",
+        "```text\nCAP-024 is an evidence checkpoint.\n```\n\nCAP-024 adds a profile.",
+    ] {
+        assert!(cap024_product_violation(rejected).is_some(), "{rejected}");
+    }
+    let prefixed_canonical_boundary =
+        format!("CAP-024 adds a profile. {CAP024_ZERO_PRODUCTION_BOUNDARY}");
+    assert!(
+        cap024_product_violation(&prefixed_canonical_boundary).is_some(),
+        "a contradictory prefix must not inherit canonical-record exemption"
+    );
+
+    for accepted in [
+        "CAP-023 is an accepted historical product checkpoint, not the current public master.",
+        "CAP-023 was the current public master before CAP-024.",
+        "CAP-023 remains the latest product checkpoint.",
+    ] {
+        assert!(
+            stale_cap023_current_head_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "CAP-023 is the current public master.",
+        "Latest accepted public master is protected CAP-023 merge.",
+        "The accepted baseline remains CAP-023.",
+        "CAP-023 was historical, but it is now the current public head.",
+    ] {
+        assert!(
+            stale_cap023_current_head_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    let decision_list = POST_CAP024_DECISION_CONTRACTS
+        .iter()
+        .enumerate()
+        .map(|(index, contract)| format!("{}. {contract}", index + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        ordered_decision_records_violation(&decision_list, &POST_CAP024_DECISION_CONTRACTS)
+            .is_none(),
+        "canonical CAP-024 decisions must remain nine ordered rendered records"
+    );
+    let (decision_head, decision_tail) = POST_CAP024_DECISION_CONTRACTS[0]
+        .split_once(" After rank 1 readiness")
+        .expect("first CAP-024 decision split point");
+    let split_decision = format!(
+        "1. {decision_head}\n2. After rank 1 readiness{decision_tail}\n{}",
+        POST_CAP024_DECISION_CONTRACTS[1..]
+            .iter()
+            .enumerate()
+            .map(|(index, contract)| format!("{}. {contract}", index + 3))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    for rejected in [
+        split_decision,
+        format!("```text\n{decision_list}\n```"),
+        format!("<!-- {decision_list} -->"),
+        format!("{decision_list}\n10. {}", POST_CAP024_DECISION_CONTRACTS[8]),
+    ] {
+        assert!(
+            ordered_decision_records_violation(&rejected, &POST_CAP024_DECISION_CONTRACTS)
+                .is_some(),
+            "{rejected}"
+        );
+    }
+
+    for accepted in [
+        "Rank 1 composition remains readiness and red-probe only, not implementation.",
+        "Rank 2 dynamic collections remain readiness only.",
+        "Rank 3 quantization remains a red probe only.",
+        "Owned String remains a readiness-only collection probe, not implementation-ready.",
+    ] {
+        assert!(
+            post_cap024_readiness_promotion_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "Rank 1 composition implementation is underway.",
+        "CopyData application-profile composition is authorized for implementation.",
+        "Rank 1 composition is ready for implementation.",
+        "Rank 2 dynamic collection implementation has begun.",
+        "Owned collection/streaming work is approved to proceed.",
+        "Owned Vec<T> foundation has implementation approval.",
+        "Vec implementation is underway.",
+        "Rank 3 quantized-kernel implementation is planned.",
+        "Quantization is cleared for implementation.",
+        "Rank 3 quantization is implementation-ready.",
+    ] {
+        assert!(
+            post_cap024_readiness_promotion_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    for accepted in [
+        "CopyData application-profile composition ranks first.",
+        "Owned dynamic collection/streaming foundation ranks second.",
+        "Owned Vec<T> foundation ranks second.",
+        "Quantization ranks third.",
+        "Historically accepted-head CAP-023 evidence ranked first before CAP-024.",
+    ] {
+        assert!(
+            post_cap024_successor_order_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "Quantization ranks first.",
+        "CopyData application-profile composition ranks second.",
+        "Owned dynamic collection/streaming foundation ranks third.",
+        "Owned Vec<T> foundation ranks first.",
+        "Vector collection support ranks third.",
+        "Quantization precedes CopyData application-profile composition.",
+        "1. Quantization\n2. Owned dynamic collection/streaming foundation\n3. CopyData application-profile composition",
+        "| Priority | Capability |\n|---|---|\n| 1 | Quantization |\n| 2 | Owned dynamic collection/streaming foundation |\n| 3 | CopyData application-profile composition |",
+    ] {
+        assert!(
+            post_cap024_successor_order_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    for accepted in [
+        CAP016_LOCAL_MODDECL_STOP_BOUNDARY,
+        CAP023_ZERO_PRODUCTION_BOUNDARY,
+        "CAP-016 remains a mandatory NO IMPLEMENTATION stop.",
+        "CAP-022 runtime byte/file acquisition is not authorized for implementation.",
+        "Stop if CAP-022 runtime acquisition implementation is attempted.",
+        "Historically, CAP-022 ranked first before its mandatory stop.",
+    ] {
+        assert!(
+            stopped_capability_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "CAP-016 ModDecl implementation is underway.",
+        "ModDecl implementation is underway.",
+        "CAP-016 currently implements ModDecl.",
+        "### CAP-016\n\nModule-resolution implementation is authorized.",
+        "CAP-016 ranks first for implementation.",
+        "CAP-022 runtime byte/file acquisition implementation is planned.",
+        "CAP-022 runtime byte/file acquisition is implemented.",
+        "Runtime byte/file acquisition implementation is underway.",
+        "Runtime byte/file acquisition is authorized for implementation.",
+        "### CAP-022\n\nIt is cleared for implementation.",
+        "CAP-022 ranks first.",
+    ] {
+        assert!(
+            stopped_capability_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    for accepted in [
+        "CORE-090 remains PARTIAL and is not STABLE or END_TO_END.",
+        "CORE-090 does not provide general memory safety or complete ownership.",
+        "CORE-090 does not establish general memory safety and complete ownership.",
+        "CORE-090 leaves projected borrowing, lifetime/drop, stable ABI, and accelerators excluded.",
+        "Historically, CORE-090 was never STABLE.",
+        "### CORE-090\n\nProjected borrowing remains excluded.",
+    ] {
+        assert!(
+            core090_overclaim_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "CORE-090 is STABLE.",
+        "CORE-090 is classified END_TO_END.",
+        "CORE-090 provides general memory safety.",
+        "CORE-090 establishes complete ownership.",
+        "CORE-090 does not provide general memory safety, but it establishes complete ownership.",
+        "CORE-090 supports projected borrowing.",
+        "CORE-090 implements lifetime and drop semantics.",
+        "CORE-090 guarantees a stable ABI and accelerator execution.",
+        "### CORE-090\n\nIt provides general memory safety.",
+    ] {
+        assert!(
+            core090_overclaim_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    for accepted in [
+        "CAP-024 completed the accepted-head inference reproducibility evidence gate.",
+        "Historically, accepted-head CAP-023 inference reproducibility ranked first before CAP-024.",
+    ] {
+        assert!(
+            consumed_cap024_evidence_ranking_violation(accepted).is_none(),
+            "{accepted}"
+        );
+    }
+    for rejected in [
+        "Inference reproducibility is still priority 1.",
+        "Accepted-head CAP-023 artifact-footprint evidence ranks first.",
+        "CAP-023 artifact-footprint evidence remains the top-ranked task.",
+        "CAP-024 accepted-head evidence is the top priority.",
+    ] {
+        assert!(
+            consumed_cap024_evidence_ranking_violation(rejected).is_some(),
+            "{rejected}"
+        );
+    }
+
+    const SEPARATOR: &str = "|---:|---|---:|---:|---:|---:|---:|---:|---:|";
+    let ranking = format!(
+        "{POST_CAP024_RANKING_HEADER}\n{SEPARATOR}\n{}\n{}\n{}\n",
+        POST_CAP024_RANKING_ROWS[0], POST_CAP024_RANKING_ROWS[1], POST_CAP024_RANKING_ROWS[2]
+    );
+    assert_post_cap024_ranking_table("CAP-024 ranking fixture", &ranking);
+    assert_post_cap024_successor_order("CAP-024 ranking fixture", &ranking);
+    let alternate = ranking.replace(
+        "| 5 | 5 | 5 | 5 | 2 | 2 | 24 |",
+        "| 5 | 5 | 5 | 5 | 3 | 2 | 25 |",
+    );
+    assert!(
+        std::panic::catch_unwind(|| {
+            assert_post_cap024_ranking_table("mutated CAP-024 ranking fixture", &alternate)
+        })
+        .is_err(),
+        "an alternate CAP-024 ranking must fail"
+    );
+    let reordered = format!(
+        "{POST_CAP024_RANKING_HEADER}\n{SEPARATOR}\n{}\n{}\n{}\n",
+        POST_CAP024_RANKING_ROWS[1], POST_CAP024_RANKING_ROWS[0], POST_CAP024_RANKING_ROWS[2]
+    );
+    assert!(
+        std::panic::catch_unwind(|| {
+            assert_post_cap024_ranking_table("reordered CAP-024 ranking fixture", &reordered)
+        })
+        .is_err(),
+        "a reordered CAP-024 ranking must fail"
+    );
+
+    let matrix = format!(
+        "{ranking}\n## Language features\n\n| Feature | Class |\n|---|---|\n| Selected exact profile | END_TO_END |\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n| Backend/surface | Selectable | IR transform | Object | Link | Real execution | Numerical checks | Performance evidence | Class |\n|---|---|---|---|---|---|---|---|---|\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
+    );
+    assert!(cap024_matrix_violation(&matrix).is_none());
+    for rejected in [
+        matrix.replace("| Selected exact profile |", "| CAP-024 selected profile |"),
+        matrix.replace("| CPU |", "| CAP-024 CPU |"),
+        matrix.replace(CAP023_CPU_MATRIX_ROW, CAP021_CPU_MATRIX_ROW),
+        matrix.replace(
+            "## Compiler, tooling, and ecosystem surfaces",
+            "| CAP-024 | PARTIAL |\n\n## Compiler, tooling, and ecosystem surfaces",
+        ),
+    ] {
+        assert!(cap024_matrix_violation(&rejected).is_some(), "{rejected}");
+    }
+
+    let raw_matrix = format!(
+        "## Language features\n\n{CAP019_SELECTED_PROFILE_MATRIX_ROW}\n\n## Compiler, tooling, and ecosystem surfaces\n\n## Backend summary\n\n{CAP023_CPU_MATRIX_ROW}\n\n## Evidence notes\n"
+    );
+    assert!(frozen_cap024_matrix_source_row_violation(&raw_matrix).is_none());
+    for rejected in [
+        raw_matrix.replace(
+            CAP019_SELECTED_PROFILE_MATRIX_ROW,
+            &format!("<!-- {CAP019_SELECTED_PROFILE_MATRIX_ROW} -->"),
+        ),
+        raw_matrix.replace(
+            CAP023_CPU_MATRIX_ROW,
+            &CAP023_CPU_MATRIX_ROW.replace('|', "&#124;"),
+        ),
+    ] {
+        assert!(
+            frozen_cap024_matrix_source_row_violation(&rejected).is_some(),
+            "raw source-byte identity must reject comment/entity substitutes: {rejected}"
+        );
     }
 }
 
@@ -7586,6 +9820,228 @@ fn assert_cap023_boundaries(document_name: &str, document: &str) {
     }
 }
 
+fn assert_cap024_boundaries(document_name: &str, document: &str) {
+    let rendered = markdown_outside_fences(document);
+    let current_surface = if document_name == "Roadmap.md" {
+        let historical_start = document
+            .find("### Post-CAP-020 ranking")
+            .expect("Roadmap.md historical post-CAP-020 ranking");
+        let current_start = document
+            .find("### Post-CAP-024 ranking")
+            .expect("Roadmap.md current post-CAP-024 ranking");
+        format!(
+            "{}{}",
+            &document[..historical_start],
+            &document[current_start..]
+        )
+    } else if document_name == "CURRENT_CAPABILITY_AUDIT.md" {
+        let historical_start = document
+            .find("### ROADMAP-001 ranking and M1-001 outcome")
+            .expect("CURRENT_CAPABILITY_AUDIT.md historical ROADMAP-001 ranking");
+        let historical_end = document[historical_start..]
+            .find("## Verified progress after the audit commit")
+            .map(|offset| historical_start + offset)
+            .expect("CURRENT_CAPABILITY_AUDIT.md post-ROADMAP-001 audit history");
+        format!(
+            "{}{}",
+            &document[..historical_start],
+            &document[historical_end..]
+        )
+    } else {
+        document.to_owned()
+    };
+    let normalized = normalized_words(&rendered);
+    let current_lower =
+        normalized_words(&markdown_outside_fences(&current_surface)).to_ascii_lowercase();
+    assert!(
+        stale_cap023_current_head_violation(&current_surface).is_none(),
+        "{document_name} presents CAP-023 as the current public head: {:?}",
+        stale_cap023_current_head_violation(&current_surface)
+    );
+    assert!(
+        cap024_product_violation(document).is_none(),
+        "{document_name} promotes CAP-024 beyond its evidence-only boundary: {:?}",
+        cap024_product_violation(document)
+    );
+    assert!(
+        cap024_status_violation(document).is_none(),
+        "{document_name} contradicts accepted CAP-024 status: {:?}",
+        cap024_status_violation(document)
+    );
+    assert!(
+        cap023_milestone_violation(document).is_none(),
+        "{document_name} overclaims post-CAP-024 milestone completion: {:?}",
+        cap023_milestone_violation(document)
+    );
+    assert!(
+        post_cap024_readiness_promotion_violation(&current_surface).is_none(),
+        "{document_name} promotes a post-CAP-024 readiness-only successor: {:?}",
+        post_cap024_readiness_promotion_violation(&current_surface)
+    );
+    assert!(
+        stopped_capability_violation(&current_surface).is_none(),
+        "{document_name} promotes a mandatory CAP-016/CAP-022 stop: {:?}",
+        stopped_capability_violation(&current_surface)
+    );
+    assert!(
+        consumed_cap024_evidence_ranking_violation(&current_surface).is_none(),
+        "{document_name} restores the completed accepted-head evidence gate to current ranking: {:?}",
+        consumed_cap024_evidence_ranking_violation(&current_surface)
+    );
+    for expected in [
+        CAP024_CURRENT_HEAD_BOUNDARY,
+        CAP024_ZERO_PRODUCTION_BOUNDARY,
+        CAP024_CLASSIFICATION_BOUNDARY,
+        CAP024_BUNDLE_BOUNDARY,
+        CAP024_ALERT_BOUNDARY,
+        CAP024_MILESTONE_BOUNDARY,
+        CAP016_LOCAL_MODDECL_STOP_BOUNDARY,
+    ] {
+        assert_eq!(
+            normalized.matches(expected).count(),
+            1,
+            "{document_name} must state the canonical CAP-024/retained-stop boundary exactly once: {expected}"
+        );
+    }
+    for stale in [
+        "Current accepted public master is CAP-023",
+        "Latest accepted public master is protected CAP-023",
+        "baseline is protected CAP-023 merge",
+        "Project status after CAP-023",
+        "CAP-024 remains a candidate",
+        "CAP-024 local candidate",
+        "CAP-024 candidate only",
+        "CAP-024 acceptance is pending",
+        "CAP-024 acceptance was revoked",
+        "CAP-024 merge CI failed",
+    ] {
+        assert!(
+            !current_lower.contains(&stale.to_ascii_lowercase()),
+            "{document_name} retains stale or contradictory CAP-024 truth: {stale}"
+        );
+    }
+    for consumed in [
+        "### Post-CAP-023 ranking",
+        "Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim",
+        "Accepted-head CAP-023 evidence ranks first",
+        "The next action is the accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate",
+    ] {
+        assert!(
+            !current_lower.contains(&consumed.to_ascii_lowercase()),
+            "{document_name} retains consumed post-CAP-023 current-ranking wording: {consumed}"
+        );
+    }
+}
+
+fn assert_core090_accepted_partial_history(
+    readme: &str,
+    project_state: &str,
+    audit: &str,
+    matrix: &str,
+    alignment: &str,
+    roadmap: &str,
+) {
+    for (document_name, document) in [
+        ("README.md", readme),
+        ("PROJECT_STATE.md", project_state),
+        ("CURRENT_CAPABILITY_AUDIT.md", audit),
+        ("SPEC_IMPLEMENTATION_MATRIX.md", matrix),
+        ("FRAMEWORK_ALIGNMENT.md", alignment),
+        ("Roadmap.md", roadmap),
+    ] {
+        assert!(
+            core090_overclaim_violation(document).is_none(),
+            "{document_name} contradicts the bounded accepted-PARTIAL CORE-090 history: {:?}",
+            core090_overclaim_violation(document)
+        );
+    }
+    let readme = normalized_words(&markdown_outside_fences(readme));
+    assert!(readme.contains(
+        "CORE-090 is an accepted public static projected CopyData assignment checkpoint"
+    ));
+    assert!(readme.contains(
+        "Dynamic indexes, projected borrowing, partial moves, enum/non-Copy subplaces, alias analysis, lifetime/drop, stable ABI/FFI, accelerators, and general memory-safety claims remain excluded"
+    ));
+
+    let project_state = normalized_words(&markdown_outside_fences(project_state));
+    for expected in [
+        "Milestone 111 `CORE-090` is accepted public at exact candidate head",
+        "af68d0e842ed2973087d2e3c78d2a19546e29ff7",
+        "8455a06a4473a826ef1ea180e291e2ddb790bed0",
+        "ca00cdb70fc0a1940fa94126c49774b99d03c515",
+        "128205615c53156138c4effa740b61ab455a760f",
+        "The accepted class closes statically addressed projected CopyData assignment",
+        "Dynamic/computed target indexes, projected borrowing, partial moves, enum/non-Copy subplaces, alias analysis, NLL/lifetime/drop, public layout, stable ABI/FFI, accelerators, and general memory-safety claims remain excluded",
+    ] {
+        assert!(
+            project_state.contains(expected),
+            "PROJECT_STATE.md must preserve CORE-090/Milestone 111 accepted PARTIAL fact: {expected}"
+        );
+    }
+
+    let audit = normalized_words(&markdown_outside_fences(audit));
+    assert!(
+        audit
+            .contains("Accepted CORE-083 through CORE-090 are valid bounded Milestone 2 fragments")
+    );
+    assert!(audit.contains(
+        "These checkpoints remain `PARTIAL`; they do not establish general borrowing, lifetime/drop, memory safety, public layout/ABI, or a stable language"
+    ));
+    for identity in [
+        "af68d0e842ed2973087d2e3c78d2a19546e29ff7",
+        "8455a06a4473a826ef1ea180e291e2ddb790bed0",
+        "128205615c53156138c4effa740b61ab455a760f",
+    ] {
+        assert!(
+            audit.contains(identity),
+            "CURRENT_CAPABILITY_AUDIT.md must preserve CORE-090 identity {identity}"
+        );
+    }
+
+    const CORE090_MATRIX_ROW: &str = "| Static projected CopyData assignment (`CORE-090` accepted) | Y | Y | Y | P | Y | Y | Y | Y | P | Y | Y | Y | Y | PARTIAL |";
+    let matrix_rendered = markdown_outside_fences(matrix);
+    assert_eq!(
+        matrix_rendered
+            .lines()
+            .map(table_line)
+            .filter(|line| *line == CORE090_MATRIX_ROW)
+            .count(),
+        1,
+        "SPEC_IMPLEMENTATION_MATRIX.md must preserve the exact accepted PARTIAL CORE-090 row"
+    );
+    let matrix = normalized_words(&matrix_rendered);
+    assert!(matrix.contains(
+        "Accepted public `CORE-090` admits exactly one nonempty static projection path rooted at an initialized mutable owned direct local recursive finite CopyData value"
+    ));
+    assert!(matrix.contains("the row therefore remains `PARTIAL`"));
+
+    let alignment = normalized_words(&markdown_outside_fences(alignment));
+    assert!(alignment.contains(
+        "Accepted public `CORE-090` takes a hard ownership step by closing one complete recursive place class instead of one convenient selector shape"
+    ));
+    assert!(alignment.contains(
+        "Dynamic indexes, projected borrowing, partial moves, enum/non-Copy subplaces, alias analysis, NLL/lifetime/drop, stable ABI/FFI, accelerators, and general memory-safety claims remain excluded"
+    ));
+    assert!(alignment.contains(
+        "The accepted recursive CopyData, enum/Match, projected-place, generic, trait, and reference slices remain bounded and `PARTIAL`"
+    ));
+
+    let roadmap = normalized_words(&markdown_outside_fences(roadmap));
+    for expected in [
+        "## Corrective checkpoint after CORE-090",
+        "The original milestone exits below remain controlling",
+        "foundational Milestone 0 contracts and broader Milestone 1 feature invariants remain partial",
+        "The previously accumulated Milestone 2 fragments remain bounded",
+        "accepted CORE-083 through CORE-090 are useful but partial Milestone 2 reference, ownership",
+        "The selected Milestone 2 exit gate is met",
+    ] {
+        assert!(
+            roadmap.contains(expected),
+            "Roadmap.md must preserve the post-CORE-090 accepted-PARTIAL audit fact: {expected}"
+        );
+    }
+}
+
 fn run_aero(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_aero"))
         .args(args)
@@ -7695,6 +10151,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert_cap020_contract_mutation_fixtures();
     assert_cap021_contract_mutation_fixtures();
     assert_cap023_contract_mutation_fixtures();
+    assert_cap024_contract_mutation_fixtures();
     let task_ledger = repository_file("TASK_LEDGER.md");
     let readme_source = repository_file("README.md");
     let readme = markdown_outside_fences(&readme_source);
@@ -7733,8 +10190,8 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     assert!(readme.contains("**CAP-020 accepted product gate:**"));
     assert!(readme.contains("**CAP-021 accepted product gate:**"));
     assert!(readme.contains("**CAP-023 accepted"));
-    assert!(readme.contains("Project status after CAP-023"));
-    assert!(readme.contains("baseline is protected CAP-023 merge"));
+    assert!(readme.contains("Project status after CAP-024"));
+    assert!(readme.contains("baseline is protected CAP-024 merge"));
     assert!(readme.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(readme.contains("e9b281504446465cfc8fcbe17c65cce92df0e83a"));
     assert!(
@@ -7771,7 +10228,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "no authoritative stable subset or single canonical diagnostic contract is frozen"
     ));
     assert!(audit.contains("CAP-008 accepted: nonbinding wildcard enum Match"));
-    assert!(audit.contains("protected CAP-023 merge"));
+    assert!(audit.contains("protected CAP-024 merge"));
     assert!(!audit.contains("this record is its bounded acceptance synchronization candidate"));
     assert!(audit.contains("CAP-009 accepted: enforceable `stable-scalar-v0`"));
     assert!(audit.contains("CAP-010 accepted: required-only CopyData trait-bound static dispatch"));
@@ -7793,6 +10250,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         audit.contains("CAP-021 accepted: source-embedded two-stage exact-i32 scoring product")
     );
     assert!(audit.contains("CAP-023 accepted:"));
+    assert!(audit.contains("CAP-024 accepted:"));
     assert!(audit.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(audit.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(audit.contains(
@@ -7845,6 +10303,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Accepted CAP-021 advances the founding high-performance and data-pipeline direction"
     ));
     assert!(alignment.contains("Accepted CAP-023 advances"));
+    assert!(alignment.contains("Accepted CAP-024 advances"));
     assert!(alignment.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(alignment.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!alignment.contains("`CAP-015-READINESS`"));
@@ -7893,7 +10352,10 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .contains("CAP-021 accepted: source-embedded two-stage exact-i32 scoring product")
     );
     assert!(project_state.contains("CAP-023 accepted:"));
-    assert!(project_state.contains("Current accepted public master is CAP-023"));
+    assert!(project_state.contains("CAP-024 accepted:"));
+    assert!(project_state.contains(
+        "Current accepted public master and public evidence checkpoint is protected CAP-024 merge"
+    ));
     assert!(project_state.contains("b62696272f293f9f378f8a368cc818fcb8ef1074"));
     assert!(project_state.contains("c49ff17cab7fc0e8d4f552a71499929135c16c61"));
     assert!(!project_state.contains("Current accepted public master is CAP-012"));
@@ -7908,9 +10370,19 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
     let matrix_source = repository_file("SPEC_IMPLEMENTATION_MATRIX.md");
     let matrix = markdown_outside_fences(&matrix_source);
     assert!(
-        cap023_matrix_violation(&matrix).is_none(),
+        cap023_matrix_violation(&matrix_source).is_none(),
         "SPEC_IMPLEMENTATION_MATRIX.md violates the CAP-023 sole-row contract: {:?}",
-        cap023_matrix_violation(&matrix)
+        cap023_matrix_violation(&matrix_source)
+    );
+    assert!(
+        cap024_matrix_violation(&matrix_source).is_none(),
+        "SPEC_IMPLEMENTATION_MATRIX.md violates the CAP-024 no-row contract: {:?}",
+        cap024_matrix_violation(&matrix_source)
+    );
+    assert!(
+        frozen_cap024_matrix_source_row_violation(&matrix_source).is_none(),
+        "SPEC_IMPLEMENTATION_MATRIX.md changes a byte-frozen selected-profile/CPU source row: {:?}",
+        frozen_cap024_matrix_source_row_violation(&matrix_source)
     );
     assert!(matrix.contains("Accepted CAP-009 adds an explicitly selected `stable-scalar-v0`"));
     assert!(matrix.contains("Selected `stable-scalar-v0` profile (accepted `CAP-009`)"));
@@ -7919,7 +10391,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "Required-only recursive-CopyData trait-bound static dispatch (accepted `CAP-010`)"
     ));
     assert!(matrix.contains("| STABLE |"));
-    assert!(matrix.contains("Latest accepted public master is protected CAP-023 merge"));
+    assert!(matrix.contains("Latest accepted public master is protected CAP-024 merge"));
     assert!(
         normalized_words(&matrix)
             .contains("Latest accepted project-integration master is protected CAP-015 merge")
@@ -8033,9 +10505,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .collect::<Vec<_>>();
     assert_eq!(
         exact_profile_rows,
-        [
-            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
-        ],
+        [CAP019_SELECTED_PROFILE_MATRIX_ROW],
         "CAP-014/CAP-018/CAP-019 must classify in exactly one widened profile row"
     );
     assert!(
@@ -8058,6 +10528,13 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             .map(semantic_words)
             .any(|words| has_semantic_capability(&words, "023")),
         "CAP-023 must not create a language-feature or profile row"
+    );
+    assert!(
+        !language_features
+            .lines()
+            .map(semantic_words)
+            .any(|words| has_semantic_capability(&words, "024")),
+        "CAP-024 must not create a language-feature or profile row"
     );
     let cap020_matrix_rows = matrix
         .lines()
@@ -8098,9 +10575,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         .collect::<Vec<_>>();
     assert_eq!(
         end_to_end_rows,
-        [
-            "| Selected CPU-only `exact-i32-array-v0` profile (created by accepted `CAP-014`; widened by accepted `CAP-018` and accepted `CAP-019`) | Y | Y | Y | Y | Y | — | Y | Y | Y | Y | Y | Y | Y | END_TO_END |"
-        ],
+        [CAP019_SELECTED_PROFILE_MATRIX_ROW],
         "exact-i32-array-v0 must remain the only END_TO_END language-feature row"
     );
     assert!(language_features.contains(
@@ -8192,6 +10667,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "CAP-021 is accepted as a zero-production source-embedded two-stage exact-i32 scoring product gate"
     ));
     assert!(normalized_words(&roadmap).contains("CAP-023 is accepted"));
+    assert!(normalized_words(&roadmap).contains("CAP-024 is accepted"));
     for historical_ranking in [
         "### ROADMAP-001 ranked gaps and M1-001 outcome\n\nScores are 1--5 with higher better; `Risk` and `Evidence` are delivery favorability,\nso 5 means lower risk or lower evidence cost.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Representative scalar application plus frozen subset and optimization-equivalence gate (accepted as M1-001) | 4 | 5 | 5 | 5 | 4 | 3 | 26 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
         "### Post-M1 ranking and accepted CAP-001\n\nThe required post-M1 comparison is complete. Scores retain the same 1--5 convention;\n`Risk` and `Evidence` reward more favorable delivery.\n\n| Rank | Gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Risk | Evidence | Total |\n|---:|---|---:|---:|---:|---:|---:|---:|---:|\n| 1 | Verified runtime reads from fixed arrays (accepted `CAP-001`) | 5 | 4 | 5 | 5 | 3 | 4 | 26 |\n| 2 | Canonical Milestone 0 diagnostic/artifact and trusted-entrypoint contract | 3 | 5 | 5 | 5 | 3 | 3 | 24 |\n| 3 | Positive import/module name resolution after namespace and graph semantics are frozen | 5 | 3 | 5 | 4 | 2 | 2 | 21 |",
@@ -8221,7 +10697,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         1,
         "Roadmap.md must preserve one historical post-CAP-020 ranking section"
     );
-    let historical_tail = roadmap
+    let historical_tail = roadmap_source
         .split_once(historical_ranking_heading)
         .expect("unique historical post-CAP-020 ranking heading")
         .1;
@@ -8241,14 +10717,19 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         historical_section,
         &POST_CAP020_DECISION_CONTRACTS,
     );
-    let normalized_historical_section = normalized_words(historical_section);
+    let normalized_historical_section =
+        normalized_words(&markdown_outside_fences(historical_section));
     let historical_product_authorization = "The ranking favors a material record-to-kernel composition before crossing the runtime boundary. Rank 1 is the only executable product authorization; ranks 2 and 3 remain readiness/probe decisions, and the stopped module and propagation designs stay closed.";
-    let historical_readiness_surface =
-        normalized_historical_section.replace(historical_product_authorization, "");
     assert!(
-        readiness_promotion_violation(&historical_readiness_surface).is_none(),
+        normalized_historical_section.contains(historical_product_authorization),
+        "Roadmap.md must preserve the bounded historical rank-1 product authorization"
+    );
+    let historical_readiness_surface =
+        normalized_historical_section.replacen(historical_product_authorization, "", 1);
+    assert!(
+        readiness_promotion_violation_from_rendered(&historical_readiness_surface).is_none(),
         "Roadmap.md adds a readiness-to-implementation promotion inside preserved post-CAP-020 history: {:?}",
-        readiness_promotion_violation(&historical_readiness_surface)
+        readiness_promotion_violation_from_rendered(&historical_readiness_surface)
     );
     let mut previous_historical_position = None;
     for contract in POST_CAP020_DECISION_CONTRACTS {
@@ -8275,14 +10756,14 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         1,
         "Roadmap.md must preserve one historical post-CAP-021 ranking section"
     );
-    let ranking_tail = roadmap
+    let ranking_tail = roadmap_source
         .split_once(ranking_heading)
         .expect("unique post-CAP-021 ranking heading")
         .1;
     let ranking_section = ranking_tail
         .split_once("\n### Post-CAP-023 ranking")
         .map_or(ranking_tail, |(section, _)| section);
-    let normalized_ranking_section = normalized_words(ranking_section);
+    let normalized_ranking_section = normalized_words(&markdown_outside_fences(ranking_section));
     assert_post_cap021_ranking_table(
         "Roadmap.md historical Post-CAP-021 section",
         ranking_section,
@@ -8325,44 +10806,99 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         previous_position = Some(position);
     }
 
-    let current_ranking_heading = "### Post-CAP-023 ranking";
+    let historical_cap023_heading = "### Post-CAP-023 ranking";
     assert_eq!(
-        roadmap.matches(current_ranking_heading).count(),
+        roadmap.matches(historical_cap023_heading).count(),
         1,
-        "Roadmap.md must contain one current post-CAP-023 ranking section"
+        "Roadmap.md must preserve one historical post-CAP-023 ranking section"
     );
-    let current_ranking_tail = roadmap
-        .split_once(current_ranking_heading)
+    let historical_cap023_tail = roadmap_source
+        .split_once(historical_cap023_heading)
         .expect("unique post-CAP-023 ranking heading")
         .1;
-    let current_ranking_section = current_ranking_tail
-        .split_once("\n## ")
-        .map_or(current_ranking_tail, |(section, _)| section);
-    let normalized_current_ranking_section = normalized_words(current_ranking_section);
+    let historical_cap023_section = historical_cap023_tail
+        .split_once("\n### Post-CAP-024 ranking")
+        .map_or(historical_cap023_tail, |(section, _)| section);
+    let normalized_historical_cap023_section =
+        normalized_words(&markdown_outside_fences(historical_cap023_section));
+    assert_post_cap023_ranking_table(
+        "Roadmap.md historical Post-CAP-023 section",
+        historical_cap023_section,
+    );
+    assert_post_cap023_successor_order(
+        "Roadmap.md historical Post-CAP-023 section",
+        historical_cap023_section,
+    );
     assert_exact_ordered_decision_records(
-        "Roadmap.md current Post-CAP-023 section",
-        current_ranking_section,
+        "Roadmap.md historical Post-CAP-023 section",
+        historical_cap023_section,
         &POST_CAP023_DECISION_CONTRACTS,
     );
     assert!(
-        post_cap023_readiness_promotion_violation(current_ranking_section).is_none(),
-        "Roadmap.md promotes post-CAP-023 rank-2/3 readiness to implementation: {:?}",
-        post_cap023_readiness_promotion_violation(current_ranking_section)
+        post_cap023_readiness_promotion_violation(historical_cap023_section).is_none(),
+        "Roadmap.md promotes a successor inside preserved post-CAP-023 history: {:?}",
+        post_cap023_readiness_promotion_violation(historical_cap023_section)
     );
     let mut previous_position = None;
     for contract in POST_CAP023_DECISION_CONTRACTS {
         assert_eq!(
             normalized_roadmap.matches(contract).count(),
             1,
-            "Roadmap.md must state each current post-CAP-023 decision contract exactly once: {contract}"
+            "Roadmap.md must preserve each historical post-CAP-023 decision contract exactly once: {contract}"
+        );
+        let position = normalized_historical_cap023_section
+            .find(contract)
+            .unwrap_or_else(|| {
+                panic!("Roadmap.md detaches a decision contract from the historical post-CAP-023 section: {contract}")
+            });
+        if let Some(previous) = previous_position {
+            assert!(
+                position > previous,
+                "Roadmap.md reorders the historical post-CAP-023 decision contracts"
+            );
+        }
+        previous_position = Some(position);
+    }
+
+    let current_ranking_heading = "### Post-CAP-024 ranking";
+    assert_eq!(
+        roadmap.matches(current_ranking_heading).count(),
+        1,
+        "Roadmap.md must contain one current post-CAP-024 ranking section"
+    );
+    let current_ranking_tail = roadmap_source
+        .split_once(current_ranking_heading)
+        .expect("unique post-CAP-024 ranking heading")
+        .1;
+    let current_ranking_section = current_ranking_tail
+        .split_once("\n## ")
+        .map_or(current_ranking_tail, |(section, _)| section);
+    let normalized_current_ranking_section =
+        normalized_words(&markdown_outside_fences(current_ranking_section));
+    assert_exact_ordered_decision_records(
+        "Roadmap.md current Post-CAP-024 section",
+        current_ranking_section,
+        &POST_CAP024_DECISION_CONTRACTS,
+    );
+    assert!(
+        post_cap024_readiness_promotion_violation(current_ranking_section).is_none(),
+        "Roadmap.md promotes a post-CAP-024 successor to implementation: {:?}",
+        post_cap024_readiness_promotion_violation(current_ranking_section)
+    );
+    let mut previous_position = None;
+    for contract in POST_CAP024_DECISION_CONTRACTS {
+        assert_eq!(
+            normalized_roadmap.matches(contract).count(),
+            1,
+            "Roadmap.md must state each current post-CAP-024 decision contract exactly once: {contract}"
         );
         let position = normalized_current_ranking_section.find(contract).unwrap_or_else(|| {
-            panic!("Roadmap.md detaches a decision contract from the post-CAP-023 section: {contract}")
+            panic!("Roadmap.md detaches a decision contract from the post-CAP-024 section: {contract}")
         });
         if let Some(previous) = previous_position {
             assert!(
                 position > previous,
-                "Roadmap.md reorders the post-CAP-023 decision contracts"
+                "Roadmap.md reorders the post-CAP-024 decision contracts"
             );
         }
         previous_position = Some(position);
@@ -8376,6 +10912,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         "### Post-CAP-020 ranking",
         "### Post-CAP-021 ranking",
         "### Post-CAP-023 ranking",
+        "### Post-CAP-024 ranking",
     ] {
         assert_eq!(
             roadmap.matches(heading).count(),
@@ -8396,6 +10933,15 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
 
     let conformance_source = repository_file("CONFORMANCE_PLAN.md");
     let conformance = markdown_outside_fences(&conformance_source);
+
+    assert_core090_accepted_partial_history(
+        &readme_source,
+        &project_state_source,
+        &audit_source,
+        &matrix_source,
+        &alignment_source,
+        &roadmap_source,
+    );
 
     let normalized_task_ledger = normalized_words(&task_ledger);
     assert!(
@@ -8456,9 +11002,11 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         assert_cap020_acceptance_evidence(document_name, document);
         assert_cap021_acceptance_evidence(document_name, document);
         assert_cap023_acceptance_evidence(document_name, document);
+        assert_cap024_acceptance_evidence(document_name, document);
         assert_cap020_boundaries(document_name, document);
         assert_cap021_boundaries(document_name, document);
         assert_cap023_boundaries(document_name, document);
+        assert_cap024_boundaries(document_name, document);
     }
     for (document_name, document, expected_boundaries) in [
         ("README.md", readme.as_str(), 1),
@@ -8486,7 +11034,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
             "{document_name} resurrects the overbroad String/Unicode denial"
         );
     }
-    let cap023_successor_documents = [
+    let cap024_successor_documents = [
         ("README.md", readme_source.as_str()),
         ("CURRENT_CAPABILITY_AUDIT.md", audit_source.as_str()),
         ("FRAMEWORK_ALIGNMENT.md", alignment_source.as_str()),
@@ -8496,12 +11044,27 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("CONFORMANCE_PLAN.md", conformance_source.as_str()),
     ];
     assert_eq!(
-        cap023_successor_documents.len(),
+        cap024_successor_documents.len(),
         7,
-        "the CAP-023 successor-order contract must cover all seven cumulative truth documents"
+        "the CAP-024 successor-order contract must cover all seven cumulative truth documents"
     );
-    for (document_name, document) in cap023_successor_documents {
-        assert_post_cap023_successor_order(document_name, document);
+    for (document_name, document) in cap024_successor_documents {
+        assert_post_cap024_successor_order(document_name, document);
+        assert_exact_ordered_decision_records(
+            document_name,
+            document,
+            &POST_CAP024_DECISION_CONTRACTS,
+        );
+        if document_name != "Roadmap.md" {
+            let normalized = normalized_words(&markdown_outside_fences(document));
+            for historical in POST_CAP023_DECISION_CONTRACTS {
+                assert_eq!(
+                    normalized.matches(historical).count(),
+                    0,
+                    "{document_name} retains a post-CAP-023 decision outside Roadmap history: {historical}"
+                );
+            }
+        }
     }
     for (document_name, document) in [
         ("README.md", readme_source.as_str()),
@@ -8512,7 +11075,7 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         ("Roadmap.md", roadmap_source.as_str()),
         ("CONFORMANCE_PLAN.md", conformance_source.as_str()),
     ] {
-        assert_post_cap023_ranking_table(document_name, document);
+        assert_post_cap024_ranking_table(document_name, document);
     }
     let classified_matrix = matrix
         .split_once("## Language features")
@@ -8544,6 +11107,17 @@ fn current_repository_surfaces_state_only_evidenced_capabilities() {
         cap023_matrix_rows,
         [CAP023_CPU_MATRIX_ROW],
         "CAP-023 may appear in exactly one matrix row, as evidence in the existing CPU PARTIAL row"
+    );
+    let cap024_matrix_rows = classified_matrix
+        .lines()
+        .map(table_line)
+        .filter(|line| {
+            table_cells(line).is_some() && has_semantic_capability(&semantic_words(line), "024")
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        cap024_matrix_rows.is_empty(),
+        "CAP-024 must be absent from every classified feature/profile/backend row: {cap024_matrix_rows:?}"
     );
     let backend_summary = matrix
         .split_once("## Backend summary")
@@ -8769,7 +11343,6 @@ fn repository_remains_explicitly_experimental_without_stability_claims() {
     );
     assert!(project_state.contains("bdfd4f5a282043ee957c1bf03975e266de5b9b6c"));
     assert!(normalized_words(&project_state).contains(CAP016_CAP017_STOP_BOUNDARY));
-    assert!(project_state.contains("Current accepted public master is CAP-023"));
     assert!(!project_state.contains("`CAP-015-READINESS`"));
     assert!(!project_state.contains("exact next action is this bounded"));
 }
