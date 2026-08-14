@@ -304,6 +304,24 @@
   require the focused CLI target to pass 11/11 before rerunning the root gate.
   The synchronized focused target passes 11/11, Rust formatting and diff hygiene
   pass, and the subsequent repository-root `./tools/test.sh` gate exits zero.
+- Shallow-CI scope-proof correction, 2026-08-13: exact candidate head
+  `8106ee78877b61c9f13bd3310b7a987007553610` completed dedicated evidence run
+  `31754348232` successfully (Linux `94626803760`, Windows `94626803683`,
+  aggregate/fresh replay `94627987354`), but both standard compiler jobs and the
+  stable/nightly Rust jobs stopped because their shallow checkout omitted accepted
+  subject object `918c9222eb61e2435e18847e30b946cd08013238`; the contract's direct
+  `git cat-file`/ancestor `git diff` therefore failed before bundle validation.
+  Preserve full commit/tree/ordered-parent checks whenever that object exists.
+  On every checkout, independently require the exact 431-entry outside-scope Git
+  index digest
+  `782bb9c75f47cff1671e10094578adf19b24ac67aed0d0be4f0417caa7eeeb51`,
+  derive the ten authorized changes from the three subject-era allowed entries,
+  validate all five frozen blob identities and bytes, and include unstaged,
+  staged, and untracked paths. Mutation controls must reject outside-scope blob,
+  mode, deletion, and addition drift; a missing red contract; a frozen-input
+  substitution; nonzero index stages; and duplicate paths, while allowing a
+  changed authorized ledger. This approved test-only correction must not change
+  existing workflows or the accepted manifest.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,

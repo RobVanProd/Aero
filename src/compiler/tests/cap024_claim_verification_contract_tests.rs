@@ -735,6 +735,26 @@ const ALLOWED_PATHS: [&str; 10] = [
     "src/compiler/tests/cap024_claim_verification_contract_tests.rs",
     "src/compiler/tests/cli_status_contract_tests.rs",
 ];
+const SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT: usize = 431;
+const SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256: &str =
+    "782bb9c75f47cff1671e10094578adf19b24ac67aed0d0be4f0417caa7eeeb51";
+const SUBJECT_ALLOWED_INDEX_ENTRIES: [(&str, &str, &str); 3] = [
+    (
+        "TASK_LEDGER.md",
+        "100644",
+        "aaa55c9890f0e1bd85269a6812eab7720a931bac",
+    ),
+    (
+        "claim-verification/claims.json",
+        "100644",
+        "f3ecf002b9c08e3ac2bdce7c37c9f41645db0c32",
+    ),
+    (
+        "src/compiler/tests/cli_status_contract_tests.rs",
+        "100644",
+        "5d1c3e0d86aaa08b8d48c1b5526303683dd8d293",
+    ),
+];
 const REQUIRED_BUNDLE_FILES: [&str; 3] = ["REPRODUCE.md", "manifest.json", "oracle.json"];
 const PLATFORM_NAMES: [&str; 2] = ["linux-x86_64", "windows-x86_64"];
 const ARTIFACT_NAMES: [&str; 5] = [
@@ -899,6 +919,12 @@ struct FrozenInput {
     blob: &'static str,
     size: u64,
     sha256: &'static str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GitIndexEntry {
+    mode: String,
+    oid: String,
 }
 
 const FROZEN_INPUTS: [FrozenInput; 5] = [
@@ -1075,31 +1101,178 @@ fn git_output(root: &Path, arguments: &[&str]) -> Result<Vec<u8>, String> {
     Ok(output.stdout)
 }
 
-fn validate_frozen_git_inputs(root: &Path) -> Result<(), String> {
-    let commit = String::from_utf8(git_output(root, &["cat-file", "-p", SUBJECT_COMMIT])?)
-        .map_err(|error| format!("subject commit is not UTF-8: {error}"))?;
-    let mut lines = commit.lines();
-    if lines.next() != Some(&format!("tree {SUBJECT_TREE}"))
-        || lines.next() != Some(&format!("parent {}", SUBJECT_PARENTS[0]))
-        || lines.next() != Some(&format!("parent {}", SUBJECT_PARENTS[1]))
+fn parse_git_index(bytes: &[u8]) -> Result<BTreeMap<String, GitIndexEntry>, String> {
+    let mut entries = BTreeMap::new();
+    for record in bytes
+        .split(|byte| *byte == 0)
+        .filter(|record| !record.is_empty())
     {
-        return Err("accepted subject tree or ordered parents drifted".to_owned());
+        let tab = record
+            .iter()
+            .position(|byte| *byte == b'\t')
+            .ok_or_else(|| "Git index record omitted its path separator".to_owned())?;
+        let metadata = std::str::from_utf8(&record[..tab])
+            .map_err(|error| format!("Git index metadata is not UTF-8: {error}"))?;
+        let path = std::str::from_utf8(&record[tab + 1..])
+            .map_err(|error| format!("Git index path is not UTF-8: {error}"))?;
+        let fields: Vec<&str> = metadata.split_whitespace().collect();
+        if fields.len() != 3 {
+            return Err(format!(
+                "Git index metadata is not mode/OID/stage: {metadata:?}"
+            ));
+        }
+        let mode = fields[0];
+        let oid = fields[1];
+        let stage = fields[2];
+        if mode.len() != 6 || !mode.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(format!(
+                "Git index mode is malformed for {path:?}: {mode:?}"
+            ));
+        }
+        if oid.len() != 40
+            || !oid
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(format!("Git index OID is malformed for {path:?}: {oid:?}"));
+        }
+        if stage != "0" {
+            return Err(format!(
+                "Git index contains nonzero stage {stage:?} for {path:?}"
+            ));
+        }
+        if path.is_empty() || path.starts_with('/') || path.contains(['\\', '\r', '\n', '\t']) {
+            return Err(format!("Git index path is not canonical: {path:?}"));
+        }
+        if entries
+            .insert(
+                path.to_owned(),
+                GitIndexEntry {
+                    mode: mode.to_owned(),
+                    oid: oid.to_owned(),
+                },
+            )
+            .is_some()
+        {
+            return Err(format!("Git index repeats path {path:?}"));
+        }
     }
-    let compiler_entry = String::from_utf8(git_output(
-        root,
-        &["ls-tree", SUBJECT_COMMIT, "src/compiler"],
-    )?)
-    .map_err(|error| format!("compiler tree entry is not UTF-8: {error}"))?;
-    if compiler_entry
-        != format!(
-            "040000 tree {COMPILER_TREE}\tsrc/compiler{}",
-            if cfg!(windows) { "\r\n" } else { "\n" }
-        )
-        && compiler_entry != format!("040000 tree {COMPILER_TREE}\tsrc/compiler\n")
-    {
+    if entries.is_empty() {
+        return Err("Git index is empty".to_owned());
+    }
+    Ok(entries)
+}
+
+fn current_git_index(root: &Path) -> Result<BTreeMap<String, GitIndexEntry>, String> {
+    parse_git_index(&git_output(root, &["ls-files", "-s", "-z"])?)
+}
+
+fn subject_allowed_index_entry(path: &str) -> Option<(&'static str, &'static str)> {
+    SUBJECT_ALLOWED_INDEX_ENTRIES
+        .iter()
+        .find(|(subject_path, _, _)| *subject_path == path)
+        .map(|(_, mode, oid)| (*mode, *oid))
+}
+
+fn validate_index_scope(entries: &BTreeMap<String, GitIndexEntry>) -> Result<Vec<String>, String> {
+    let allowed: BTreeSet<&str> = ALLOWED_PATHS.into_iter().collect();
+    let outside: Vec<(&String, &GitIndexEntry)> = entries
+        .iter()
+        .filter(|(path, _)| !allowed.contains(path.as_str()))
+        .collect();
+    if outside.len() != SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT {
         return Err(format!(
-            "accepted compiler tree drifted: {compiler_entry:?}"
+            "CAP-024 outside-scope index count drifted: expected {SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT}, received {}",
+            outside.len()
         ));
+    }
+    let mut canonical = Vec::new();
+    for (path, entry) in outside {
+        canonical.extend_from_slice(entry.mode.as_bytes());
+        canonical.push(b' ');
+        canonical.extend_from_slice(entry.oid.as_bytes());
+        canonical.push(b'\t');
+        canonical.extend_from_slice(path.as_bytes());
+        canonical.push(b'\n');
+    }
+    let digest = sha256_hex(&canonical);
+    if digest != SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256 {
+        return Err(format!(
+            "CAP-024 outside-scope index digest drifted: expected {SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256}, received {digest}"
+        ));
+    }
+
+    let mut changed = Vec::new();
+    for path in ALLOWED_PATHS {
+        let current = entries
+            .get(path)
+            .map(|entry| (entry.mode.as_str(), entry.oid.as_str()));
+        if current != subject_allowed_index_entry(path) {
+            changed.push(path.to_owned());
+        }
+    }
+    validate_scope_paths(changed.iter().map(String::as_str))?;
+    Ok(changed)
+}
+
+fn validate_frozen_input_index(entries: &BTreeMap<String, GitIndexEntry>) -> Result<(), String> {
+    for input in FROZEN_INPUTS {
+        let entry = entries
+            .get(input.path)
+            .ok_or_else(|| format!("Git index omitted frozen input {}", input.path))?;
+        if entry.mode != "100644" || entry.oid != input.blob {
+            return Err(format!(
+                "Git index identity drifted for {}: expected 100644 {}, received {} {}",
+                input.path, input.blob, entry.mode, entry.oid
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn git_object_is_available(root: &Path, object: &str) -> Result<bool, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["cat-file", "-e", object])
+        .output()
+        .map_err(|error| format!("cannot probe Git object {object}: {error}"))?;
+    Ok(output.status.success())
+}
+
+fn validate_frozen_git_inputs(
+    root: &Path,
+    entries: &BTreeMap<String, GitIndexEntry>,
+) -> Result<(), String> {
+    validate_frozen_input_index(entries)?;
+    let subject_object = format!("{SUBJECT_COMMIT}^{{commit}}");
+    let subject_available = git_object_is_available(root, &subject_object)?;
+    if subject_available {
+        let commit = String::from_utf8(git_output(root, &["cat-file", "-p", SUBJECT_COMMIT])?)
+            .map_err(|error| format!("subject commit is not UTF-8: {error}"))?;
+        let mut lines = commit.lines();
+        if lines.next() != Some(&format!("tree {SUBJECT_TREE}"))
+            || lines.next() != Some(&format!("parent {}", SUBJECT_PARENTS[0]))
+            || lines.next() != Some(&format!("parent {}", SUBJECT_PARENTS[1]))
+        {
+            return Err("accepted subject tree or ordered parents drifted".to_owned());
+        }
+        let compiler_entry = String::from_utf8(git_output(
+            root,
+            &["ls-tree", SUBJECT_COMMIT, "src/compiler"],
+        )?)
+        .map_err(|error| format!("compiler tree entry is not UTF-8: {error}"))?;
+        if compiler_entry
+            != format!(
+                "040000 tree {COMPILER_TREE}\tsrc/compiler{}",
+                if cfg!(windows) { "\r\n" } else { "\n" }
+            )
+            && compiler_entry != format!("040000 tree {COMPILER_TREE}\tsrc/compiler\n")
+        {
+            return Err(format!(
+                "accepted compiler tree drifted: {compiler_entry:?}"
+            ));
+        }
     }
     for input in FROZEN_INPUTS {
         let bytes = git_output(root, &["cat-file", "blob", input.blob])?;
@@ -1109,13 +1282,16 @@ fn validate_frozen_git_inputs(root: &Path) -> Result<(), String> {
                 input.path
             ));
         }
-        let entry = String::from_utf8(git_output(root, &["ls-tree", SUBJECT_COMMIT, input.path])?)
-            .map_err(|error| format!("{} tree entry is not UTF-8: {error}", input.path))?;
-        if !entry.contains(&format!("blob {}\t{}", input.blob, input.path)) {
-            return Err(format!(
-                "{} is not bound to frozen blob {} at the subject",
-                input.path, input.blob
-            ));
+        if subject_available {
+            let entry =
+                String::from_utf8(git_output(root, &["ls-tree", SUBJECT_COMMIT, input.path])?)
+                    .map_err(|error| format!("{} tree entry is not UTF-8: {error}", input.path))?;
+            if !entry.contains(&format!("blob {}\t{}", input.blob, input.path)) {
+                return Err(format!(
+                    "{} is not bound to frozen blob {} at the subject",
+                    input.path, input.blob
+                ));
+            }
         }
     }
     Ok(())
@@ -1190,15 +1366,22 @@ fn validate_scope_paths<'a>(paths: impl IntoIterator<Item = &'a str>) -> Result<
     Ok(())
 }
 
-fn validate_cumulative_git_scope(root: &Path) -> Result<(), String> {
-    let mut paths: Vec<String> = String::from_utf8(git_output(
-        root,
-        &["diff", "--no-renames", "--name-only", SUBJECT_COMMIT, "--"],
-    )?)
-    .map_err(|error| format!("git diff paths are not UTF-8: {error}"))?
-    .lines()
-    .map(str::to_owned)
-    .collect();
+fn validate_cumulative_git_scope(
+    root: &Path,
+    entries: &BTreeMap<String, GitIndexEntry>,
+) -> Result<(), String> {
+    let mut paths = validate_index_scope(entries)?;
+    for arguments in [
+        ["diff", "--no-renames", "--name-only", "--"].as_slice(),
+        ["diff", "--cached", "--no-renames", "--name-only", "--"].as_slice(),
+    ] {
+        paths.extend(
+            String::from_utf8(git_output(root, arguments)?)
+                .map_err(|error| format!("Git worktree/index paths are not UTF-8: {error}"))?
+                .lines()
+                .map(str::to_owned),
+        );
+    }
     paths.extend(
         String::from_utf8(git_output(
             root,
@@ -1209,6 +1392,92 @@ fn validate_cumulative_git_scope(root: &Path) -> Result<(), String> {
         .map(str::to_owned),
     );
     validate_scope_paths(paths.iter().map(String::as_str))
+}
+
+fn validate_index_mutation_controls(
+    entries: &BTreeMap<String, GitIndexEntry>,
+) -> Result<(), String> {
+    let mut failures = Vec::new();
+    let outside_path = ".github/workflows/rust.yml";
+
+    let mut wrong_oid = entries.clone();
+    wrong_oid
+        .get_mut(outside_path)
+        .ok_or_else(|| format!("mutation fixture omitted {outside_path}"))?
+        .oid = "0".repeat(40);
+    if validate_index_scope(&wrong_oid).is_ok() {
+        failures.push("outside-scope blob mutation was accepted".to_owned());
+    }
+
+    let mut wrong_mode = entries.clone();
+    wrong_mode
+        .get_mut(outside_path)
+        .ok_or_else(|| format!("mutation fixture omitted {outside_path}"))?
+        .mode = "100755".to_owned();
+    if validate_index_scope(&wrong_mode).is_ok() {
+        failures.push("outside-scope mode mutation was accepted".to_owned());
+    }
+
+    let mut missing = entries.clone();
+    missing.remove(outside_path);
+    if validate_index_scope(&missing).is_ok() {
+        failures.push("outside-scope deletion was accepted".to_owned());
+    }
+
+    let mut added = entries.clone();
+    added.insert(
+        "src/compiler/src/cap024-unauthorized.rs".to_owned(),
+        GitIndexEntry {
+            mode: "100644".to_owned(),
+            oid: "1".repeat(40),
+        },
+    );
+    if validate_index_scope(&added).is_ok() {
+        failures.push("outside-scope addition was accepted".to_owned());
+    }
+
+    let mut missing_contract = entries.clone();
+    missing_contract.remove("src/compiler/tests/cap024_claim_verification_contract_tests.rs");
+    if validate_index_scope(&missing_contract).is_ok() {
+        failures.push("missing red contract was accepted as a complete scope".to_owned());
+    }
+
+    let mut allowed_change = entries.clone();
+    allowed_change
+        .get_mut("TASK_LEDGER.md")
+        .ok_or_else(|| "mutation fixture omitted TASK_LEDGER.md".to_owned())?
+        .oid = "2".repeat(40);
+    if let Err(error) = validate_index_scope(&allowed_change) {
+        failures.push(format!("authorized-path mutation false-red: {error}"));
+    }
+
+    let mut wrong_input = entries.clone();
+    wrong_input
+        .get_mut(FROZEN_INPUTS[0].path)
+        .ok_or_else(|| format!("mutation fixture omitted {}", FROZEN_INPUTS[0].path))?
+        .oid = "3".repeat(40);
+    if validate_frozen_input_index(&wrong_input).is_ok() {
+        failures.push("frozen input blob mutation was accepted".to_owned());
+    }
+
+    let valid = format!("100644 {} 0\tfixture/path\0", "4".repeat(40));
+    if parse_git_index(valid.as_bytes()).is_err() {
+        failures.push("canonical Git index fixture was rejected".to_owned());
+    }
+    let nonzero_stage = format!("100644 {} 1\tfixture/path\0", "4".repeat(40));
+    if parse_git_index(nonzero_stage.as_bytes()).is_ok() {
+        failures.push("nonzero Git index stage was accepted".to_owned());
+    }
+    let duplicate = format!("{valid}{valid}");
+    if parse_git_index(duplicate.as_bytes()).is_ok() {
+        failures.push("duplicate Git index path was accepted".to_owned());
+    }
+
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("; "))
+    }
 }
 
 fn parse_json(bytes: &[u8], label: &str) -> Result<Value, String> {
@@ -4992,11 +5261,19 @@ fn pure_schema_workflow_tool_and_reproduction_validators_fail_closed() {
 fn cap024_repository_contract_is_complete() {
     let root = repository_root();
     let mut failures = Vec::new();
-    if let Err(error) = validate_frozen_git_inputs(&root) {
-        failures.push(error);
-    }
-    if let Err(error) = validate_cumulative_git_scope(&root) {
-        failures.push(error);
+    match current_git_index(&root) {
+        Ok(index) => {
+            if let Err(error) = validate_frozen_git_inputs(&root, &index) {
+                failures.push(error);
+            }
+            if let Err(error) = validate_cumulative_git_scope(&root, &index) {
+                failures.push(error);
+            }
+            if let Err(error) = validate_index_mutation_controls(&index) {
+                failures.push(format!("Git index mutation controls failed: {error}"));
+            }
+        }
+        Err(error) => failures.push(error),
     }
     let required_files = [
         SCHEMA_PATH,
