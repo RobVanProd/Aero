@@ -1382,15 +1382,6 @@ fn validate_cumulative_git_scope(
                 .map(str::to_owned),
         );
     }
-    paths.extend(
-        String::from_utf8(git_output(
-            root,
-            &["ls-files", "--others", "--exclude-standard"],
-        )?)
-        .map_err(|error| format!("untracked paths are not UTF-8: {error}"))?
-        .lines()
-        .map(str::to_owned),
-    );
     validate_scope_paths(paths.iter().map(String::as_str))
 }
 

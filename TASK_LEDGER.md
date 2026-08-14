@@ -316,12 +316,20 @@
   index digest
   `782bb9c75f47cff1671e10094578adf19b24ac67aed0d0be4f0417caa7eeeb51`,
   derive the ten authorized changes from the three subject-era allowed entries,
-  validate all five frozen blob identities and bytes, and include unstaged,
-  staged, and untracked paths. Mutation controls must reject outside-scope blob,
-  mode, deletion, and addition drift; a missing red contract; a frozen-input
-  substitution; nonzero index stages; and duplicate paths, while allowing a
-  changed authorized ledger. This approved test-only correction must not change
-  existing workflows or the accepted manifest.
+  validate all five frozen blob identities and bytes, and include unstaged and
+  staged tracked paths. Untracked paths are not immutable candidate inputs and
+  must not participate in this proof: the exact index already rejects any added
+  committed path, while standard Rust CI intentionally creates untracked native,
+  object, and LLVM artifacts before `cargo test`. Exact head
+  `e9d5e320aa444366165f7690cad6b6be4acf238c` exposed that distinction when
+  stable/nightly run `31762956168` rejected the generated
+  `acyclic_copy_aggregates` executable even though a genuine LF-preserving
+  depth-one clone with no accepted-subject commit object passed the focused
+  contract 6/6. Mutation controls must reject outside-scope blob, mode, deletion,
+  and addition drift; a missing red contract; a frozen-input substitution;
+  nonzero index stages; and duplicate paths, while allowing a changed authorized
+  ledger. This approved test-only correction must not change existing workflows
+  or the accepted manifest.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,
