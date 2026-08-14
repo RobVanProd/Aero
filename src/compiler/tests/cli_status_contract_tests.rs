@@ -2370,6 +2370,15 @@ fn invalid_python_compilation_measurements_are_quarantined_without_deleting_evid
                 "claim-verification/results/aero_post_reboot_7900xtx_20260528T190000Z/hardware_software_metadata.txt",
             ],
         ),
+        (
+            "aero_cap023_inference_correctness_918c9222_20260813",
+            "verified_correctness_reproducibility_only",
+            &[
+                "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json",
+                "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/oracle.json",
+                "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/REPRODUCE.md",
+            ],
+        ),
     ];
     let invalid_ids: BTreeSet<&str> = [
         "aero_public_master_compilation_benchmark_20260528",

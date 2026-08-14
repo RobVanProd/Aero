@@ -87,6 +87,16 @@
         "hardware": "Radeon RX 7900 XTX / gfx1100 / PCI device 1002:744c",
         "software": "Python 3.10.12, rustc 1.93.0, cargo 1.93.0, PyTorch 2.5.1+rocm6.2, HIP 6.2.41133-dd7f95766"
       }
+    },
+    {
+      "id": "aero_cap023_inference_correctness_918c9222_20260813",
+      "status": "verified_correctness_reproducibility_only",
+      "claim": "Accepted-head CAP-023 correctness and reproducibility record for 918c9222eb61e2435e18847e30b946cd08013238; no performance claim.",
+      "artifacts": [
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json",
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/oracle.json",
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/REPRODUCE.md"
+      ]
     }
   ]
 }
