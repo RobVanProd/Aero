@@ -72,10 +72,12 @@ Run the tool in replay mode with the tracked bundle and a fresh two-platform
 manifest. It compares the sorted-compact-JSON-plus-LF canonical projection
 byte-for-byte. Fresh observations never rewrite accepted observations. The
 fresh observation document must bind the accepted manifest SHA-256 and list
-the exact 48 excluded pointer/value leaves in canonical order; every other
+the exact 132 excluded pointer/value leaves in canonical order; every other
 difference is claim-bearing and fails replay.
 
-The raw Aero LLVM-build and public-run diagnostic streams are traceability-only replay exclusions.
+The raw pinned-tool version, Aero LLVM-build, and public-run diagnostic streams
+are traceability-only replay exclusions. Parsed tool versions, tool paths,
+payload SHA-256/size identities, and version-command exits remain claim-bearing.
 The two compiler executable identities, runner image, and
 kernel values are also traceability observations. Command exits, parsed public
 semantics, pinned-tool identities, and every retained target artifact remain in
@@ -219,3 +221,87 @@ clean_after
 /platforms/1/commands/public_run/stderr/base64
 /platforms/1/commands/public_run/stderr/sha256
 /platforms/1/commands/public_run/stderr/size
+/platforms/0/toolchain/tools/cargo/version/stdout/base64
+/platforms/0/toolchain/tools/cargo/version/stdout/sha256
+/platforms/0/toolchain/tools/cargo/version/stdout/size
+/platforms/0/toolchain/tools/cargo/version/stderr/base64
+/platforms/0/toolchain/tools/cargo/version/stderr/sha256
+/platforms/0/toolchain/tools/cargo/version/stderr/size
+/platforms/0/toolchain/tools/rustc/version/stdout/base64
+/platforms/0/toolchain/tools/rustc/version/stdout/sha256
+/platforms/0/toolchain/tools/rustc/version/stdout/size
+/platforms/0/toolchain/tools/rustc/version/stderr/base64
+/platforms/0/toolchain/tools/rustc/version/stderr/sha256
+/platforms/0/toolchain/tools/rustc/version/stderr/size
+/platforms/0/toolchain/tools/clang/version/stdout/base64
+/platforms/0/toolchain/tools/clang/version/stdout/sha256
+/platforms/0/toolchain/tools/clang/version/stdout/size
+/platforms/0/toolchain/tools/clang/version/stderr/base64
+/platforms/0/toolchain/tools/clang/version/stderr/sha256
+/platforms/0/toolchain/tools/clang/version/stderr/size
+/platforms/0/toolchain/tools/lld/version/stdout/base64
+/platforms/0/toolchain/tools/lld/version/stdout/sha256
+/platforms/0/toolchain/tools/lld/version/stdout/size
+/platforms/0/toolchain/tools/lld/version/stderr/base64
+/platforms/0/toolchain/tools/lld/version/stderr/sha256
+/platforms/0/toolchain/tools/lld/version/stderr/size
+/platforms/0/toolchain/tools/opt/version/stdout/base64
+/platforms/0/toolchain/tools/opt/version/stdout/sha256
+/platforms/0/toolchain/tools/opt/version/stdout/size
+/platforms/0/toolchain/tools/opt/version/stderr/base64
+/platforms/0/toolchain/tools/opt/version/stderr/sha256
+/platforms/0/toolchain/tools/opt/version/stderr/size
+/platforms/0/toolchain/tools/llvm-as/version/stdout/base64
+/platforms/0/toolchain/tools/llvm-as/version/stdout/sha256
+/platforms/0/toolchain/tools/llvm-as/version/stdout/size
+/platforms/0/toolchain/tools/llvm-as/version/stderr/base64
+/platforms/0/toolchain/tools/llvm-as/version/stderr/sha256
+/platforms/0/toolchain/tools/llvm-as/version/stderr/size
+/platforms/0/toolchain/tools/llc/version/stdout/base64
+/platforms/0/toolchain/tools/llc/version/stdout/sha256
+/platforms/0/toolchain/tools/llc/version/stdout/size
+/platforms/0/toolchain/tools/llc/version/stderr/base64
+/platforms/0/toolchain/tools/llc/version/stderr/sha256
+/platforms/0/toolchain/tools/llc/version/stderr/size
+/platforms/1/toolchain/tools/cargo/version/stdout/base64
+/platforms/1/toolchain/tools/cargo/version/stdout/sha256
+/platforms/1/toolchain/tools/cargo/version/stdout/size
+/platforms/1/toolchain/tools/cargo/version/stderr/base64
+/platforms/1/toolchain/tools/cargo/version/stderr/sha256
+/platforms/1/toolchain/tools/cargo/version/stderr/size
+/platforms/1/toolchain/tools/rustc/version/stdout/base64
+/platforms/1/toolchain/tools/rustc/version/stdout/sha256
+/platforms/1/toolchain/tools/rustc/version/stdout/size
+/platforms/1/toolchain/tools/rustc/version/stderr/base64
+/platforms/1/toolchain/tools/rustc/version/stderr/sha256
+/platforms/1/toolchain/tools/rustc/version/stderr/size
+/platforms/1/toolchain/tools/clang/version/stdout/base64
+/platforms/1/toolchain/tools/clang/version/stdout/sha256
+/platforms/1/toolchain/tools/clang/version/stdout/size
+/platforms/1/toolchain/tools/clang/version/stderr/base64
+/platforms/1/toolchain/tools/clang/version/stderr/sha256
+/platforms/1/toolchain/tools/clang/version/stderr/size
+/platforms/1/toolchain/tools/lld/version/stdout/base64
+/platforms/1/toolchain/tools/lld/version/stdout/sha256
+/platforms/1/toolchain/tools/lld/version/stdout/size
+/platforms/1/toolchain/tools/lld/version/stderr/base64
+/platforms/1/toolchain/tools/lld/version/stderr/sha256
+/platforms/1/toolchain/tools/lld/version/stderr/size
+/platforms/1/toolchain/tools/opt/version/stdout/base64
+/platforms/1/toolchain/tools/opt/version/stdout/sha256
+/platforms/1/toolchain/tools/opt/version/stdout/size
+/platforms/1/toolchain/tools/opt/version/stderr/base64
+/platforms/1/toolchain/tools/opt/version/stderr/sha256
+/platforms/1/toolchain/tools/opt/version/stderr/size
+/platforms/1/toolchain/tools/llvm-as/version/stdout/base64
+/platforms/1/toolchain/tools/llvm-as/version/stdout/sha256
+/platforms/1/toolchain/tools/llvm-as/version/stdout/size
+/platforms/1/toolchain/tools/llvm-as/version/stderr/base64
+/platforms/1/toolchain/tools/llvm-as/version/stderr/sha256
+/platforms/1/toolchain/tools/llvm-as/version/stderr/size
+/platforms/1/toolchain/tools/llc/version/stdout/base64
+/platforms/1/toolchain/tools/llc/version/stdout/sha256
+/platforms/1/toolchain/tools/llc/version/stdout/size
+/platforms/1/toolchain/tools/llc/version/stderr/base64
+/platforms/1/toolchain/tools/llc/version/stderr/sha256
+/platforms/1/toolchain/tools/llc/version/stderr/size

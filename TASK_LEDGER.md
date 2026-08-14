@@ -118,7 +118,11 @@
     compiler prints elapsed durations and temporary paths during each of the two
     LLVM builds and the public run; those three raw diagnostic stream records
     are traceability observations, while their exit codes and derived semantic
-    results remain claim-bearing.
+    results remain claim-bearing. The raw stdout/stderr byte records from all
+    seven pinned-tool version probes are also traceability observations because
+    otherwise identical LLVM payloads report runner-derived `Host CPU` text and
+    Cargo reports host-OS text. Their command exits, parsed versions/commits,
+    paths, and payload SHA-256/size identities remain claim-bearing.
   - Native `O0` and `O2` must each exit 91 with empty stdout/stderr. The public
     route must exit 91 and carry its exact raw captured streams plus exact parsed
     semantic observations: the wrapper reports `Exit code: 91`, reports no
@@ -197,12 +201,14 @@
     are recorded execution-substrate observations, not immutable inputs. The
     tool must define one closed canonical replay projection. Its exclusions are
     exactly the runner-image and kernel observation values; the SHA-256/size
-    values of the two locally built Aero compiler executables; and the raw
-    stdout/stderr bytes, hashes, and sizes of the two Aero LLVM-build commands
-    and one public-run command. Those compiler and raw-diagnostic values are
+    values of the two locally built Aero compiler executables; the raw
+    stdout/stderr bytes, hashes, and sizes of every pinned-tool version probe;
+    and the same raw fields from the two Aero LLVM-build commands and one
+    public-run command. Those compiler and raw-diagnostic values are
     traceability observations, not pinned-tool, target-artifact, or semantic
-    result identities. Command exit codes and the public route's parsed exit and
-    application-stream observations remain inside the comparison. A replay must
+    result identities. Version-probe exits/parsed identities/payload identities,
+    other command exits, and the public route's parsed exit and application-
+    stream observations remain inside the comparison. A replay must
     compare that projection byte-for-byte with the tracked accepted manifest,
     upload all fresh excluded observations separately, and reject every other
     difference. It must never rewrite the accepted observations. A replay on a
@@ -226,7 +232,7 @@
   replay to match it. Before the tracked manifest exists, aggregate emits only
   the candidate manifest for review and commit. Once it exists, every PR or
   manual two-platform capture must feed that fresh aggregate manifest to replay,
-  compare the closed canonical projection byte-for-byte, and emit the exact 48
+  compare the closed canonical projection byte-for-byte, and emit the exact 132
   fresh observation leaves separately; validation-only replay is not fresh
   platform evidence. No compiler production, source specimen, selected
   profile, existing Rust workflow, Cargo dependency, benchmark harness,
@@ -330,6 +336,24 @@
   nonzero index stages; and duplicate paths, while allowing a changed authorized
   ledger. This approved test-only correction must not change existing workflows
   or the accepted manifest.
+- Runner-banner replay correction, 2026-08-13: exact candidate head
+  `865cf81f1cc704671aaf955aa657b4c951c3a7fe` passed push/PR CI, stable,
+  nightly, Windows LLVM 22, CodeQL, and both CAP-024 platform captures. Evidence
+  run `31763427335` then stopped only in aggregate replay because the accepted
+  Linux `opt`/`llc --version` raw stdout named host CPU `znver3`, while the fresh
+  runner named `znver4`; parsed LLVM `22.1.8` and exact tool payload identities
+  remained equal. This is a frozen-boundary defect: runner-derived banner text
+  cannot be claim-bearing while runner-image changes are expressly permitted.
+  Expand the closed replay projection from 48 to exactly 132 trace leaves by
+  adding stdout/stderr base64, SHA-256, and size for all seven tool probes on
+  both platforms. Keep every probe exit, parsed version/commit, path, payload
+  SHA-256/size, target artifact, command exit, and semantic result inside the
+  compared projection. Record every fresh raw banner leaf separately; never
+  normalize it away, silently discard it, or retry until runner allocation
+  happens to match. Because CAP-024 is still an unaccepted draft, replace the
+  candidate manifest only with a fresh two-platform aggregate produced by the
+  corrected exact tool/schema/reproduction bytes, then require a second fresh
+  replay before acceptance.
 - Red/green acceptance:
   - The new focused Rust contract must fail only on the absent CAP-024 bundle,
     then require exact subject/input/oracle/platform identities, schema closure,
