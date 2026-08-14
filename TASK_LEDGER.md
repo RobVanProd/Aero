@@ -157,9 +157,9 @@
      sufficient, that runtime ingress is prerequisite, or that composition
      requires broad layout or ownership contracts defers it and changes the
      decision.
-  4. Before rank 2, accepted CAP-011 provides one fixed-capacity recursive-
-     CopyData `Window<T>` algorithm and the representative program composes only
-     statically bounded storage; Aero has no accepted owned dynamic collection,
+  4. Before rank 2, accepted CAP-011 provides one fixed-capacity
+     recursive-CopyData `Window<T>` algorithm and the representative program
+     composes only statically bounded storage; Aero has no accepted owned dynamic collection,
      allocation, capacity growth, initialized-length, reallocation, alias,
      failure, or drop contract. Legacy `stdlib.rs` String/Vec helpers and their
      rejected checked-IR/backend instructions are not source-language authority.
