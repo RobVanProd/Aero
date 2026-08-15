@@ -1,5 +1,47 @@
 # Aero Task Ledger
 
+## CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY - preserve selector-growth characterization
+
+- Date/task/status: 2026-08-15,
+  `CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY`, ledger-first from exact
+  accepted CAP-033 merge `9ea6fcb4e703158b712c16f83fd30285316d5609`,
+  tree `d77ef5d67936449ef99942db4a9e68d16580ecdf`, on
+  `agent/cap-034-language-profile-test-extensibility`.
+- Observed behavior: the preserved CAP-032 selector implementation adds the
+  frozen fourth public `LanguageProfile` variant, but all-target compilation
+  stops in `resolved_profile_shape_authority_tests.rs` because one
+  characterization exhaustively matches the three accepted variants even
+  though its loop can produce only `StableScalarV0` and `ExactI32ArrayV0`.
+  Rust reports `E0004` for the future variant before any CAP-032 test or
+  behavior can run. CAP-032 explicitly freezes that existing test and mandates
+  a stop on an eleventh file, so its production work remains uncommitted and
+  preserved in its separate D: worktree.
+- Hypothesis and frozen behavior: make only that bounded characterization match
+  the two profiles its local input array actually supplies, with one explicit
+  catch-all `unreachable!` for every excluded selector. All accepted source,
+  diagnostics, checked IR, LLVM, native results, cache behavior, public types,
+  enum variants, selectors, and test inputs/expectations remain byte-exact.
+  This task does not add `#[non_exhaustive]`, a selector, language behavior, or
+  a compatibility claim. CAP-032 separately owns and must explicitly document
+  the public source-compatibility consequence of adding its new enum variant.
+- Exact allowed files: only this `TASK_LEDGER.md`,
+  `SELF_HOSTING_ROADMAP.md`, and
+  `src/compiler/tests/resolved_profile_shape_authority_tests.rs`. No compiler
+  production source, other test, example, workflow, dependency, lockfile,
+  evidence, release/package, claim-verification, or external state may change.
+- Acceptance: the focused resolved-profile-shape target remains green with the
+  same test count and exact accepted profile diagnostics; all-target/all-feature
+  correctness-denying Clippy compiles every integration target; formatting,
+  diff hygiene, and repository-root `./tools/test.sh` pass with one Cargo job,
+  one Rust test thread, pinned LLVM 22, and task-isolated D: TEMP/TMP/target.
+  The cumulative diff from accepted CAP-033 must be exactly these three files.
+- Risks and stops: risks are hiding a newly exercised selector behind the
+  catch-all, changing an expected diagnostic, weakening the loop, treating the
+  test edit as a public non-exhaustive API promise, or using this checkpoint to
+  smuggle CAP-032 production. Stop if the current loop can produce another
+  profile, any assertion/input must change, any behavior delta appears, or a
+  fourth file is needed.
+
 ## CAP-033-RESOLVED-SURFACE-CONTEXT - bind normalized witnesses to enclosing scope
 
 - Date/task/status: 2026-08-15,

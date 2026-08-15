@@ -4,9 +4,9 @@ Last reviewed: 2026-08-15 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is CAP-031 merge
-`a89b405098d5ccbda49e26ac53e01ccc2a9cc296`, tree
-`c0793d9cd30e7742ceee5d4e762b07c87b814b26`.
+The current accepted baseline is CAP-033 merge
+`9ea6fcb4e703158b712c16f83fd30285316d5609`, tree
+`d77ef5d67936449ef99942db4a9e68d16580ecdf`.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -52,12 +52,15 @@ production file changed. K1 remains fixed-storage evidence, not runtime source
 ingestion, dynamic token storage, Unicode lexing, a production-lexer
 replacement, or self-hosting.
 
-P1's public selector red is preserved. Its first admission proof exposed the
-missing root-versus-function context described by CAP-033. That behavior-neutral
-prerequisite is now locally green: every normalized surface witness carries
-exact file-scope or enclosing-function origin without changing source behavior.
-It remains a candidate until protected acceptance and post-merge replay; P1
-resumes only from that accepted head.
+P1's public selector red is preserved. CAP-033 is accepted, so every normalized
+surface witness now carries exact file-scope or enclosing-function origin. The
+resumed P1 implementation reached its first whole-repository compile gate and
+correctly stopped: one existing characterization exhaustively matches the three
+accepted `LanguageProfile` variants even though its local loop supplies only two.
+CAP-034 is the narrow test-only prerequisite that makes that local expectation
+future-selector-safe without changing any accepted compiler behavior. P1 resumes
+only after CAP-034 is protected and must explicitly record the public Rust enum
+source-compatibility consequence of adding its fourth selector.
 
 The first hard runtime blocker is **R1: owned bytes**. Legacy Vec-shaped IR names
 exist in [`ir.rs`](src/compiler/src/ir.rs), but the checked verifier and backend
@@ -164,14 +167,15 @@ ledger and failing regression first.
 
 ## Exact next task
 
-Publish and protect the locally green `CAP-033-RESOLVED-SURFACE-CONTEXT`
-candidate, verify its exact merge tree, and replay the required accepted-head
-workflows. Then resume CAP-032/P1 from that accepted CAP-033 head. P1 must
+Execute and protect `CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY` from accepted
+CAP-033, then resume CAP-032/P1 from that protected head. P1 must
 consume the context-bound CAP-030 surface witnesses and
 CAP-029 verified-IR authentication to admit only the frozen compiler-oriented
 combination of exact `int`/`bool`, flat arrays, nongeneric records, concrete
 typed `Result`, and exhaustive `Match`. Existing profiles and public behavior
-must remain byte-for-byte and diagnostic-for-diagnostic unchanged.
+must remain byte-for-byte and diagnostic-for-diagnostic unchanged; the new
+public enum variant is the one explicitly documented source-compatibility
+expansion.
 
 Stop rather than infer missing expression types, duplicate semantic/profile
 authority, widen to general enums or generics, change checked IR, introduce a
