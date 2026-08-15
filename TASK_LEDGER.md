@@ -183,7 +183,19 @@
   untouched. The descriptor is intentionally unused policy input in this task;
   a future profile consumer must be separately authorized and must authenticate
   it against observed checked IR before selecting CAP-026 physical layout.
-  Candidate identity will be frozen only after the full root gate succeeds.
+  Implementation commit `280350bdb89b3572336afe9410b760d8f1270917`
+  has tree `20571682e3e698607d726ba1b6c639d7bfd8e31d`, parent
+  `d5e17e9313225ffcbbccd7b6dffa004c945eac94`, and cumulative stable patch ID
+  `36a2c41308cceb23bdc58d37f17886a5e16757b5` from accepted CAP-027 master.
+- Complete local gate: exact implementation head `280350bdb89b3572336afe9410b760d8f1270917`
+  passes repository-root `./tools/test.sh` with one Cargo build job, one Rust test
+  thread, and pinned LLVM 22. The gate passes formatting, correctness-denying
+  Clippy, `274/274` library tests, `35/35` binary tests, every integration target,
+  and doc tests. The focused CAP-028 target is green `3/3` inside that run,
+  including all three native exit-`91` sentinels; the repaired historical CAP-024
+  scope contract is green `6/6`. Public workflows, protected merge, and fresh
+  accepted-head verification remain pending, so public acceptance is not yet
+  claimed.
 
 ## CAP-027-RESOLVED-PROFILE-SHAPE-READINESS - post-normalization descriptor placement proof
 
