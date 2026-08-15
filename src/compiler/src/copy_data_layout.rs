@@ -189,8 +189,7 @@ impl<'a> EnumStorageLayout<'a> {
         }
     }
 
-    #[cfg(test)]
-    fn with_policy(schema: &'a EnumSchema, policy: CopyDataLayoutPolicy) -> Self {
+    pub(crate) fn with_policy(schema: &'a EnumSchema, policy: CopyDataLayoutPolicy) -> Self {
         Self { schema, policy }
     }
 

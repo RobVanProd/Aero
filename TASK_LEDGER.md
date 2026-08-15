@@ -1,5 +1,240 @@
 # Aero Task Ledger
 
+## CAP-032-EXACT-I32-RECORD-RESULT-PROFILE - bounded compiler application surface
+
+- Date/task/status: 2026-08-15,
+  `CAP-032-EXACT-I32-RECORD-RESULT-PROFILE`, resumed from exact accepted
+  CAP-034 merge `20095b0a2714c5894ed00dbc79af542acab81eee`, tree
+  `c369dbb30045efdaf25050af01d8aa71655f71c2`, on
+  `agent/cap-032-exact-record-result-profile-v2`. The original contract
+  `f7b2057e6512652e51c05c9993cfa782cd249092` and selector-red
+  `ec7a30695935b27ba179e770e68865e7a2e61e00` remain preserved on the
+  stopped CAP-031-based branch. No production mutation occurred there. CAP-033
+  supplies the exact missing context field that triggered that contract's
+  mandatory stop, and CAP-034 supplies the accepted selector-extensible test
+  boundary required by the first all-target compile gate. This re-entry does
+  not widen any product semantics.
+- Observed behavior and first honest failure: Experimental already executes
+  finite recursive CopyData records, concrete typed `Result<T, E>`, exhaustive
+  `Match`, flat arrays, by-value transport, and source preservation, but
+  aggregate `int` leaves use legacy `double` storage. `exact-i32-array-v0`
+  preserves exact `i32` only for scalar and flat-array roots and rejects the
+  first record definition with
+  `Language Profile Error: exact-i32-array-v0 rejects struct definitions`.
+  CAP-026 through CAP-033 now provide shared physical layout, post-semantic
+  resolved shapes, verified-IR authentication, a closed normalized-syntax
+  witness, and exact file/function context. The new public selector remains
+  intentionally absent. After this authorization, the replayed focused test's
+  sole red must remain exactly
+  `CAP-032 intentional selector red: exact-i32-record-result-v0 is absent`;
+  any earlier parse, semantic, infrastructure, oracle, or characterization
+  failure invalidates the checkpoint.
+- Selector and phase contract: freeze public spelling
+  `exact-i32-record-result-v0` and Rust variant
+  `LanguageProfile::ExactI32RecordResultV0`. Parsing, display, CLI check/build/
+  run help, CPU-only target enforcement, library options, and cache identity
+  must recognize it. Existing `experimental`, `stable-scalar-v0`, and
+  `exact-i32-array-v0` behavior remains exact. Unlike the two accepted selected
+  profiles, the new selector performs no raw-AST `ProfileValidator` admission.
+  Root lex/parse and direct-module resolution retain their current order;
+  semantic normalization, registries, type/ownership validation, and descriptor
+  finalization run once; then the new descriptor policy either rejects with
+  `Language Profile Error: exact-i32-record-result-v0 rejects <feature>` or
+  succeeds before `IrGenerator`. Existing semantic diagnostics retain
+  precedence. No second AST validator, registry, normalizer, or inference pass
+  is permitted.
+- Frozen logical shape policy: admit exact `int`/`i32`, `bool`, and nonempty flat
+  `[int; N]` for `1 <= N <= i32::MAX`; finite acyclic nonempty nongeneric source
+  records whose ordered fields recursively contain only those leaves or other
+  admitted records; and one exact normalized builtin `Result<T, E>` whose Ok
+  and Err payloads are admitted non-enum shapes. Result is the only admitted
+  enum/carrier. `Void` remains valid only where the existing function/Match
+  contract already permits no value. Reject zero/oversized arrays, nested
+  arrays, Boolean arrays, arrays of records, tuples, floats, chars, strings,
+  references, dynamic collections, user enums, Option, nested/context-free
+  carriers, source generics, traits/impls, empty/ambiguous/cyclic/unresolved
+  records, private generic specializations, and every unsupported or unavailable
+  descriptor fact. Do not reinterpret a failed registry result or silently
+  substitute a scalar type.
+- Frozen normalized source and context surface: at `FileScope`, admit only
+  nongeneric top-level function declarations without trait bounds, nongeneric
+  record definitions, and normalized private builtin Result definitions proven
+  by nominal origin. Reject every file-scope executable expression, binding,
+  assignment, return, control-flow, Match pattern, nested declaration, module,
+  import, generic, trait, or impl witness. Executable observations must carry
+  the exact admitted top-level `Source` function origin; normalized generic/
+  opaque-private functions, impl/trait methods, nested functions, and every
+  unavailable origin remain rejected. Within an admitted function, allow only
+  fully annotated and initialized local bindings; blocks; value or void returns;
+  expression statements; `if`/`else`, `while`, `loop`, `break`, and `continue`;
+  integer literals, identifiers, wrapping add/subtract/multiply, accepted
+  integer/Boolean comparisons, logical and/or, unary not/negate, ordinary
+  function calls, array literals, index reads, record-field reads, contextual
+  record construction, contextual parenthesized Ok/Err construction, and exact
+  exhaustive Result Match. Reject every unannotated or uninitialized binding,
+  const residue, division/modulo, Print/Println, float/char/string literal,
+  method call, array repeat, tuple, user enum construction, wildcard/literal/
+  tuple/struct/nonexact Match pattern, borrow/dereference, closure, for-loop,
+  and all other witness variants. Assignment may target a direct identifier or
+  exactly one direct index projection. Descriptor `OwnedAssignment` may resolve
+  only to Int, Bool, or exact Result; whole-record/array assignment and every
+  field/dereference or compound projection remain excluded. Existing guarded
+  flat-array element writes remain admitted.
+- Frozen descriptor operation policy: every use must be resolved, attached only
+  to an admitted top-level source function when a function origin exists, and
+  resolve to an admitted shape for its exact `ProfileTypeUse`. Every source
+  record declaration/construction must retain exact normalized identity,
+  ordered field schema, and a complete source-to-declaration permutation.
+  Every enum declaration/construction/Match must be the exact normalized builtin
+  `Result<T, E>` with ordered Ok/Err payloads, exact private identity, exact
+  variant index, and an explicit two-arm exhaustive mapping containing each
+  variant once. Match results may be admitted CopyData or Void. Descriptor
+  surface, nominal, use, and operation vectors are policy inputs only; they are
+  not mutated, exposed publicly, or treated as an event-to-IR bijection.
+- Frozen physical/backend contract: CAP-029 authentication must complete against
+  verifier metadata before cache lookup or backend selection. Checked codegen
+  re-verifies `CheckedIr` first, then requires the private authenticated token
+  for this selector, rejects every verified logical type outside the same closed
+  shape policy, and only then selects CAP-026 `ExactI32` recursively for record
+  fields, flat-array elements, function transport, owner/Match storage, and
+  Result payload lanes. `bool` remains `i1` and enum tags remain `i32`. Promote
+  only the existing `EnumStorageLayout::with_policy` constructor to production;
+  no topology, ABI, alignment rule, or checked schema changes. Direct raw/
+  semantic-independent codegen cannot claim the selector without the token.
+  All admitted integer operations remain wrapping `i32`; dynamic indexes retain
+  signed lower/upper guards before GEP; emitted LLVM contains no `double`,
+  `fptosi`, `sitofp`, `nsw`, or `nuw` for the product.
+- Product and independent oracle: add tracked
+  `examples/fixed_int_array_v0/exact_record_result_application.aero`. It must
+  expose one bounded nested-record request, flat-array transformation, exact
+  `Result<Success, int>` success/error boundary, exhaustive Ok/Err Match,
+  by-value copy plus source reuse, and a silent `main` returning exactly 91 only
+  after valid and malformed vectors pass. The focused Rust test independently
+  computes expected transformation/status results, replaces only the tracked
+  main below a frozen marker, and executes multiple generated valid and error
+  fixtures. It may not duplicate or invoke compiler production logic as its
+  expected oracle.
+- Cache, target, and compatibility boundary: canonical preparation—including
+  post-semantic admission and CAP-029 authentication—must still finish before a
+  verified cache lookup. The existing nonexperimental profile cache frame must
+  make the new selector distinct without changing prior keys. The selector is
+  CPU-only and rejects ROCm/CUDA or `--gpu` through the existing target rule.
+  `CheckedIr`, `CheckedProgram` Debug, direct public SemanticAnalyzer/
+  IrGenerator/CodeGenerator compatibility APIs, default Experimental behavior,
+  existing diagnostics, existing-profile LLVM bytes, and existing cache hits
+  remain exact. Adding `LanguageProfile::ExactI32RecordResultV0` is an
+  intentional public Rust enum expansion: downstream exhaustive matches over
+  `LanguageProfile` must add the new arm or a catch-all. This task does not add
+  `#[non_exhaustive]`, promise source compatibility for exhaustive downstream
+  matches, or otherwise claim a stable public API.
+- Exact allowed files: only this `TASK_LEDGER.md`;
+  `SELF_HOSTING_ROADMAP.md`; `src/compiler/src/language_profile.rs`;
+  `src/compiler/src/lib.rs`; `src/compiler/src/code_generator.rs`;
+  `src/compiler/src/copy_data_layout.rs`; `src/compiler/src/main.rs`; one new
+  `src/compiler/tests/exact_record_result_profile_tests.rs`; one new
+  `examples/fixed_int_array_v0/exact_record_result_application.aero`; and
+  `.github/workflows/rust.yml`. Production work is exactly two compiler phases:
+  post-semantic descriptor admission and authenticated checked backend/layout.
+  `semantic_analyzer.rs`, `resolved_profile_shape.rs`,
+  `resolved_profile_authentication.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, every existing test/example, dependencies/lockfiles,
+  evidence bundles, claim-verification, release/package, and external artifacts
+  are frozen.
+- Red-first and acceptance gates: commit this re-entry ledger/roadmap first,
+  then replay the preserved focused target whose existing-profile diagnostic/
+  LLVM/cache/native characterization is green and whose sole failure is the
+  exact missing-selector red above. Before acceptance require public source/file
+  check/compile parity; deterministic new-profile LLVM; independent valid/error
+  vector execution; exact record/Result schema and all recursive integer lanes
+  as `i32`; verifier-first/token-required backend corruption controls; negative
+  source-surface, context, shape, origin, operation, target, and cache-bypass
+  controls; no failure artifact; CPU target enforcement; and unchanged
+  Experimental/stable/exact-array LLVM digests and diagnostics. Linux and
+  Windows LLVM/Clang 22 workflow lanes must verify LLVM and bitcode,
+  machine-lower, link O0/O2, observe exit 91 with empty stdout/stderr, and repeat
+  the public run. Run focused profile, descriptor/authentication,
+  record/Result/Match, exact-array, cache, and workflow rings; formatting;
+  all-target/all-feature correctness-denying Clippy; diff hygiene; and exact
+  repository-root `./tools/test.sh`, all with one Cargo job, one Rust test
+  thread, pinned LLVM 22, and task-isolated D: target/TEMP/TMP.
+- Risks and mandatory stops: risks are admitting syntax missing from the surface
+  stream, treating uncovered metadata as source proof, losing exact carrier
+  schema identity, applying exact layout to existing profiles, allowing a cache
+  hit before admission/authentication, leaving one legacy enum/record lane,
+  changing diagnostic precedence, or overclaiming a fixed application surface.
+  Stop with `NO IMPLEMENTATION` rather than widening if the task requires a new
+  semantic rule, inferred root, source location, registry/normalizer rebuild,
+  descriptor field beyond accepted CAP-033 context, AST/IR event identity,
+  checked-IR/generator/verifier change, third compiler phase, allocator/I/O/
+  module/ABI behavior, general enum/generic/reference support, dependency,
+  eleventh file, or any existing diagnostic/checked-IR/LLVM/native/cache delta.
+  This profile is a bounded CPU compiler subset, not general CopyData, runtime
+  ingestion, a production frontend, self-hosting, stability, safety,
+  performance, or accelerator execution.
+
+### CAP-032 locally green candidate checkpoint
+
+- Identity and scope: re-entry ledger commit
+  `31f5fa1fad560b12325bc80c72b4903a5dcd7286`, selector-red commit
+  `7b2e1ff1434a60e38c5e68bf571ed0941b420d51`, strengthened test/workflow
+  commit `2a99397bc29f949e99718ec6518f4a036e130647`, accepted-prerequisite merge
+  `946af127387a01f8a7f85e09516fadfb6cecfed9`, and implementation commit
+  `1df7379240efd62a017a3f4d3bf7333e635e9f64`, tree
+  `9670b480c80a0cf92c2b14c1054b0f39098a387b`, descend from accepted CAP-034
+  merge `20095b0a2714c5894ed00dbc79af542acab81eee`. The cumulative candidate
+  changes exactly the ten authorized files. No semantic analyzer, descriptor
+  producer/authenticator, checked IR/generator/verifier, existing integration
+  test, dependency/lockfile, evidence bundle, claim-verification, package, or
+  release file changed.
+- Red-first history and prerequisite stop: before production was committed, the
+  public focused target preserved all three accepted profiles and failed only
+  with `CAP-032 intentional selector red: exact-i32-record-result-v0 is absent`.
+  The first all-target compile exposed the frozen eleventh-file boundary in one
+  existing exhaustive test; CAP-032 stopped, CAP-034 independently changed and
+  protected that test, and implementation resumed only after CAP-034 merge and
+  accepted-head workflows were green.
+- Implementation result: `exact-i32-record-result-v0` is a fourth explicit,
+  CPU-only selected profile. Its one post-semantic policy consumes the accepted
+  resolved shape/surface/context descriptor and rejects outside the frozen
+  record, flat-array, exact `Result`, and exhaustive `Match` surface before
+  checked IR. Canonical backend entry re-verifies first, requires CAP-029's
+  authenticated token, compares every observed recursive shape to its exact
+  descriptor shape, and selects CAP-026 `ExactI32` layout without changing IR
+  schema or existing profile layout. Cache lookup remains after admission and
+  authentication. Direct compatibility APIs cannot claim the selector.
+- Executable product: tracked
+  `examples/fixed_int_array_v0/exact_record_result_application.aero` composes a
+  nested request record, fixed-array transform, `Result<Success, int>`, exact
+  exhaustive Match, and source reuse. Its deterministic LLVM contains exact
+  recursive `i32`/`i1` record and Result lanes and no `double`, conversion, or
+  signed/unsigned overflow promise. Independent valid/error vectors agree with
+  the Rust oracle, and both public and native execution are silent and return
+  91.
+- Focused evidence: the public profile/product target passes 6/6; private
+  verifier-first, token-required, and authenticated-shape corruption controls
+  pass 2/2; accepted Experimental/stable/exact-array diagnostics and LLVM
+  digests remain frozen; source/file compilation, deterministic LLVM, negative
+  surface/context/shape/origin/operation cases, cache/artifact hygiene, and CPU
+  target rejection pass. The Linux/Windows workflow text proves repeated LLVM,
+  bitcode, `opt`, `llc`, Clang O0/O2, exit-91, and empty-output lanes.
+- Full local evidence: formatting and `git diff --check` pass;
+  all-target/all-feature Clippy with `-D clippy::correctness` passes; and exact
+  repository-root `./tools/test.sh` passes 292 library tests, every integration
+  target, the Windows LLVM workflow contract, and doc tests. The first full run
+  correctly caught an extra historical `LASTEXITCODE` reset in the new Windows
+  block; the new block now uses the already-established terminal `exit 0`
+  pattern, the protected count remains 15, the existing test was not edited,
+  and the complete gate then passed. Every build used one Cargo job, one Rust
+  test thread, pinned LLVM 22, `D:\\Aero-temp\\cap-032-v2`, and
+  `D:\\Aero-build-targets\\cap-032-v2`; no C-drive temp or build output was
+  created.
+- Remaining gate: publish this exact candidate through protected stable,
+  nightly, Windows LLVM 22, Linux/Windows O0/O2 product, compiler-suite, CodeQL,
+  and evidence-capture checks; merge only the exact protected head; then verify
+  accepted-head workflows and synchronize the cumulative PR/docs. Until that
+  completes, this is locally green unpublished work, not an accepted public
+  capability.
+
 ## CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY - preserve selector-growth characterization
 
 - Date/task/status: 2026-08-15,
@@ -67,9 +302,14 @@
   thread, and task-isolated `D:\\Aero-temp\\cap-034` plus
   `D:\\Aero-build-targets\\cap-034`; no C-drive temp or build directory was
   used.
-- Remaining gate: publish this exact candidate through protected CI, merge it
-  without changing its tree, and verify accepted-head workflows before
-  resuming CAP-032 production. No CAP-032 behavior is claimed here.
+- Protected acceptance: exact candidate head
+  `29c1c145baeffb1ce8d83ac0eb8350b65d8694e9` merged through PR #75 as
+  `20095b0a2714c5894ed00dbc79af542acab81eee`; candidate and merge share tree
+  `c369dbb30045efdaf25050af01d8aa71655f71c2`. All 12 candidate checks passed,
+  including stable/nightly, the Windows LLVM 22 native gate, both compiler
+  suites, Linux/Windows evidence capture, aggregate, and CodeQL. All four
+  accepted-head workflow runs completed successfully. CAP-034 is accepted and
+  unblocks CAP-032; it claims no CAP-032 behavior itself.
 
 ## CAP-033-RESOLVED-SURFACE-CONTEXT - bind normalized witnesses to enclosing scope
 
@@ -188,6 +428,25 @@
   normal merge, and post-merge replay remain required. CAP-032/P1 may resume
   only from the accepted CAP-033 head; CAP-033 itself adds no source acceptance,
   selected profile, allocation, runtime input, or self-hosting claim.
+
+### CAP-033 protected acceptance checkpoint
+
+- Exact reviewed candidate
+  `16f11c198abe78d6f156b88dbd6d1416ea053849`, tree
+  `d77ef5d67936449ef99942db4a9e68d16580ecdf`, passed both CI jobs, stable,
+  nightly, pinned Windows LLVM 22 native execution, CodeQL, Linux/Windows
+  capture, and aggregate in candidate runs `31899705665`, `31899730520`,
+  `31899730577`, `31899730692`, and `31899730560`.
+- Protected PR #74 merged normally as
+  `9ea6fcb4e703158b712c16f83fd30285316d5609`. Its tree is byte-identical to
+  the candidate and its ordered parents are prior accepted CAP-031 merge
+  `a89b405098d5ccbda49e26ac53e01ccc2a9cc296` then the exact candidate.
+  Post-merge CI `31900060783`, Rust CI `31900060846`, CodeQL-on-master
+  `31900060293`, and accepted-head evidence `31900060811` are terminal green.
+- CAP-033 is therefore accepted only as behavior-neutral resolved surface
+  context. It adds no profile, source acceptance, allocation, runtime input, or
+  self-hosting claim. CAP-032 resumes from that exact protected merge under the
+  contract above.
 
 ## CAP-031-BOUNDED-AERO-LEXER-KERNEL - tracked fixed-storage token spans
 

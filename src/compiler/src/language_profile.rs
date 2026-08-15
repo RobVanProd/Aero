@@ -1,11 +1,20 @@
 use crate::ast::{AstNode, BinaryOp, Block, Expression, Statement, Type, UnaryOp};
+use crate::builtin_carrier_contract::private_carrier_source_name;
 use crate::ir::LogicalType;
+use crate::resolved_profile_shape::{
+    ResolvedProfileAssignmentProjection, ResolvedProfileAssignmentRoot,
+    ResolvedProfileBinaryOperator, ResolvedProfileExpressionKind, ResolvedProfileNominal,
+    ResolvedProfileOperation, ResolvedProfileOrigin, ResolvedProfilePatternKind,
+    ResolvedProfileProgram, ResolvedProfileResolution, ResolvedProfileStatementKind,
+    ResolvedProfileSurfaceContext, ResolvedProfileSurfaceObservation,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::str::FromStr;
 
 pub(crate) const STABLE_SCALAR_V0_NAME: &str = "stable-scalar-v0";
 pub(crate) const EXACT_I32_ARRAY_V0_NAME: &str = "exact-i32-array-v0";
+pub(crate) const EXACT_I32_RECORD_RESULT_V0_NAME: &str = "exact-i32-record-result-v0";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum LanguageProfile {
@@ -13,6 +22,7 @@ pub enum LanguageProfile {
     Experimental,
     StableScalarV0,
     ExactI32ArrayV0,
+    ExactI32RecordResultV0,
 }
 
 impl LanguageProfile {
@@ -21,17 +31,21 @@ impl LanguageProfile {
             Self::Experimental => "experimental",
             Self::StableScalarV0 => STABLE_SCALAR_V0_NAME,
             Self::ExactI32ArrayV0 => EXACT_I32_ARRAY_V0_NAME,
+            Self::ExactI32RecordResultV0 => EXACT_I32_RECORD_RESULT_V0_NAME,
         }
     }
 
     /// Whether verified logical `Int` values use the profile's exact i32 lane.
     pub(crate) fn uses_exact_i32_lane(self) -> bool {
-        matches!(self, Self::StableScalarV0 | Self::ExactI32ArrayV0)
+        matches!(
+            self,
+            Self::StableScalarV0 | Self::ExactI32ArrayV0 | Self::ExactI32RecordResultV0
+        )
     }
 
     /// Whether this profile admits the exact, flat, nonempty i32-array shape.
     pub(crate) fn admits_exact_i32_array(self, logical_type: &LogicalType) -> bool {
-        self == Self::ExactI32ArrayV0
+        matches!(self, Self::ExactI32ArrayV0 | Self::ExactI32RecordResultV0)
             && matches!(
                 classify_profile_logical_type(logical_type),
                 ProfileTypeShape::ExactI32Array { .. }
@@ -53,8 +67,9 @@ impl FromStr for LanguageProfile {
             "experimental" => Ok(Self::Experimental),
             STABLE_SCALAR_V0_NAME => Ok(Self::StableScalarV0),
             EXACT_I32_ARRAY_V0_NAME => Ok(Self::ExactI32ArrayV0),
+            EXACT_I32_RECORD_RESULT_V0_NAME => Ok(Self::ExactI32RecordResultV0),
             _ => Err(format!(
-                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME})"
+                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME}|{EXACT_I32_RECORD_RESULT_V0_NAME})"
             )),
         }
     }
@@ -90,7 +105,10 @@ pub(crate) fn profile_type_shape_is_admitted(
     match shape {
         ProfileTypeShape::Int | ProfileTypeShape::Bool => true,
         ProfileTypeShape::ExactI32Array { .. } => {
-            profile == LanguageProfile::ExactI32ArrayV0 && usage != ProfileTypeUse::OwnedAssignment
+            matches!(
+                profile,
+                LanguageProfile::ExactI32ArrayV0 | LanguageProfile::ExactI32RecordResultV0
+            ) && usage != ProfileTypeUse::OwnedAssignment
         }
         ProfileTypeShape::Unsupported => false,
     }
@@ -163,9 +181,585 @@ pub(crate) fn validate_language_profile(
     profile: LanguageProfile,
 ) -> Result<(), String> {
     match profile {
-        LanguageProfile::Experimental => Ok(()),
+        LanguageProfile::Experimental | LanguageProfile::ExactI32RecordResultV0 => Ok(()),
         LanguageProfile::StableScalarV0 | LanguageProfile::ExactI32ArrayV0 => {
             ProfileValidator::validate(ast, profile)
+        }
+    }
+}
+
+/// Applies the compiler-oriented profile only after semantic normalization has
+/// produced the single resolved shape and surface authority. Existing profiles
+/// retain their accepted pre-semantic validator and never enter this path.
+pub(crate) fn validate_resolved_language_profile(
+    program: &ResolvedProfileProgram,
+    profile: LanguageProfile,
+) -> Result<(), String> {
+    if profile != LanguageProfile::ExactI32RecordResultV0 {
+        return Ok(());
+    }
+    ExactRecordResultProfileValidator::validate(program)
+}
+
+/// Shared logical policy used by post-semantic admission and the authenticated
+/// backend guard. Source-origin eligibility is checked separately against the
+/// resolved descriptor; this function owns only the closed logical topology.
+pub(crate) fn exact_record_result_logical_type_is_admitted(logical: &LogicalType) -> bool {
+    match logical {
+        LogicalType::Enum { name, variants } => {
+            private_carrier_source_name(name).is_some_and(|source| {
+                source.starts_with("Result<")
+                    && matches!(
+                        variants.as_slice(),
+                        [crate::ir::EnumVariantSchema {
+                            name: ok,
+                            payload: Some(ok_payload),
+                        }, crate::ir::EnumVariantSchema {
+                            name: error,
+                            payload: Some(error_payload),
+                        }] if ok == "Ok"
+                            && error == "Err"
+                            && exact_record_result_non_enum_shape(ok_payload, None)
+                            && exact_record_result_non_enum_shape(error_payload, None)
+                    )
+            })
+        }
+        _ => exact_record_result_non_enum_shape(logical, None),
+    }
+}
+
+fn exact_record_result_non_enum_shape(
+    logical: &LogicalType,
+    source_structs: Option<&BTreeSet<String>>,
+) -> bool {
+    match logical {
+        LogicalType::Int | LogicalType::Bool => true,
+        LogicalType::Array { element, count } => {
+            (1..=i32::MAX as usize).contains(count) && **element == LogicalType::Int
+        }
+        LogicalType::Struct { name, fields } => {
+            !fields.is_empty()
+                && source_structs.is_none_or(|names| names.contains(name))
+                && fields
+                    .iter()
+                    .all(|field| exact_record_result_non_enum_shape(field, source_structs))
+        }
+        LogicalType::Float
+        | LogicalType::Char
+        | LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Tuple { .. }
+        | LogicalType::EnumFields { .. }
+        | LogicalType::Enum { .. } => false,
+    }
+}
+
+struct ExactRecordResultProfileValidator<'a> {
+    program: &'a ResolvedProfileProgram,
+    source_structs: BTreeSet<String>,
+    result_carriers: BTreeSet<String>,
+}
+
+impl<'a> ExactRecordResultProfileValidator<'a> {
+    fn validate(program: &'a ResolvedProfileProgram) -> Result<(), String> {
+        let mut validator = Self {
+            program,
+            source_structs: BTreeSet::new(),
+            result_carriers: BTreeSet::new(),
+        };
+        validator.collect_nominal_identities()?;
+        validator.validate_surface()?;
+        validator.validate_nominals()?;
+        validator.validate_uses()?;
+        validator.validate_operations()
+    }
+
+    fn reject(feature: impl AsRef<str>) -> String {
+        profile_named_error(LanguageProfile::ExactI32RecordResultV0, feature.as_ref())
+    }
+
+    fn collect_nominal_identities(&mut self) -> Result<(), String> {
+        let mut identities = BTreeSet::new();
+        for nominal in &self.program.nominals {
+            let (normalized, eligible) = match nominal {
+                ResolvedProfileNominal::Struct {
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    ..
+                } => (normalized, Some(true)),
+                ResolvedProfileNominal::Enum {
+                    origin: ResolvedProfileOrigin::BuiltinCarrier { normalized, source },
+                    ..
+                } if source.starts_with("Result<")
+                    && private_carrier_source_name(normalized).as_deref() == Some(source) =>
+                {
+                    (normalized, Some(false))
+                }
+                ResolvedProfileNominal::Struct { origin, .. }
+                | ResolvedProfileNominal::Enum { origin, .. } => {
+                    let normalized = Self::origin_label(origin);
+                    if !identities.insert(normalized.clone()) {
+                        return Err(Self::reject(format!(
+                            "ambiguous nominal identity `{normalized}`"
+                        )));
+                    }
+                    continue;
+                }
+            };
+            if !identities.insert(normalized.clone()) {
+                return Err(Self::reject(format!(
+                    "ambiguous nominal identity `{normalized}`"
+                )));
+            }
+            match eligible {
+                Some(true) => {
+                    self.source_structs.insert(normalized.clone());
+                }
+                Some(false) => {
+                    self.result_carriers.insert(normalized.clone());
+                }
+                None => unreachable!("eligible nominal identities are classified above"),
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_surface(&self) -> Result<(), String> {
+        for observation in &self.program.surface {
+            match observation {
+                ResolvedProfileSurfaceObservation::Statement { context, kind } => {
+                    self.validate_statement_surface(context, kind)?
+                }
+                ResolvedProfileSurfaceObservation::Expression { context, kind } => {
+                    self.require_source_function_context(context, "expression")?;
+                    if !matches!(
+                        kind,
+                        ResolvedProfileExpressionKind::IntegerLiteral
+                            | ResolvedProfileExpressionKind::Identifier
+                            | ResolvedProfileExpressionKind::Binary(
+                                ResolvedProfileBinaryOperator::Add
+                                    | ResolvedProfileBinaryOperator::Subtract
+                                    | ResolvedProfileBinaryOperator::Multiply
+                            )
+                            | ResolvedProfileExpressionKind::FunctionCall
+                            | ResolvedProfileExpressionKind::Comparison(_)
+                            | ResolvedProfileExpressionKind::Logical(_)
+                            | ResolvedProfileExpressionKind::Unary(_)
+                            | ResolvedProfileExpressionKind::ArrayLiteral
+                            | ResolvedProfileExpressionKind::IndexAccess
+                            | ResolvedProfileExpressionKind::FieldAccess
+                            | ResolvedProfileExpressionKind::StructLiteral
+                            | ResolvedProfileExpressionKind::EnumVariant {
+                                parenthesized: true
+                            }
+                            | ResolvedProfileExpressionKind::Match
+                    ) {
+                        return Err(Self::reject(format!("surface expression `{kind:?}`")));
+                    }
+                }
+                ResolvedProfileSurfaceObservation::Pattern { context, kind } => {
+                    self.require_source_function_context(context, "Match pattern")?;
+                    if !matches!(
+                        kind,
+                        ResolvedProfilePatternKind::Identifier
+                            | ResolvedProfilePatternKind::Enum {
+                                parenthesized: true
+                            }
+                    ) {
+                        return Err(Self::reject(format!("Match pattern `{kind:?}`")));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_statement_surface(
+        &self,
+        context: &ResolvedProfileSurfaceContext,
+        kind: &ResolvedProfileStatementKind,
+    ) -> Result<(), String> {
+        match context {
+            ResolvedProfileSurfaceContext::FileScope => {
+                if matches!(
+                    kind,
+                    ResolvedProfileStatementKind::Function {
+                        top_level: true,
+                        generic: false,
+                        trait_bounded: false,
+                        ..
+                    } | ResolvedProfileStatementKind::StructDefinition { generic: false }
+                        | ResolvedProfileStatementKind::EnumDefinition {
+                            generic: false,
+                            trait_bounded: false,
+                        }
+                ) {
+                    Ok(())
+                } else {
+                    Err(Self::reject(format!("file-scope statement `{kind:?}`")))
+                }
+            }
+            ResolvedProfileSurfaceContext::Function(origin) => {
+                if !matches!(origin, ResolvedProfileOrigin::Source { .. }) {
+                    return Err(Self::reject(format!(
+                        "non-source function context `{}`",
+                        Self::origin_label(origin)
+                    )));
+                }
+                let allowed = match kind {
+                    ResolvedProfileStatementKind::Let {
+                        annotated: true,
+                        initialized: true,
+                        ..
+                    }
+                    | ResolvedProfileStatementKind::Return { .. }
+                    | ResolvedProfileStatementKind::Expression
+                    | ResolvedProfileStatementKind::Block
+                    | ResolvedProfileStatementKind::If { .. }
+                    | ResolvedProfileStatementKind::While
+                    | ResolvedProfileStatementKind::Loop
+                    | ResolvedProfileStatementKind::Break
+                    | ResolvedProfileStatementKind::Continue => true,
+                    ResolvedProfileStatementKind::Assignment { target } => {
+                        target.root == ResolvedProfileAssignmentRoot::Identifier
+                            && (target.projections.is_empty()
+                                || target.projections.as_slice()
+                                    == [ResolvedProfileAssignmentProjection::Index])
+                    }
+                    _ => false,
+                };
+                if allowed {
+                    Ok(())
+                } else {
+                    Err(Self::reject(format!("surface statement `{kind:?}`")))
+                }
+            }
+        }
+    }
+
+    fn require_source_function_context(
+        &self,
+        context: &ResolvedProfileSurfaceContext,
+        feature: &str,
+    ) -> Result<(), String> {
+        match context {
+            ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source { .. }) => Ok(()),
+            ResolvedProfileSurfaceContext::FileScope => {
+                Err(Self::reject(format!("file-scope {feature}")))
+            }
+            ResolvedProfileSurfaceContext::Function(origin) => Err(Self::reject(format!(
+                "{feature} in non-source function context `{}`",
+                Self::origin_label(origin)
+            ))),
+        }
+    }
+
+    fn validate_nominals(&self) -> Result<(), String> {
+        for nominal in &self.program.nominals {
+            match nominal {
+                ResolvedProfileNominal::Struct {
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    resolution,
+                    fields,
+                } => {
+                    let logical = self.resolved_shape(resolution, "record declaration")?;
+                    let LogicalType::Struct {
+                        name,
+                        fields: logical_fields,
+                    } = logical
+                    else {
+                        return Err(Self::reject(format!(
+                            "record `{normalized}` has a non-record resolved shape"
+                        )));
+                    };
+                    if name != normalized
+                        || fields.is_empty()
+                        || fields.len() != logical_fields.len()
+                        || !exact_record_result_non_enum_shape(logical, Some(&self.source_structs))
+                    {
+                        return Err(Self::reject(format!("record `{normalized}` schema")));
+                    }
+                    let mut field_names = BTreeSet::new();
+                    for (field, logical_field) in fields.iter().zip(logical_fields) {
+                        if !field_names.insert(field.name.as_str())
+                            || self.resolved_shape(&field.resolution, "record field")?
+                                != logical_field
+                        {
+                            return Err(Self::reject(format!(
+                                "record `{normalized}` field schema"
+                            )));
+                        }
+                    }
+                }
+                ResolvedProfileNominal::Enum {
+                    origin: ResolvedProfileOrigin::BuiltinCarrier { normalized, source },
+                    resolution,
+                    variants,
+                } if source.starts_with("Result<") => {
+                    let logical = self.resolved_shape(resolution, "Result declaration")?;
+                    let LogicalType::Enum {
+                        name,
+                        variants: logical_variants,
+                    } = logical
+                    else {
+                        return Err(Self::reject("Result declaration has non-enum shape"));
+                    };
+                    if name != normalized
+                        || private_carrier_source_name(name).as_deref() != Some(source)
+                        || !self.result_carriers.contains(name)
+                        || !exact_record_result_logical_type_is_admitted(logical)
+                        || variants.len() != 2
+                        || variants.len() != logical_variants.len()
+                    {
+                        return Err(Self::reject(format!("Result `{source}` schema")));
+                    }
+                    for (variant, logical_variant) in variants.iter().zip(logical_variants) {
+                        let Some(payload) = &variant.payload else {
+                            return Err(Self::reject(format!("Result `{source}` unit variant")));
+                        };
+                        let Some(logical_payload) = &logical_variant.payload else {
+                            return Err(Self::reject(format!("Result `{source}` unit schema")));
+                        };
+                        if variant.name != logical_variant.name
+                            || self.resolved_shape(payload, "Result payload")? != logical_payload
+                        {
+                            return Err(Self::reject(format!("Result `{source}` payload schema")));
+                        }
+                    }
+                }
+                ResolvedProfileNominal::Struct { origin, .. }
+                | ResolvedProfileNominal::Enum { origin, .. } => {
+                    return Err(Self::reject(format!(
+                        "nominal origin `{}`",
+                        Self::origin_label(origin)
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_uses(&self) -> Result<(), String> {
+        for usage in &self.program.uses {
+            if let Some(origin) = &usage.function
+                && !matches!(origin, ResolvedProfileOrigin::Source { .. })
+            {
+                return Err(Self::reject(format!(
+                    "typed use in non-source function `{}`",
+                    Self::origin_label(origin)
+                )));
+            }
+            let logical = self.resolved_shape(&usage.resolution, "typed use")?;
+            let admitted = if logical == &LogicalType::Void {
+                usage.role == ProfileTypeUse::Result
+            } else if usage.role == ProfileTypeUse::OwnedAssignment {
+                matches!(logical, LogicalType::Int | LogicalType::Bool)
+                    || matches!(logical, LogicalType::Enum { .. }) && self.admitted_shape(logical)
+            } else {
+                self.admitted_shape(logical)
+            };
+            if !admitted {
+                return Err(Self::reject(format!(
+                    "{:?} logical type `{logical}`",
+                    usage.role
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_operations(&self) -> Result<(), String> {
+        for operation in &self.program.operations {
+            match operation {
+                ResolvedProfileOperation::Declaration { origin, resolution } => {
+                    let logical = self.resolved_shape(resolution, "nominal declaration")?;
+                    if !self.origin_matches_logical(origin, logical) {
+                        return Err(Self::reject(format!(
+                            "declaration origin `{}`",
+                            Self::origin_label(origin)
+                        )));
+                    }
+                }
+                ResolvedProfileOperation::StructConstruction {
+                    function,
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    resolution,
+                    source_to_declaration,
+                } => {
+                    Self::require_source_operation_function(function, "record construction")?;
+                    let logical = self.resolved_shape(resolution, "record construction")?;
+                    let LogicalType::Struct { name, fields } = logical else {
+                        return Err(Self::reject("record construction shape"));
+                    };
+                    if name != normalized
+                        || !self.source_structs.contains(name)
+                        || !Self::complete_permutation(source_to_declaration, fields.len())
+                    {
+                        return Err(Self::reject(format!(
+                            "record `{normalized}` construction mapping"
+                        )));
+                    }
+                }
+                ResolvedProfileOperation::EnumConstruction {
+                    function,
+                    origin: ResolvedProfileOrigin::BuiltinCarrier { normalized, source },
+                    variant,
+                    resolution,
+                    variant_index,
+                } if source.starts_with("Result<") => {
+                    Self::require_source_operation_function(function, "Result construction")?;
+                    let logical = self.resolved_shape(resolution, "Result construction")?;
+                    let LogicalType::Enum { name, variants } = logical else {
+                        return Err(Self::reject("Result construction shape"));
+                    };
+                    let expected_index = variants
+                        .iter()
+                        .position(|candidate| candidate.name == *variant);
+                    if name != normalized
+                        || !self.result_carriers.contains(name)
+                        || expected_index != *variant_index
+                        || !matches!(variant.as_str(), "Ok" | "Err")
+                    {
+                        return Err(Self::reject(format!(
+                            "Result `{source}` constructor `{variant}`"
+                        )));
+                    }
+                }
+                ResolvedProfileOperation::ExhaustiveMatch {
+                    function,
+                    origin: Some(ResolvedProfileOrigin::BuiltinCarrier { normalized, source }),
+                    resolution,
+                    arm_for_variant,
+                    result,
+                } if source.starts_with("Result<") => {
+                    Self::require_source_operation_function(function, "Result Match")?;
+                    let logical = self.resolved_shape(resolution, "Result Match")?;
+                    let LogicalType::Enum { name, variants } = logical else {
+                        return Err(Self::reject("Result Match shape"));
+                    };
+                    if name != normalized
+                        || !self.result_carriers.contains(name)
+                        || variants.len() != 2
+                        || !Self::complete_permutation(arm_for_variant, variants.len())
+                    {
+                        return Err(Self::reject(format!("Result `{source}` Match mapping")));
+                    }
+                    if let Some(result) = result {
+                        let result = self.resolved_shape(result, "Match result")?;
+                        if result != &LogicalType::Void && !self.admitted_shape(result) {
+                            return Err(Self::reject(format!(
+                                "Match result logical type `{result}`"
+                            )));
+                        }
+                    }
+                }
+                ResolvedProfileOperation::StructConstruction { origin, .. }
+                | ResolvedProfileOperation::EnumConstruction { origin, .. } => {
+                    return Err(Self::reject(format!(
+                        "construction origin `{}`",
+                        Self::origin_label(origin)
+                    )));
+                }
+                ResolvedProfileOperation::ExhaustiveMatch { origin, .. } => {
+                    return Err(Self::reject(format!("Match origin `{origin:?}`")));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn require_source_operation_function(
+        function: &Option<ResolvedProfileOrigin>,
+        feature: &str,
+    ) -> Result<(), String> {
+        if matches!(function, Some(ResolvedProfileOrigin::Source { .. })) {
+            Ok(())
+        } else {
+            Err(Self::reject(format!(
+                "{feature} outside an admitted source function"
+            )))
+        }
+    }
+
+    fn resolved_shape(
+        &self,
+        resolution: &ResolvedProfileResolution,
+        context: &str,
+    ) -> Result<&LogicalType, String> {
+        let ResolvedProfileResolution::Resolved(id) = resolution else {
+            return Err(Self::reject(format!("unavailable {context}")));
+        };
+        self.program
+            .shapes
+            .get(id.0)
+            .ok_or_else(|| Self::reject(format!("invalid {context} shape identity")))
+    }
+
+    fn admitted_shape(&self, logical: &LogicalType) -> bool {
+        match logical {
+            LogicalType::Enum { name, .. } => {
+                self.result_carriers.contains(name)
+                    && exact_record_result_logical_type_is_admitted(logical)
+            }
+            _ => exact_record_result_non_enum_shape(logical, Some(&self.source_structs)),
+        }
+    }
+
+    fn origin_matches_logical(
+        &self,
+        origin: &ResolvedProfileOrigin,
+        logical: &LogicalType,
+    ) -> bool {
+        match (origin, logical) {
+            (ResolvedProfileOrigin::Source { normalized }, LogicalType::Struct { name, .. }) => {
+                normalized == name && self.source_structs.contains(name)
+            }
+            (
+                ResolvedProfileOrigin::BuiltinCarrier { normalized, source },
+                LogicalType::Enum { name, .. },
+            ) => {
+                normalized == name
+                    && source.starts_with("Result<")
+                    && self.result_carriers.contains(name)
+                    && self.admitted_shape(logical)
+            }
+            _ => false,
+        }
+    }
+
+    fn complete_permutation(mapping: &[usize], count: usize) -> bool {
+        mapping.len() == count
+            && mapping.iter().copied().collect::<BTreeSet<_>>()
+                == (0..count).collect::<BTreeSet<_>>()
+    }
+
+    fn origin_label(origin: &ResolvedProfileOrigin) -> String {
+        match origin {
+            ResolvedProfileOrigin::Source { normalized }
+            | ResolvedProfileOrigin::SourceGenericStruct { normalized }
+            | ResolvedProfileOrigin::SourceGenericEnum { normalized }
+            | ResolvedProfileOrigin::SourceGenericFunction { normalized }
+            | ResolvedProfileOrigin::OpaquePrivate { normalized } => normalized.clone(),
+            ResolvedProfileOrigin::GenericStruct { source, .. }
+            | ResolvedProfileOrigin::GenericEnum { source, .. }
+            | ResolvedProfileOrigin::GenericFunction { source, .. }
+            | ResolvedProfileOrigin::BuiltinCarrier { source, .. } => source.clone(),
+            ResolvedProfileOrigin::ImplMethod {
+                type_name,
+                trait_name,
+                method,
+            } => format!(
+                "impl {}{}::{method}",
+                trait_name
+                    .as_ref()
+                    .map(|name| format!("{name} for "))
+                    .unwrap_or_default(),
+                type_name
+            ),
+            ResolvedProfileOrigin::TraitMethod { trait_name, method } => {
+                format!("trait {trait_name}::{method}")
+            }
         }
     }
 }
@@ -1247,8 +1841,10 @@ mod tests {
         };
         assert!(LanguageProfile::StableScalarV0.uses_exact_i32_lane());
         assert!(LanguageProfile::ExactI32ArrayV0.uses_exact_i32_lane());
+        assert!(LanguageProfile::ExactI32RecordResultV0.uses_exact_i32_lane());
         assert!(!LanguageProfile::Experimental.uses_exact_i32_lane());
         assert!(LanguageProfile::ExactI32ArrayV0.admits_exact_i32_array(&exact));
+        assert!(LanguageProfile::ExactI32RecordResultV0.admits_exact_i32_array(&exact));
         assert!(!LanguageProfile::StableScalarV0.admits_exact_i32_array(&exact));
         assert!(!LanguageProfile::Experimental.admits_exact_i32_array(&exact));
     }
@@ -1310,6 +1906,16 @@ mod tests {
         }
         assert!(!profile_type_shape_is_admitted(
             LanguageProfile::ExactI32ArrayV0,
+            exact_array,
+            ProfileTypeUse::OwnedAssignment,
+        ));
+        assert!(profile_type_shape_is_admitted(
+            LanguageProfile::ExactI32RecordResultV0,
+            exact_array,
+            ProfileTypeUse::Value,
+        ));
+        assert!(!profile_type_shape_is_admitted(
+            LanguageProfile::ExactI32RecordResultV0,
             exact_array,
             ProfileTypeUse::OwnedAssignment,
         ));

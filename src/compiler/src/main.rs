@@ -1441,7 +1441,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
     let usage = || {
         format!(
-            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]",
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0>]",
             args.first().map(String::as_str).unwrap_or("aero")
         )
     };
@@ -1484,13 +1484,13 @@ fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String
 
 fn build_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]"
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0>]"
     )
 }
 
 fn run_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>]"
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0>]"
     )
 }
 
@@ -2110,7 +2110,7 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!(
-        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0>  Select the compiler-enforced source profile"
+        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0>  Select the compiler-enforced source profile"
     );
     println!();
     println!("EXECUTION BOUNDARIES:");
@@ -2337,6 +2337,10 @@ mod tests {
         for (name, expected) in [
             ("stable-scalar-v0", LanguageProfile::StableScalarV0),
             ("exact-i32-array-v0", LanguageProfile::ExactI32ArrayV0),
+            (
+                "exact-i32-record-result-v0",
+                LanguageProfile::ExactI32RecordResultV0,
+            ),
         ] {
             let check = vec![
                 "aero".to_string(),
@@ -2385,15 +2389,24 @@ mod tests {
             language_profile: LanguageProfile::ExactI32ArrayV0,
             ..BuildConfig::default()
         };
+        let exact_record_result = BuildConfig {
+            language_profile: LanguageProfile::ExactI32RecordResultV0,
+            ..BuildConfig::default()
+        };
         let source = "fn main() -> int { return 0; }";
 
         for modules in [None, Some(b"module-frame".as_slice())] {
             let experimental_key = compilation_cache_key(source, &experimental, modules);
             let stable_key = compilation_cache_key(source, &stable, modules);
             let exact_array_key = compilation_cache_key(source, &exact_array, modules);
+            let exact_record_result_key =
+                compilation_cache_key(source, &exact_record_result, modules);
             assert_ne!(experimental_key, stable_key);
             assert_ne!(experimental_key, exact_array_key);
+            assert_ne!(experimental_key, exact_record_result_key);
             assert_ne!(stable_key, exact_array_key);
+            assert_ne!(stable_key, exact_record_result_key);
+            assert_ne!(exact_array_key, exact_record_result_key);
         }
     }
 
@@ -2442,7 +2455,11 @@ mod tests {
             ],
         ];
 
-        for profile in ["stable-scalar-v0", "exact-i32-array-v0"] {
+        for profile in [
+            "stable-scalar-v0",
+            "exact-i32-array-v0",
+            "exact-i32-record-result-v0",
+        ] {
             for mut arguments in cases.clone() {
                 let profile_index = arguments
                     .iter()
