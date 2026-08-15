@@ -1,5 +1,199 @@
 # Aero Task Ledger
 
+## CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER - bounded source owner and selected profile
+
+- Date/task/status: 2026-08-15,
+  `CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER`, ledger-first authorization from the
+  exact accepted R1B merge
+  `a9bd2e389d7baed28d6abefebd5267f2a37a4a49`, tree
+  `d12957a22b0e776ba61dab3904dfc481369ddc69`, on
+  `agent/r1c-source-byte-buffer` in the D:-resident worktree
+  `D:\Aero-worktrees\r1c-source-byte-buffer`. The protected R1B candidate was
+  `7ab0a7889f4ccb3011fb189e8112b692dc4b2142`; candidate and merge have the
+  same tree, all candidate checks passed, and the exact merge's CI,
+  stable/nightly Rust, Windows LLVM 22 native, CodeQL, and accepted-head
+  evidence workflows are terminal-success.
+- Observed behavior and first honest failure: accepted source has no
+  `ByteBuffer` type or intrinsic identity. `bytes_new()` is an unresolved
+  ordinary function call, `ByteBuffer` is only an unresolved named-struct
+  spelling, no source operation can produce any of R1B's eleven dedicated
+  checked byte-buffer instructions, and the public selector
+  `exact-i32-byte-buffer-v0` is absent. The first public regression is therefore
+  the absent selector/source authority, not a parser, allocator, verifier, or
+  backend-layout failure. Historical `Vec::new()` and `vec![]` remain rejected
+  exactly as before.
+- Hypothesis and two-authority boundary: R1C is feasible without parser, AST,
+  checked-IR schema, verifier, runtime, allocator ABI, cache algorithm, or
+  physical byte-buffer-lowering changes. One source/semantic-profile authority
+  introduces a profile-gated, non-Copy `Ty::ByteBuffer`, classifies the five
+  exact free intrinsics, proves the bounded owner/move/immediate-loan surface,
+  and rejects every escape before checked IR. One checked-IR-generation
+  authority independently revalidates the same shared intrinsic contract,
+  emits only accepted R1B instructions, maps private negative sentinels to the
+  accepted concrete `Result<int, int>` carrier, and inserts exact cleanup.
+  Mechanical new-profile routing through the already-accepted exact-i32
+  layout/authentication guard and CPU-only CLI policy adds no new backend or
+  driver fact.
+- Frozen source identity and selector: add exactly the public profile spelling
+  `exact-i32-byte-buffer-v0` and the source owner type `ByteBuffer`. It is a
+  dedicated semantic resource type, never a `Vec`, `String`, record, raw
+  pointer, generic application, CopyData value, function ABI value, or fallback
+  `Struct`. The new profile composes the accepted
+  `exact-i32-record-result-v0` scalar/flat-array/record/concrete-Result/
+  exhaustive-Match/control-flow surface with only the byte-buffer additions in
+  this contract. Experimental and all three prior selected profiles remain
+  byte-for-byte and diagnostic-for-diagnostic unchanged and continue treating
+  an ordinary user declaration named `ByteBuffer` by their accepted rules.
+- Frozen intrinsic API: reserve exactly `bytes_new() -> ByteBuffer`,
+  `bytes_push(&mut ByteBuffer, int) -> Result<int, int>`,
+  `bytes_len(&ByteBuffer) -> int`,
+  `bytes_capacity(&ByteBuffer) -> int`, and
+  `bytes_get(&ByteBuffer, int) -> Result<int, int>` inside the new profile.
+  The shared crate-private source contract owns those names, arities, direct
+  identifier-borrow topology, and diagnostics. No method syntax, overload,
+  implicit borrow, stored reference, first-class intrinsic, user declaration
+  collision, or general call fallback is admitted. Push/get scalar arguments
+  use the existing exact i32 rules; a call result is consumed only in an exact
+  explicit context accepted by the existing Result authority.
+- Frozen owner and control-flow surface: an owner is created only by an
+  explicitly typed initialized function-body local
+  `let [mut] name: ByteBuffer = bytes_new()`. It may move only through another
+  explicitly typed initialized direct local binding outside all conditional and
+  loop topology; the source becomes moved immediately. Owners cannot be
+  uninitialized, inferred, reassigned, projected, compared, printed, returned,
+  passed to ordinary calls, captured, borrowed as a stored binding, or nested in
+  an array, tuple, record, enum, carrier, generic, parameter, result, global,
+  impl, trait, module, public ABI, or accelerator surface. An owner created
+  before a loop may be used inside that loop; creation and move inside a loop or
+  conditional remain rejected. Every direct owner name is unique within its
+  lexical scope under existing binding rules.
+- Frozen loan and operation rule: length, capacity, and get accept exactly one
+  immediate `&owner` expression in the intrinsic call; push accepts exactly one
+  immediate `&mut owner`. Push additionally requires a mutable live owner.
+  These aliases are never entered into source scope and end immediately after
+  the dedicated R1B operation. No loan may escape, overlap, cross a branch or
+  loop edge, or be reconstructed from a generic reference. Semantic ownership
+  and independent checked admission both require an initialized, not-moved
+  exact owner and reject use after move. R1B remains the final independent
+  identity/lifecycle/loan authority before code generation.
+- Frozen value/error behavior: one source byte is an exact `int` in `0..=255`
+  and the accepted backend stores one `i8`. `bytes_push` maps R1B success to
+  `Ok(new_length)` and private sentinels `-1/-2/-3` to `Err(1/2/3)`.
+  `bytes_get` maps `0..=255` to `Ok(byte)` and `-4` to `Err(4)`. Length and
+  capacity return their nonnegative exact i32 values directly. The mapping uses
+  the canonical normalized private `Result<int, int>` schema, branches on
+  `raw < 0`, ends the temporary loan before the branch, constructs one verified
+  exact variant on each branch, and joins through verifier-approved exact enum
+  storage. There is no panic, trap, silent truncation, fallback allocation,
+  host collection, or exposed negative sentinel.
+- Frozen cleanup: checked lowering tracks function-local owners in deterministic
+  declaration order. Creation adds one live owner; move transfers the exact
+  place identity and marks only its source dead. Before every explicit reachable
+  return and every generated function fallthrough/tail return, lowering emits
+  one `CheckedByteBufferDrop` for each then-live owner in reverse declaration
+  order. Per-exit cleanup emission must not mutate compile-time state shared with
+  alternate branches. Since creation/move in conditional or loop topology is
+  rejected, all reachable exits observe the same live-owner set and loop
+  backedges restore it exactly. R1B independently rejects missing, duplicate,
+  conditional, loan-covered, or post-move drops.
+- Resolved-profile/authentication contract: extend CAP-030's existing single
+  normalized-AST observation walk, rather than adding a second AST validator,
+  so a function-call witness retains its exact callee and direct argument
+  topology (`&identifier`, `&mut identifier`, or other). The descriptor resolves
+  `ByteBuffer` only when the canonical new-profile source mode is enabled and
+  records it as `LogicalType::ByteBuffer`; legacy analyzer/direct-IR entrypoints
+  retain mode-off behavior. The new profile consumes these closed witnesses,
+  admits only the exact five intrinsic shapes, counts every borrow witness, and
+  rejects any unmatched borrow or resource use pre-IR. CAP-029 authentication
+  remains unchanged: exact unique mutable owner places may authenticate and
+  every ambiguous/unavailable observation remains fail-closed or uncovered
+  under its accepted rules.
+- Compatibility and API boundary: preserve public
+  `SemanticAnalyzer::new/analyze`, `IrGenerator::new/try_generate_ir`, raw IR,
+  `CheckedIr`, verifier metadata, `CheckedProgram` Debug, cache framing, direct
+  module order, prior selector names/help behavior, all accepted diagnostics,
+  and all accepted LLVM/native bytes. The canonical library route alone selects
+  crate-private source-mode constructors for the new profile, while public
+  direct APIs stay mode-off. `IrGenerator` must not trust semantic-only state:
+  it rechecks the shared syntax/type/ownership boundary before emitting R1B IR.
+  `ir.rs`, `ir_verifier.rs`, both runtime C files, parser/AST, Cargo manifests,
+  lockfile, ROCm, and CUDA remain frozen.
+- Red-first and acceptance evidence: first add one focused public test target
+  with a green characterization test freezing all four accepted minimal-source
+  LLVM digests, exact legacy Vec diagnostics, R1A runtime bytes, and R1B
+  schema/verifier authority, plus one intentionally failing selector/authority
+  test whose first failure is the absent new profile. Before green, add
+  crate-private semantic/IR tests for exact creation, move, immediate loans,
+  typed Result mapping, normal/early/fallthrough cleanup, outer-owner loops,
+  use-after-move, mutability, wrong arity/topology, reserved-name collisions,
+  unannotated/uninitialized/assigned/nested/parameter/result/branch/loop owner
+  exclusions, and forged direct-API bypass. The public product must compile
+  deterministically, pass LLVM 22 verification, and exit 91 with empty output at
+  O0/O2 on Linux and Windows. Independent mock-runtime cases must prove invalid
+  byte `Err(1)`, deterministic allocation failure `Err(2)` with preserved owner,
+  growth overflow coverage inherited from R1B, out-of-bounds `Err(4)`, exact
+  allocation/reallocation/deallocation counts, early-return cleanup, and zero
+  leaks. Existing focused profile/R1A/R1B tests, formatting, correctness Clippy,
+  `git diff --check`, and root `./tools/test.sh` must pass from D:-redirected
+  task paths.
+- Exact allowed behavioral files: `src/compiler/src/types.rs`, new
+  `src/compiler/src/byte_buffer_source_contract.rs`, test-only module wiring and
+  canonical mode selection in `src/compiler/src/lib.rs`, the private canonical
+  Result-name helper only in `src/compiler/src/builtin_carrier_contract.rs`,
+  `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/resolved_profile_shape.rs`,
+  `src/compiler/src/language_profile.rs`, `src/compiler/src/ir_generator.rs`,
+  mechanical new-profile exact-layout/authentication routing only in
+  `src/compiler/src/code_generator.rs`, and selector/help/CPU-only/cache tests in
+  `src/compiler/src/main.rs`. New `Ty::ByteBuffer` exhaustiveness may add only
+  explicit non-Copy/fail-closed/observation-neutral arms in
+  `src/compiler/src/binding_annotation.rs`, `src/compiler/src/const_contract.rs`,
+  `src/compiler/src/copy_place_contract.rs`,
+  `src/compiler/src/enum_match_contract.rs`,
+  `src/compiler/src/fixed_array_method.rs`,
+  `src/compiler/src/function_call_contract.rs`,
+  `src/compiler/src/generic_function_contract.rs`,
+  `src/compiler/src/generic_resolver.rs`, `src/compiler/src/local_reference.rs`,
+  `src/compiler/src/method_call_contract.rs`,
+  `src/compiler/src/optimizations.rs`, `src/compiler/src/ownership_flow.rs`,
+  `src/compiler/src/primitive_contract.rs`,
+  `src/compiler/src/scalar_assignment.rs`,
+  `src/compiler/src/struct_contract.rs`, and
+  `src/compiler/src/tuple_contract.rs`; none may become a third admission or
+  layout authority.
+- Exact allowed evidence/truth files: `TASK_LEDGER.md`,
+  `SELF_HOSTING_ROADMAP.md`, `OWNED_BYTE_BUFFER_READINESS.md`,
+  `PROJECT_STATE.md`, existing
+  `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs`, new
+  `src/compiler/tests/source_byte_buffer_profile_tests.rs`, one new tracked
+  product beneath `examples/owned_byte_buffer_v0/`, and
+  `.github/workflows/rust.yml` only for the final Linux/Windows accepted-product
+  replay. No other source, test, example, document, workflow, runtime, manifest,
+  lockfile, evidence, package, release, benchmark, or accelerator file may
+  change.
+- Risks and mandatory stops: stop if the source type must masquerade as a
+  supported CopyData/Struct/Vec type; parser or AST syntax must change; any
+  buffer escapes the bounded local surface; semantic and checked admission
+  cannot agree without duplicating inference; descriptor observations cannot
+  distinguish exact intrinsic borrows; cleanup cannot be complete on every
+  reachable exit; owner state diverges at a join/backedge; Result mapping needs
+  a new carrier/schema/verifier fact; any R1B instruction/verifier/runtime/
+  physical-layout change is needed; a general reference or function ABI becomes
+  necessary; accepted profile diagnostics/LLVM/cache/native behavior changes;
+  a third behavioral compiler phase is required; Linux/Windows behavior differs;
+  or any unlisted file is required. Do not weaken R1B verification, expose the
+  private negative sentinels, hide storage in Rust, revive Vec, enlarge the
+  stack, or infer unsupported types for convenience. R1C closes only R1 owned
+  bytes; it does not add input, strings, general collections, flat AST arenas,
+  modules, a production front end, memory-safety/stability/performance claims,
+  accelerator execution, release readiness, or self-hosting.
+- Storage rule: every task-created worktree, Cargo target, temp workspace, probe,
+  log, generated source/LLVM/object/executable, native harness, and PR file stays
+  on D:, respectively `D:\Aero-worktrees\r1c-source-byte-buffer`,
+  `D:\Aero-build-targets\r1c`, and `D:\Aero-temp\r1c`. Installed tools on C:
+  are read-only dependencies; no task artifact or cache is intentionally written
+  there.
+
 ## CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE - verifier-owned byte storage substrate
 
 - Date/task/status: 2026-08-15,
