@@ -85,6 +85,39 @@
   if the three-file budget is insufficient; or if the regression cannot isolate
   a child overflow without endangering the test harness. Authorization and the
   test-only red are explicit rollback points.
+- Red-first checkpoint: commit `1738574` records this authorization and commit
+  `8e1c905` is the test-only red on the exact CAP-028 base. The isolated Windows
+  child exits `0xC00000FD` on the generated left-associated source while the
+  parent harness survives, and the structural test fails only because the two
+  iterative authorities are absent. Before production mutation the shallow
+  oracles were frozen at checked-metadata MD5
+  `ed58fb917b03347410c9d1c7ac7f90d6`, checked-IR MD5
+  `6644809fc3fce047c713ed814416c0ff`, and LLVM MD5
+  `4d6ef00c66c5c5fa8f855abace1758fd`; the checked-IR digest was reproduced in
+  three fresh processes on the red checkpoint. First-error diagnostics remain
+  exactly `IR Generation Error: integer literal is outside the admitted i32
+  range` and `IR Generation Error: constant integer division by zero` when the
+  invalid left/right leaves are reversed.
+- Implementation checkpoint, not yet accepted: checked validation now expands
+  only nested logical nodes through an explicit borrowed worklist and delegates
+  each non-logical leaf once to the existing validator. Checked lowering uses an
+  owned evaluate/combine worklist that preserves eager left-to-right postorder,
+  result-register allocation, and `And`/`Or` instruction order. The final child
+  regression uses the observed unannotated `let contract = <logical chain>`
+  shape rather than a direct `if` condition. A fresh isolated Cargo target is
+  green 3/3 for the focused contract, and an independently built current binary
+  passes the exact twenty-term let-bound `check` five times; representative
+  native execution is green 20/20 with exit `91`. A detached accepted-base probe
+  temporarily polluted a shared Cargo target and produced a false post-fix red;
+  PDB source paths proved that child was the old validator. All decisive reruns
+  therefore use a target directory isolated to this worktree. The cumulative
+  candidate still changes exactly the three authorized files and remains
+  unpublished pending protected Windows CI. Independent implementation and test
+  auditors report no blocker. The exclusive repository-root `./tools/test.sh`
+  gate, run after cleaning the compiler package with one Cargo build job, one
+  Rust test thread, and pinned LLVM 22, exits zero: formatting, correctness-
+  denying all-target/all-feature Clippy, all unit/integration/system tests,
+  LLVM verification, the Windows native system gate, and doc tests are green.
 
 ## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
 
