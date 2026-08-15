@@ -1,0 +1,221 @@
+use compiler::{CompilerOptions, LanguageProfile, compile_program};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const EXPERIMENTAL_RECURSIVE_SOURCE: &str = r#"
+struct Leaf {
+    value: int,
+    ready: bool,
+}
+
+struct Frame {
+    leaf: Leaf,
+    values: [int; 2],
+    meta: (int, bool),
+}
+
+enum Scalar {
+    Empty,
+    Number(int),
+    Flag(bool),
+}
+
+fn make_frame(valid: bool) -> Result<Frame, int> {
+    let frame: Frame = Frame {
+        leaf: Leaf { value: 1, ready: 1 < 2 },
+        values: [2, 3],
+        meta: (4, 2 < 3),
+    };
+    if valid {
+        return Ok(frame);
+    }
+    return Err(7);
+}
+
+fn read_int(value: &int) -> int {
+    return *value;
+}
+
+fn flag_score(flag: bool) -> int {
+    if flag {
+        return 1;
+    }
+    return 0;
+}
+
+fn scalar_score(value: Scalar) -> int {
+    return match value {
+        Scalar::Empty => 0,
+        Scalar::Number(number) => number,
+        Scalar::Flag(flag) => flag_score(flag),
+    };
+}
+
+fn result_score(value: Result<Frame, int>) -> int {
+    return match value {
+        Ok(frame) => frame.leaf.value + frame.values[1] + frame.meta.0,
+        Err(code) => code,
+    };
+}
+
+fn main() -> int {
+    let seed: int = 9;
+    let success: Result<Frame, int> = make_frame(1 < 2);
+    let failure: Result<Frame, int> = make_frame(2 < 1);
+    if read_int(&seed) == 9
+        && result_score(success) == 8
+        && result_score(failure) == 7
+        && scalar_score(Scalar::Number(5)) == 5
+        && scalar_score(Scalar::Flag(2 < 1)) == 0 {
+        return 91;
+    }
+    return 1;
+}
+"#;
+
+const STABLE_SCALAR_SOURCE: &str = r#"
+fn mix(left: int, right: int) -> int {
+    return left * 3 + right;
+}
+
+fn main() -> int {
+    if mix(7, -4) == 17 {
+        return 91;
+    }
+    return 1;
+}
+"#;
+
+const EXACT_CAP023_SOURCE: &str =
+    include_str!("../../../examples/fixed_int_array_v0/relu_argmax_inference.aero");
+
+fn options(language_profile: LanguageProfile) -> CompilerOptions {
+    CompilerOptions {
+        language_profile,
+        ..CompilerOptions::default()
+    }
+}
+
+fn llvm(source: &str, language_profile: LanguageProfile) -> String {
+    compile_program(source, options(language_profile))
+        .unwrap_or_else(|error| panic!("{language_profile:?} characterization failed: {error}"))
+}
+
+fn md5_hex(bytes: &[u8]) -> String {
+    format!("{:x}", md5::compute(bytes))
+}
+
+fn repository_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("compiler crate must be nested below repository root")
+        .to_path_buf()
+}
+
+fn read(path: &Path) -> String {
+    fs::read_to_string(path)
+        .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()))
+}
+
+#[test]
+fn accepted_profile_llvm_bytes_are_frozen_before_layout_consolidation() {
+    let experimental = llvm(EXPERIMENTAL_RECURSIVE_SOURCE, LanguageProfile::Experimental);
+    let default = compile_program(EXPERIMENTAL_RECURSIVE_SOURCE, CompilerOptions::default())
+        .expect("default recursive characterization must compile");
+    assert_eq!(default, experimental, "default/experimental LLVM drifted");
+
+    let stable = llvm(STABLE_SCALAR_SOURCE, LanguageProfile::StableScalarV0);
+    let exact = llvm(EXACT_CAP023_SOURCE, LanguageProfile::ExactI32ArrayV0);
+    let actual = [
+        md5_hex(experimental.as_bytes()),
+        md5_hex(stable.as_bytes()),
+        md5_hex(exact.as_bytes()),
+    ];
+
+    assert_eq!(
+        actual,
+        [
+            "57d513c46fe7a650b189941bf6c37e28",
+            "cbb7a6446d27119d50f70868bc2b6a96",
+            "54bbfe8dc403ba00ff0587fd3b99e14a",
+        ],
+        "freeze these accepted-head LLVM byte digests before production mutation"
+    );
+
+    for anchor in [
+        "%aero.struct.Frame = type { %aero.struct.Leaf, [2 x double], { double, i1 } }",
+        "%aero.struct.Leaf = type { double, i1 }",
+        "{ i32, %aero.struct.Frame, double }",
+        "{ i32, double, i1 }",
+        "double* %aero.arg.value",
+    ] {
+        assert!(
+            experimental.contains(anchor),
+            "experimental recursive LLVM omitted `{anchor}`:\n{experimental}"
+        );
+    }
+    assert!(
+        stable.contains("define i32 @mix(i32 %aero.arg.left, i32 %aero.arg.right)"),
+        "stable scalar LLVM lane drifted:\n{stable}"
+    );
+    assert!(
+        exact.contains("define [8 x i32] @infer_record([20 x i32] %aero.arg.record)"),
+        "exact CAP-023 flat-array lane drifted:\n{exact}"
+    );
+}
+
+#[test]
+fn recursive_copydata_physical_layout_has_one_shared_authority() {
+    let root = repository_root();
+    let shared_path = root.join("src/compiler/src/copy_data_layout.rs");
+    assert!(
+        shared_path.is_file(),
+        "CAP-026 intentional structural red: shared copy_data_layout.rs is absent"
+    );
+
+    let shared = read(&shared_path);
+    let library = read(&root.join("src/compiler/src/lib.rs"));
+    let backend = read(&root.join("src/compiler/src/code_generator.rs"));
+    let verifier = read(&root.join("src/compiler/src/ir_verifier.rs"));
+
+    assert!(
+        library.contains("mod copy_data_layout;"),
+        "crate root does not own the shared CopyData layout module"
+    );
+    for anchor in [
+        "CopyDataLayout",
+        "CopyDataLayoutPolicy",
+        "llvm_type",
+        "zero_value",
+        "enum_llvm_type",
+    ] {
+        assert!(
+            shared.contains(anchor),
+            "shared CopyData layout authority omitted `{anchor}`"
+        );
+    }
+    for duplicate in [
+        "fn copy_data_type_to_llvm",
+        "fn enum_schema_to_llvm",
+        "fn copy_data_zero_value",
+        "fn struct_field_type_to_llvm",
+    ] {
+        assert!(
+            !backend.contains(duplicate),
+            "backend retained duplicate physical authority `{duplicate}`"
+        );
+    }
+    assert!(
+        !verifier.contains("fn physical_copy_type_hint"),
+        "verifier retained its duplicate recursive physical hint renderer"
+    );
+    assert!(
+        backend.contains("CopyDataLayout"),
+        "backend does not consume the shared physical descriptor"
+    );
+    assert!(
+        verifier.contains("CopyDataLayout"),
+        "verifier does not consume the shared physical descriptor"
+    );
+}

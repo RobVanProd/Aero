@@ -111,6 +111,25 @@
   reachable. The authorization commit and frozen byte-characterization commit
   are the clean rollback boundaries.
 
+### CAP-026 exact characterization and structural-red checkpoint
+
+- The new focused target freezes accepted-head LLVM bytes before any production
+  mutation. MD5 digests are
+  `57d513c46fe7a650b189941bf6c37e28` for the default/experimental recursive
+  struct, array, tuple, reference, scalar-enum, `Result`, and exhaustive-Match
+  program; `cbb7a6446d27119d50f70868bc2b6a96` for the stable-scalar control; and
+  `54bbfe8dc403ba00ff0587fd3b99e14a` for the accepted CAP-023 exact flat-array
+  control. The characterization also freezes the legacy `double` recursive
+  lanes, compact/general enum topology, stable `i32` function lanes, exact
+  `[20 x i32] -> [8 x i32]` function shape, and default/experimental equality.
+- With one Cargo build job and one Rust test thread, the exact characterization
+  test passes `1/1`. The exact structural test then fails `0/1` only at
+  `CAP-026 intentional structural red: shared copy_data_layout.rs is absent`,
+  before inspecting later duplicate-authority assertions. No production source
+  has changed at this checkpoint. The focused test plus this record form the
+  required red-first rollback boundary; the structural red must become green
+  without changing any frozen digest or anchor.
+
 ## CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS - exact CPU plus bounded CopyData application map and red probe
 
 - Date/task/status: 2026-08-15,
