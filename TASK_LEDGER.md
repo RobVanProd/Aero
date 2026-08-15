@@ -60,7 +60,10 @@
   `surface: Vec<ResolvedProfileSurfaceObservation>`, to
   `ResolvedProfileProgram`, populated in deterministic preorder by the current
   `Builder::build` / `walk_statement` / `walk_expression` route. Witness types
-  are a closed neutral syntax vocabulary and derive Debug/Clone/PartialEq/Eq.
+  are the closed neutral vocabularies `ResolvedProfileStatementKind`,
+  `ResolvedProfileExpressionKind`, and `ResolvedProfilePatternKind`, plus
+  `ResolvedProfileAssignmentTarget`, `ResolvedProfileAssignmentRoot`, and
+  `ResolvedProfileAssignmentProjection`; all derive Debug/Clone/PartialEq/Eq.
   They record no literal value, identifier/callee/member/type name, source text,
   source location, inferred or resolved type, registry result, profile policy,
   physical lane, AST pointer/index, IR result/place/instruction ID, or event-to-IR
@@ -154,6 +157,29 @@
   `ExactI32RecordResultV0` are recommendations only and remain unauthorized and
   unfrozen until CAP-030 is accepted and a separate application ledger freezes
   them.
+
+### CAP-030 accepted-head characterization and structural-red checkpoint
+
+- The new focused target freezes accepted CAP-029 behavior before production
+  mutation. Experimental recursive record/enum/typed-Result/Match LLVM remains
+  MD5 `724bac62708812d4302224fec1047be6`, stable-scalar-v0 remains
+  `cbb7a6446d27119d50f70868bc2b6a96`, and exact-i32-array-v0 remains
+  `54bbfe8dc403ba00ff0587fd3b99e14a`; repeated source and source/file routes are
+  byte-identical. All three profiles retain the exact undeclared-name semantic
+  diagnostic across source/file check/compile, `CheckedProgram` retains its
+  five-field Debug surface without descriptor/surface/authentication leakage,
+  and the hidden unannotated-float plus Println specimen remains accepted through
+  both Experimental source and file routes. All three representative native
+  controls exit 91 under pinned LLVM 22.
+- With one Cargo build job, one Rust test thread, and a fresh task-isolated target
+  outside the repository, the behavior and native tests pass `2/2`. The focused
+  target is intentionally `2/3`: its sole failure is exactly
+  `CAP-030 intentional structural red: surface authority omitted
+  ResolvedProfileSurfaceObservation`. No parse, semantic, checked-admission,
+  verifier, LLVM, native, or environment failure precedes that assertion.
+  Correct-manifest formatting and `git diff --check` pass. Production source is
+  unchanged; the authorization commit and this test-only red checkpoint are
+  explicit rollback points.
 
 ## CAP-029-RESOLVED-PROFILE-AUTHENTICATION - behavior-neutral semantic-to-checked binding
 
