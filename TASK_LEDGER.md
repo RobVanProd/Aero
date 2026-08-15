@@ -1,5 +1,86 @@
 # Aero Task Ledger
 
+## CAP-027-RESOLVED-PROFILE-SHAPE-READINESS - post-normalization descriptor placement proof
+
+- Date/task/status: 2026-08-15,
+  `CAP-027-RESOLVED-PROFILE-SHAPE-READINESS`, authorized ledger-only/read-only
+  architecture proof on `agent/cap-027-resolved-profile-shape-readiness` from
+  exact accepted CAP-026 merge `8a3f30747f7130632517a332ad27d91e688db005`,
+  tree `bcb78c2bc43c77936a63a6cc3cbe576cd357b134`. CAP-026 is accepted through
+  protected PR #66 and fresh merge-head CI, Rust stable/nightly, Windows LLVM
+  22, CodeQL, and accepted-head replay. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope, and quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Selection and observed behavior: the fresh post-CAP-026 ranking selects a
+  post-normalization resolved profile-shape authority prerequisite at 22, ahead
+  of owned dynamic collection/streaming readiness at 21 and quantized-kernel
+  readiness at 19. CAP-026 removes the physical CopyData layout conflict, but
+  current profile validation runs over raw AST before semantic analysis, while
+  semantic analysis later normalizes builtin carriers and specializations and
+  checked-IR generation separately reconstructs normalized registries. The
+  current shared profile classifier covers only scalar and flat exact-array
+  roots. CAP-025 forbids an application-profile implementation until this
+  logical resolved-shape prerequisite is honestly placed.
+- Hypothesis and decision question: one immutable logical descriptor may be
+  derivable from the semantic analyzer's already-normalized AST and its existing
+  struct/enum specialization registries after successful semantic completion
+  and before checked-IR generation. A later profile gate and backend corruption
+  defense could consume that descriptor without repeating normalization,
+  rebuilding registries, moving admission after IR, or adding a third compiler
+  phase. This task must prove or reject that placement; it must not create the
+  descriptor, change a profile, or assume the answer is yes.
+- Frozen proof surface: trace every public checked preparation route and exact
+  diagnostic order; AST normalization and builtin-carrier specialization;
+  generic struct/enum specialization identity and registry ownership/lifetime;
+  semantic success products exposed to checked-IR generation; checked-IR's own
+  registry reconstruction; current early profile validation and backend profile
+  defense; and the accepted CAP-026 physical-layout selector. Specify the
+  minimum candidate descriptor inputs, output shape grammar, source identity,
+  cycle/depth handling, use-context identity, phase owner, lifetime, and
+  corruption-defense handoff. Distinguish source admission from physical layout.
+- Frozen future shape questions, not authorized semantics: evaluate only the
+  CAP-025 bounded destination of exact `int`/`i32`, `bool`, flat nonempty
+  `[int; N]` leaves, finite acyclic concrete CopyData records/enums, concrete
+  typed `Result`, exhaustive `Match`, and the already-accepted bounded ownership
+  contexts. User generics/traits as source-facing profile inputs, references,
+  floats, chars, strings, dynamic storage, nested array elements, arrays of
+  aggregates, recursive/cyclic aggregates, implicit conversions/propagation,
+  public ABI, and accelerator behavior remain exclusions. The proof may narrow
+  or stop on these questions but may not admit any of them.
+- Diagnostic and phase invariant: malformed syntax and every current early
+  profile/semantic/ownership error must retain its exact stage, precedence,
+  location, and text. Invalid programs must still stop before checked IR and
+  backend generation. A possible later design must have one normalization and
+  registry authority, derive at most one descriptor after semantic success,
+  preserve independent checked-IR/backend corruption defense, and stay within
+  at most two production compiler phases. No recursive exact physical policy may
+  become reachable during this prerequisite.
+- Exact allowed files and actions: only this `TASK_LEDGER.md` record may change.
+  Read-only repository/history inspection, existing-test execution, and
+  task-local notes held outside the repository are allowed. No compiler source,
+  test, example, workflow, dependency, evidence bundle, capability/state/roadmap
+  document, benchmark, release, package, PR claim, or external artifact change
+  is authorized. Do not create a code prototype or a failing regression test in
+  this readiness task.
+- Acceptance evidence: produce an exhaustive symbol/file phase map; exact public
+  route and diagnostic-precedence sequence; registry/normalization ownership and
+  duplication table; candidate descriptor input/output/lifetime and consumer
+  contract; recursive admitted/excluded shape and use-context matrix; corruption
+  and mutation boundaries; two-phase accounting; and a concrete implementation
+  file/test budget only if the answer is yes. Independently challenge the map
+  for hidden normalization, registry, diagnostic, backend, and third-phase
+  consumers. Finish with an explicit `YES IMPLEMENTATION CONTRACT POSSIBLE` or
+  `NO IMPLEMENTATION`, remaining uncertainty, regression risks, rollback/stop
+  boundaries, fresh three-gap ranking, and exactly one recommended next action.
+- Risks and stop conditions: stop with `NO IMPLEMENTATION` if placement reorders
+  a current diagnostic; copies normalization, specialization, or registries;
+  needs a checked-IR schema change, post-IR admission, or more than two compiler
+  phases; cannot preserve one logical admission authority plus independent
+  corruption defense; makes recursive exact layout reachable; changes emitted
+  LLVM/native behavior; or requires an unfrozen language, ownership, ABI,
+  accelerator, or application semantic decision. A positive readiness result is
+  not implementation authorization and must be separately reranked.
+
 ## CAP-026-COPYDATA-PHYSICAL-AUTHORITY - behavior-neutral recursive layout consolidation
 
 - Date/task/status: 2026-08-15, `CAP-026-COPYDATA-PHYSICAL-AUTHORITY`,
