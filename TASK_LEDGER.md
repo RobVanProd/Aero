@@ -3,15 +3,17 @@
 ## CAP-032-EXACT-I32-RECORD-RESULT-PROFILE - bounded compiler application surface
 
 - Date/task/status: 2026-08-15,
-  `CAP-032-EXACT-I32-RECORD-RESULT-PROFILE`, resumed ledger-first from exact
-  accepted CAP-033 merge `9ea6fcb4e703158b712c16f83fd30285316d5609`,
-  tree `d77ef5d67936449ef99942db4a9e68d16580ecdf`, on
+  `CAP-032-EXACT-I32-RECORD-RESULT-PROFILE`, resumed from exact accepted
+  CAP-034 merge `20095b0a2714c5894ed00dbc79af542acab81eee`, tree
+  `c369dbb30045efdaf25050af01d8aa71655f71c2`, on
   `agent/cap-032-exact-record-result-profile-v2`. The original contract
   `f7b2057e6512652e51c05c9993cfa782cd249092` and selector-red
   `ec7a30695935b27ba179e770e68865e7a2e61e00` remain preserved on the
   stopped CAP-031-based branch. No production mutation occurred there. CAP-033
   supplies the exact missing context field that triggered that contract's
-  mandatory stop; this re-entry does not widen any product semantics.
+  mandatory stop, and CAP-034 supplies the accepted selector-extensible test
+  boundary required by the first all-target compile gate. This re-entry does
+  not widen any product semantics.
 - Observed behavior and first honest failure: Experimental already executes
   finite recursive CopyData records, concrete typed `Result<T, E>`, exhaustive
   `Match`, flat arrays, by-value transport, and source preservation, but
@@ -120,7 +122,11 @@
   `CheckedIr`, `CheckedProgram` Debug, direct public SemanticAnalyzer/
   IrGenerator/CodeGenerator compatibility APIs, default Experimental behavior,
   existing diagnostics, existing-profile LLVM bytes, and existing cache hits
-  remain exact.
+  remain exact. Adding `LanguageProfile::ExactI32RecordResultV0` is an
+  intentional public Rust enum expansion: downstream exhaustive matches over
+  `LanguageProfile` must add the new arm or a catch-all. This task does not add
+  `#[non_exhaustive]`, promise source compatibility for exhaustive downstream
+  matches, or otherwise claim a stable public API.
 - Exact allowed files: only this `TASK_LEDGER.md`;
   `SELF_HOSTING_ROADMAP.md`; `src/compiler/src/language_profile.rs`;
   `src/compiler/src/lib.rs`; `src/compiler/src/code_generator.rs`;
@@ -165,6 +171,82 @@
   This profile is a bounded CPU compiler subset, not general CopyData, runtime
   ingestion, a production frontend, self-hosting, stability, safety,
   performance, or accelerator execution.
+
+## CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY - preserve selector-growth characterization
+
+- Date/task/status: 2026-08-15,
+  `CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY`, ledger-first from exact
+  accepted CAP-033 merge `9ea6fcb4e703158b712c16f83fd30285316d5609`,
+  tree `d77ef5d67936449ef99942db4a9e68d16580ecdf`, on
+  `agent/cap-034-language-profile-test-extensibility`.
+- Observed behavior: the preserved CAP-032 selector implementation adds the
+  frozen fourth public `LanguageProfile` variant, but all-target compilation
+  stops in `resolved_profile_shape_authority_tests.rs` because one
+  characterization exhaustively matches the three accepted variants even
+  though its loop can produce only `StableScalarV0` and `ExactI32ArrayV0`.
+  Rust reports `E0004` for the future variant before any CAP-032 test or
+  behavior can run. CAP-032 explicitly freezes that existing test and mandates
+  a stop on an eleventh file, so its production work remains uncommitted and
+  preserved in its separate D: worktree.
+- Hypothesis and frozen behavior: make only that bounded characterization match
+  the two profiles its local input array actually supplies, with one explicit
+  catch-all `unreachable!` for every excluded selector. All accepted source,
+  diagnostics, checked IR, LLVM, native results, cache behavior, public types,
+  enum variants, selectors, and test inputs/expectations remain byte-exact.
+  This task does not add `#[non_exhaustive]`, a selector, language behavior, or
+  a compatibility claim. CAP-032 separately owns and must explicitly document
+  the public source-compatibility consequence of adding its new enum variant.
+- Exact allowed files: only this `TASK_LEDGER.md`,
+  `SELF_HOSTING_ROADMAP.md`, and
+  `src/compiler/tests/resolved_profile_shape_authority_tests.rs`. No compiler
+  production source, other test, example, workflow, dependency, lockfile,
+  evidence, release/package, claim-verification, or external state may change.
+- Acceptance: the focused resolved-profile-shape target remains green with the
+  same test count and exact accepted profile diagnostics; all-target/all-feature
+  correctness-denying Clippy compiles every integration target; formatting,
+  diff hygiene, and repository-root `./tools/test.sh` pass with one Cargo job,
+  one Rust test thread, pinned LLVM 22, and task-isolated D: TEMP/TMP/target.
+  The cumulative diff from accepted CAP-033 must be exactly these three files.
+- Risks and stops: risks are hiding a newly exercised selector behind the
+  catch-all, changing an expected diagnostic, weakening the loop, treating the
+  test edit as a public non-exhaustive API promise, or using this checkpoint to
+  smuggle CAP-032 production. Stop if the current loop can produce another
+  profile, any assertion/input must change, any behavior delta appears, or a
+  fourth file is needed.
+
+### CAP-034 locally green candidate checkpoint
+
+- Identity and scope: documentation authorization commit
+  `1e4ef5499ce979ffdbc626db667f2de9237980ca` and test-only implementation
+  commit `e51962f0073ef829efb5fa8f141747992bfa566d`, tree
+  `7526a93ef56ce6e4a86c3b198d6d0bca125d4257`, are based exactly on accepted
+  CAP-033 merge `9ea6fcb4e703158b712c16f83fd30285316d5609`. The cumulative candidate
+  changes exactly the three authorized files. No production source, selector,
+  public API, behavior, dependency, workflow, example, evidence, or CAP-032
+  file changed.
+- Result: the bounded characterization still iterates only
+  `StableScalarV0` and `ExactI32ArrayV0`, retains every exact assertion, and
+  now uses one catch-all `unreachable!` for selectors that the local input
+  cannot produce. This removes the future-variant Rust compilation hazard
+  without making `LanguageProfile` non-exhaustive or changing accepted
+  compilation behavior.
+- Local evidence: the focused `resolved_profile_shape_authority_tests` target
+  passes 3/3; all-target/all-feature Clippy with
+  `-D clippy::correctness` completes successfully; `git diff --check` is
+  clean; and repository-root `./tools/test.sh` completes successfully across
+  290 library tests, every integration target, the pinned Windows LLVM 22
+  native gates, and doc tests. All builds ran with one Cargo job, one Rust test
+  thread, and task-isolated `D:\\Aero-temp\\cap-034` plus
+  `D:\\Aero-build-targets\\cap-034`; no C-drive temp or build directory was
+  used.
+- Protected acceptance: exact candidate head
+  `29c1c145baeffb1ce8d83ac0eb8350b65d8694e9` merged through PR #75 as
+  `20095b0a2714c5894ed00dbc79af542acab81eee`; candidate and merge share tree
+  `c369dbb30045efdaf25050af01d8aa71655f71c2`. All 12 candidate checks passed,
+  including stable/nightly, the Windows LLVM 22 native gate, both compiler
+  suites, Linux/Windows evidence capture, aggregate, and CodeQL. All four
+  accepted-head workflow runs completed successfully. CAP-034 is accepted and
+  unblocks CAP-032; it claims no CAP-032 behavior itself.
 
 ## CAP-033-RESOLVED-SURFACE-CONTEXT - bind normalized witnesses to enclosing scope
 

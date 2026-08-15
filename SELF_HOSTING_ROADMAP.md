@@ -52,11 +52,16 @@ production file changed. K1 remains fixed-storage evidence, not runtime source
 ingestion, dynamic token storage, Unicode lexing, a production-lexer
 replacement, or self-hosting.
 
-P1's public selector red is preserved. Its first admission proof exposed the
-missing root-versus-function context described by CAP-033. That behavior-neutral
-prerequisite is now accepted: every normalized surface witness carries exact
-file-scope or enclosing-function origin without changing source behavior.
-CAP-032/P1 has resumed from that protected head under its re-entry contract.
+P1's public selector red is preserved. CAP-033 is accepted, so every normalized
+surface witness now carries exact file-scope or enclosing-function origin. The
+resumed P1 implementation reached its first whole-repository compile gate and
+correctly stopped when one existing characterization exhaustively matched the
+three accepted `LanguageProfile` variants even though its local loop supplied
+only two. CAP-034 is now accepted as the narrow test-only prerequisite that
+makes that local expectation future-selector-safe without changing compiler
+behavior. CAP-032/P1 has resumed from accepted CAP-034 and explicitly records
+that adding its fourth public Rust enum variant requires downstream exhaustive
+matches to add the new arm or a catch-all.
 
 The first hard runtime blocker is **R1: owned bytes**. Legacy Vec-shaped IR names
 exist in [`ir.rs`](src/compiler/src/ir.rs), but the checked verifier and backend
@@ -98,7 +103,7 @@ compiler project rather than only a bootstrap bundle.
 |---|---|---|---|---|
 | S0 — trusted bootstrap baseline | **Accepted** | Protected Rust compiler checkpoint with one checked preparation route, independent checked-IR verification, deterministic selected-profile LLVM, and native gates | Exact accepted commit/tree, full root gate, stable/nightly, Windows LLVM 22, CodeQL, and accepted-head workflow evidence | The Rust compiler is not self-hosted and the whole language is not stable |
 | K1 — bounded compiler kernel | **Accepted** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; protected Linux/Windows O0/O2 native parity; exact candidate/merge/post-merge evidence | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
-| P1 — selected compiler subset | **Authorized; preserved selector red being replayed from accepted CAP-033** | A post-semantic exact profile for the already frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles | No general enums, generics, references, modules, allocation, ABI, or broad stability |
+| P1 — selected compiler subset | **Implementation resumed from accepted CAP-034; local acceptance gates pending** | A post-semantic exact profile for the already frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles | No general enums, generics, references, modules, allocation, ABI, or broad stability |
 | R1 — owned bytes | **Blocked** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | RFC/readiness proof; source negatives; checked ownership identity; verifier corruption matrix; allocation-failure and drop tests; sanitizer or equivalent runtime evidence | Dormant Vec IR and simplified stdlib helpers do not satisfy this gate |
 | R2 — host byte input | **Blocked on R1** | Deterministic whole-stream byte ingestion, preferably stdin before general path semantics | Empty/short/large input, partial reads, EOF, invalid length, I/O failure, Linux/Windows parity, no uninitialized bytes | `println!`/`printf` output is not input or file I/O |
 | D1 — compiler data model | **Future** | Owned token storage, interned or owned names, maps/sets required by scopes, and a flat append-only AST arena using integer node IDs | Growth/failure/drop evidence; cycle-free arena validation; deterministic iteration; large-source stress; no host collection substitution | The current Rust `String`/`Vec`/`Box` AST is not available to Aero source |
@@ -163,12 +168,14 @@ ledger and failing regression first.
 
 ## Exact next task
 
-Execute `CAP-032-EXACT-I32-RECORD-RESULT-PROFILE` from accepted CAP-033. P1
+Complete `CAP-032-EXACT-I32-RECORD-RESULT-PROFILE` from accepted CAP-034. P1
 must consume the context-bound CAP-030 surface witnesses and
 CAP-029 verified-IR authentication to admit only the frozen compiler-oriented
 combination of exact `int`/`bool`, flat arrays, nongeneric records, concrete
 typed `Result`, and exhaustive `Match`. Existing profiles and public behavior
-must remain byte-for-byte and diagnostic-for-diagnostic unchanged.
+must remain byte-for-byte and diagnostic-for-diagnostic unchanged; the new
+public enum variant is the one explicitly documented source-compatibility
+expansion.
 
 Stop rather than infer missing expression types, duplicate semantic/profile
 authority, widen to general enums or generics, change checked IR, introduce a
