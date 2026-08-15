@@ -1,5 +1,67 @@
 # Aero Task Ledger
 
+## CAP-024-HISTORICAL-SCOPE-ANCHOR-REPAIR - immutable accepted-tree validation
+
+- Date/task/status: 2026-08-14,
+  `CAP-024-HISTORICAL-SCOPE-ANCHOR-REPAIR`, authorized by the user's explicit
+  continuation after the prior nine-file task stopped at its tenth-file boundary.
+  Work remains on `agent/core-090-corrective-sync`; app-owned
+  `.codex-remote-attachments/` and `tmp/` remain outside scope.
+- Observed behavior and failing regression: the focused
+  `cap024_claim_verification_contract_tests` target is exactly 5/6. Its repository
+  test reports outside-scope digest
+  `b819dcebccdbc2902899dda0235f3eff00f112f579cdd6a0539b034facfc1db7`
+  instead of frozen digest
+  `782bb9c75f47cff1671e10094578adf19b24ac67aed0d0be4f0417caa7eeeb51`;
+  the authorized-path mutation control repeats the same false red. The accepted
+  CAP-024 candidate `617bfce86feb879ee5eef61b44cf4e2a5520f022` still has exact
+  tree `9520f24e4f1626f16782a9775480f9653f6059bb`, exactly 431 paths
+  outside its ten-file CAP-024 scope, and the frozen outside-scope digest above.
+- Hypothesis and defect: the pre-acceptance scope proof derives CAP-024 changes
+  from the *current* Git index. That was valid only while CAP-024 was the live
+  candidate. After protected merge
+  `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd`, every legitimate later
+  repository change outside CAP-024's historical ten-file scope makes this test
+  permanently red even though the immutable accepted candidate did not change.
+- Frozen semantics: validate CAP-024's historical scope against the immutable
+  accepted candidate/merge tree, never against later repository state. Preserve
+  the exact subject, candidate, accepted tree, protected merge, ordered merge
+  parents, 431-entry outside-scope fingerprint, ten allowed paths, frozen input
+  identities, full-history checks when Git objects exist, and a depth-one/shallow
+  fallback that is independent of the current index. Keep outside blob/mode,
+  deletion/addition, missing-contract, frozen-input, malformed-index, and duplicate
+  path mutation controls fail-closed. This task changes no compiler, source
+  semantics, profile, backend, workflow, evidence bundle, claim, or capability.
+- Allowed files: exactly this `TASK_LEDGER.md` record and
+  `src/compiler/tests/cap024_claim_verification_contract_tests.rs`. Preserve the
+  existing accepted-truth candidate and every unrelated user/app-owned change.
+- Acceptance tests: preserve the demonstrated 5/6 red first; require the focused
+  CAP-024 target 6/6 in the full repository and in a genuine depth-one checkout;
+  require the cumulative version-claim target 8/8; run Rust formatting, Git diff
+  hygiene, and repository-root `./tools/test.sh`. The immutable candidate tree and
+  431-entry digest must be recomputed independently before green acceptance.
+- Risks and stop conditions: the main risks are silently weakening the historical
+  scope proof, trusting the live index under another name, skipping mutation
+  controls in shallow CI, or confusing candidate and protected-merge identities.
+  Stop if a third file, evidence rebundle, workflow change, production change,
+  semantic decision, or any weakening of CAP-024's correctness-only boundary is
+  required.
+- Implementation and local evidence: the historical validator now reads and
+  verifies accepted tree `9520f24e4f1626f16782a9775480f9653f6059bb`
+  whenever that object is present, including its 441-entry canonical index digest,
+  exact ten accepted allowed entries, 431-entry outside-scope digest, accepted
+  candidate/merge identities, ordered parents, and frozen input blobs. A genuine
+  shallow checkout may use only the frozen accepted identities and deterministic
+  accepted-shaped mutation fixture; it never substitutes `HEAD`, the live Git
+  index, or current staged/unstaged paths. The original 5/6 red is preserved above.
+  After the repair, the CAP-024 target passes 6/6 in the full repository and 6/6
+  in a fresh LF-preserving depth-one checkout; the cumulative version-claim target
+  passes 8/8; `cargo fmt --check`, correctness-denying Clippy, and Git diff
+  hygiene pass. The unskipped root `./tools/test.sh` gate passes after restoring
+  the pinned LLVM 22.1.8 `opt` and `llvm-as` binaries and requiring the verifier.
+  This is a local candidate only; no acceptance, capability, release, or
+  performance claim is added.
+
 ## CAP-024-ACCEPTANCE-SYNC - accepted evidence truth and successor rerank
 
 - Date/task/status: 2026-08-13, `CAP-024-ACCEPTANCE-SYNC`, authorized

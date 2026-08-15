@@ -700,6 +700,10 @@ const SUBJECT_PARENTS: [&str; 2] = [
     "d21c91fc312c70c47c6bb865ba1465e762255f0c",
 ];
 const COMPILER_TREE: &str = "0ba0d06899b7e95d6b5b6f90a14804d18651806c";
+const ACCEPTED_CANDIDATE_COMMIT: &str = "617bfce86feb879ee5eef61b44cf4e2a5520f022";
+const ACCEPTED_COMMIT: &str = "2f7ec325e423461a8e867f4ee2573ae6dcf15dfd";
+const ACCEPTED_TREE: &str = "9520f24e4f1626f16782a9775480f9653f6059bb";
+const ACCEPTED_PARENTS: [&str; 2] = [SUBJECT_COMMIT, ACCEPTED_CANDIDATE_COMMIT];
 const CLAIM_ID: &str = "aero_cap023_inference_correctness_918c9222_20260813";
 const CLAIM_STATUS: &str = "verified_correctness_reproducibility_only";
 const TOOL_ID: &str = "cap024-inference-evidence-v1";
@@ -738,6 +742,9 @@ const ALLOWED_PATHS: [&str; 10] = [
 const SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT: usize = 431;
 const SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256: &str =
     "782bb9c75f47cff1671e10094578adf19b24ac67aed0d0be4f0417caa7eeeb51";
+const ACCEPTED_INDEX_COUNT: usize = 441;
+const ACCEPTED_INDEX_SHA256: &str =
+    "503855c3056a9ab4f73e3760aaccb78147df386f731d7ce5c9a6d9ea56ee117b";
 const SUBJECT_ALLOWED_INDEX_ENTRIES: [(&str, &str, &str); 3] = [
     (
         "TASK_LEDGER.md",
@@ -753,6 +760,58 @@ const SUBJECT_ALLOWED_INDEX_ENTRIES: [(&str, &str, &str); 3] = [
         "src/compiler/tests/cli_status_contract_tests.rs",
         "100644",
         "5d1c3e0d86aaa08b8d48c1b5526303683dd8d293",
+    ),
+];
+const ACCEPTED_ALLOWED_INDEX_ENTRIES: [(&str, &str, &str); 10] = [
+    (
+        ".github/workflows/cap023-evidence.yml",
+        "100644",
+        "58c3dad81ed80b73f5736fd04104334da78de72b",
+    ),
+    (
+        "TASK_LEDGER.md",
+        "100644",
+        "9a54c075dc97f510596b9f2f13b6e1259cb3f674",
+    ),
+    (
+        "claim-verification/claims.json",
+        "100644",
+        "b8f7b600466e149857401048fdaf5bfbcb719712",
+    ),
+    (
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/REPRODUCE.md",
+        "100644",
+        "9cf0e2b0ea70b2d53ae63935e25200d243a54a14",
+    ),
+    (
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/manifest.json",
+        "100644",
+        "c8c9bad95dac3acc361172085cfa4060caa61502",
+    ),
+    (
+        "claim-verification/results/aero_cap023_inference_correctness_918c9222_20260813/oracle.json",
+        "100644",
+        "bb9ee06b32d107a4715f7c5271f8383c46cafe6d",
+    ),
+    (
+        "claim-verification/schemas/aero-cap023-inference-evidence-v1.schema.json",
+        "100644",
+        "a31f67f20fc0b068e6c66229911c2f4feb87bd36",
+    ),
+    (
+        "src/compiler/tests/cap024_claim_verification_contract_tests.rs",
+        "100644",
+        "eb4e2246edcc869d84e83d05281f0cc6029e1053",
+    ),
+    (
+        "src/compiler/tests/cli_status_contract_tests.rs",
+        "100644",
+        "6c7e81e2c098a5d5554ba7acbcc94a167a87fb0e",
+    ),
+    (
+        "tools/cap024_inference_evidence.py",
+        "100644",
+        "5e169f5786f624aa93f3e04995984674ba777c14",
     ),
 ];
 const REQUIRED_BUNDLE_FILES: [&str; 3] = ["REPRODUCE.md", "manifest.json", "oracle.json"];
@@ -1247,10 +1306,6 @@ fn parse_git_index(bytes: &[u8]) -> Result<BTreeMap<String, GitIndexEntry>, Stri
     Ok(entries)
 }
 
-fn current_git_index(root: &Path) -> Result<BTreeMap<String, GitIndexEntry>, String> {
-    parse_git_index(&git_output(root, &["ls-files", "-s", "-z"])?)
-}
-
 fn subject_allowed_index_entry(path: &str) -> Option<(&'static str, &'static str)> {
     SUBJECT_ALLOWED_INDEX_ENTRIES
         .iter()
@@ -1258,20 +1313,72 @@ fn subject_allowed_index_entry(path: &str) -> Option<(&'static str, &'static str
         .map(|(_, mode, oid)| (*mode, *oid))
 }
 
-fn validate_index_scope(entries: &BTreeMap<String, GitIndexEntry>) -> Result<Vec<String>, String> {
-    let allowed: BTreeSet<&str> = ALLOWED_PATHS.into_iter().collect();
-    let outside: Vec<(&String, &GitIndexEntry)> = entries
-        .iter()
-        .filter(|(path, _)| !allowed.contains(path.as_str()))
-        .collect();
-    if outside.len() != SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT {
-        return Err(format!(
-            "CAP-024 outside-scope index count drifted: expected {SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT}, received {}",
-            outside.len()
-        ));
+fn parse_git_tree(bytes: &[u8]) -> Result<BTreeMap<String, GitIndexEntry>, String> {
+    let mut entries = BTreeMap::new();
+    for record in bytes
+        .split(|byte| *byte == 0)
+        .filter(|record| !record.is_empty())
+    {
+        let tab = record
+            .iter()
+            .position(|byte| *byte == b'\t')
+            .ok_or_else(|| "Git tree record omitted its path separator".to_owned())?;
+        let metadata = std::str::from_utf8(&record[..tab])
+            .map_err(|error| format!("Git tree metadata is not UTF-8: {error}"))?;
+        let path = std::str::from_utf8(&record[tab + 1..])
+            .map_err(|error| format!("Git tree path is not UTF-8: {error}"))?;
+        let fields: Vec<&str> = metadata.split_whitespace().collect();
+        if fields.len() != 3 || fields[1] != "blob" {
+            return Err(format!(
+                "Git tree metadata is not mode/blob/OID: {metadata:?}"
+            ));
+        }
+        let mode = fields[0];
+        let oid = fields[2];
+        if mode.len() != 6 || !mode.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(format!("Git tree mode is malformed for {path:?}: {mode:?}"));
+        }
+        if oid.len() != 40
+            || !oid
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(format!("Git tree OID is malformed for {path:?}: {oid:?}"));
+        }
+        if path.is_empty() || path.starts_with('/') || path.contains(['\\', '\r', '\n', '\t']) {
+            return Err(format!("Git tree path is not canonical: {path:?}"));
+        }
+        if entries
+            .insert(
+                path.to_owned(),
+                GitIndexEntry {
+                    mode: mode.to_owned(),
+                    oid: oid.to_owned(),
+                },
+            )
+            .is_some()
+        {
+            return Err(format!("Git tree repeats path {path:?}"));
+        }
     }
+    if entries.is_empty() {
+        return Err("Git tree is empty".to_owned());
+    }
+    Ok(entries)
+}
+
+fn accepted_allowed_index_entry(path: &str) -> Option<(&'static str, &'static str)> {
+    ACCEPTED_ALLOWED_INDEX_ENTRIES
+        .iter()
+        .find(|(accepted_path, _, _)| *accepted_path == path)
+        .map(|(_, mode, oid)| (*mode, *oid))
+}
+
+fn canonical_index_sha256<'a>(
+    entries: impl IntoIterator<Item = (&'a String, &'a GitIndexEntry)>,
+) -> String {
     let mut canonical = Vec::new();
-    for (path, entry) in outside {
+    for (path, entry) in entries {
         canonical.extend_from_slice(entry.mode.as_bytes());
         canonical.push(b' ');
         canonical.extend_from_slice(entry.oid.as_bytes());
@@ -1279,11 +1386,45 @@ fn validate_index_scope(entries: &BTreeMap<String, GitIndexEntry>) -> Result<Vec
         canonical.extend_from_slice(path.as_bytes());
         canonical.push(b'\n');
     }
-    let digest = sha256_hex(&canonical);
-    if digest != SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256 {
+    sha256_hex(&canonical)
+}
+
+fn validate_outside_scope_index(
+    entries: &BTreeMap<String, GitIndexEntry>,
+    expected_count: usize,
+    expected_sha256: &str,
+) -> Result<(), String> {
+    let allowed: BTreeSet<&str> = ALLOWED_PATHS.into_iter().collect();
+    let outside: Vec<(&String, &GitIndexEntry)> = entries
+        .iter()
+        .filter(|(path, _)| !allowed.contains(path.as_str()))
+        .collect();
+    if outside.len() != expected_count {
         return Err(format!(
-            "CAP-024 outside-scope index digest drifted: expected {SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256}, received {digest}"
+            "CAP-024 accepted outside-scope index count drifted: expected {expected_count}, received {}",
+            outside.len()
         ));
+    }
+    let digest = canonical_index_sha256(outside);
+    if digest != expected_sha256 {
+        return Err(format!(
+            "CAP-024 accepted outside-scope index digest drifted: expected {expected_sha256}, received {digest}"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_accepted_allowed_entries(
+    entries: &BTreeMap<String, GitIndexEntry>,
+) -> Result<Vec<String>, String> {
+    let allowed: BTreeSet<&str> = ALLOWED_PATHS.into_iter().collect();
+    let accepted_allowed: BTreeSet<&str> = ACCEPTED_ALLOWED_INDEX_ENTRIES
+        .iter()
+        .map(|(path, _, _)| *path)
+        .collect();
+    if accepted_allowed.len() != ACCEPTED_ALLOWED_INDEX_ENTRIES.len() || accepted_allowed != allowed
+    {
+        return Err("CAP-024 accepted allowed-entry constants drifted from exact scope".to_owned());
     }
 
     let mut changed = Vec::new();
@@ -1291,12 +1432,66 @@ fn validate_index_scope(entries: &BTreeMap<String, GitIndexEntry>) -> Result<Vec
         let current = entries
             .get(path)
             .map(|entry| (entry.mode.as_str(), entry.oid.as_str()));
+        if current != accepted_allowed_index_entry(path) {
+            return Err(format!(
+                "CAP-024 accepted allowed entry drifted for {path}: expected {:?}, received {current:?}",
+                accepted_allowed_index_entry(path)
+            ));
+        }
         if current != subject_allowed_index_entry(path) {
             changed.push(path.to_owned());
         }
     }
+    let changed_set: BTreeSet<&str> = changed.iter().map(String::as_str).collect();
+    if changed_set != allowed {
+        return Err(format!(
+            "CAP-024 accepted candidate did not change its exact ten-file scope: {changed:?}"
+        ));
+    }
     validate_scope_paths(changed.iter().map(String::as_str))?;
     Ok(changed)
+}
+
+fn validate_accepted_index_scope(entries: &BTreeMap<String, GitIndexEntry>) -> Result<(), String> {
+    if entries.len() != ACCEPTED_INDEX_COUNT {
+        return Err(format!(
+            "CAP-024 accepted index count drifted: expected {ACCEPTED_INDEX_COUNT}, received {}",
+            entries.len()
+        ));
+    }
+    let digest = canonical_index_sha256(entries.iter());
+    if digest != ACCEPTED_INDEX_SHA256 {
+        return Err(format!(
+            "CAP-024 accepted index digest drifted: expected {ACCEPTED_INDEX_SHA256}, received {digest}"
+        ));
+    }
+    validate_outside_scope_index(
+        entries,
+        SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT,
+        SUBJECT_OUTSIDE_SCOPE_INDEX_SHA256,
+    )?;
+    validate_accepted_allowed_entries(entries)?;
+    Ok(())
+}
+
+fn accepted_allowed_index_fixture() -> Result<BTreeMap<String, GitIndexEntry>, String> {
+    let mut entries = BTreeMap::new();
+    for (path, mode, oid) in ACCEPTED_ALLOWED_INDEX_ENTRIES {
+        if entries
+            .insert(
+                path.to_owned(),
+                GitIndexEntry {
+                    mode: mode.to_owned(),
+                    oid: oid.to_owned(),
+                },
+            )
+            .is_some()
+        {
+            return Err(format!("accepted allowed-entry fixture repeats {path}"));
+        }
+    }
+    validate_accepted_allowed_entries(&entries)?;
+    Ok(entries)
 }
 
 fn validate_frozen_input_index(entries: &BTreeMap<String, GitIndexEntry>) -> Result<(), String> {
@@ -1324,11 +1519,72 @@ fn git_object_is_available(root: &Path, object: &str) -> Result<bool, String> {
     Ok(output.status.success())
 }
 
-fn validate_frozen_git_inputs(
-    root: &Path,
-    entries: &BTreeMap<String, GitIndexEntry>,
-) -> Result<(), String> {
-    validate_frozen_input_index(entries)?;
+fn repository_is_shallow(root: &Path) -> Result<bool, String> {
+    let shallow = String::from_utf8(git_output(root, &["rev-parse", "--is-shallow-repository"])?)
+        .map_err(|error| format!("Git shallow-state output is not UTF-8: {error}"))?;
+    match shallow.trim() {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        other => Err(format!("Git returned invalid shallow state {other:?}")),
+    }
+}
+
+fn validate_accepted_commit_scope(root: &Path) -> Result<bool, String> {
+    accepted_allowed_index_fixture()?;
+    if ACCEPTED_INDEX_COUNT != SUBJECT_OUTSIDE_SCOPE_INDEX_COUNT + ALLOWED_PATHS.len() {
+        return Err("CAP-024 accepted index cardinality constants are inconsistent".to_owned());
+    }
+    let shallow = repository_is_shallow(root)?;
+    let accepted_object = format!("{ACCEPTED_COMMIT}^{{commit}}");
+    let accepted_available = git_object_is_available(root, &accepted_object)?;
+    if !accepted_available {
+        if !shallow {
+            return Err(format!(
+                "accepted CAP-024 commit {ACCEPTED_COMMIT} is missing from a non-shallow repository"
+            ));
+        }
+        return Ok(false);
+    }
+
+    let commit = String::from_utf8(git_output(root, &["cat-file", "-p", ACCEPTED_COMMIT])?)
+        .map_err(|error| format!("accepted CAP-024 commit is not UTF-8: {error}"))?;
+    let mut lines = commit.lines();
+    if lines.next() != Some(&format!("tree {ACCEPTED_TREE}"))
+        || lines.next() != Some(&format!("parent {}", ACCEPTED_PARENTS[0]))
+        || lines.next() != Some(&format!("parent {}", ACCEPTED_PARENTS[1]))
+    {
+        return Err("accepted CAP-024 tree or ordered merge parents drifted".to_owned());
+    }
+
+    let accepted_index = parse_git_tree(&git_output(
+        root,
+        &["ls-tree", "-r", "-z", ACCEPTED_COMMIT],
+    )?)?;
+    validate_accepted_index_scope(&accepted_index)?;
+    validate_frozen_input_index(&accepted_index)?;
+
+    let candidate_object = format!("{ACCEPTED_CANDIDATE_COMMIT}^{{commit}}");
+    let candidate_available = git_object_is_available(root, &candidate_object)?;
+    if candidate_available {
+        let candidate = String::from_utf8(git_output(
+            root,
+            &["cat-file", "-p", ACCEPTED_CANDIDATE_COMMIT],
+        )?)
+        .map_err(|error| format!("accepted CAP-024 candidate is not UTF-8: {error}"))?;
+        if candidate.lines().next() != Some(&format!("tree {ACCEPTED_TREE}")) {
+            return Err("accepted CAP-024 candidate tree drifted from protected merge".to_owned());
+        }
+    } else if !shallow {
+        return Err(format!(
+            "accepted CAP-024 candidate {ACCEPTED_CANDIDATE_COMMIT} is missing from a non-shallow repository"
+        ));
+    }
+    Ok(true)
+}
+
+fn validate_frozen_git_inputs(root: &Path) -> Result<(), String> {
+    let accepted_available = validate_accepted_commit_scope(root)?;
+    let shallow = repository_is_shallow(root)?;
     let subject_object = format!("{SUBJECT_COMMIT}^{{commit}}");
     let subject_available = git_object_is_available(root, &subject_object)?;
     if subject_available {
@@ -1357,13 +1613,25 @@ fn validate_frozen_git_inputs(
                 "accepted compiler tree drifted: {compiler_entry:?}"
             ));
         }
+    } else if !shallow {
+        return Err(format!(
+            "accepted subject commit {SUBJECT_COMMIT} is missing from a non-shallow repository"
+        ));
     }
     for input in FROZEN_INPUTS {
-        let bytes = git_output(root, &["cat-file", "blob", input.blob])?;
-        if bytes.len() as u64 != input.size || sha256_hex(&bytes) != input.sha256 {
+        let blob_available = git_object_is_available(root, input.blob)?;
+        if blob_available {
+            let bytes = git_output(root, &["cat-file", "blob", input.blob])?;
+            if bytes.len() as u64 != input.size || sha256_hex(&bytes) != input.sha256 {
+                return Err(format!(
+                    "canonical Git blob bytes drifted for {}",
+                    input.path
+                ));
+            }
+        } else if !shallow {
             return Err(format!(
-                "canonical Git blob bytes drifted for {}",
-                input.path
+                "frozen Git blob {} for {} is missing from a non-shallow repository",
+                input.blob, input.path
             ));
         }
         if subject_available {
@@ -1373,6 +1641,19 @@ fn validate_frozen_git_inputs(
             if !entry.contains(&format!("blob {}\t{}", input.blob, input.path)) {
                 return Err(format!(
                     "{} is not bound to frozen blob {} at the subject",
+                    input.path, input.blob
+                ));
+            }
+        }
+        if accepted_available {
+            let entry =
+                String::from_utf8(git_output(root, &["ls-tree", ACCEPTED_COMMIT, input.path])?)
+                    .map_err(|error| {
+                        format!("{} accepted tree entry is not UTF-8: {error}", input.path)
+                    })?;
+            if !entry.contains(&format!("blob {}\t{}", input.blob, input.path)) {
+                return Err(format!(
+                    "{} is not bound to frozen blob {} at accepted CAP-024",
                     input.path, input.blob
                 ));
             }
@@ -1450,37 +1731,43 @@ fn validate_scope_paths<'a>(paths: impl IntoIterator<Item = &'a str>) -> Result<
     Ok(())
 }
 
-fn validate_cumulative_git_scope(
-    root: &Path,
-    entries: &BTreeMap<String, GitIndexEntry>,
-) -> Result<(), String> {
-    let mut paths = validate_index_scope(entries)?;
-    for arguments in [
-        ["diff", "--no-renames", "--name-only", "--"].as_slice(),
-        ["diff", "--cached", "--no-renames", "--name-only", "--"].as_slice(),
-    ] {
-        paths.extend(
-            String::from_utf8(git_output(root, arguments)?)
-                .map_err(|error| format!("Git worktree/index paths are not UTF-8: {error}"))?
-                .lines()
-                .map(str::to_owned),
-        );
-    }
-    validate_scope_paths(paths.iter().map(String::as_str))
-}
-
-fn validate_index_mutation_controls(
-    entries: &BTreeMap<String, GitIndexEntry>,
-) -> Result<(), String> {
+fn validate_index_mutation_controls() -> Result<(), String> {
     let mut failures = Vec::new();
     let outside_path = ".github/workflows/rust.yml";
+
+    let mut entries = accepted_allowed_index_fixture()?;
+    for input in FROZEN_INPUTS {
+        entries.insert(
+            input.path.to_owned(),
+            GitIndexEntry {
+                mode: "100644".to_owned(),
+                oid: input.blob.to_owned(),
+            },
+        );
+    }
+    entries.insert(
+        "README.md".to_owned(),
+        GitIndexEntry {
+            mode: "100644".to_owned(),
+            oid: "9".repeat(40),
+        },
+    );
+    let allowed: BTreeSet<&str> = ALLOWED_PATHS.into_iter().collect();
+    let outside: Vec<(&String, &GitIndexEntry)> = entries
+        .iter()
+        .filter(|(path, _)| !allowed.contains(path.as_str()))
+        .collect();
+    let outside_count = outside.len();
+    let outside_sha256 = canonical_index_sha256(outside);
+    validate_outside_scope_index(&entries, outside_count, &outside_sha256)?;
+    validate_frozen_input_index(&entries)?;
 
     let mut wrong_oid = entries.clone();
     wrong_oid
         .get_mut(outside_path)
         .ok_or_else(|| format!("mutation fixture omitted {outside_path}"))?
         .oid = "0".repeat(40);
-    if validate_index_scope(&wrong_oid).is_ok() {
+    if validate_outside_scope_index(&wrong_oid, outside_count, &outside_sha256).is_ok() {
         failures.push("outside-scope blob mutation was accepted".to_owned());
     }
 
@@ -1489,13 +1776,13 @@ fn validate_index_mutation_controls(
         .get_mut(outside_path)
         .ok_or_else(|| format!("mutation fixture omitted {outside_path}"))?
         .mode = "100755".to_owned();
-    if validate_index_scope(&wrong_mode).is_ok() {
+    if validate_outside_scope_index(&wrong_mode, outside_count, &outside_sha256).is_ok() {
         failures.push("outside-scope mode mutation was accepted".to_owned());
     }
 
     let mut missing = entries.clone();
     missing.remove(outside_path);
-    if validate_index_scope(&missing).is_ok() {
+    if validate_outside_scope_index(&missing, outside_count, &outside_sha256).is_ok() {
         failures.push("outside-scope deletion was accepted".to_owned());
     }
 
@@ -1507,13 +1794,13 @@ fn validate_index_mutation_controls(
             oid: "1".repeat(40),
         },
     );
-    if validate_index_scope(&added).is_ok() {
+    if validate_outside_scope_index(&added, outside_count, &outside_sha256).is_ok() {
         failures.push("outside-scope addition was accepted".to_owned());
     }
 
     let mut missing_contract = entries.clone();
     missing_contract.remove("src/compiler/tests/cap024_claim_verification_contract_tests.rs");
-    if validate_index_scope(&missing_contract).is_ok() {
+    if validate_accepted_allowed_entries(&missing_contract).is_ok() {
         failures.push("missing red contract was accepted as a complete scope".to_owned());
     }
 
@@ -1522,8 +1809,13 @@ fn validate_index_mutation_controls(
         .get_mut("TASK_LEDGER.md")
         .ok_or_else(|| "mutation fixture omitted TASK_LEDGER.md".to_owned())?
         .oid = "2".repeat(40);
-    if let Err(error) = validate_index_scope(&allowed_change) {
-        failures.push(format!("authorized-path mutation false-red: {error}"));
+    if let Err(error) =
+        validate_outside_scope_index(&allowed_change, outside_count, &outside_sha256)
+    {
+        failures.push(format!("later authorized-path mutation false-red: {error}"));
+    }
+    if validate_accepted_allowed_entries(&allowed_change).is_ok() {
+        failures.push("accepted allowed-path blob mutation was accepted".to_owned());
     }
 
     let mut wrong_input = entries.clone();
@@ -1546,6 +1838,17 @@ fn validate_index_mutation_controls(
     let duplicate = format!("{valid}{valid}");
     if parse_git_index(duplicate.as_bytes()).is_ok() {
         failures.push("duplicate Git index path was accepted".to_owned());
+    }
+    let valid_tree = format!("100644 blob {}\tfixture/path\0", "5".repeat(40));
+    if parse_git_tree(valid_tree.as_bytes()).is_err() {
+        failures.push("canonical Git tree fixture was rejected".to_owned());
+    }
+    let non_blob_tree = format!("100644 commit {}\tfixture/path\0", "5".repeat(40));
+    if parse_git_tree(non_blob_tree.as_bytes()).is_ok() {
+        failures.push("non-blob recursive Git tree entry was accepted".to_owned());
+    }
+    if parse_git_tree(format!("{valid_tree}{valid_tree}").as_bytes()).is_ok() {
+        failures.push("duplicate Git tree path was accepted".to_owned());
     }
 
     if failures.is_empty() {
@@ -5354,19 +5657,11 @@ fn pure_schema_workflow_tool_and_reproduction_validators_fail_closed() {
 fn cap024_repository_contract_is_complete() {
     let root = repository_root();
     let mut failures = Vec::new();
-    match current_git_index(&root) {
-        Ok(index) => {
-            if let Err(error) = validate_frozen_git_inputs(&root, &index) {
-                failures.push(error);
-            }
-            if let Err(error) = validate_cumulative_git_scope(&root, &index) {
-                failures.push(error);
-            }
-            if let Err(error) = validate_index_mutation_controls(&index) {
-                failures.push(format!("Git index mutation controls failed: {error}"));
-            }
-        }
-        Err(error) => failures.push(error),
+    if let Err(error) = validate_frozen_git_inputs(&root) {
+        failures.push(error);
+    }
+    if let Err(error) = validate_index_mutation_controls() {
+        failures.push(format!("Git index mutation controls failed: {error}"));
     }
     let required_files = [
         SCHEMA_PATH,
