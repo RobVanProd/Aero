@@ -235,6 +235,15 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
         !backend_production.contains("\"{ i32, double, i1 }\""),
         "backend retained the hardcoded compact-enum physical schema"
     );
+    for checked_array_duplicate in [
+        "alloca [{count} x {element}]",
+        "format!(\"[{count} x {element}]\")",
+    ] {
+        assert!(
+            !backend_production.contains(checked_array_duplicate),
+            "backend retained checked-array topology `{checked_array_duplicate}` outside the shared descriptor"
+        );
+    }
     assert!(
         backend.contains("CopyDataLayout"),
         "backend does not consume the shared physical descriptor"
