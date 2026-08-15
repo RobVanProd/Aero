@@ -1,8 +1,43 @@
 # Aero Project State
 
-Last updated: 2026-08-14 (America/New_York)
+Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
+
+### R1A local candidate: replaceable allocator runtime and CPU link boundary
+
+The current accepted public master is CAP-035 merge
+`da2ad95d4a1db3a991128a63223c82639d24ff2a`, tree
+`fb4739291690efa5c940d929f69435b063ea67f6`. CAP-035 candidate
+`c50ae7c8ef92f910244f383363b811d8a37622f9` has the identical tree; all 12
+candidate checks and every accepted-head CI, Rust CI, CodeQL, and evidence
+workflow passed. It freezes the dependency-ordered R1A/R1B/R1C owned-byte route
+without adding behavior.
+
+CAP-036/R1A is currently a local candidate based exactly on that accepted head.
+Its production C11 runtime exports only `aero_alloc`, `aero_realloc`, and
+`aero_dealloc`. The source is embedded in the compiler binary, materialized
+after checked compilation succeeds, compiled in the unique CPU run directory,
+and explicitly linked on both `llc` and direct-Clang native paths. Runtime
+selection does not inspect the working directory or accept an ambient override.
+
+A separate test runtime implements the same ABI plus deterministic fail-after,
+attempt/live/size-mismatch counters, and exact allocation-size validation.
+Independent C harnesses pass successful allocation/reallocation/deallocation,
+prefix preservation, mismatch rejection, failed-reallocation preservation, and
+counter checks. The focused R1A target passes 2/2, all 35 binary tests pass, and
+correctness Clippy is green. The full root gate and protected Linux/Windows
+candidate/merge evidence remain pending.
+
+R1A changes only CPU native runtime linking. It does not emit allocator calls,
+admit `ByteBuffer`, change Vec rejection, add ownership/drop semantics, change
+checked IR or LLVM bytes, provide input, or close R1. R1 remains blocked on
+accepted R1A followed by independently protected R1B and R1C.
+
+The checkpoint sections below are retained chronological records. Any
+present-tense `current` or `latest` wording inside an older checkpoint is scoped
+to that historical checkpoint and is superseded by this current-objective
+section.
 
 ### CAP-024 accepted: immutable accepted-head inference evidence checkpoint
 
@@ -34,13 +69,13 @@ analyses `1617281747`/`1617282341`/`1617285598`, and CAP-024 aggregate replay jo
 `94659621233`/`94659603455` are correctly skipped because protected master validates
 the tracked bundle rather than replacing accepted observations.
 
-Current accepted public master and public evidence checkpoint is protected CAP-024 merge
+At the CAP-024 checkpoint, accepted public master and evidence head was merge
 `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd`, tree
 `9520f24e4f1626f16782a9775480f9653f6059bb`; its ordered parents are accepted base
 `918c9222eb61e2435e18847e30b946cd08013238` then reviewed candidate
 `617bfce86feb879ee5eef61b44cf4e2a5520f022`.
 
-CAP-024 is the current accepted public evidence checkpoint and protected public master.
+CAP-024 remains an immutable historical public evidence checkpoint.
 It adds no compiler production, parser, grammar, source semantics, profile, semantic
 analysis, checked IR, verifier, backend, example, product oracle, runtime behavior, ABI,
 capability classification, benchmark, resource-usage, performance, accelerator, safety,
@@ -48,8 +83,8 @@ or general-inference capability. Its only claim is immutable accepted-head CAP-0
 correctness, within-platform target-artifact reproducibility, exact observable behavior,
 and artifact byte-size footprint under the closed recorded boundary.
 
-CAP-019 remains the latest compiler/profile widening; CAP-023 remains the latest product
-checkpoint. The selected `exact-i32-array-v0` row and the existing CAP-023 CPU
+At that checkpoint, CAP-019 was the latest compiler/profile widening and CAP-023
+was the latest product checkpoint. The selected `exact-i32-array-v0` row and the existing CAP-023 CPU
 backend-summary row remain byte-identical, and CAP-024 adds no language,
 selected-profile, or backend-summary row.
 
@@ -80,7 +115,9 @@ module migration across more than two compiler phases. No new module RFC or
 decision-changing evidence exists, so CAP-016 remains a mandatory `NO IMPLEMENTATION`
 stop until its explicit re-entry condition is met.
 
-CAP-022 remains a mandatory `NO IMPLEMENTATION` runtime-acquisition stop.
+CAP-022's direct runtime-acquisition proposal remains stopped. CAP-035 later
+authorized only the independently protected R1A/R1B/R1C route recorded above;
+runtime source ingestion remains unavailable.
 
 ### CAP-023 accepted: source-embedded fixed-shape exact-i32 inference product
 

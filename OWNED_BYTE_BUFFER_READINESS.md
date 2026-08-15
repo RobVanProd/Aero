@@ -1,10 +1,16 @@
 # Owned Byte Buffer Readiness Contract
 
-Status: CAP-035 behavior-neutral readiness candidate, 2026-08-15.
+Status: CAP-035 accepted readiness contract; R1A local candidate, 2026-08-15.
 
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
 `0464664982d90c5f76dc44001007b2ac7ffeee1c`.
+
+Protected readiness checkpoint: CAP-035 candidate
+`c50ae7c8ef92f910244f383363b811d8a37622f9` merged as
+`da2ad95d4a1db3a991128a63223c82639d24ff2a`; both have tree
+`fb4739291690efa5c940d929f69435b063ea67f6`, and all candidate plus
+accepted-head workflows passed.
 
 This document freezes the route from the accepted fixed-buffer compiler kernels
 to R1's first owned runtime storage. It is a design and evidence contract, not an
@@ -130,6 +136,25 @@ Windows without silently using a host-language collection. The runtime,
 LLVM/Clang, linker, and operating-system allocation service remain declared in
 the bootstrap trust base.
 
+### R1A local candidate
+
+The R1A branch now implements this boundary without changing application LLVM
+or source admission. `aero_runtime.c` is embedded into the compiler binary,
+materialized only after checked source and LLVM verification succeed, compiled
+as an isolated C11 object, and passed explicitly to both CPU native link paths.
+No working-directory or environment runtime discovery exists.
+
+The separate `aero_test_runtime.c` implements the same three symbols, exact
+attempt/live/size-mismatch counters, a zero-live reset rule, and deterministic
+fail-after behavior. Independent native harnesses prove successful growth,
+prefix preservation, exact-size enforcement, failed-reallocation preservation,
+and deallocation. The accepted Vec diagnostics, all four profile LLVM bytes,
+native exit, and run-directory hygiene remain unchanged in the focused gate.
+
+This remains a local candidate until protected Linux and Windows acceptance. It
+does not declare allocator calls in emitted application LLVM and therefore does
+not create source-visible storage.
+
 ## Checked resource model frozen for R1B
 
 R1B introduces a dedicated `LogicalType::ByteBuffer` and dedicated checked
@@ -210,9 +235,8 @@ performance, release readiness, or CPU/GPU parity.
 
 ## Exact next action
 
-Protect CAP-035 as a documentation/readiness checkpoint. From its accepted
-head, authorize R1A ledger-first and red-first: freeze the production runtime
-artifact/link location, implement the three-symbol allocator ABI and a separate
-deterministic test allocator, and prove Linux/Windows native linking and failure
-counters without changing any source-language, type, checked-IR, verifier,
-backend instruction, or language-profile behavior.
+Complete the R1A full root gate and protect its exact candidate with Linux and
+Windows allocator/link evidence. Only after its merge tree and accepted-head
+workflows are green, authorize R1B ledger-first and corruption-red-first: add
+the dedicated checked owned-byte resource, lifecycle/loan verification, and
+backend lowering without admitting source syntax or changing the R1A runtime.
