@@ -235,6 +235,19 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
         !backend_production.contains("\"{ i32, double, i1 }\""),
         "backend retained the hardcoded compact-enum physical schema"
     );
+    assert!(
+        !backend_production.contains("PrimitiveKind::alignment"),
+        "backend bypasses shared primitive alignment authority"
+    );
+    for compact_lane_duplicate in [
+        "insertvalue {enum_type} %{with_tag}, double",
+        "insertvalue {enum_type} %{numeric}, i1",
+    ] {
+        assert!(
+            !backend_production.contains(compact_lane_duplicate),
+            "backend retained hardcoded compact-enum lane `{compact_lane_duplicate}`"
+        );
+    }
     for checked_array_duplicate in [
         "alloca [{count} x {element}]",
         "format!(\"[{count} x {element}]\")",
@@ -245,11 +258,22 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
         );
     }
     assert!(
-        backend.contains("CopyDataLayout"),
+        backend_production.contains("CopyDataLayout::legacy")
+            && backend_production.contains("CopyDataLayout::with_policy"),
         "backend does not consume the shared physical descriptor"
     );
     assert!(
-        verifier.contains("CopyDataLayout"),
+        verifier.contains("CopyDataLayout::legacy")
+            && verifier.contains("EnumStorageLayout::legacy"),
         "verifier does not consume the shared physical descriptor"
     );
+    for raw_legacy_anchor in [
+        "\"  %{} = alloca [{} x {}], align 8\\n\"",
+        "\"  %{} = getelementptr inbounds {}, {}* %{}, i64 0, i64 {}\\n\"",
+    ] {
+        assert!(
+            backend_production.contains(raw_legacy_anchor),
+            "raw legacy array/GEP emission anchor `{raw_legacy_anchor}` changed"
+        );
+    }
 }

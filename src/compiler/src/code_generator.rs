@@ -1,3 +1,4 @@
+use crate::copy_data_layout::{CopyDataLayout, CopyDataLayoutPolicy, EnumStorageLayout};
 use crate::ir::{
     CheckedIr, EnumSchema, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId,
     ResultId, Value,
@@ -130,8 +131,8 @@ impl CodeGenerator {
             LogicalType::Struct { name, .. } => Self::struct_type_to_llvm(name),
             LogicalType::Tuple { .. }
             | LogicalType::EnumFields { .. }
-            | LogicalType::Array { .. } => Self::copy_data_type_to_llvm(logical_type),
-            LogicalType::Enum { name, variants } => Self::enum_schema_to_llvm(&EnumSchema {
+            | LogicalType::Array { .. } => Self::render_copy_data_layout(logical_type),
+            LogicalType::Enum { name, variants } => Self::render_enum_storage_layout(&EnumSchema {
                 name: name.clone(),
                 variants: variants.clone(),
             }),
@@ -141,61 +142,26 @@ impl CodeGenerator {
         }
     }
 
-    /// Lower one independently verified recursive Copy-data schema as a private LLVM value type.
-    /// Numeric aggregate leaves retain their established `double` representation.
-    fn copy_data_type_to_llvm(logical_type: &LogicalType) -> String {
-        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
-            return primitive.copy_data_llvm_type().to_string();
-        }
-        match logical_type {
-            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
-                unreachable!("primitive logical types returned above")
-            }
-            LogicalType::Array { element, count } => {
-                format!("[{count} x {}]", Self::copy_data_type_to_llvm(element))
-            }
-            LogicalType::Struct { name, .. } => Self::struct_type_to_llvm(name),
-            LogicalType::Tuple { elements } => format!(
-                "{{ {} }}",
-                elements
-                    .iter()
-                    .map(Self::copy_data_type_to_llvm)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            LogicalType::EnumFields { fields } => format!(
-                "{{ {} }}",
-                fields
-                    .iter()
-                    .map(Self::copy_data_type_to_llvm)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
-            LogicalType::Void
-            | LogicalType::String
-            | LogicalType::ImmutableReference { .. }
-            | LogicalType::MutableReference { .. }
-            | LogicalType::Enum { .. } => {
-                unreachable!("verified Copy-data schemas exclude non-Copy-data logical types")
-            }
-        }
+    fn render_copy_data_layout(logical_type: &LogicalType) -> String {
+        CopyDataLayout::legacy(logical_type).llvm_type_with(&Self::struct_type_to_llvm)
     }
 
     /// Select the private physical CopyData representation paired with the checked
     /// program's source profile. The topology decision comes from language-profile
     /// authority; this backend owns only its physical rendering.
     fn profile_copy_data_type_to_llvm(&self, logical_type: &LogicalType) -> String {
-        match classify_profile_logical_type(logical_type) {
+        let policy = match classify_profile_logical_type(logical_type) {
             ProfileTypeShape::Int if self.language_profile == LanguageProfile::ExactI32ArrayV0 => {
-                "i32".to_string()
+                CopyDataLayoutPolicy::ExactI32
             }
-            ProfileTypeShape::ExactI32Array { count }
+            ProfileTypeShape::ExactI32Array { .. }
                 if self.language_profile.admits_exact_i32_array(logical_type) =>
             {
-                format!("[{count} x i32]")
+                CopyDataLayoutPolicy::ExactI32
             }
-            _ => Self::copy_data_type_to_llvm(logical_type),
-        }
+            _ => CopyDataLayoutPolicy::Legacy,
+        };
+        CopyDataLayout::with_policy(logical_type, policy).llvm_type_with(&Self::struct_type_to_llvm)
     }
 
     fn profile_logical_type_to_llvm(&self, logical_type: &LogicalType) -> String {
@@ -206,74 +172,29 @@ impl CodeGenerator {
         }
     }
 
-    fn enum_schema_is_scalar_only(schema: &EnumSchema) -> bool {
-        schema
-            .variants
-            .iter()
-            .filter_map(|variant| variant.payload.as_ref())
-            .all(|payload| {
-                matches!(
-                    payload,
-                    LogicalType::Int | LogicalType::Float | LogicalType::Bool
-                )
-            })
-    }
-
-    fn enum_schema_to_llvm(schema: &EnumSchema) -> String {
-        if schema.is_unit() {
-            return "i32".to_string();
-        }
-        if Self::enum_schema_is_scalar_only(schema) {
-            return "{ i32, double, i1 }".to_string();
-        }
-        let mut lanes = vec!["i32".to_string()];
-        lanes.extend(
-            schema
-                .variants
-                .iter()
-                .filter_map(|variant| variant.payload.as_ref())
-                .map(Self::copy_data_type_to_llvm),
-        );
-        format!("{{ {} }}", lanes.join(", "))
-    }
-
-    fn enum_payload_lane(schema: &EnumSchema, variant_index: usize) -> Option<usize> {
-        schema.variants.get(variant_index)?.payload.as_ref()?;
-        Some(
-            1 + schema.variants[..variant_index]
-                .iter()
-                .filter(|variant| variant.payload.is_some())
-                .count(),
-        )
-    }
-
-    fn copy_data_zero_value(logical_type: &LogicalType) -> String {
-        if let Some(primitive) = PrimitiveKind::from_logical_type(logical_type) {
-            return primitive.copy_data_zero().to_string();
-        }
-        match logical_type {
-            LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
-                unreachable!("primitive logical types returned above")
-            }
-            LogicalType::Array { .. }
-            | LogicalType::Tuple { .. }
-            | LogicalType::EnumFields { .. }
-            | LogicalType::Struct { .. } => "zeroinitializer".to_string(),
-            LogicalType::Void
-            | LogicalType::String
-            | LogicalType::ImmutableReference { .. }
-            | LogicalType::MutableReference { .. }
-            | LogicalType::Enum { .. } => {
-                unreachable!("verified enum payload lanes contain only CopyData")
-            }
-        }
+    fn render_enum_storage_layout(schema: &EnumSchema) -> String {
+        EnumStorageLayout::legacy(schema).enum_llvm_type_with(&Self::struct_type_to_llvm)
     }
 
     fn reference_pointee_to_llvm(pointee: &LogicalType) -> String {
-        PrimitiveKind::from_logical_type(pointee).map_or_else(
-            || Self::logical_type_to_llvm(pointee),
-            |primitive| primitive.copy_data_llvm_type().to_string(),
-        )
+        match pointee {
+            LogicalType::Enum { name, variants } => Self::render_enum_storage_layout(&EnumSchema {
+                name: name.clone(),
+                variants: variants.clone(),
+            }),
+            LogicalType::Int
+            | LogicalType::Float
+            | LogicalType::Bool
+            | LogicalType::Char
+            | LogicalType::Array { .. }
+            | LogicalType::Struct { .. }
+            | LogicalType::Tuple { .. }
+            | LogicalType::EnumFields { .. } => Self::render_copy_data_layout(pointee),
+            LogicalType::Void
+            | LogicalType::String
+            | LogicalType::ImmutableReference { .. }
+            | LogicalType::MutableReference { .. } => Self::logical_type_to_llvm(pointee),
+        }
     }
 
     fn collect_logical_struct_schema(
@@ -316,10 +237,6 @@ impl CodeGenerator {
             }
             _ => {}
         }
-    }
-
-    fn struct_field_type_to_llvm(logical_type: &LogicalType) -> String {
-        Self::copy_data_type_to_llvm(logical_type)
     }
 
     fn collect_struct_schemas(
@@ -1374,7 +1291,7 @@ impl CodeGenerator {
         for (name, fields) in struct_schemas {
             let fields = fields
                 .iter()
-                .map(Self::struct_field_type_to_llvm)
+                .map(Self::render_copy_data_layout)
                 .collect::<Vec<_>>()
                 .join(", ");
             let struct_type = Self::struct_type_to_llvm(&name);
@@ -1614,19 +1531,31 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable owned-place alloca")
                     };
-                    let copy_type = if self.language_profile.admits_exact_i32_array(ty) {
-                        self.profile_copy_data_type_to_llvm(ty)
-                    } else if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int) {
-                        "i32".to_string()
+                    let exact_root = self.language_profile.admits_exact_i32_array(ty)
+                        || self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int);
+                    let policy = if exact_root {
+                        CopyDataLayoutPolicy::ExactI32
                     } else {
-                        Self::reference_pointee_to_llvm(ty)
+                        CopyDataLayoutPolicy::Legacy
                     };
-                    let align = if self.uses_exact_i32_lane() && matches!(ty, LogicalType::Int) {
-                        4
+                    let copy_type = if matches!(ty, LogicalType::Enum { .. }) {
+                        Self::logical_type_to_llvm(ty)
                     } else {
-                        PrimitiveKind::from_logical_type(ty)
-                            .map(PrimitiveKind::alignment)
-                            .unwrap_or(8)
+                        CopyDataLayout::with_policy(ty, policy)
+                            .llvm_type_with(&Self::struct_type_to_llvm)
+                    };
+                    let align = if matches!(
+                        ty,
+                        LogicalType::Int
+                            | LogicalType::Float
+                            | LogicalType::Bool
+                            | LogicalType::Char
+                    ) {
+                        CopyDataLayout::with_policy(ty, policy)
+                            .alignment()
+                            .expect("primitive CopyData has a physical alignment")
+                    } else {
+                        8
                     };
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {copy_type}, align {align}\n"
@@ -1636,7 +1565,7 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked immutable enum owner alloca")
                     };
-                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let enum_type = Self::render_enum_storage_layout(schema);
                     llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca {enum_type}, align 8\n"));
                 }
                 Inst::CheckedMatchResultPlaceAlloca {
@@ -1650,11 +1579,21 @@ impl CodeGenerator {
                     let llvm_type = if matches!(result_type, LogicalType::Enum { .. }) {
                         Self::logical_type_to_llvm(result_type)
                     } else {
-                        Self::copy_data_type_to_llvm(result_type)
+                        Self::render_copy_data_layout(result_type)
                     };
-                    let align = PrimitiveKind::from_logical_type(result_type)
-                        .map(PrimitiveKind::alignment)
-                        .unwrap_or(8);
+                    let align = if matches!(
+                        result_type,
+                        LogicalType::Int
+                            | LogicalType::Float
+                            | LogicalType::Bool
+                            | LogicalType::Char
+                    ) {
+                        CopyDataLayout::legacy(result_type)
+                            .alignment()
+                            .expect("primitive CopyData has a physical alignment")
+                    } else {
+                        8
+                    };
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {llvm_type}, align {align}\n"
                     ));
@@ -2224,10 +2163,12 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked Copy-data array alloca")
                     };
-                    let element = self.profile_copy_data_type_to_llvm(element);
-                    llvm_ir.push_str(&format!(
-                        "  %ptr{result} = alloca [{count} x {element}], align 8\n"
-                    ));
+                    let aggregate = LogicalType::Array {
+                        element: Box::new(element.clone()),
+                        count: *count,
+                    };
+                    let aggregate = self.profile_copy_data_type_to_llvm(&aggregate);
+                    llvm_ir.push_str(&format!("  %ptr{result} = alloca {aggregate}, align 8\n"));
                 }
                 Inst::CheckedCopyStructArrayElementPtr {
                     result,
@@ -2242,8 +2183,11 @@ impl CodeGenerator {
                     let Value::Reg(base) = base else {
                         panic!("Expected register for checked Copy-data array base")
                     };
-                    let element = self.profile_copy_data_type_to_llvm(element);
-                    let aggregate = format!("[{count} x {element}]");
+                    let aggregate = LogicalType::Array {
+                        element: Box::new(element.clone()),
+                        count: *count,
+                    };
+                    let aggregate = self.profile_copy_data_type_to_llvm(&aggregate);
                     let index = self
                         .checked_copy_array_index_to_i64_operand(llvm_ir, index, *count, *result);
                     llvm_ir.push_str(&format!(
@@ -2386,7 +2330,7 @@ impl CodeGenerator {
                     let Value::Reg(reference) = reference else {
                         panic!("Expected reference place for checked enum-reference Match read")
                     };
-                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let enum_type = Self::render_enum_storage_layout(schema);
                     llvm_ir.push_str(&format!(
                         "  %reg{result} = load {enum_type}, {enum_type}* %ptr{reference}, align 8\n"
                     ));
@@ -2431,12 +2375,13 @@ impl CodeGenerator {
                         panic!("Expected register for checked enum parameter")
                     };
                     let parameter = Self::llvm_parameter_name(parameter);
-                    if schema.is_unit() {
+                    let layout = EnumStorageLayout::legacy(schema);
+                    if layout.is_unit() {
                         llvm_ir.push_str(&format!("  %reg{result} = add i32 %{parameter}, 0\n"));
                         continue;
                     }
-                    let enum_type = Self::enum_schema_to_llvm(schema);
-                    if !Self::enum_schema_is_scalar_only(schema) {
+                    let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
+                    if !layout.is_compact() {
                         let tag = self.fresh_reg();
                         llvm_ir.push_str(&format!(
                             "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
@@ -2451,6 +2396,12 @@ impl CodeGenerator {
                     let boolean = self.fresh_reg();
                     let with_tag = self.fresh_reg();
                     let with_numeric = self.fresh_reg();
+                    let numeric_type = layout
+                        .lane_llvm_type(1, &Self::struct_type_to_llvm)
+                        .expect("compact enum has a numeric storage lane");
+                    let boolean_type = layout
+                        .lane_llvm_type(2, &Self::struct_type_to_llvm)
+                        .expect("compact enum has a Boolean storage lane");
                     llvm_ir.push_str(&format!(
                         "  %{tag} = extractvalue {enum_type} %{parameter}, 0\n"
                     ));
@@ -2464,10 +2415,10 @@ impl CodeGenerator {
                         "  %{with_tag} = insertvalue {enum_type} poison, i32 %{tag}, 0\n"
                     ));
                     llvm_ir.push_str(&format!(
-                        "  %{with_numeric} = insertvalue {enum_type} %{with_tag}, double %{numeric}, 1\n"
+                        "  %{with_numeric} = insertvalue {enum_type} %{with_tag}, {numeric_type} %{numeric}, 1\n"
                     ));
                     llvm_ir.push_str(&format!(
-                        "  %reg{result} = insertvalue {enum_type} %{with_numeric}, i1 %{boolean}, 2\n"
+                        "  %reg{result} = insertvalue {enum_type} %{with_numeric}, {boolean_type} %{boolean}, 2\n"
                     ));
                 }
                 Inst::CheckedEnumVariant {
@@ -2479,12 +2430,13 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked enum variant")
                     };
-                    if schema.is_unit() {
+                    let layout = EnumStorageLayout::legacy(schema);
+                    if layout.is_unit() {
                         llvm_ir.push_str(&format!("  %reg{result} = add i32 0, {variant_index}\n"));
                         continue;
                     }
-                    let enum_type = Self::enum_schema_to_llvm(schema);
-                    if !Self::enum_schema_is_scalar_only(schema) {
+                    let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
+                    if !layout.is_compact() {
                         let tagged = self.fresh_reg();
                         llvm_ir.push_str(&format!(
                             "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
@@ -2501,16 +2453,21 @@ impl CodeGenerator {
                         for (position, (source_index, payload_type)) in
                             payload_lanes.iter().enumerate()
                         {
-                            let lane = Self::enum_payload_lane(schema, *source_index)
+                            let lane = layout
+                                .payload_lane(*source_index)
                                 .expect("verified payload-bearing variant has a lane");
-                            let payload_llvm = Self::copy_data_type_to_llvm(payload_type);
+                            let payload_llvm = layout
+                                .lane_llvm_type(lane, &Self::struct_type_to_llvm)
+                                .expect("verified enum payload lane has a physical type");
                             let lane_value = if *source_index == *variant_index {
                                 let value = payload
                                     .as_ref()
                                     .expect("verified selected payload variant has a value");
                                 self.copy_data_value_to_string(payload_type, value)
                             } else {
-                                Self::copy_data_zero_value(payload_type)
+                                layout
+                                    .lane_zero_value(lane)
+                                    .expect("verified enum payload lane has a zero value")
                             };
                             let output = if position + 1 == payload_lanes.len() {
                                 format!("reg{result}")
@@ -2530,21 +2487,33 @@ impl CodeGenerator {
                     ));
                     let payload_type = schema.variants[*variant_index].payload.as_ref();
                     let numeric = self.fresh_reg();
+                    let numeric_type = layout
+                        .lane_llvm_type(1, &Self::struct_type_to_llvm)
+                        .expect("compact enum has a numeric storage lane");
+                    let numeric_zero = layout
+                        .lane_zero_value(1)
+                        .expect("compact enum numeric lane has a zero value");
                     let numeric_value = match (payload_type, payload) {
                         (Some(LogicalType::Int | LogicalType::Float), Some(value)) => {
                             self.value_to_string(value)
                         }
-                        _ => "0x0000000000000000".to_string(),
+                        _ => numeric_zero,
                     };
                     llvm_ir.push_str(&format!(
-                        "  %{numeric} = insertvalue {enum_type} %{tagged}, double {numeric_value}, 1\n"
+                        "  %{numeric} = insertvalue {enum_type} %{tagged}, {numeric_type} {numeric_value}, 1\n"
                     ));
+                    let boolean_type = layout
+                        .lane_llvm_type(2, &Self::struct_type_to_llvm)
+                        .expect("compact enum has a Boolean storage lane");
+                    let boolean_zero = layout
+                        .lane_zero_value(2)
+                        .expect("compact enum Boolean lane has a zero value");
                     let bool_value = match (payload_type, payload) {
                         (Some(LogicalType::Bool), Some(value)) => self.bool_value_to_string(value),
-                        _ => "false".to_string(),
+                        _ => boolean_zero,
                     };
                     llvm_ir.push_str(&format!(
-                        "  %reg{result} = insertvalue {enum_type} %{numeric}, i1 {bool_value}, 2\n"
+                        "  %reg{result} = insertvalue {enum_type} %{numeric}, {boolean_type} {bool_value}, 2\n"
                     ));
                 }
                 Inst::CheckedEnumVariantFields {
@@ -2565,18 +2534,19 @@ impl CodeGenerator {
                     else {
                         unreachable!("verified multi-field enum variant has a product schema")
                     };
-                    let payload_type = Self::copy_data_type_to_llvm(
-                        schema.variants[*variant_index]
-                            .payload
-                            .as_ref()
-                            .expect("verified multi-field enum variant has a payload product"),
-                    );
+                    let layout = EnumStorageLayout::legacy(schema);
+                    let selected_lane = layout
+                        .payload_lane(*variant_index)
+                        .expect("verified multi-field enum variant has a lane");
+                    let payload_type = layout
+                        .lane_llvm_type(selected_lane, &Self::struct_type_to_llvm)
+                        .expect("verified multi-field enum payload has a physical type");
                     let mut payload_value = "poison".to_string();
                     for (field_index, (field, field_type)) in
                         fields.iter().zip(field_types).enumerate()
                     {
                         let output = self.fresh_reg();
-                        let field_llvm = Self::copy_data_type_to_llvm(field_type);
+                        let field_llvm = Self::render_copy_data_layout(field_type);
                         let field_value = self.copy_data_value_to_string(field_type, field);
                         llvm_ir.push_str(&format!(
                             "  %{output} = insertvalue {payload_type} {payload_value}, {field_llvm} {field_value}, {field_index}\n"
@@ -2584,7 +2554,7 @@ impl CodeGenerator {
                         payload_value = format!("%{output}");
                     }
 
-                    let enum_type = Self::enum_schema_to_llvm(schema);
+                    let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
                     let tagged = self.fresh_reg();
                     llvm_ir.push_str(&format!(
                         "  %{tagged} = insertvalue {enum_type} poison, i32 {variant_index}, 0\n"
@@ -2598,15 +2568,20 @@ impl CodeGenerator {
                         })
                         .collect::<Vec<_>>();
                     let mut aggregate = format!("%{tagged}");
-                    for (position, (source_index, source_type)) in payload_lanes.iter().enumerate()
+                    for (position, (source_index, _source_type)) in payload_lanes.iter().enumerate()
                     {
-                        let lane = Self::enum_payload_lane(schema, *source_index)
+                        let lane = layout
+                            .payload_lane(*source_index)
                             .expect("verified payload-bearing variant has a lane");
-                        let source_llvm = Self::copy_data_type_to_llvm(source_type);
+                        let source_llvm = layout
+                            .lane_llvm_type(lane, &Self::struct_type_to_llvm)
+                            .expect("verified enum payload lane has a physical type");
                         let lane_value = if *source_index == *variant_index {
                             payload_value.clone()
                         } else {
-                            Self::copy_data_zero_value(source_type)
+                            layout
+                                .lane_zero_value(lane)
+                                .expect("verified enum payload lane has a zero value")
                         };
                         let output = if position + 1 == payload_lanes.len() {
                             format!("reg{result}")
@@ -2631,17 +2606,11 @@ impl CodeGenerator {
                     let Value::Reg(value) = value else {
                         panic!("Expected register for checked enum payload source")
                     };
-                    let enum_type = Self::enum_schema_to_llvm(schema);
-                    let lane = if Self::enum_schema_is_scalar_only(schema) {
-                        match schema.variants[*variant_index].payload.as_ref() {
-                            Some(LogicalType::Int | LogicalType::Float) => 1,
-                            Some(LogicalType::Bool) => 2,
-                            _ => unreachable!("verified compact enum payload is scalar"),
-                        }
-                    } else {
-                        Self::enum_payload_lane(schema, *variant_index)
-                            .expect("verified aggregate enum payload has a lane")
-                    };
+                    let layout = EnumStorageLayout::legacy(schema);
+                    let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
+                    let lane = layout
+                        .payload_lane(*variant_index)
+                        .expect("verified enum payload has a lane");
                     llvm_ir.push_str(&format!(
                         "  %reg{result} = extractvalue {enum_type} %reg{value}, {lane}\n"
                     ));
@@ -2669,10 +2638,14 @@ impl CodeGenerator {
                     fields
                         .get(*field_index)
                         .expect("verified checked enum field index is in bounds");
-                    let enum_type = Self::enum_schema_to_llvm(schema);
-                    let payload_type = Self::copy_data_type_to_llvm(payload);
-                    let lane = Self::enum_payload_lane(schema, *variant_index)
+                    let layout = EnumStorageLayout::legacy(schema);
+                    let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
+                    let lane = layout
+                        .payload_lane(*variant_index)
                         .expect("verified multi-field enum variant has a lane");
+                    let payload_type = layout
+                        .lane_llvm_type(lane, &Self::struct_type_to_llvm)
+                        .expect("verified multi-field enum payload has a physical type");
                     let extracted_payload = self.fresh_reg();
                     llvm_ir.push_str(&format!(
                         "  %{extracted_payload} = extractvalue {enum_type} %reg{value}, {lane}\n"
@@ -2692,10 +2665,11 @@ impl CodeGenerator {
                     let first = targets
                         .first()
                         .expect("verified enum dispatch has a target");
-                    let tag = if schema.is_unit() {
+                    let layout = EnumStorageLayout::legacy(schema);
+                    let tag = if layout.is_unit() {
                         format!("%reg{value}")
                     } else {
-                        let enum_type = Self::enum_schema_to_llvm(schema);
+                        let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
                         let tag = self.fresh_reg();
                         llvm_ir.push_str(&format!(
                             "  %{tag} = extractvalue {enum_type} %reg{value}, 0\n"
@@ -3424,7 +3398,7 @@ mod tests {
             "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
         );
         assert_eq!(
-            CodeGenerator::struct_field_type_to_llvm(&recursive),
+            CodeGenerator::render_copy_data_layout(&recursive),
             "[0 x { double, [2 x { i1, %aero.struct.Leaf }], %aero.struct.Leaf }]"
         );
     }

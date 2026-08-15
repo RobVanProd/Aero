@@ -7,6 +7,7 @@ mod code_generator;
 mod compatibility;
 pub mod conformance;
 mod const_contract;
+mod copy_data_layout;
 mod copy_place_contract;
 mod copydata_trait_dispatch;
 mod enum_match_contract;
