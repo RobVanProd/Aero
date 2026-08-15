@@ -35,6 +35,7 @@ mod performance_optimizations;
 mod primitive_contract;
 pub mod quantization;
 pub mod registry;
+mod resolved_profile_authentication;
 mod resolved_profile_shape;
 mod scalar_assignment;
 pub mod semantic_analyzer;
@@ -127,7 +128,7 @@ pub struct CheckedProgramTimings {
 pub struct CheckedProgram {
     checked_ir: CheckedIr,
     language_profile: LanguageProfile,
-    _resolved_profile: resolved_profile_shape::ResolvedProfileProgram,
+    _resolved_profile: resolved_profile_authentication::AuthenticatedResolvedProfileProgram,
     semantic_message: String,
     direct_module_cache_material: Option<Vec<u8>>,
     timings: CheckedProgramTimings,
@@ -248,6 +249,11 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let checked_ir = ir_generator
         .try_generate_ir(analyzed_ast)
         .map_err(render_ir_generation_error)?;
+    let resolved_profile = resolved_profile_authentication::authenticate_resolved_profile(
+        resolved_profile,
+        &checked_ir,
+    )
+    .map_err(|error| error.to_string())?;
     let checked_ir_time = checked_ir_start.elapsed();
 
     Ok(CheckedProgram {

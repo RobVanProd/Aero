@@ -1,5 +1,229 @@
 # Aero Task Ledger
 
+## CAP-029-RESOLVED-PROFILE-AUTHENTICATION - behavior-neutral semantic-to-checked binding
+
+- Date/task/status: 2026-08-15,
+  `CAP-029-RESOLVED-PROFILE-AUTHENTICATION`, authorized ledger-first and
+  structural/mutation-red-first on
+  `agent/cap-029-resolved-profile-authentication` from exact accepted CAP-028
+  merge `5a5eccec5d2d6bf9d94e2be76c1f6442dbc73537`, tree
+  `026f23582ef29cc962fd3572d29a173fe837c30a`. CAP-028 is accepted through
+  protected PR #68; its candidate and merge trees are identical; candidate and
+  fresh merge-head CI, Rust stable/nightly, Windows LLVM 22, CodeQL, and evidence
+  workflows are green. User/app-owned `.codex-remote-attachments/` and `tmp/`
+  and quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  remain untouched.
+- Fresh ranking and observed behavior: two independent audits rank a narrow
+  behavior-neutral semantic-descriptor-to-verified-IR authentication boundary
+  first at 25, ahead of the newly re-eligible CAP-025 application profile at 24,
+  owned dynamic collection/streaming readiness at 21, and quantized-kernel
+  readiness at 19. One dissenting audit ranks direct CAP-025 implementation
+  first, but that slice would combine a public selector, source admission,
+  checked coverage, cache identity, backend instruction policy, recursive exact
+  physical selection, and cross-platform native evidence. CAP-028 currently
+  stores `_resolved_profile` beside `CheckedIr`, but `CheckedProgram` discards
+  that descriptor when generating LLVM. A codegen-only comparison would miss
+  every `check` route and verified CLI cache hit. No authenticated binding exists
+  between semantic facts and the independently verified checked metadata.
+- Hypothesis and bounded usefulness: immediately after
+  `IrGenerator::try_generate_ir` has returned verifier-accepted `CheckedIr`, the
+  library can compare CAP-028's immutable descriptor with `CheckedIr::metadata`
+  once and retain an opaque crate-private authenticated product in
+  `CheckedProgram`. This can prove exact normalized nominal identity, recursive
+  logical schema, and explicit function signature/place facts without walking
+  raw instructions, rebuilding registries, rerunning normalization or inference,
+  changing checked IR, or choosing a language/physical policy. It is the last
+  behavior-neutral corruption boundary before a separately authorized profile
+  may reject uncovered facts and select CAP-026 layout.
+- Frozen authentication semantics: authentication consumes one
+  `ResolvedProfileProgram` plus one already-verified `CheckedIr`. It may compare
+  only deterministic verifier metadata: exact normalized function identity;
+  ordered parameter names and logical types; explicit result type; named place
+  identity and logical type where the descriptor records an explicit binding;
+  and every recursively embedded struct/enum identity, field-type order/count,
+  enum variant name/order, and payload schema. Exact opaque private symbols are
+  equality authority; decoded generic/carrier display identity is provenance
+  only. Descriptor-only unused declarations are permitted. Excluded or
+  unresolved descriptor facts remain excluded or unresolved and can never be
+  promoted by a matching IR type.
+- Coverage, inference, and diagnostic boundary: CAP-028 intentionally has no
+  AST-event/IR-instruction IDs, inferred binding facts, source locations, or
+  expression-to-`PlaceId`/`ResultId` map. Authentication therefore records a
+  deterministic three-way coverage result for comparable facts: authenticated
+  exact match, explicit excluded/unresolved fact, or verifier-metadata
+  observation uncovered by an explicit descriptor root. Uncovered is not an
+  error, admission, or inferred type in CAP-029. The authenticator must not use
+  constructor/Match occurrence counts or attempt a total source-event-to-IR
+  bijection. Every currently accepted source must retain its exact result and
+  diagnostic precedence; only crate-private corruption fixtures may exercise a
+  deterministic authentication error.
+- Exact placement and compatibility boundary: call the authenticator exactly
+  once in canonical library preparation after checked IR has been generated and
+  verified and before `CheckedProgram` becomes visible to `check`, compiler
+  service, profiler, CLI build/run, or cache lookup. Preserve the public
+  `SemanticAnalyzer`, direct `IrGenerator`, direct `CodeGenerator`, `CheckedIr`,
+  and `CheckedProgram` API and Debug surfaces; current cache keys and cache
+  artifacts remain byte-identical. Backend re-verification remains independent
+  and unchanged. No `LanguageProfile`, `CopyDataLayout`, recursive-exact policy,
+  source admission, backend consumer, or new capability is authorized.
+- Exact allowed files: only this `TASK_LEDGER.md`; one new
+  `src/compiler/src/resolved_profile_authentication.rs`; module, canonical-route,
+  and stored-token plumbing in `src/compiler/src/lib.rs`; and one new focused
+  `src/compiler/tests/resolved_profile_authentication_tests.rs`. Unit tests may
+  live inside the new authority module. No change is authorized in
+  `resolved_profile_shape.rs`, `semantic_analyzer.rs`, `language_profile.rs`,
+  `ir.rs`, `ir_generator.rs`, `ir_verifier.rs`, `code_generator.rs`, `main.rs`,
+  any existing test, capability/state/roadmap document, example, workflow,
+  dependency, evidence bundle, benchmark, release, package, or external
+  artifact. Concurrent writers are forbidden; auditors remain read-only.
+- Red-first proof and acceptance tests: first freeze accepted CAP-028 source/file
+  diagnostic parity, `CheckedProgram` Debug text, cache-key controls, the three
+  representative Experimental/stable/exact LLVM digests, and native exit 91.
+  The behavior characterization must pass while one structural test fails only
+  because the authentication module/canonical call/token is absent. Before
+  production mutation, add crate-private mutation reds for same-name struct
+  field type/order/count drift; exact private `Result<T, E>` symbol, Ok/Err
+  order, and payload drift; function parameter name/order/type and explicit
+  result drift; and decoded-display substitution for an opaque symbol. Final
+  tests must prove unused descriptor declarations are allowed; untracked
+  inferred metadata becomes uncovered; excluded/unresolved facts are never
+  authenticated; authentication is deterministic and exactly once; every
+  profile-relevant recursive schema exposed by current checked instructions is
+  reachable through verifier metadata; and no raw-instruction schema classifier
+  exists in the new module. Run focused descriptor/canonical-pipeline/generic/
+  carrier/Match/ownership/profile/cache targets, formatting, all-target and
+  all-feature correctness-denying Clippy, diff hygiene, and repository-root
+  `./tools/test.sh` with one Cargo job, one Rust test thread, and pinned LLVM 22.
+- Risks and mandatory stops: risks are treating authentication as admission,
+  trusting decoded display names, correlating shadowed places incorrectly,
+  silently dropping unmatched metadata, duplicating verifier schema traversal,
+  missing check/cache routes, changing Debug/cache identity, or creating an
+  impossible canonical mismatch diagnostic with unstable order. Stop with
+  `NO IMPLEMENTATION` and rerank if the proof requires an AST-event/IR-instruction
+  bijection, expression inference, source locations, raw-instruction schema
+  walking, normalizer/registry construction, `CheckedIr` or verifier/generator
+  changes, a source rejection, a backend-only placement, language-profile or
+  physical-layout knowledge, more than the semantic and checked-boundary phases,
+  any current diagnostic/checked-IR/LLVM/native/cache delta, or more than the
+  four authorized files. Authorization, characterization, and structural-red
+  commits are explicit rollback points.
+
+### CAP-029 accepted-head characterization and structural-red checkpoint
+
+- The focused public target freezes CAP-028's three representative LLVM MD5s:
+  Experimental recursive records/enums/typed Result/Match remains
+  `724bac62708812d4302224fec1047be6`, stable-scalar-v0 remains
+  `cbb7a6446d27119d50f70868bc2b6a96`, and exact-i32-array-v0 remains
+  `54bbfe8dc403ba00ff0587fd3b99e14a`. Repeated source and source/file routes are
+  byte-identical. Experimental, stable, and exact source/file compile/check all
+  preserve the exact undeclared-name diagnostic; `CheckedProgram` retains its
+  prior Debug field set/order without descriptor/authentication leakage.
+- With one Cargo job, one Rust test thread, pinned LLVM 22, and accepted CAP-028
+  production code, the behavior characterization passes `1/1` and all three
+  native controls exit 91. The structural control then fails `0/1` only at
+  `CAP-029 intentional structural red:
+  resolved_profile_authentication.rs is absent`, before checking later
+  authority, canonical-placement, raw-IR prohibition, Debug, or cache-route
+  assertions. Correct-manifest formatting and `git diff --check` pass. No
+  production source has changed; the authorization and this test-only checkpoint
+  are clean rollback boundaries.
+
+### CAP-029 private mutation-red checkpoint
+
+- The new authority module is wired only so crate-private tests can compile; its
+  sole function reads `CheckedIr::metadata()` and then stops at the explicit
+  `CAP-029 intentional mutation red: authentication is not implemented`. Four
+  unit tests build a normalized descriptor and independently verifier-accepted
+  checked IR, then freeze deterministic baseline coverage plus heterogeneous
+  record type/order/count, exact private Result identity/variant/payload, and
+  function parameter name/order/type/result mutations. The target is exactly
+  `0/4`, with every failure at that one stub and no earlier parse, semantic,
+  checked-admission, or fixture error.
+- The public structural test now reaches the module and fails exactly because
+  the canonical library route contains zero authentication calls instead of one.
+  Its production-only scan also forbids raw IR/instruction/value access,
+  verifier re-entry, normalization, registries, semantic/AST work,
+  constructor/Match operation-count use, profile/layout/backend dependencies,
+  and alternate generator work. The frozen shadowing rule is fail-closed: local
+  binding occurrences are never correlated by name alone; inferred, ambiguous,
+  shadowed, parameter-colliding, absent, or mismatched places remain uncovered
+  rather than erroring or becoming authenticated. Formatting and diff hygiene
+  pass. This stub-and-tests commit is the final red rollback point before the
+  metadata-only implementation.
+
+### CAP-029 metadata-only implementation and focused-green checkpoint
+
+- The canonical checked route now calls one crate-private authenticator after
+  `IrGenerator::try_generate_ir` returns verifier-accepted `CheckedIr` and before
+  constructing `CheckedProgram`; the stored descriptor is replaced by an opaque
+  authenticated token. `CheckedProgram`'s five-field Debug representation, cache
+  key/material, public checked/raw APIs, checked IR, verifier, backend, language
+  profiles, and emitted LLVM remain unchanged. The authority calls
+  `CheckedIr::metadata()` exactly once and does not inspect raw instructions,
+  rerun verification, normalize source, construct registries, infer expressions,
+  or depend on source/profile/layout/backend policy.
+- Exact authentication covers normalized nominal identities and recursively
+  ordered schemas from every signature/result/place metadata root; exact Source,
+  concrete generic-function, and opaque trait-helper function identities with
+  ordered parameter names/types and explicit result types; and the narrow local
+  place class that CAP-028 can correlate without an event ID. That local class is
+  one explicit `MutableBinding` in one exact normalized function, one same-name
+  verifier place, no same-name parameter or second explicit binding, a present
+  descriptor shape, and exact logical equality. Immutable aggregate bindings,
+  inferred bindings, unavailable shapes, mismatches, duplicates, shadows,
+  parameter collisions, absent places, and every metadata result stay uncovered.
+  Excluded facts can be observed only as explicit-unavailable and are never
+  promoted. Constructor/Match operation counts remain deliberately unused.
+- Descriptor-only unused declarations remain accepted. Repeated unresolved
+  nominal identities and the accepted unused concrete-struct/unresolved-enum
+  same-name collision are retained as ambiguous and cannot authenticate a
+  metadata nominal by name. Two concrete same-name descriptor schemas still fail
+  deterministically, preserving the corruption control. Exact private symbols,
+  not decoded display names, remain identity authority.
+- Focused evidence is green with one Cargo build job and one Rust test thread:
+  authentication units `10/10`; public characterization/structural/native target
+  `3/3` with all native exits 91 and the frozen Experimental/stable/exact LLVM
+  digests; generic struct/enum/function, typed Result, trait dispatch, owned
+  Match, enum-loop fixed point, descriptor, stable-scalar, and exact-array
+  compatibility targets `60/60`; and cache identity/reverification controls
+  `8/8`. Correct-manifest formatting, `git diff --check`, and all-target,
+  all-feature Clippy with `-D clippy::correctness` pass. The final exact-content
+  repository-root `./tools/test.sh` gate exits 0 with 284/284 library tests,
+  35/35 CLI tests, every integration target (including CAP-024 at 6/6 and this
+  authentication target at 3/3), the Windows native system target, and doc tests
+  green. The final unavailable-local mutation assertion is included in that run.
+- The cumulative diff from accepted CAP-028 remains exactly the four authorized
+  files: this ledger, `src/compiler/src/lib.rs`, the new
+  `src/compiler/src/resolved_profile_authentication.rs`, and the new focused
+  `src/compiler/tests/resolved_profile_authentication_tests.rs`. User/app-owned
+  `.codex-remote-attachments/`, `tmp/`, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched. No capability,
+  semantic, stability, performance, accelerator, package, or release claim is
+  made by this behavior-neutral prerequisite.
+
+### CAP-029 accepted CORE-092 integration and post-prerequisite revalidation
+
+- CORE-092 was accepted through protected PR #70 at merge
+  `a7fdb9b47f4e326fca61a9850d2cfa9420205f27`; its candidate
+  `fce4a9e6709a4ea1cd35620710ad7a72f04ccb9d` and accepted merge share exact
+  tree `9fd89b70cd78dd7a4c8be535a09a1293d97f4910`. The accepted prerequisite was
+  merged normally into this CAP-029 branch as
+  `719bfa24b7dbf09be1b6a04f59d827c38caa2cc8`, without rebasing, force-pushing,
+  or rewriting either published history. The only conflict resolution preserved
+  the complete CAP-029 and CORE-092 ledger sections.
+- Post-integration focused targets pass `3/3` for CAP-029 authentication and
+  `3/3` for CORE-092 logical stack safety. The repository-root
+  `./tools/test.sh` gate exits 0 with 284/284 library tests, 35/35 CLI tests,
+  every integration target (including CAP-024 at 6/6, CAP-029 at 3/3, and
+  CORE-092 at 3/3), the Windows native system target, and doc tests green;
+  formatting and all-target, all-feature Clippy with
+  `-D clippy::correctness` also pass.
+- The cumulative CAP-029 diff from accepted `origin/master` remains exactly the
+  four authorized files above. User/app-owned directories and the quarantined
+  stash remain untouched. Refreshed protected CI on draft PR #69 is still
+  required before acceptance, and no unpublished capability or performance
+  claim is made.
+
 ## CORE-092-ITERATIVE-LOGICAL-STACK-SAFETY - behavior-neutral checked-IR prerequisite
 
 - Date/task/status: 2026-08-15,
