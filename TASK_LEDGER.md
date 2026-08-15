@@ -1,5 +1,136 @@
 # Aero Task Ledger
 
+## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
+
+- Date/task/status: 2026-08-15,
+  `CAP-035-OWNED-BYTE-BUFFER-READINESS`, ledger-first and behavior-neutral from
+  exact accepted CAP-032 merge `ce70f795e17a2da10253048c587cb475582c3f50`,
+  tree `0464664982d90c5f76dc44001007b2ac7ffeee1c`, on
+  `agent/cap-035-owned-byte-buffer-readiness` in the D:-resident worktree
+  `D:\Aero-worktrees\cap-035-owned-byte-buffer-readiness`.
+- Observed behavior and first honest source failures: the accepted Experimental
+  compiler rejects
+  `let mut bytes: Vec<int> = Vec::new();` with exact diagnostic
+  ``Semantic Analysis Error: enum `Vec` has no unique admitted definition``.
+  The parser treats `Name::Variant` uniformly as an enum construction, so
+  `Vec::new()` has no collection-constructor identity. The accepted compiler
+  rejects `let bytes: Vec<int> = vec![];` with exact diagnostic
+  `IR Generation Error: empty array literals have no admitted logical element type`;
+  `parse_vec_macro_literal` deliberately erases `vec![]` into the fixed-array
+  literal path. These probes used the exact accepted CAP-032 compiler binary and
+  D:-resident source/TEMP paths.
+- Repository evidence: `Ty::Vec` and `Inst::VecAlloca`/`VecPush`/`VecPop`/
+  `VecLength`/`VecCapacity`/`VecAccess`/`VecInit` are historical names only.
+  `ir_verifier::unsupported_instruction` rejects every Vec instruction, checked
+  code generation rejects the same family, and the old `stdlib::VecType`
+  helpers use fixed register numbers, panics, floating-point comparisons, and
+  explicitly simplified placeholder behavior. They are not a resource,
+  allocator, ownership, or runtime contract. The backend currently declares
+  only `printf` and conditional `llvm.trap`; no accepted allocation/deallocation
+  ABI or drop path exists.
+- Hypothesis: R1 is feasible only as three independently accepted checkpoints.
+  One source-visible implementation would otherwise cross frontend admission,
+  semantic ownership, checked-IR generation and verification, backend layout,
+  runtime linking, and platform evidence in one task. CAP-035 freezes the
+  dependency/semantic contract without changing compiler behavior. The ordered
+  implementation route is:
+  1. **R1A runtime ABI** — a behavior-neutral, replaceable allocator runtime and
+     driver/link contract with deterministic failure/counter test support;
+  2. **R1B checked resource substrate** — dedicated owned-byte checked IR,
+     verifier lifecycle/loan authority, and backend lowering, with no source
+     admission;
+  3. **R1C source/profile slice** — the explicit byte-buffer type/intrinsics,
+     semantic ownership, checked-IR production, and selected-profile policy
+     consuming R1A/R1B.
+- Frozen source identity for the eventual R1C slice: the source owner type is
+  exactly `ByteBuffer`; do not overload `Vec<T>`, `String`, a fixed array, a
+  record with a raw pointer, or the dormant Vec IR. The only initial intrinsic
+  functions are `bytes_new() -> ByteBuffer`,
+  `bytes_push(&mut ByteBuffer, int) -> Result<int, int>`,
+  `bytes_len(&ByteBuffer) -> int`,
+  `bytes_capacity(&ByteBuffer) -> int`, and
+  `bytes_get(&ByteBuffer, int) -> Result<int, int>`. Free functions deliberately
+  avoid inventing `Type::method` parsing semantics. The later selected profile
+  spelling is reserved as `exact-i32-byte-buffer-v0`; existing profiles must not
+  acquire byte-buffer behavior.
+- Frozen logical/value contract: one element is an exact logical byte represented
+  at the source boundary by `int` values in `0..=255` and physically by one
+  initialized `i8`. The owner descriptor is logically `(data, length, capacity)`;
+  `0 <= length <= capacity <= i32::MAX`, `capacity == 0` iff the empty owner has
+  a null data pointer, and only `[0, length)` may be read. Reserved bytes in
+  `[length, capacity)` are uninitialized and inaccessible. Loads zero-extend to
+  exact `i32`; stores narrow only after the range check. No unsupported value may
+  silently become a byte or integer.
+- Frozen growth/failure contract: `bytes_new` creates the allocation-free empty
+  owner. A push validates its byte before allocation; when growth is needed,
+  capacity changes deterministically from 0 to 8 and otherwise doubles without
+  exceeding `i32::MAX`. A successful push returns `Ok(new_length)`. Exact error
+  sentinels are `Err(1)` for a value outside `0..=255`, `Err(2)` for allocator
+  failure, `Err(3)` for exhausted capacity, and `Err(4)` for a `bytes_get` index
+  outside `[0, length)`. Every failure leaves pointer, initialized bytes, length,
+  and capacity unchanged. No panic, trap, partial mutation, implicit growth, or
+  allocator fallback is permitted.
+- Frozen runtime ABI boundary for R1A: emitted buffer LLVM will call exactly
+  `aero_alloc(i64 size) -> pointer`,
+  `aero_realloc(pointer old, i64 old_size, i64 new_size) -> pointer`, and
+  `aero_dealloc(pointer allocation, i64 size) -> void`. Zero-sized calls are not
+  emitted. Allocation returns null on failure. Reallocation failure returns null
+  while preserving the old allocation and bytes; success may move it. The
+  production runtime delegates to the platform allocator, while a separately
+  linked test implementation of the same ABI provides deterministic fail-after
+  behavior and exact allocation/reallocation/deallocation counters. The runtime,
+  LLVM/Clang, linker, and OS remain declared bootstrap trust-base components.
+- Frozen ownership/alias contract: `ByteBuffer` is non-Copy. Moving creates one
+  new owner and permanently invalidates the source. The initial source slice
+  permits local owners and local-to-local moves only; byte-buffer parameters,
+  results, record/array/tuple/enum/carrier payloads, globals, captured values, and
+  public ABI are excluded. Immutable and mutable aliases are non-escaping and
+  call-adjacent only. Any potentially reallocating operation requires the one
+  exclusive alias; move/drop and mutable access are forbidden while any alias is
+  live. Alias-end identity must match its start. Control-flow joins/backedges
+  require identical owner and loan state. Every live final owner is destroyed
+  exactly once on each reachable function return/fallthrough; moved owners are
+  never destroyed. Creating, moving, or destroying a buffer conditionally or
+  inside a loop is excluded from the first slice, while using one outer live
+  owner within admitted loops is allowed.
+- Frozen R1B checked-IR direction: add a dedicated `LogicalType::ByteBuffer` and
+  dedicated checked instructions for empty owner creation, move, immutable/
+  mutable borrow start/end, push, length, capacity, get, and drop. Do not revive,
+  reinterpret, or delete the dormant Vec instructions. The verifier, not backend
+  pattern matching, owns definition typing, live/moved/dropped state, exact loan
+  identity, join equality, no-use-after-move/drop, no mutation under a shared
+  loan, and exactly-one-drop-before-return. Backend emission begins only after
+  that verifier succeeds and must consume the verified metadata rather than
+  infer resource identity from names or registers.
+- Required evidence before R1 can be marked accepted: exact public source
+  negatives before R1C; R1A native allocator success/failure/counter parity on
+  Linux and Windows; R1B verifier mutations for wrong types/IDs, duplicate use,
+  use after move/drop, double/missing drop, mismatched borrow end, mutation under
+  alias, divergent joins, uninitialized read, and unchecked legacy Vec; O0/O2
+  LLVM verification and native parity; deterministic allocation failure that
+  preserves the owner; exactly-once drop counters for normal return, early
+  return, move, and loop use; sanitizer or an equivalently strong memory/runtime
+  oracle; full existing-profile byte/diagnostic/cache preservation.
+- CAP-035 exact allowed files: only this `TASK_LEDGER.md`,
+  `SELF_HOSTING_ROADMAP.md`, and new `OWNED_BYTE_BUFFER_READINESS.md`. No compiler
+  source, test, example, workflow, runtime, dependency, lockfile, evidence,
+  claim-verification, package, or release file may change. Because this task is
+  documentation/readiness only, it adds no behavior and requires no intentional
+  failing regression. Acceptance requires exact-link/content checks, Markdown
+  diff review, `git diff --check`, and the unchanged root `./tools/test.sh` gate
+  with one Cargo job/thread, pinned LLVM 22, and D:-resident TEMP/TMP/target.
+- Risks and mandatory stops: risks are mistaking historical Vec names for an
+  implementation, hiding allocation failure, reading uninitialized capacity,
+  narrowing arbitrary ints, aliasing across realloc, double/missing free,
+  platform allocator ABI drift, or calling a private checked-IR specimen R1.
+  CAP-035 stops rather than mutating production. Every later checkpoint must
+  stop if it exceeds two compiler phases, changes an accepted profile, needs
+  inferred resource identity, cannot deterministically test allocation failure,
+  cannot prove exactly-once destruction at control-flow joins, or requires an
+  unlisted semantic/ABI decision. R1 does not imply R2 input, D1 collections,
+  UTF-8 text, modules, a production frontend, self-hosting, memory-safety,
+  performance, release, or accelerator execution.
+
 ## CAP-032-EXACT-I32-RECORD-RESULT-PROFILE - bounded compiler application surface
 
 - Date/task/status: 2026-08-15,
