@@ -1535,6 +1535,85 @@ fn markdown_with_ordered_list_ranks(document: &str) -> String {
     markdown_outside_fences(&annotated)
 }
 
+fn markdown_with_post_cap024_ordered_list_ranks(document: &str) -> String {
+    let lines = document.lines().collect::<Vec<_>>();
+    let mut successor_rank_lines = vec![false; lines.len()];
+    let ordered_item = |raw_line: &str| {
+        let line = strip_blockquote_prefixes(raw_line);
+        let indentation = line.len() - line.trim_start_matches(' ').len();
+        let trimmed = &line[indentation..];
+        let digits = trimmed
+            .chars()
+            .take_while(|character| character.is_ascii_digit())
+            .count();
+        (digits > 0 && digits <= 9 && indentation <= 3)
+            .then(|| {
+                trimmed[digits..]
+                    .strip_prefix('.')
+                    .or_else(|| trimmed[digits..].strip_prefix(')'))
+                    .filter(|suffix| matches!(suffix.as_bytes().first(), Some(b' ' | b'\t')))
+                    .map(|suffix| (trimmed[..digits].to_owned(), suffix.trim_start().to_owned()))
+            })
+            .flatten()
+    };
+    let mut line_index = 0;
+    while line_index < lines.len() {
+        if ordered_item(lines[line_index]).is_none() {
+            line_index += 1;
+            continue;
+        }
+        let block_start = line_index;
+        let mut item_lines = Vec::new();
+        while line_index < lines.len() && !lines[line_index].trim().is_empty() {
+            if ordered_item(lines[line_index]).is_some() {
+                item_lines.push(line_index);
+            }
+            line_index += 1;
+        }
+        let block_words = semantic_words(&lines[block_start..line_index].join("\n"));
+        let categories = post_cap024_category_membership(&block_words);
+        if categories.iter().all(|present| *present) {
+            for item_line in item_lines {
+                successor_rank_lines[item_line] = true;
+            }
+        }
+    }
+
+    let mut annotated = String::with_capacity(document.len());
+    let mut paragraph_open = false;
+    let mut ordered_list_open = false;
+    for (line_index, raw_line) in lines.into_iter().enumerate() {
+        let line = strip_blockquote_prefixes(raw_line);
+        let ordered = ordered_item(raw_line).filter(|_| successor_rank_lines[line_index]);
+        let ordered = ordered.filter(|(rank, _)| {
+            !paragraph_open
+                || ordered_list_open
+                || rank.parse::<u64>().ok().is_some_and(|rank| rank == 1)
+        });
+        if let Some((rank, content)) = ordered {
+            let indentation = line.len() - line.trim_start_matches(' ').len();
+            annotated.push_str(&" ".repeat(indentation));
+            annotated.push_str("- Rank ");
+            annotated.push_str(&rank.parse::<u32>().unwrap_or_default().to_string());
+            annotated.push(' ');
+            annotated.push_str(&content);
+            paragraph_open = true;
+            ordered_list_open = true;
+        } else {
+            annotated.push_str(line);
+            if line.trim().is_empty() {
+                paragraph_open = false;
+                ordered_list_open = false;
+            } else {
+                paragraph_open = true;
+                ordered_list_open = false;
+            }
+        }
+        annotated.push('\n');
+    }
+    markdown_outside_fences(&annotated)
+}
+
 fn table_line(line: &str) -> &str {
     line.trim_start().strip_prefix('>').unwrap_or(line).trim()
 }
@@ -2943,9 +3022,13 @@ fn cap023_evidence_violation(document: &str) -> Option<String> {
             }
         }
         let words = semantic_words(&record);
-        if !has_semantic_capability(&words, "023")
-            && section_owner.as_ref().map(|(_, owner)| owner.as_str()) != Some("023")
-        {
+        let mentions = capability_mentions(&words);
+        let explicit_cap023 = mentions.iter().any(|(_, _, owner)| owner == "023");
+        let explicit_other_capability = mentions.iter().any(|(_, _, owner)| owner != "023");
+        let inherited_cap023 = section_owner.as_ref().map(|(_, owner)| owner.as_str())
+            == Some("023")
+            && !explicit_other_capability;
+        if !explicit_cap023 && !inherited_cap023 {
             continue;
         }
         for (position, word) in words.iter().enumerate() {
@@ -3849,37 +3932,53 @@ fn assert_post_cap023_successor_order(document_name: &str, document: &str) {
     );
 }
 
-fn post_cap024_category(words: &[String]) -> Option<u8> {
-    if words
+fn post_cap024_category_membership(words: &[String]) -> [bool; 3] {
+    let quantization = words
         .iter()
-        .any(|word| matches!(word.as_str(), "quantized" | "quantization"))
-    {
-        Some(3)
-    } else if words.iter().any(|word| {
+        .any(|word| matches!(word.as_str(), "quantized" | "quantization"));
+    let collections = words.iter().any(|word| {
         matches!(
             word.as_str(),
-            "vec" | "vector" | "vectors" | "list" | "lists"
+            "vec" | "vector" | "vectors" | "list" | "lists" | "string"
         )
-    }) || words.iter().any(|word| word == "string")
+    }) && words.iter().any(|word| {
+        matches!(
+            word.as_str(),
+            "owned"
+                | "dynamic"
+                | "collection"
+                | "collections"
+                | "streaming"
+                | "foundation"
+                | "implementation"
+                | "readiness"
+                | "allocation"
+                | "allocator"
+                | "drop"
+        )
+    }) || words
+        .iter()
+        .any(|word| matches!(word.as_str(), "collection" | "collections" | "streaming"))
+        && words.iter().any(|word| {
+            matches!(
+                word.as_str(),
+                "owned" | "dynamic" | "allocation" | "allocator" | "drop" | "foundation"
+            )
+        });
+    let composition = words.iter().any(|word| word == "copydata")
         && words
             .iter()
-            .any(|word| matches!(word.as_str(), "owned" | "dynamic"))
-        || words
-            .iter()
-            .any(|word| matches!(word.as_str(), "collection" | "collections" | "streaming"))
-            && words.iter().any(|word| {
-                matches!(
-                    word.as_str(),
-                    "owned" | "dynamic" | "allocation" | "allocator" | "drop" | "foundation"
-                )
-            })
-    {
+            .any(|word| matches!(word.as_str(), "application" | "profile" | "composition"));
+    [composition, collections, quantization]
+}
+
+fn post_cap024_category(words: &[String]) -> Option<u8> {
+    let [composition, collections, quantization] = post_cap024_category_membership(words);
+    if quantization {
+        Some(3)
+    } else if collections {
         Some(2)
-    } else if words.iter().any(|word| word == "copydata")
-        && words
-            .iter()
-            .any(|word| matches!(word.as_str(), "application" | "profile" | "composition"))
-    {
+    } else if composition {
         Some(1)
     } else {
         None
@@ -3897,7 +3996,7 @@ fn rank_word(word: &str) -> Option<u8> {
 }
 
 fn post_cap024_successor_order_violation(text: &str) -> Option<String> {
-    let ranked_rendered = markdown_with_ordered_list_ranks(text);
+    let ranked_rendered = markdown_with_post_cap024_ordered_list_ranks(text);
     let ranked_lines = ranked_rendered.lines().map(table_line).collect::<Vec<_>>();
     for (header_index, header) in ranked_lines.iter().enumerate() {
         let Some(cells) = table_cells(header) else {
@@ -4029,19 +4128,17 @@ fn post_cap024_successor_order_violation(text: &str) -> Option<String> {
             if categories.is_empty() {
                 continue;
             }
-            let nearest_category = |position: usize| {
-                categories
-                    .iter()
-                    .min_by_key(|(candidate, _)| candidate.abs_diff(position))
-                    .copied()
-            };
             for (position, word) in words.iter().enumerate() {
                 let Some(claimed) = rank_word(word) else {
                     continue;
                 };
-                let rank_relation = words
+                let explicit_rank_subject = words
                     .get(position.wrapping_sub(1))
                     .is_some_and(|word| word == "rank")
+                    && !categories
+                        .iter()
+                        .any(|(candidate, _)| *candidate < position);
+                let rank_relation = explicit_rank_subject
                     || words[position.saturating_sub(3)..position]
                         .iter()
                         .any(|word| {
@@ -4053,9 +4150,29 @@ fn post_cap024_successor_order_violation(text: &str) -> Option<String> {
                     || words
                         .get(position.wrapping_sub(1))
                         .is_some_and(|word| word == "priority");
+                let owned_category = if explicit_rank_subject {
+                    categories
+                        .iter()
+                        .filter(|(candidate, _)| *candidate > position)
+                        .min_by_key(|(candidate, _)| *candidate)
+                        .copied()
+                } else {
+                    categories
+                        .iter()
+                        .filter(|(candidate, _)| *candidate < position)
+                        .max_by_key(|(candidate, _)| *candidate)
+                        .copied()
+                        .or_else(|| {
+                            categories
+                                .iter()
+                                .filter(|(candidate, _)| *candidate > position)
+                                .min_by_key(|(candidate, _)| *candidate)
+                                .copied()
+                        })
+                };
                 if rank_relation
                     && !preceded_by_local_negation(&words, position)
-                    && nearest_category(position).is_some_and(|(_, expected)| expected != claimed)
+                    && owned_category.is_some_and(|(_, expected)| expected != claimed)
                 {
                     return Some(clause.trim().to_owned());
                 }
@@ -4436,6 +4553,11 @@ fn stale_cap023_current_head_violation(document: &str) -> Option<String> {
                     matches!(word.as_str(), "master" | "head" | "baseline" | "incumbent")
                 })
                 .map(|(position, _)| position)
+                .filter(|position| {
+                    words[*position] != "head"
+                        || *position == 0
+                        || words[*position - 1] != "accepted"
+                })
                 .collect::<Vec<_>>();
             let cap023_state = state_positions.iter().copied().find(|position| {
                 nearest_capability_owner(&words, *position, 1).as_deref() == Some("023")
@@ -4445,6 +4567,7 @@ fn stale_cap023_current_head_violation(document: &str) -> Option<String> {
                 continue;
             };
             let historical = has("historical")
+                || has("historically")
                 || has("formerly")
                 || has("former")
                 || has("previously")
@@ -4516,19 +4639,20 @@ fn nearest_capability_owner(
     subject_len: usize,
 ) -> Option<String> {
     let subject_end = subject_start + subject_len;
-    capability_mentions(words)
-        .into_iter()
-        .min_by_key(|(start, end, _)| {
-            let distance = if *end <= subject_start {
-                subject_start - *end
-            } else if *start >= subject_end {
-                *start - subject_end
-            } else {
-                0
-            };
-            (distance, usize::from(*start >= subject_end))
-        })
-        .map(|(_, _, number)| number)
+    let mentions = capability_mentions(words);
+    if let Some((_, _, owner)) = mentions.iter().find(|(start, _, _)| {
+        *start >= subject_end
+            && *start > 0
+            && matches!(words[*start - 1].as_str(), "by" | "for" | "under" | "to")
+    }) {
+        return Some(owner.clone());
+    }
+    mentions
+        .iter()
+        .rev()
+        .find(|(_, end, _)| *end <= subject_start)
+        .or_else(|| mentions.iter().find(|(start, _, _)| *start >= subject_end))
+        .map(|(_, _, owner)| owner.clone())
 }
 
 fn has_affirmative_relation(words: &[String], subject_start: usize, subject_len: usize) -> bool {
@@ -4568,6 +4692,41 @@ fn has_affirmative_relation(words: &[String], subject_start: usize, subject_len:
                 | "admit"
                 | "admits"
                 | "admitted"
+                | "change"
+                | "changes"
+                | "changed"
+                | "edit"
+                | "edits"
+                | "edited"
+                | "modify"
+                | "modifies"
+                | "modified"
+                | "work"
+                | "works"
+                | "available"
+                | "complete"
+                | "guarantee"
+                | "guarantees"
+                | "stabilize"
+                | "stabilizes"
+                | "offer"
+                | "offers"
+                | "give"
+                | "gives"
+                | "contain"
+                | "contains"
+                | "own"
+                | "owns"
+                | "belong"
+                | "belongs"
+                | "lack"
+                | "lacks"
+                | "exclude"
+                | "excludes"
+                | "omit"
+                | "omits"
+                | "reject"
+                | "rejects"
         );
         positive && !preceded_by_local_negation(words, start + offset)
     })
@@ -4954,7 +5113,70 @@ fn cap020_product_violation(text: &str) -> Option<String> {
                 {
                     let owner = nearest_capability_owner(&words, position, phrase.len())
                         .or_else(|| fallback_owner.clone());
+                    let zero_production = phrase.len() == 1
+                        && phrase[0] == "production"
+                        && words
+                            .get(position.wrapping_sub(1))
+                            .is_some_and(|word| word == "zero");
+                    let reversed_zero_production = zero_production
+                        && (words
+                            .get(position.wrapping_sub(2))
+                            .is_some_and(|word| matches!(word.as_str(), "non" | "not"))
+                            || position >= 3
+                                && words[position - 3..position]
+                                    .iter()
+                                    .map(String::as_str)
+                                    .eq(["no", "longer", "zero"]));
+                    if zero_production && !reversed_zero_production {
+                        continue;
+                    }
+                    let direct_copula_claim = words[..position]
+                        .iter()
+                        .rposition(|word| matches!(word.as_str(), "is" | "are" | "has" | "have"))
+                        .is_some_and(|relation| {
+                            position.saturating_sub(relation) <= 3
+                                && words[relation + 1..position].iter().all(|word| {
+                                    matches!(
+                                        word.as_str(),
+                                        "a" | "an" | "the" | "new" | "separate" | "general"
+                                    )
+                                })
+                        });
+                    let affirmative_value =
+                        words[position + phrase.len()..].iter().take(5).any(|word| {
+                            matches!(
+                                word.as_str(),
+                                "y" | "yes"
+                                    | "supported"
+                                    | "enabled"
+                                    | "implemented"
+                                    | "available"
+                                    | "complete"
+                                    | "works"
+                            )
+                        });
+                    let negated_negative_predicate = words[..position]
+                        .iter()
+                        .rposition(|word| {
+                            matches!(
+                                word.as_str(),
+                                "lack"
+                                    | "lacks"
+                                    | "exclude"
+                                    | "excludes"
+                                    | "omit"
+                                    | "omits"
+                                    | "reject"
+                                    | "rejects"
+                            )
+                        })
+                        .is_some_and(|relation| preceded_by_local_negation(&words, relation));
+                    let affirmative = has_affirmative_relation(&words, position, phrase.len())
+                        || direct_copula_claim
+                        || affirmative_value
+                        || negated_negative_predicate;
                     if owner.as_deref() == Some("020")
+                        && affirmative
                         && !leading_stop_condition
                         && !relation_is_negated(&words, position, phrase.len())
                     {
@@ -6586,6 +6808,7 @@ fn cap024_record_is_canonical(record: &str) -> bool {
         CAP024_BUNDLE_BOUNDARY,
         CAP024_ALERT_BOUNDARY,
         CAP024_MILESTONE_BOUNDARY,
+        CAP016_LOCAL_MODDECL_STOP_BOUNDARY,
     ]
     .iter()
     .any(|canonical| normalized == *canonical)
@@ -6665,7 +6888,8 @@ fn cap024_product_violation(text: &str) -> Option<String> {
         let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
         for clause in record.split(['.', ';', '!', '?']) {
             let words = semantic_words(clause);
-            if let Some((_, _, owner)) = capability_mentions(&words).last() {
+            let mentions = capability_mentions(&words);
+            if let Some((_, _, owner)) = mentions.last() {
                 carried_owner = Some(owner.clone());
             }
             if !has_semantic_capability(&words, "024") && carried_owner.as_deref() != Some("024") {
@@ -6692,6 +6916,8 @@ fn cap024_product_violation(text: &str) -> Option<String> {
                         "class" | "classified" | "classification" | "row"
                     )
                 });
+                let cap024_classification_context = classification_context
+                    && nearest_capability_owner(&words, position, 1).as_deref() == Some("024");
                 let direct_cap024_classification = capability_mentions(&words)
                     .iter()
                     .filter(|(_, end, owner)| owner == "024" && *end <= position)
@@ -6706,7 +6932,7 @@ fn cap024_product_violation(text: &str) -> Option<String> {
                         })
                     });
                 if !preceded_by_local_negation(&words, position)
-                    && (classification_context || direct_cap024_classification)
+                    && (cap024_classification_context || direct_cap024_classification)
                 {
                     return Some(clause.trim().to_owned());
                 }
@@ -6715,6 +6941,11 @@ fn cap024_product_violation(text: &str) -> Option<String> {
                 let Some(position) = semantic_phrase_position(&words, subject) else {
                     continue;
                 };
+                let subject_owner = nearest_capability_owner(&words, position, subject.len())
+                    .or_else(|| mentions.is_empty().then(|| carried_owner.clone()).flatten());
+                if subject_owner.as_deref() != Some("024") {
+                    continue;
+                }
                 let zero_production = subject.len() == 1
                     && subject[0] == "production"
                     && words
@@ -6884,15 +7115,20 @@ fn cap024_status_violation(text: &str) -> Option<String> {
                                     .iter()
                                     .any(|word| matches!(word.as_str(), "no" | "not" | "without"))
                         });
-                let wrong_alert_number = words[alert_position + 1..]
-                    .iter()
-                    .enumerate()
-                    .find_map(|(offset, word)| {
-                        word.parse::<u32>().ok().map(|number| (offset, number))
+                let alert_number_position = match words.get(alert_position + 1) {
+                    Some(word) if word == "number" => Some(alert_position + 2),
+                    Some(word) if word.parse::<u32>().is_ok() => Some(alert_position + 1),
+                    _ => None,
+                };
+                let wrong_alert_number = alert_number_position
+                    .and_then(|position| {
+                        words
+                            .get(position)
+                            .and_then(|word| word.parse::<u32>().ok())
+                            .map(|number| (position, number))
                     })
-                    .is_some_and(|(offset, number)| {
-                        number != 4
-                            && !preceded_by_local_negation(&words, alert_position + 1 + offset)
+                    .is_some_and(|(position, number)| {
+                        number != 4 && !preceded_by_local_negation(&words, position)
                     });
                 if new_alert || open_alert || surfaced_alert || has_alert || wrong_alert_number {
                     return Some(clause.trim().to_owned());
@@ -7179,14 +7415,44 @@ fn core090_overclaim_violation(text: &str) -> Option<String> {
         let mut carried_owner = section_owner.as_ref().map(|(_, owner)| owner.clone());
         for clause in record.split(['.', ';', '!', '?']) {
             let words = semantic_words(clause);
-            if let Some((_, _, owner)) = core_mentions(&words).last() {
-                carried_owner = Some(owner.clone());
+            let clause_core_mentions = core_mentions(&words);
+            let core090_is_range_endpoint = clause_core_mentions.windows(2).any(|pair| {
+                pair[1].2 == "090"
+                    && words[pair[0].1..pair[1].0]
+                        .iter()
+                        .any(|word| word == "through")
+            });
+            let directly_owned_core090 = clause_core_mentions.iter().any(|(start, _, owner)| {
+                if owner != "090" {
+                    return false;
+                }
+                let contextual_reference = *start > 0
+                    && matches!(
+                        words[*start - 1].as_str(),
+                        "post" | "after" | "before" | "following"
+                    );
+                let range_endpoint = clause_core_mentions.windows(2).any(|pair| {
+                    pair[1].0 == *start
+                        && words[pair[0].1..pair[1].0]
+                            .iter()
+                            .any(|word| word == "through")
+                });
+                !contextual_reference && !range_endpoint
+            });
+            if let Some((start, _, owner)) = clause_core_mentions.last() {
+                let contextual_reference = owner == "090"
+                    && *start > 0
+                    && matches!(
+                        words[*start - 1].as_str(),
+                        "post" | "after" | "before" | "following"
+                    );
+                carried_owner = if core090_is_range_endpoint || contextual_reference {
+                    section_owner.as_ref().map(|(_, owner)| owner.clone())
+                } else {
+                    Some(owner.clone())
+                };
             }
-            if !core_mentions(&words)
-                .iter()
-                .any(|(_, _, owner)| owner == "090")
-                && carried_owner.as_deref() != Some("090")
-            {
+            if !directly_owned_core090 && carried_owner.as_deref() != Some("090") {
                 continue;
             }
             let classification_context = words.iter().any(|word| {
@@ -7260,6 +7526,21 @@ fn core090_overclaim_violation(text: &str) -> Option<String> {
                 let Some(position) = semantic_phrase_position(&words, subject) else {
                     continue;
                 };
+                let leading_no_boundary = words.first().is_some_and(|word| word == "no")
+                    && !words[..position]
+                        .iter()
+                        .any(|word| matches!(word.as_str(), "but" | "yet" | "however" | "whereas"));
+                if leading_no_boundary {
+                    continue;
+                }
+                let bounded_historical_borrowing_fragments = *subject == ["borrowing"]
+                    && core090_is_range_endpoint
+                    && words.iter().any(|word| word == "implemented")
+                    && words.iter().any(|word| word == "fragments")
+                    && words.iter().any(|word| word == "before");
+                if bounded_historical_borrowing_fragments {
+                    continue;
+                }
                 let positive = has_affirmative_relation(&words, position, subject.len())
                     || words.iter().enumerate().any(|(verb_position, word)| {
                         matches!(
@@ -7825,7 +8106,7 @@ fn post_cap023_readiness_promotion_violation(text: &str) -> Option<String> {
 }
 
 fn post_cap024_readiness_promotion_violation(text: &str) -> Option<String> {
-    let ranked_rendered = markdown_with_ordered_list_ranks(text);
+    let ranked_rendered = markdown_with_post_cap024_ordered_list_ranks(text);
     let mut readiness_records = Vec::new();
     let mut section_readiness: Option<(usize, u8)> = None;
     for record in normalized_claim_records_from_rendered(&ranked_rendered) {
@@ -7837,8 +8118,23 @@ fn post_cap024_readiness_promotion_violation(text: &str) -> Option<String> {
         if POST_CAP024_DECISION_CONTRACTS.contains(&decision_record) {
             continue;
         }
-        if let Some((level, _)) = claim_heading(&record) {
-            if let Some(rank) = post_cap024_category(&semantic_words(&record)) {
+        let trimmed = record.trim_start();
+        let bold_heading =
+            trimmed.starts_with("**") && trimmed[2..].find("**").is_some_and(|closing| closing > 0);
+        let heading_level = atx_heading_level(&record).or(bold_heading.then_some(3));
+        if let Some(level) = heading_level {
+            let heading_text = if bold_heading {
+                let closing = trimmed[2..].find("**").expect("validated bold heading") + 4;
+                &trimmed[..closing]
+            } else {
+                record.lines().next().unwrap_or(&record)
+            };
+            let heading_words = semantic_words(heading_text);
+            let names_capability = !capability_mentions(&heading_words).is_empty();
+            let heading_rank = (!names_capability)
+                .then(|| post_cap024_category(&heading_words))
+                .flatten();
+            if let Some(rank) = heading_rank {
                 section_readiness = Some((level, rank));
             } else if section_readiness.is_some_and(|(owned_level, _)| level <= owned_level) {
                 section_readiness = None;
@@ -7876,6 +8172,8 @@ fn assert_cap020_contract_mutation_fixtures() {
         "CAP-020 proves the flat matvec; CAP-021 owns runtime acquisition.",
         "CAP-020 lacks matrix syntax, whereas CAP-021 adds matrix support.",
         "CAP-020 is product evidence, and matrix syntax belongs to CAP-021.",
+        "CAP-021 uses the unchanged language profile and accepted CAP-020 flat matvec.",
+        "Accepted CAP-020 adds the zero-production flat-buffer matvec product gate.",
         "Before CAP-020, matrix types were unsupported.",
         "CAP-020 is accepted. Matrix syntax remains future work.",
         "Stop rank 1 if CAP-020 would require file input or runtime ingestion.",
@@ -8333,6 +8631,13 @@ fn assert_cap023_contract_mutation_fixtures() {
     assert!(
         cap023_evidence_violation(&wrapped_list).is_none(),
         "a true continuation of one list item must remain one evidence paragraph"
+    );
+    let later_capability_role = format!(
+        "{CAP023_EVIDENCE_PARAGRAPH}\n\n## CAP-023\n\nExact CAP-024 reviewed candidate deadbeef."
+    );
+    assert!(
+        cap023_evidence_violation(&later_capability_role).is_none(),
+        "an explicit later capability must override inherited CAP-023 heading ownership"
     );
     let (evidence_head, evidence_tail) = CAP023_EVIDENCE_PARAGRAPH
         .split_once(" Candidate push CI")
@@ -8968,6 +9273,7 @@ fn assert_cap024_contract_mutation_fixtures() {
         "No new CAP-024 alert exists.",
         "CAP-024 does not await acceptance.",
         "CAP-024 is not awaiting acceptance.",
+        "Current CAP-024 alert state is recorded in the CAP-024 section below.",
     ] {
         assert!(cap024_status_violation(accepted).is_none(), "{accepted}");
     }
@@ -9006,6 +9312,8 @@ fn assert_cap024_contract_mutation_fixtures() {
         "CAP-024 makes no compiler edits.",
         "CAP-024 does not modify code generation.",
         "CAP-024 adds no runtime/file ingestion, activation, tensor, serialization, quantization, or conversion capability.",
+        "Accepted CAP-020 adds a zero-production product; accepted CAP-024 closes its evidence gap.",
+        "CAP-024 records immutable evidence only, while CAP-015 enriches the M1-001 END_TO_END row.",
     ] {
         assert!(cap024_product_violation(accepted).is_none(), "{accepted}");
     }
@@ -9056,6 +9364,7 @@ fn assert_cap024_contract_mutation_fixtures() {
         "CAP-023 is an accepted historical product checkpoint, not the current public master.",
         "CAP-023 was the current public master before CAP-024.",
         "CAP-023 remains the latest product checkpoint.",
+        "Its only claim is immutable accepted-head CAP-023 correctness.",
     ] {
         assert!(
             stale_cap023_current_head_violation(accepted).is_none(),
@@ -9115,6 +9424,7 @@ fn assert_cap024_contract_mutation_fixtures() {
         "Rank 2 dynamic collections remain readiness only.",
         "Rank 3 quantization remains a red probe only.",
         "Owned String remains a readiness-only collection probe, not implementation-ready.",
+        "**Closure status:** closures are parsed but unsupported in executable code.",
     ] {
         assert!(
             post_cap024_readiness_promotion_violation(accepted).is_none(),
@@ -9144,7 +9454,9 @@ fn assert_cap024_contract_mutation_fixtures() {
         "Owned dynamic collection/streaming foundation ranks second.",
         "Owned Vec<T> foundation ranks second.",
         "Quantization ranks third.",
+        "CopyData application-profile composition ranks first, owned dynamic collections rank second, and quantization ranks third.",
         "Historically accepted-head CAP-023 evidence ranked first before CAP-024.",
+        "1. A CPU workload with a quantized kernel\n2. A streaming component over owned Vec values\n3. A comparison against other tools",
     ] {
         assert!(
             post_cap024_successor_order_violation(accepted).is_none(),
@@ -9204,6 +9516,9 @@ fn assert_cap024_contract_mutation_fixtures() {
         "CORE-090 does not provide general memory safety or complete ownership.",
         "CORE-090 does not establish general memory safety and complete ownership.",
         "CORE-090 leaves projected borrowing, lifetime/drop, stable ABI, and accelerators excluded.",
+        "### CORE-090\n\nNo general borrow checker, lifetime/drop model, stable ABI, or memory-safety guarantee exists.",
+        "CORE-043 through CORE-090 implemented substantial borrowing and mutation fragments before the selected exits closed.",
+        "The post-CORE-090 M1-001 workflow is END_TO_END.",
         "Historically, CORE-090 was never STABLE.",
         "### CORE-090\n\nProjected borrowing remains excluded.",
     ] {

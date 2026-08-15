@@ -195,7 +195,8 @@ result-composition checkpoint; accepted CAP-019 widens that same profile with fu
 initialized mutable owned locals, direct projected element writes, and returned
 flat-array values rather than creating another profile. CAP-020, CAP-021, and CAP-023
 add product evidence over that unchanged profile rather than new feature semantics or
-profiles. CAP-015 remains the accepted M1-001 representative-integration checkpoint.
+profiles. CAP-024 adds immutable accepted-head evidence only. CAP-015 remains the
+accepted M1-001 representative-integration checkpoint.
 CAP-015 changes no compiler production or language-profile code. CAP-016 and CAP-017
 remain completed readiness/architecture stops, not accepted capabilities; neither adds
 a profile or matrix row. CAP-022 remains a mandatory runtime-acquisition
@@ -204,17 +205,92 @@ phase authority; CAP-018 and CAP-019 add no specialization classifier.
 
 | Rank | Capability gap | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
 |---:|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | Accepted-head CAP-023 inference correctness/reproducibility/artifact-footprint evidence gate with no performance claim | 4 | 5 | 5 | 5 | 5 | 4 | 28 |
-| 2 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+| 1 | Exact CPU + recursive-CopyData application-profile composition readiness and red probe only | 5 | 5 | 5 | 5 | 2 | 2 | 24 |
+| 2 | Owned dynamic collection/streaming foundation readiness and red probe, including its shared allocation/ownership/drop architecture, only | 5 | 5 | 5 | 5 | 1 | 1 | 22 |
 | 3 | Small quantized numerical-kernel readiness and red probe under one frozen cross-platform arithmetic-and-representation contract only | 5 | 5 | 3 | 5 | 1 | 1 | 20 |
 
-The accepted-head inference correctness/reproducibility/artifact-footprint evidence
-gate ranks first and makes no performance claim. Exact CPU plus recursive-CopyData
-application-profile composition ranks second at readiness/red-probe scope only. Small
-quantized numerical-kernel work ranks third at readiness/red-probe scope under one
-frozen cross-platform arithmetic-and-representation contract. Ranks 2 and 3 authorize
-no production implementation; real vector, matrix, tensor, ingestion, and accelerator
-workloads still require their separate contracts.
+1. Before rank 1, CAP-024 proves the exact accepted flat CAP-023 application and its
+   immutable correctness/reproducibility boundary, while recursive finite CopyData
+   structs, enums, typed `Result`, `Match`, and ownership slices remain separate
+   bounded `PARTIAL` experimental authorities rejected by `exact-i32-array-v0`.
+   After rank 1 readiness, a task-local source probe and architecture map must identify
+   the first composition failure and freeze whether one new application profile can
+   reuse exact-`i32` scalar/flat-array physical authority together with only
+   already-accepted recursive CopyData, typed-result, `Match`, and bounded ownership
+   contracts; define admitted types and operations, phase ownership, profile selection,
+   physical identity, rejection boundaries, verifier evidence, and Linux and Windows
+   oracles; and yield either one bounded later implementation contract within two
+   compiler phases or an explicit mandatory stop without widening either existing
+   profile.
+
+2. Stop rank 1 before implementation if composition requires changing
+   `stable-scalar-v0` or `exact-i32-array-v0`, importing broad experimental defaults,
+   inventing struct, enum, `Result`, layout, ABI, ownership, or error semantics,
+   reconciling duplicate type, physical, or specialization authorities, adding recursive
+   or nested exact arrays, crossing more than two compiler phases, or claiming general
+   CopyData, inference, safety, or language completion.
+
+3. Evidence that the CAP-023 workload can materially exercise existing CopyData
+   aggregates and typed failure under one bounded profile without new semantics and with
+   one shared exact physical/verifier authority raises rank 1 toward later
+   implementation; evidence that a flat record remains sufficient, that runtime ingress
+   is prerequisite, or that composition requires broad layout or ownership contracts
+   defers it and changes the decision.
+
+4. Before rank 2, accepted CAP-011 provides one fixed-capacity recursive-CopyData
+   `Window<T>` algorithm and the representative program composes only statically
+   bounded storage; Aero has no accepted owned dynamic collection, allocation, capacity
+   growth, initialized-length, reallocation, alias, failure, or drop contract. Legacy
+   `stdlib.rs` String/Vec helpers and their rejected checked-IR/backend instructions are
+   not source-language authority. After rank 2 readiness, a task-local
+   owned-collection/streaming source probe and architecture map must first freeze the
+   public type/API name, then the minimal useful element class and operations;
+   length/capacity/growth and initialized-state rules; allocation, failure,
+   move/borrow/alias, reallocation, iteration/indexing, and drop behavior; one physical
+   and verifier authority; rejection boundaries; and deterministic Linux and Windows
+   oracles, yielding either one bounded later implementation contract within two
+   compiler phases or a mandatory stop without claiming dynamic collections.
+
+5. Stop rank 2 before implementation if allocation, OOM/error, ownership, alias,
+   reallocation invalidation, lifetime, drop, runtime ABI, or element destruction
+   semantics remain unfrozen; if uninitialized elements can become observable; if legacy
+   unchecked helpers or verifier-rejected instructions would be activated; if the useful
+   slice crosses more than two compiler phases; or if invalid collection state can reach
+   trusted IR/backend or Linux and Windows behavior cannot be made equivalent and
+   observable.
+
+6. Evidence that fixed-capacity `Window<T>` plus flat source records serves the next
+   useful workload, that runtime ingress is prerequisite, or that one owned collection
+   requires broad allocator/drop/lifetime architecture keeps rank 2 at readiness scope;
+   only an explicit collection RFC plus a probe demonstrating one shared cross-platform
+   initialized-state, ownership, physical, error, and verifier authority within the
+   phase limit raises it toward later implementation.
+
+7. Before rank 3, CAP-024 preserves exact wrapping `i32` matvec, positive-only zero
+   clamp, two biased logits, and signed strict-greater argmax, but Aero has no frozen
+   quantized stored, accumulator, or result representation; scale or zero-point
+   contract; conversion, rounding, tie, saturation, or overflow behavior; calibration
+   provenance; malformed-state rule; or maintained cross-platform quantized oracle.
+   After rank 3 readiness, a task-local source-embedded red probe and architecture map
+   must locate the first failure and freeze every such decision plus operation order and
+   Linux/Windows equivalence, yielding either one bounded later implementation contract
+   within two compiler phases or an explicit mandatory stop without claiming
+   quantization capability.
+
+8. Stop rank 3 before implementation if any arithmetic or representation decision
+   remains unfrozen; if the slice requires implicit conversion, fallback typing,
+   unfounded division or rounding semantics, or a second numerical authority; if the
+   scalar-double helper is treated as source-language proof; if CAP-023 wrapping order
+   changes; if malformed quantization state can reach trusted IR or backend generation;
+   if the slice crosses more than two compiler phases; or if deterministic Linux and
+   Windows oracle parity cannot be proved.
+
+9. Evidence that exact CPU plus CopyData application composition must precede a
+   meaningful quantized oracle, or that exact `i32` continues to advance the next
+   workload without lossy representation, keeps rank 3 at readiness scope; only an
+   explicit quantization RFC plus a probe demonstrating one shared cross-platform
+   representation, arithmetic, malformed-state, and oracle authority within the phase
+   limit raises it toward later implementation.
 
 ## Platform matrix
 
@@ -249,7 +325,84 @@ reviews, and all required public CI checks pass at head `db349ef`.
 
 ## Current integration checkpoint
 
-Accepted CAP-023 adds one zero-production source-embedded fixed-shape
+Accepted CAP-024 records the immutable accepted-head correctness, reproducibility,
+observable-behavior, and artifact-footprint evidence-only checkpoint under the closed
+recorded boundary.
+
+Exact CAP-024 reviewed candidate
+`617bfce86feb879ee5eef61b44cf4e2a5520f022`, shared candidate/merge tree
+`9520f24e4f1626f16782a9775480f9653f6059bb`, accepted base and first merge parent
+`918c9222eb61e2435e18847e30b946cd08013238`, and protected PR #64 merge
+`2f7ec325e423461a8e867f4ee2573ae6dcf15dfd` whose second parent is that candidate are
+immutable. Candidate push CI `31764763341`, PR CI `31764765501`, Rust CI
+`31764765563`, CodeQL `31764763584`, and CAP-024 evidence run `31764765495`;
+candidate push/PR compiler jobs `94658200345`/`94658206474`,
+stable/nightly/Windows LLVM 22 jobs `94658207134`/`94658207170`/`94658207086`,
+CodeQL Actions/Python/Rust jobs `94658203257`/`94658203263`/`94658203316`, aggregate
+candidate CodeQL check `94658280067`, and Actions/Python/Rust analyses
+`1617260890`/`1617261159`/`1617264144` all pass. Candidate CAP-024
+Linux/Windows/aggregate jobs `94658206500`/`94658206555`/`94659098928` pass and
+artifact `9205970753` carries fresh manifest
+`bd5e609b4ce829579331a23170d6d9e4fc4d5906cb32779876a78bc24294812c` plus 132 fresh
+observations `62780d81e9dcaa6e85c08d0805608a58283816dd062c3a8bb1a8c67971ac551f`; its
+claim-bearing projection matches accepted canonical manifest
+`4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34`. Merge-head CI
+`31765227712`, Rust CI `31765227675`, CodeQL `31765227317`, and CAP-024 replay
+`31765227673`; exact merge compiler/stable/nightly/Windows LLVM 22 jobs
+`94659602474`/`94659602479`/`94659602493`/`94659602501`, CodeQL Actions/Python/Rust
+jobs `94659604078`/`94659604103`/`94659604064`, default-branch analyses
+`1617281747`/`1617282341`/`1617285598`, and CAP-024 aggregate replay job
+`94659602932` all pass. The two default-branch capture jobs
+`94659621233`/`94659603455` are correctly skipped because protected master validates
+the tracked bundle rather than replacing accepted observations.
+
+Current accepted public master and public evidence checkpoint is protected CAP-024
+merge `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd`, tree
+`9520f24e4f1626f16782a9775480f9653f6059bb`; its ordered parents are accepted base
+`918c9222eb61e2435e18847e30b946cd08013238` then reviewed candidate
+`617bfce86feb879ee5eef61b44cf4e2a5520f022`.
+
+CAP-024 is the current accepted public evidence checkpoint and protected public master.
+It adds no compiler production, parser, grammar, source semantics, profile, semantic
+analysis, checked IR, verifier, backend, example, product oracle, runtime behavior, ABI,
+capability classification, benchmark, resource-usage, performance, accelerator, safety,
+or general-inference capability. Its only claim is immutable accepted-head CAP-023
+correctness, within-platform target-artifact reproducibility, exact observable behavior,
+and artifact byte-size footprint under the closed recorded boundary.
+
+CAP-019 remains the latest compiler/profile widening; CAP-023 remains the latest product
+checkpoint. The selected `exact-i32-array-v0` row and the existing CAP-023 CPU
+backend-summary row remain byte-identical, and CAP-024 adds no language,
+selected-profile, or backend-summary row.
+
+The accepted catalog record remains
+`aero_cap023_inference_correctness_918c9222_20260813`, status
+`verified_correctness_reproducibility_only`, with exactly the tracked schema, canonical
+88,734-byte manifest SHA-256
+`4b4cfce95459761dddd588e09abb3046854e0c2afb361f08a9553f180f013a34`, oracle, and
+reproduction contract.
+
+The PR-only aggregate CodeQL check is correctly absent on the default branch.
+Default-branch Actions analysis `1617281747` carries only the pre-existing open alert #4
+created and last updated 2026-08-09; Python and Rust analyses contain zero results, and
+no new CAP-024 alert exists.
+
+The selected Milestone 0, Milestone 1, and Milestone 2 exits remain met for their bounded
+selected products; broader ambitions remain partial. Milestone 3 remains open. CAP-024
+closes the prior accepted-head correctness/reproducibility/artifact-footprint gap, but
+supplies no runtime ingestion, composed CopyData application profile, quantization,
+runtime-resource measurement, performance evidence, accelerator execution, or broader
+workload.
+
+Block-local `mod missing;` remains a demonstrated invalid-program false success because
+the common statement parser accepts it, `ModDecl` has no source location, and semantic
+plus checked admission silently discard it. CAP-016 already audited that exact defect
+and found that trustworthy placement/provenance rejection participates in the unfrozen
+module migration across more than two compiler phases. No new module RFC or
+decision-changing evidence exists, so CAP-016 remains a mandatory `NO IMPLEMENTATION`
+stop until its explicit re-entry condition is met.
+
+Accepted CAP-023 historically added one zero-production source-embedded fixed-shape
 ReLU-and-argmax inference product gate to the maintained conformance evidence. It is
 product evidence only: it adds no feature semantics, profile, or conformance row.
 
@@ -300,9 +453,9 @@ widening.
 The sole matrix change is the existing CPU backend-summary row remaining `PARTIAL`;
 no CAP-023 language feature or selected-profile row may be added.
 
-Current accepted public master is CAP-023 merge
-`e9b281504446465cfc8fcbe17c65cce92df0e83a`. The PR-only aggregate is correctly absent
-on the default branch. Default-branch Actions analysis `1612715455` contains only the
+CAP-023 merge `e9b281504446465cfc8fcbe17c65cce92df0e83a` is an accepted historical product
+checkpoint, not the current public master. The PR-only aggregate is correctly absent on
+the default branch. Default-branch Actions analysis `1612715455` contains only the
 pre-existing open alert #4 created 2026-08-09; Python and Rust analyses contain zero
 results; no new CAP-023 code-scanning alert exists.
 
@@ -448,8 +601,8 @@ CAP-015 remains the accepted M1-001 representative-integration checkpoint. CAP-0
 changes no compiler production or language-profile code. CAP-019 remains the latest
 accepted compiler/profile capability widening, CAP-018 remains its immutable-result
 checkpoint, and both widen CAP-014's first Milestone 3 CPU slice; CAP-020, CAP-021, and
-CAP-023 add product evidence only, while CAP-015 only enriches the M1-001
-`END_TO_END` row. General-purpose
+CAP-023 add product evidence only. CAP-024 records immutable accepted-head evidence
+only, while CAP-015 only enriches the M1-001 `END_TO_END` row. General-purpose
 text parsing, runtime Strings, serialization, runtime ingestion, file input, and
 Unicode text encoding/normalization remain unsupported; accepted CORE-072's bounded
 Unicode scalar `char` remains `PARTIAL`.
