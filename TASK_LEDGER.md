@@ -128,6 +128,29 @@
   production source has changed; the authorization and this test-only checkpoint
   are clean rollback boundaries.
 
+### CAP-029 private mutation-red checkpoint
+
+- The new authority module is wired only so crate-private tests can compile; its
+  sole function reads `CheckedIr::metadata()` and then stops at the explicit
+  `CAP-029 intentional mutation red: authentication is not implemented`. Four
+  unit tests build a normalized descriptor and independently verifier-accepted
+  checked IR, then freeze deterministic baseline coverage plus heterogeneous
+  record type/order/count, exact private Result identity/variant/payload, and
+  function parameter name/order/type/result mutations. The target is exactly
+  `0/4`, with every failure at that one stub and no earlier parse, semantic,
+  checked-admission, or fixture error.
+- The public structural test now reaches the module and fails exactly because
+  the canonical library route contains zero authentication calls instead of one.
+  Its production-only scan also forbids raw IR/instruction/value access,
+  verifier re-entry, normalization, registries, semantic/AST work,
+  constructor/Match operation-count use, profile/layout/backend dependencies,
+  and alternate generator work. The frozen shadowing rule is fail-closed: local
+  binding occurrences are never correlated by name alone; inferred, ambiguous,
+  shadowed, parameter-colliding, absent, or mismatched places remain uncovered
+  rather than erroring or becoming authenticated. Formatting and diff hygiene
+  pass. This stub-and-tests commit is the final red rollback point before the
+  metadata-only implementation.
+
 ## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
 
 - Date/task/status: 2026-08-15,

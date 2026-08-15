@@ -35,6 +35,7 @@ mod performance_optimizations;
 mod primitive_contract;
 pub mod quantization;
 pub mod registry;
+mod resolved_profile_authentication;
 mod resolved_profile_shape;
 mod scalar_assignment;
 pub mod semantic_analyzer;
