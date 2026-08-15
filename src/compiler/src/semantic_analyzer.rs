@@ -37,6 +37,7 @@ use crate::ownership_flow::{
     statement_reaches_merge,
 };
 use crate::primitive_contract::PrimitiveKind;
+use crate::resolved_profile_shape::ResolvedProfileProgram;
 use crate::scalar_assignment::{
     OwnedPlaceAssignmentDisposition, OwnedPlaceAssignmentTargetFacts,
     ProjectedCopyDataAssignmentDisposition, classify_owned_place_assignment,
@@ -1376,6 +1377,24 @@ impl SemanticAnalyzer {
             }
         }
         Ok(("Semantic analysis completed successfully".to_string(), ast))
+    }
+
+    pub(crate) fn analyze_with_resolved_profile(
+        &mut self,
+        ast: Vec<AstNode>,
+    ) -> Result<(String, Vec<AstNode>, ResolvedProfileProgram), String> {
+        let (message, ast) = self.analyze(ast)?;
+        let resolved_profile = ResolvedProfileProgram::from_semantic_success(
+            &ast,
+            &self.struct_registry,
+            &self.enum_registry,
+            |name| {
+                self.function_table
+                    .get_admitted_contract(name)
+                    .map(|contract| (contract.parameters.clone(), contract.return_type.clone()))
+            },
+        );
+        Ok((message, ast, resolved_profile))
     }
 
     fn numeric_contract_type(ty: &crate::ast::Type) -> Option<Ty> {

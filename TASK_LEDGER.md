@@ -128,6 +128,63 @@
   boundaries; implementation must turn the structural control green without
   changing any frozen digest or diagnostic.
 
+### CAP-028 locally green implementation and adversarial-correction checkpoint
+
+- Implementation summary: one new crate-private `resolved_profile_shape`
+  authority reuses `LogicalType`, `ProfileTypeUse`, and the semantic analyzer's
+  final `StructRegistry`/`EnumRegistry` plus admitted function contracts. One
+  deterministic normalized-AST walk records memoized logical shapes, ordered
+  record and enum declarations, opaque normalized identities with decoded
+  source provenance, explicit transport roots, construction order, exact enum
+  variants, and exhaustive-Match arm order. Unsupported, ambiguous, cyclic,
+  inferred, generic-source, preserved-method, nested-carrier, and otherwise
+  unfrozen observations fail closed as excluded or unresolved. No profile,
+  checked-IR, verifier, backend, cache key, layout selector, or source
+  diagnostic changed.
+- Canonical plumbing: public `SemanticAnalyzer::analyze` remains unchanged. A
+  single crate-private rich success calls it once, then finalizes from the same
+  analyzer-owned registries. Library preparation stores the immutable product
+  beside unchanged `CheckedIr`. `CheckedProgram` keeps its prior Debug field
+  set and order through an explicit implementation, so the out-of-band product
+  does not alter that compatibility surface.
+- Adversarial corrections: independent reviewers found and closed fail-closed
+  context gaps for private generic functions, admitted call arguments,
+  wildcard-only Match identity, validated Result reuse, nested carriers,
+  implicit returns, impl/top-level name collisions, and trait default methods.
+  Impl and trait methods now use isolated container-qualified preserved-method
+  frames; their explicit parameters, results, bindings, assignments, returns,
+  and operations retain exact shapes only as excluded facts and cannot inherit
+  an outer function scope. The final design re-review reports no remaining
+  concrete blocker.
+- Exact proof: descriptor unit tests pass `4/4`, including exact private-name
+  decoder round trips and logical-name equality; shared child memoization;
+  ordered Pair and Result schemas; `Result<Pair, int>` constructor and Match
+  identities; a constructor-free by-value call; concrete generic-function
+  roots as `Excluded(Some(Int-or-Bool))`; flat-array reuse and unsupported-array
+  negatives; nested-carrier exclusion; one loop-body observation; analyzer
+  reuse; checked-IR equality; cyclic/unknown declarations; implicit results;
+  and isolated impl/trait contexts. The public focused target passes `3/3`,
+  preserving the three accepted LLVM MD5 digests, exact source/file and
+  compile/check diagnostics, the prior `CheckedProgram` Debug surface, and
+  native exit `91` under Experimental, stable-scalar-v0, and
+  exact-i32-array-v0 with pinned LLVM 22.
+- Compatibility evidence: the nine focused targets
+  `canonical_checked_pipeline_tests`, `generic_copydata_struct_tests`,
+  `generic_copydata_enum_tests`, `generic_copydata_function_tests`,
+  `typed_error_carrier_tests`, `copydata_match_result_tests`,
+  `loop_enum_fixed_point_tests`, `stable_scalar_profile_tests`, and
+  `fixed_int_array_profile_tests` all pass. `cargo fmt --check`, all-target and
+  all-feature correctness-denying Clippy, and `git diff --check` pass. Exact
+  repository-root `./tools/test.sh`, immutable candidate identity, public
+  workflows, protected merge, and post-merge verification remain pending, so
+  this is local candidate evidence only and not public acceptance.
+- Scope and risk: the cumulative task changes exactly the five authorized files.
+  User/app-owned untracked directories and the quarantined stash remain
+  untouched. The descriptor is intentionally unused policy input in this task;
+  a future profile consumer must be separately authorized and must authenticate
+  it against observed checked IR before selecting CAP-026 physical layout.
+  Candidate identity will be frozen only after the full root gate succeeds.
+
 ## CAP-027-RESOLVED-PROFILE-SHAPE-READINESS - post-normalization descriptor placement proof
 
 - Date/task/status: 2026-08-15,

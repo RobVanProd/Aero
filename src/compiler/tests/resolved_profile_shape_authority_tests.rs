@@ -1,8 +1,10 @@
 use compiler::{
     CompilerOptions, LanguageProfile, check_file, check_program, compile_file, compile_program,
+    prepare_checked_program_for_compiler_service,
 };
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const EXPERIMENTAL_RECURSIVE_SOURCE: &str = r#"
@@ -196,6 +198,16 @@ fn accepted_behavior_is_frozen_before_resolved_profile_authority() {
         "exact descriptor control became nondeterministic"
     );
 
+    let checked_debug = format!(
+        "{:?}",
+        prepare_checked_program_for_compiler_service(STABLE_SCALAR_SOURCE, None, None)
+            .expect("canonical checked preparation must remain available")
+    );
+    assert!(
+        !checked_debug.contains("resolved_profile"),
+        "the out-of-band prerequisite changed CheckedProgram's compatibility Debug surface"
+    );
+
     let workspace = TempWorkspace::new();
     for (name, source, profile, expected) in [
         (
@@ -295,6 +307,45 @@ fn accepted_behavior_is_frozen_before_resolved_profile_authority() {
 }
 
 #[test]
+fn representative_native_sentinels_remain_91() {
+    let workspace = TempWorkspace::new();
+    for (name, source, profile) in [
+        (
+            "experimental-native.aero",
+            EXPERIMENTAL_RECURSIVE_SOURCE,
+            LanguageProfile::Experimental,
+        ),
+        (
+            "stable-native.aero",
+            STABLE_SCALAR_SOURCE,
+            LanguageProfile::StableScalarV0,
+        ),
+        (
+            "exact-native.aero",
+            EXACT_CAP023_SOURCE,
+            LanguageProfile::ExactI32ArrayV0,
+        ),
+    ] {
+        let path = workspace.source(name, source);
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .arg("run")
+            .arg(&path)
+            .arg("--language-profile")
+            .arg(profile.as_str())
+            .current_dir(&workspace.0)
+            .output()
+            .unwrap_or_else(|error| panic!("failed to run {profile:?} sentinel: {error}"));
+        assert_eq!(
+            output.status.code(),
+            Some(91),
+            "{profile:?} native sentinel drifted (stdout={:?}, stderr={:?})",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+    }
+}
+
+#[test]
 fn resolved_profile_shape_has_one_post_semantic_authority() {
     let root = repository_root();
     let authority_path = root.join("src/compiler/src/resolved_profile_shape.rs");
@@ -304,12 +355,17 @@ fn resolved_profile_shape_has_one_post_semantic_authority() {
     );
 
     let authority = read(&authority_path);
+    let authority_production = authority
+        .split("\n#[cfg(test)]")
+        .next()
+        .expect("resolved profile-shape source has a production prefix");
     let library = read(&root.join("src/compiler/src/lib.rs"));
     let semantics = read(&root.join("src/compiler/src/semantic_analyzer.rs"));
 
-    assert!(
-        library.contains("mod resolved_profile_shape;"),
-        "crate root does not own the resolved profile-shape authority"
+    assert_eq!(
+        library.matches("mod resolved_profile_shape;").count(),
+        1,
+        "crate root must own exactly one resolved profile-shape authority"
     );
     for anchor in [
         "ResolvedProfileProgram",
@@ -324,7 +380,7 @@ fn resolved_profile_shape_has_one_post_semantic_authority() {
         "ExhaustiveMatch",
     ] {
         assert!(
-            authority.contains(anchor),
+            authority_production.contains(anchor),
             "resolved profile-shape authority omitted `{anchor}`"
         );
     }
@@ -337,10 +393,47 @@ fn resolved_profile_shape_has_one_post_semantic_authority() {
         "infer_and_validate_expression",
     ] {
         assert!(
-            !authority.contains(forbidden),
+            !authority_production.contains(forbidden),
             "descriptor authority duplicated semantic work via `{forbidden}`"
         );
     }
+    for duplicate in ["enum ProfileTypeUse", "enum LogicalType"] {
+        assert!(
+            !authority_production.contains(duplicate),
+            "descriptor authority declared a duplicate `{duplicate}`"
+        );
+    }
+    for forbidden_dependency in [
+        "LanguageProfile",
+        "IrGenerator",
+        "CheckedIr",
+        "CopyDataLayout",
+    ] {
+        assert!(
+            !authority_production.contains(forbidden_dependency),
+            "descriptor production authority crossed into `{forbidden_dependency}`"
+        );
+    }
+    let build_body = authority_production
+        .split("fn build(")
+        .nth(1)
+        .and_then(|tail| tail.split("\n    fn record_declaration").next())
+        .expect("descriptor authority must expose one isolated build body");
+    assert_eq!(
+        build_body.matches("for node in ast").count(),
+        1,
+        "semantic success must traverse the normalized AST exactly once"
+    );
+    assert_eq!(
+        build_body.matches("self.record_declaration(node)").count(),
+        1,
+        "each normalized node must contribute declaration facts exactly once"
+    );
+    assert_eq!(
+        build_body.matches("self.walk_node(node)").count(),
+        1,
+        "each normalized node must contribute use and operation facts exactly once"
+    );
     assert_eq!(
         semantics
             .matches("ResolvedProfileProgram::from_semantic_success")
@@ -354,6 +447,13 @@ fn resolved_profile_shape_has_one_post_semantic_authority() {
         ),
         "public SemanticAnalyzer::analyze signature changed"
     );
+    assert_eq!(
+        semantics
+            .matches("pub(crate) fn analyze_with_resolved_profile")
+            .count(),
+        1,
+        "rich semantic success must remain one crate-private entrypoint"
+    );
     assert!(
         library.contains(".analyze_with_resolved_profile(ast)"),
         "canonical library preparation does not consume the rich semantic success"
@@ -361,5 +461,14 @@ fn resolved_profile_shape_has_one_post_semantic_authority() {
     assert!(
         library.contains("_resolved_profile:"),
         "CheckedProgram does not carry the immutable descriptor out of band"
+    );
+    let checked_debug = library
+        .split("impl std::fmt::Debug for CheckedProgram")
+        .nth(1)
+        .and_then(|tail| tail.split("impl CheckedProgram").next())
+        .expect("CheckedProgram must preserve its compatibility Debug surface");
+    assert!(
+        !checked_debug.contains("_resolved_profile"),
+        "CheckedProgram Debug leaked the out-of-band prerequisite"
     );
 }
