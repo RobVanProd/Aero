@@ -141,10 +141,26 @@ pub(crate) enum ResolvedProfileOperation {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileSurfaceContext {
+    FileScope,
+    Function(ResolvedProfileOrigin),
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ResolvedProfileSurfaceObservation {
-    Statement(ResolvedProfileStatementKind),
-    Expression(ResolvedProfileExpressionKind),
-    Pattern(ResolvedProfilePatternKind),
+    Statement {
+        context: ResolvedProfileSurfaceContext,
+        kind: ResolvedProfileStatementKind,
+    },
+    Expression {
+        context: ResolvedProfileSurfaceContext,
+        kind: ResolvedProfileExpressionKind,
+    },
+    Pattern {
+        context: ResolvedProfileSurfaceContext,
+        kind: ResolvedProfilePatternKind,
+    },
 }
 
 #[allow(dead_code)]
@@ -584,11 +600,20 @@ where
         }
     }
 
+    fn surface_context(&self) -> ResolvedProfileSurfaceContext {
+        self.function
+            .clone()
+            .map(ResolvedProfileSurfaceContext::Function)
+            .unwrap_or(ResolvedProfileSurfaceContext::FileScope)
+    }
+
     fn walk_statement(&mut self, statement: &Statement, is_top_level: bool) {
+        let context = self.surface_context();
         self.surface
-            .push(ResolvedProfileSurfaceObservation::Statement(
-                statement_kind(statement, is_top_level),
-            ));
+            .push(ResolvedProfileSurfaceObservation::Statement {
+                context,
+                kind: statement_kind(statement, is_top_level),
+            });
         match statement {
             Statement::Const {
                 name,
@@ -713,15 +738,17 @@ where
                         trait_bounds,
                     } = method
                     {
+                        let context = self.surface_context();
                         self.surface
-                            .push(ResolvedProfileSurfaceObservation::Statement(
-                                ResolvedProfileStatementKind::Function {
+                            .push(ResolvedProfileSurfaceObservation::Statement {
+                                context,
+                                kind: ResolvedProfileStatementKind::Function {
                                     top_level: false,
                                     generic: !type_params.is_empty(),
                                     trait_bounded: !trait_bounds.is_empty(),
                                     explicit_result: return_type.is_some(),
                                 },
-                            ));
+                            });
                         self.walk_preserved_method(
                             ResolvedProfileOrigin::ImplMethod {
                                 type_name: type_name.clone(),
@@ -737,15 +764,17 @@ where
             }
             Statement::TraitDef { name, methods, .. } => {
                 for method in methods {
+                    let context = self.surface_context();
                     self.surface
-                        .push(ResolvedProfileSurfaceObservation::Statement(
-                            ResolvedProfileStatementKind::Function {
+                        .push(ResolvedProfileSurfaceObservation::Statement {
+                            context,
+                            kind: ResolvedProfileStatementKind::Function {
                                 top_level: false,
                                 generic: false,
                                 trait_bounded: false,
                                 explicit_result: method.return_type.is_some(),
                             },
-                        ));
+                        });
                     self.walk_preserved_method(
                         ResolvedProfileOrigin::TraitMethod {
                             trait_name: name.clone(),
@@ -901,10 +930,12 @@ where
         expected: Option<ResolvedProfileResolution>,
         record_expected_value: bool,
     ) {
+        let context = self.surface_context();
         self.surface
-            .push(ResolvedProfileSurfaceObservation::Expression(
-                expression_kind(expression),
-            ));
+            .push(ResolvedProfileSurfaceObservation::Expression {
+                context,
+                kind: expression_kind(expression),
+            });
         if record_expected_value {
             if let Some(expected) = &expected {
                 self.record_use(ProfileTypeUse::Value, None, expected.clone());
@@ -1178,10 +1209,12 @@ where
     }
 
     fn walk_pattern(&mut self, pattern: &Pattern) {
+        let context = self.surface_context();
         self.surface
-            .push(ResolvedProfileSurfaceObservation::Pattern(pattern_kind(
-                pattern,
-            )));
+            .push(ResolvedProfileSurfaceObservation::Pattern {
+                context,
+                kind: pattern_kind(pattern),
+            });
         match pattern {
             Pattern::Literal(expression) => self.walk_expression(expression, None, false),
             Pattern::Tuple(patterns) => {
@@ -1882,6 +1915,53 @@ fn main() -> int {
         program.shapes.get(id.0)
     }
 
+    fn file_statement(kind: ResolvedProfileStatementKind) -> ResolvedProfileSurfaceObservation {
+        ResolvedProfileSurfaceObservation::Statement {
+            context: ResolvedProfileSurfaceContext::FileScope,
+            kind,
+        }
+    }
+
+    fn file_expression(kind: ResolvedProfileExpressionKind) -> ResolvedProfileSurfaceObservation {
+        ResolvedProfileSurfaceObservation::Expression {
+            context: ResolvedProfileSurfaceContext::FileScope,
+            kind,
+        }
+    }
+
+    fn file_pattern(kind: ResolvedProfilePatternKind) -> ResolvedProfileSurfaceObservation {
+        ResolvedProfileSurfaceObservation::Pattern {
+            context: ResolvedProfileSurfaceContext::FileScope,
+            kind,
+        }
+    }
+
+    fn source_context(function: &str) -> ResolvedProfileSurfaceContext {
+        ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source {
+            normalized: function.to_string(),
+        })
+    }
+
+    fn source_statement(
+        function: &str,
+        kind: ResolvedProfileStatementKind,
+    ) -> ResolvedProfileSurfaceObservation {
+        ResolvedProfileSurfaceObservation::Statement {
+            context: source_context(function),
+            kind,
+        }
+    }
+
+    fn source_expression(
+        function: &str,
+        kind: ResolvedProfileExpressionKind,
+    ) -> ResolvedProfileSurfaceObservation {
+        ResolvedProfileSurfaceObservation::Expression {
+            context: source_context(function),
+            kind,
+        }
+    }
+
     #[test]
     fn surface_projection_covers_every_statement_category() {
         let location = crate::errors::SourceLocation::new(1, 1);
@@ -2348,16 +2428,12 @@ fn main() -> int {
         assert_eq!(
             builder.surface,
             vec![
-                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Tuple,),
-                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Literal,),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::IntegerLiteral,
-                ),
-                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Struct,),
-                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Literal,),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::IntegerLiteral,
-                ),
+                file_pattern(ResolvedProfilePatternKind::Tuple),
+                file_pattern(ResolvedProfilePatternKind::Literal),
+                file_expression(ResolvedProfileExpressionKind::IntegerLiteral),
+                file_pattern(ResolvedProfilePatternKind::Struct),
+                file_pattern(ResolvedProfilePatternKind::Literal),
+                file_expression(ResolvedProfileExpressionKind::IntegerLiteral),
             ]
         );
 
@@ -2397,44 +2473,32 @@ fn main() -> int {
         assert_eq!(
             program.surface,
             vec![
-                ResolvedProfileSurfaceObservation::Statement(
-                    ResolvedProfileStatementKind::Function {
-                        top_level: true,
-                        generic: false,
-                        trait_bounded: false,
-                        explicit_result: true,
-                    },
+                file_statement(ResolvedProfileStatementKind::Function {
+                    top_level: true,
+                    generic: false,
+                    trait_bounded: false,
+                    explicit_result: true,
+                }),
+                source_statement(
+                    "main",
+                    ResolvedProfileStatementKind::Let {
+                        mutable: false,
+                        annotated: false,
+                        initialized: true,
+                    }
                 ),
-                ResolvedProfileSurfaceObservation::Statement(ResolvedProfileStatementKind::Let {
-                    mutable: false,
-                    annotated: false,
-                    initialized: true,
-                },),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::FloatLiteral,
-                ),
-                ResolvedProfileSurfaceObservation::Statement(
-                    ResolvedProfileStatementKind::Expression,
-                ),
-                ResolvedProfileSurfaceObservation::Expression(ResolvedProfileExpressionKind::Print,),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::Identifier,
-                ),
-                ResolvedProfileSurfaceObservation::Statement(
-                    ResolvedProfileStatementKind::Expression,
-                ),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::Println,
-                ),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::Identifier,
-                ),
-                ResolvedProfileSurfaceObservation::Statement(
+                source_expression("main", ResolvedProfileExpressionKind::FloatLiteral),
+                source_statement("main", ResolvedProfileStatementKind::Expression),
+                source_expression("main", ResolvedProfileExpressionKind::Print),
+                source_expression("main", ResolvedProfileExpressionKind::Identifier),
+                source_statement("main", ResolvedProfileStatementKind::Expression),
+                source_expression("main", ResolvedProfileExpressionKind::Println),
+                source_expression("main", ResolvedProfileExpressionKind::Identifier),
+                source_statement(
+                    "main",
                     ResolvedProfileStatementKind::Return { has_value: true },
                 ),
-                ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::IntegerLiteral,
-                ),
+                source_expression("main", ResolvedProfileExpressionKind::IntegerLiteral),
             ],
             "the single total walk must retain exact normalized preorder"
         );
@@ -2444,6 +2508,149 @@ fn main() -> int {
                 .iter()
                 .all(|usage| usage.name.as_deref() != Some("hidden")),
             "surface observation must not infer an unannotated binding type"
+        );
+    }
+
+    #[test]
+    fn surface_context_distinguishes_file_scope_functions_and_restoration() {
+        let source = r#"
+1;
+
+fn main() -> int {
+    {
+        let value: int = 2;
+    }
+    return 3;
+}
+
+4;
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+        let file_integers = program
+            .surface
+            .iter()
+            .filter(|observation| {
+                matches!(
+                    observation,
+                    ResolvedProfileSurfaceObservation::Expression {
+                        context: ResolvedProfileSurfaceContext::FileScope,
+                        kind: ResolvedProfileExpressionKind::IntegerLiteral,
+                    }
+                )
+            })
+            .count();
+        assert_eq!(
+            file_integers, 2,
+            "root expressions on both sides of a function must restore file scope"
+        );
+        assert!(program.surface.contains(&file_statement(
+            ResolvedProfileStatementKind::Function {
+                top_level: true,
+                generic: false,
+                trait_bounded: false,
+                explicit_result: true,
+            }
+        )));
+        for expected in [
+            source_statement("main", ResolvedProfileStatementKind::Block),
+            source_statement(
+                "main",
+                ResolvedProfileStatementKind::Let {
+                    mutable: false,
+                    annotated: true,
+                    initialized: true,
+                },
+            ),
+            source_statement(
+                "main",
+                ResolvedProfileStatementKind::Return { has_value: true },
+            ),
+        ] {
+            assert!(
+                program.surface.contains(&expected),
+                "function body lost context for {expected:?}"
+            );
+        }
+        assert_eq!(
+            program
+                .surface
+                .iter()
+                .filter(|observation| matches!(
+                    observation,
+                    ResolvedProfileSurfaceObservation::Expression {
+                        context: ResolvedProfileSurfaceContext::Function(
+                            ResolvedProfileOrigin::Source { normalized },
+                        ),
+                        kind: ResolvedProfileExpressionKind::IntegerLiteral,
+                    } if normalized == "main"
+                ))
+                .count(),
+            2,
+            "nested block and return literals must retain the main function origin"
+        );
+
+        let nested = parsed(
+            r#"
+fn outer() -> int {
+    fn inner() -> int {
+        return 5;
+    }
+    return 6;
+}
+"#,
+        );
+        let structs = StructRegistry::from_top_level_ast(&nested);
+        let enums = EnumRegistry::from_top_level_ast(&nested, &structs);
+        let admitted_function = |_name: &str| None;
+        let nested_program = Builder::new(&structs, &enums, &admitted_function).build(&nested);
+        assert!(nested_program.surface.iter().any(|observation| matches!(
+            observation,
+            ResolvedProfileSurfaceObservation::Statement {
+                context: ResolvedProfileSurfaceContext::Function(
+                    ResolvedProfileOrigin::Source { normalized: outer },
+                ),
+                kind: ResolvedProfileStatementKind::Function { top_level: false, .. },
+            } if outer == "outer"
+        )));
+        for function in ["inner", "outer"] {
+            assert!(
+                nested_program.surface.iter().any(|observation| matches!(
+                    observation,
+                    ResolvedProfileSurfaceObservation::Statement {
+                        context: ResolvedProfileSurfaceContext::Function(
+                            ResolvedProfileOrigin::Source { normalized },
+                        ),
+                        kind: ResolvedProfileStatementKind::Return { has_value: true },
+                    } if normalized == function
+                )),
+                "nested function context did not restore `{function}`"
+            );
+        }
+
+        let (_, _, generic) = rich(&mut SemanticAnalyzer::new(), DESCRIPTOR_FIXTURE);
+        assert!(
+            generic.surface.iter().any(|observation| matches!(
+                observation,
+                ResolvedProfileSurfaceObservation::Expression {
+                    context: ResolvedProfileSurfaceContext::Function(
+                        ResolvedProfileOrigin::GenericFunction { source, .. },
+                    ),
+                    ..
+                } if source == "choose<int>"
+            )),
+            "normalized generic function body lost its exact private origin"
+        );
+        assert!(
+            generic.surface.iter().any(|observation| matches!(
+                observation,
+                ResolvedProfileSurfaceObservation::Pattern {
+                    context: ResolvedProfileSurfaceContext::Function(
+                        ResolvedProfileOrigin::Source { normalized },
+                    ),
+                    kind: ResolvedProfilePatternKind::Enum { parenthesized: true },
+                } if normalized == "score"
+            )),
+            "Match patterns lost their enclosing source function"
         );
     }
 
@@ -2476,9 +2683,10 @@ fn main() -> int {
             .surface
             .iter()
             .filter_map(|observation| match observation {
-                ResolvedProfileSurfaceObservation::Statement(
-                    ResolvedProfileStatementKind::Assignment { target },
-                ) => Some(target),
+                ResolvedProfileSurfaceObservation::Statement {
+                    kind: ResolvedProfileStatementKind::Assignment { target },
+                    ..
+                } => Some(target),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -2515,33 +2723,25 @@ fn main() -> int {
             assert!(
                 program
                     .surface
-                    .contains(&ResolvedProfileSurfaceObservation::Expression(
-                        operator.clone()
-                    ),),
+                    .contains(&source_expression("main", operator.clone())),
                 "missing operator {operator:?}"
             );
         }
-        assert!(
-            program
-                .surface
-                .contains(&ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::Borrow { mutable: true },
-                ),)
-        );
-        assert!(
-            program
-                .surface
-                .contains(&ResolvedProfileSurfaceObservation::Expression(
-                    ResolvedProfileExpressionKind::Dereference,
-                ),)
-        );
+        assert!(program.surface.contains(&source_expression(
+            "main",
+            ResolvedProfileExpressionKind::Borrow { mutable: true },
+        )));
+        assert!(program.surface.contains(&source_expression(
+            "main",
+            ResolvedProfileExpressionKind::Dereference,
+        )));
 
         let (_, _, descriptor) = rich(&mut SemanticAnalyzer::new(), DESCRIPTOR_FIXTURE);
         let pattern_preorder = descriptor
             .surface
             .iter()
             .filter_map(|observation| match observation {
-                ResolvedProfileSurfaceObservation::Pattern(pattern) => Some(pattern),
+                ResolvedProfileSurfaceObservation::Pattern { kind, .. } => Some(kind),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -2565,9 +2765,10 @@ fn main() -> int {
             },
         ] {
             assert!(
-                descriptor
-                    .surface
-                    .contains(&ResolvedProfileSurfaceObservation::Pattern(pattern.clone())),
+                descriptor.surface.iter().any(|observation| matches!(
+                    observation,
+                    ResolvedProfileSurfaceObservation::Pattern { kind, .. } if kind == &pattern
+                )),
                 "missing pattern witness {pattern:?}"
             );
         }
@@ -2589,6 +2790,10 @@ impl Pair {
 
 trait Contract {
     fn required(value: Pair) -> Pair;
+
+    fn provided(value: Pair) -> Pair {
+        return value;
+    }
 }
 
 fn main() -> int {
@@ -2602,18 +2807,59 @@ fn main() -> int {
                 .iter()
                 .filter(|observation| matches!(
                     observation,
-                    ResolvedProfileSurfaceObservation::Statement(
-                        ResolvedProfileStatementKind::Function {
+                    ResolvedProfileSurfaceObservation::Statement {
+                        kind: ResolvedProfileStatementKind::Function {
                             top_level: false,
                             generic: false,
                             trait_bounded: false,
                             explicit_result: true,
-                        }
-                    )
+                        },
+                        ..
+                    }
                 ))
                 .count(),
-            2,
-            "impl and required trait methods must each retain a function category"
+            3,
+            "impl, required, and default trait methods must retain function categories"
+        );
+        assert!(
+            program.surface.iter().any(|observation| matches!(
+                observation,
+                ResolvedProfileSurfaceObservation::Expression {
+                    context: ResolvedProfileSurfaceContext::Function(
+                        ResolvedProfileOrigin::ImplMethod {
+                            type_name,
+                            trait_name: None,
+                            method,
+                        },
+                    ),
+                    kind: ResolvedProfileExpressionKind::Identifier,
+                } if type_name == "Pair" && method == "probe"
+            )),
+            "impl body lost its container-qualified origin"
+        );
+        assert!(
+            program.surface.iter().any(|observation| matches!(
+                observation,
+                ResolvedProfileSurfaceObservation::Expression {
+                    context: ResolvedProfileSurfaceContext::Function(
+                        ResolvedProfileOrigin::TraitMethod { trait_name, method },
+                    ),
+                    kind: ResolvedProfileExpressionKind::Identifier,
+                } if trait_name == "Contract" && method == "provided"
+            )),
+            "trait default body lost its container-qualified origin"
+        );
+        assert!(
+            !program.surface.iter().any(|observation| matches!(
+                observation,
+                ResolvedProfileSurfaceObservation::Expression {
+                    context: ResolvedProfileSurfaceContext::Function(
+                        ResolvedProfileOrigin::TraitMethod { trait_name, method },
+                    ),
+                    ..
+                } if trait_name == "Contract" && method == "required"
+            )),
+            "bodyless trait method invented body observations"
         );
         assert_eq!(
             statement_kind(
