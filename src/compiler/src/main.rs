@@ -56,7 +56,7 @@ fn compile_production_runtime(
 
     if !output.status.success() {
         return Err(format!(
-            "Error compiling embedded Aero runtime: {}",
+            "Error running clang: {}",
             String::from_utf8_lossy(&output.stderr)
         ));
     }

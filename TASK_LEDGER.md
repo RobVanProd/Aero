@@ -130,6 +130,12 @@
   red is updated to require the inline authority and the absence of
   `mod runtime_link`; production must delete the temporary module and preserve
   every frozen runtime/test/compatibility condition above.
+- The next full-gate attempt passed the canonical graph and reached the existing
+  CLI status contract, whose injected failing-Clang oracle requires the frozen
+  `Error running clang` diagnostic. Runtime compilation encounters the same
+  child-tool failure earlier than final link, so its nonzero status must retain
+  that exact historical prefix rather than introduce a new diagnostic class.
+  This compatibility correction changes no successful path or runtime ABI.
 
 ## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
 
