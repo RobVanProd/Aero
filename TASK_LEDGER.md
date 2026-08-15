@@ -200,6 +200,30 @@
   `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched. No capability,
   semantic, stability, performance, accelerator, package, or release claim is
   made by this behavior-neutral prerequisite.
+
+### CAP-029 accepted CORE-092 integration and post-prerequisite revalidation
+
+- CORE-092 was accepted through protected PR #70 at merge
+  `a7fdb9b47f4e326fca61a9850d2cfa9420205f27`; its candidate
+  `fce4a9e6709a4ea1cd35620710ad7a72f04ccb9d` and accepted merge share exact
+  tree `9fd89b70cd78dd7a4c8be535a09a1293d97f4910`. The accepted prerequisite was
+  merged normally into this CAP-029 branch as
+  `719bfa24b7dbf09be1b6a04f59d827c38caa2cc8`, without rebasing, force-pushing,
+  or rewriting either published history. The only conflict resolution preserved
+  the complete CAP-029 and CORE-092 ledger sections.
+- Post-integration focused targets pass `3/3` for CAP-029 authentication and
+  `3/3` for CORE-092 logical stack safety. The repository-root
+  `./tools/test.sh` gate exits 0 with 284/284 library tests, 35/35 CLI tests,
+  every integration target (including CAP-024 at 6/6, CAP-029 at 3/3, and
+  CORE-092 at 3/3), the Windows native system target, and doc tests green;
+  formatting and all-target, all-feature Clippy with
+  `-D clippy::correctness` also pass.
+- The cumulative CAP-029 diff from accepted `origin/master` remains exactly the
+  four authorized files above. User/app-owned directories and the quarantined
+  stash remain untouched. Refreshed protected CI on draft PR #69 is still
+  required before acceptance, and no unpublished capability or performance
+  claim is made.
+
 ## CORE-092-ITERATIVE-LOGICAL-STACK-SAFETY - behavior-neutral checked-IR prerequisite
 
 - Date/task/status: 2026-08-15,
