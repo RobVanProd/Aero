@@ -2,7 +2,6 @@ mod doc_generator;
 mod lsp;
 mod profiler;
 mod project_init;
-mod runtime_link;
 
 #[cfg(test)]
 mod conformance_checked_ir_tests;
@@ -22,13 +21,54 @@ use compiler::{
     prepare_checked_program_with_module_observer_and_profile, quantization, registry,
     verify_llvm_module,
 };
-use runtime_link::compile_production_runtime;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const PRODUCTION_RUNTIME_SOURCE: &[u8] = include_bytes!("../runtime/aero_runtime.c");
+
+fn compile_production_runtime(
+    clang_bin: &str,
+    source_file: &Path,
+    object_file: &Path,
+) -> Result<(), String> {
+    fs::write(source_file, PRODUCTION_RUNTIME_SOURCE).map_err(|error| {
+        format!(
+            "Error writing embedded Aero runtime source to {}: {error}",
+            source_file.display()
+        )
+    })?;
+
+    let output = Command::new(clang_bin)
+        .arg("-std=c11")
+        .arg("-O2")
+        .args(["-Wall", "-Wextra", "-Werror", "-c"])
+        .arg(source_file)
+        .arg("-o")
+        .arg(object_file)
+        .output()
+        .map_err(|error| {
+            format!("Error executing clang for embedded Aero runtime ({clang_bin}): {error}")
+        })?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Error compiling embedded Aero runtime: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    if !object_file.is_file() {
+        return Err(format!(
+            "embedded Aero runtime compilation reported success without producing {}",
+            object_file.display()
+        ));
+    }
+
+    Ok(())
+}
 
 fn render_code_generation_error(error: CodeGenerationError) -> String {
     match error {
