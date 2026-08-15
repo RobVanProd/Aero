@@ -108,6 +108,26 @@
   four authorized files. Authorization, characterization, and structural-red
   commits are explicit rollback points.
 
+### CAP-029 accepted-head characterization and structural-red checkpoint
+
+- The focused public target freezes CAP-028's three representative LLVM MD5s:
+  Experimental recursive records/enums/typed Result/Match remains
+  `724bac62708812d4302224fec1047be6`, stable-scalar-v0 remains
+  `cbb7a6446d27119d50f70868bc2b6a96`, and exact-i32-array-v0 remains
+  `54bbfe8dc403ba00ff0587fd3b99e14a`. Repeated source and source/file routes are
+  byte-identical. Experimental, stable, and exact source/file compile/check all
+  preserve the exact undeclared-name diagnostic; `CheckedProgram` retains its
+  prior Debug field set/order without descriptor/authentication leakage.
+- With one Cargo job, one Rust test thread, pinned LLVM 22, and accepted CAP-028
+  production code, the behavior characterization passes `1/1` and all three
+  native controls exit 91. The structural control then fails `0/1` only at
+  `CAP-029 intentional structural red:
+  resolved_profile_authentication.rs is absent`, before checking later
+  authority, canonical-placement, raw-IR prohibition, Debug, or cache-route
+  assertions. Correct-manifest formatting and `git diff --check` pass. No
+  production source has changed; the authorization and this test-only checkpoint
+  are clean rollback boundaries.
+
 ## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
 
 - Date/task/status: 2026-08-15,
