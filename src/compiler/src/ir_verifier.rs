@@ -1,3 +1,4 @@
+use crate::copy_data_layout::{CopyDataLayout, EnumStorageLayout};
 use crate::ir::{
     BlockMetadata, CheckedIr, EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature,
     Inst, IrMetadata, LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
@@ -322,45 +323,6 @@ fn logical_type(type_name: &str) -> Option<LogicalType> {
         "string" | "str" => Some(LogicalType::String),
         "void" => Some(LogicalType::Void),
         _ => None,
-    }
-}
-
-fn physical_copy_type_hint(logical_type: &LogicalType) -> String {
-    match logical_type {
-        ty if PrimitiveKind::from_logical_type(ty).is_some() => {
-            PrimitiveKind::from_logical_type(ty)
-                .unwrap()
-                .copy_data_llvm_type()
-                .to_string()
-        }
-        LogicalType::Int | LogicalType::Float | LogicalType::Bool | LogicalType::Char => {
-            unreachable!("primitive logical types matched above")
-        }
-        LogicalType::Array { element, count } => {
-            format!("[{count} x {}]", physical_copy_type_hint(element))
-        }
-        LogicalType::Struct { name, .. } => format!("%aero.struct.{name}"),
-        LogicalType::Tuple { elements } => format!(
-            "{{ {} }}",
-            elements
-                .iter()
-                .map(physical_copy_type_hint)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        LogicalType::EnumFields { fields } => format!(
-            "{{ {} }}",
-            fields
-                .iter()
-                .map(physical_copy_type_hint)
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        LogicalType::Void
-        | LogicalType::String
-        | LogicalType::ImmutableReference { .. }
-        | LogicalType::MutableReference { .. }
-        | LogicalType::Enum { .. } => logical_type.to_string(),
     }
 }
 
@@ -1289,7 +1251,7 @@ impl<'a> FunctionVerifier<'a> {
                 let place_type = match &place.pointee {
                     LogicalType::Array { element, count } => PlaceType::Array {
                         logical_element: Some((**element).clone()),
-                        physical_element: physical_copy_type_hint(element),
+                        physical_element: CopyDataLayout::legacy(element).physical_hint(),
                         count: *count,
                         checked_copy_data: valid_copy_data_type(element),
                     },
@@ -2156,7 +2118,7 @@ impl<'a> FunctionVerifier<'a> {
                         id,
                         PlaceType::Array {
                             logical_element: Some(element.clone()),
-                            physical_element: physical_copy_type_hint(element),
+                            physical_element: CopyDataLayout::legacy(element).physical_hint(),
                             count: *count,
                             checked_copy_data: true,
                         },
@@ -2297,7 +2259,8 @@ impl<'a> FunctionVerifier<'a> {
                             let place_type = match ty {
                                 LogicalType::Array { element, count } => PlaceType::Array {
                                     logical_element: Some((**element).clone()),
-                                    physical_element: physical_copy_type_hint(element),
+                                    physical_element: CopyDataLayout::legacy(element)
+                                        .physical_hint(),
                                     count: *count,
                                     checked_copy_data: true,
                                 },
@@ -2346,7 +2309,8 @@ impl<'a> FunctionVerifier<'a> {
                             let place_type = match result_type {
                                 LogicalType::Array { element, count } => PlaceType::Array {
                                     logical_element: Some((**element).clone()),
-                                    physical_element: physical_copy_type_hint(element),
+                                    physical_element: CopyDataLayout::legacy(element)
+                                        .physical_hint(),
                                     count: *count,
                                     checked_copy_data: true,
                                 },
@@ -2388,7 +2352,8 @@ impl<'a> FunctionVerifier<'a> {
                             let place_type =
                                 parameter_type.map_or(PlaceType::Numeric, |ty| match ty {
                                     LogicalType::Array { element, count } => PlaceType::Array {
-                                        physical_element: physical_copy_type_hint(element.as_ref()),
+                                        physical_element: CopyDataLayout::legacy(element.as_ref())
+                                            .physical_hint(),
                                         checked_copy_data: true,
                                         logical_element: Some(*element),
                                         count,
@@ -2532,7 +2497,8 @@ impl<'a> FunctionVerifier<'a> {
                             (
                                 PlaceType::Array {
                                     logical_element: Some(element.clone()),
-                                    physical_element: physical_copy_type_hint(element),
+                                    physical_element: CopyDataLayout::legacy(element)
+                                        .physical_hint(),
                                     count: *count,
                                     checked_copy_data: true,
                                 },
@@ -5312,7 +5278,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_type(
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
         if let LogicalType::Array { element, .. } = logical_type {
             if !valid_copy_data_type(logical_type) {
@@ -5407,7 +5373,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_enum(
         schema: &EnumSchema,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
         if !valid_enum_schema(schema) {
             return Err(IrVerificationError::new(
@@ -5419,6 +5385,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 )),
             ));
         }
+        let physical_layout = EnumStorageLayout::legacy(schema).enum_llvm_type();
         if schemas.contains_key(&schema.name) {
             return Err(IrVerificationError::new(
                 "<module>",
@@ -5429,8 +5396,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 )),
             ));
         }
-        if let Some(existing) = enum_schemas.get(&schema.name) {
-            if existing != &schema.variants {
+        if let Some((existing_variants, existing_physical_layout)) = enum_schemas.get(&schema.name)
+        {
+            if existing_physical_layout != &physical_layout || existing_variants != &schema.variants
+            {
                 return Err(IrVerificationError::new(
                     "<module>",
                     None,
@@ -5441,7 +5410,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 ));
             }
         } else {
-            enum_schemas.insert(schema.name.clone(), schema.variants.clone());
+            enum_schemas.insert(
+                schema.name.clone(),
+                (schema.variants.clone(), physical_layout),
+            );
         }
         for payload in schema
             .variants
@@ -5456,7 +5428,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn visit(
         instructions: &[Inst],
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
         for instruction in instructions {
             match instruction {
@@ -7333,25 +7305,29 @@ mod tests {
             element: Box::new(LogicalType::Bool),
             count: 3,
         });
-        assert!(
-            verify_ir(function(vec![
-                checked_variant(Value::Reg(0), schema, 0),
-                checked_dispatch(
-                    Value::Reg(0),
-                    changed_schema,
-                    &["idle", "flags", "pair", "row"],
-                ),
-                Inst::Label("idle".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("flags".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("pair".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("row".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-            ]))
-            .is_err(),
-            "changed aggregate lane schema passed checked IR dispatch"
+        let error = verify_ir(function(vec![
+            checked_variant(Value::Reg(0), schema, 0),
+            checked_dispatch(
+                Value::Reg(0),
+                changed_schema,
+                &["idle", "flags", "pair", "row"],
+            ),
+            Inst::Label("idle".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("flags".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("pair".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("row".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("changed aggregate lane schema passed checked IR dispatch");
+        assert_eq!(
+            error.kind,
+            IrVerificationErrorKind::MetadataMismatch(
+                "conflicting checked enum schemas for `Payload`".to_string()
+            ),
+            "physical enum-layout comparison changed the accepted corruption diagnostic"
         );
     }
 

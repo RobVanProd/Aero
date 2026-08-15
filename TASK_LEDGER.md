@@ -1,5 +1,402 @@
 # Aero Task Ledger
 
+## CAP-026-COPYDATA-PHYSICAL-AUTHORITY - behavior-neutral recursive layout consolidation
+
+- Date/task/status: 2026-08-15, `CAP-026-COPYDATA-PHYSICAL-AUTHORITY`,
+  authorized ledger-first characterization and implementation on
+  `agent/cap-026-copydata-physical-authority` from exact local CAP-025 readiness
+  result `dbb258b54817f37dcabcb873520ed7a74b1f6c43`, tree
+  `04ac23a7e5c5b826ad0e26d254b9758e1e2b81aa`. Accepted public master remains
+  `15774c47d31150326d958ebc041858b62191975a`; the two carried CAP-025 commits
+  change only this ledger and record a completed `NO IMPLEMENTATION` stop.
+  User/app-owned `.codex-remote-attachments/` and `tmp/` remain outside scope,
+  and quarantined stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6`
+  must remain untouched.
+- Fresh post-CAP-025 ranking, with higher scores more favorable:
+
+  | Rank | Candidate | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Behavior-neutral recursive CopyData physical-authority consolidation | 2 | 5 | 5 | 5 | 3 | 3 | 23 |
+  | 2 | Behavior-neutral post-normalization resolved profile-shape descriptor prerequisite | 2 | 5 | 5 | 5 | 2 | 3 | 22 |
+  | 3 | Owned dynamic collection/streaming readiness only | 5 | 4 | 5 | 5 | 1 | 1 | 21 |
+
+  Quantization remains below rank 3 at 19 because its representation, scaling,
+  zero-point, accumulation, saturation, and rounding contracts remain unfrozen,
+  while CAP-025 now proves that exact aggregate/typed-failure composition is
+  still prerequisite work. Rank 1 is selected because it removes the observed
+  physical conflict without adding source behavior and plausibly stays inside
+  verifier plus backend. Rank 2 must be freshly reranked after rank 1 rather
+  than automatically stacked. Change the order if one shared physical contract
+  cannot preserve every emitted byte, or if a read-only prototype proves the
+  resolved descriptor can be introduced first without reordered diagnostics,
+  duplicated normalization, post-IR rejection, or a third compiler phase.
+- Observed duplicate authority: generic recursive CopyData physical identity is
+  spread across `PrimitiveKind::copy_data_llvm_type`, backend recursive type,
+  zero, reference, struct-field, compact/general enum, Result payload, Match
+  storage, and alignment paths, while `ir_verifier.rs` separately rebuilds a
+  recursive physical string hint. Generic aggregate `Int` deliberately maps to
+  `double`; direct logical `Int` maps to `i32`; and
+  `exact-i32-array-v0` adds a separate admitted-root flat `[int; N] -> [N x i32]`
+  override. CAP-025's external probe proved the consequence without identifying
+  a current accepted-program defect: experimental recursive records and
+  `Result<Success, int>` use `double` leaves, while accepted CAP-023 exact flat
+  arrays use `i32`. The selected profiles prevent those roots from composing.
+- Frozen behavior and physical policy: this task changes no language syntax,
+  logical type, source/profile admission, normalization, specialization,
+  ownership, checked-IR schema, diagnostic, public selector, emitted LLVM byte,
+  native result, ABI claim, or capability classification. Experimental/default
+  recursive `Int` and `Float` remain `double`, `Bool` remains `i1`, and `Char`
+  remains `i32`; stable-scalar behavior remains byte-identical; exact-profile
+  direct scalar and admitted nonempty bounded flat integer arrays remain `i32`;
+  excluded, oversized, nested, and recursive exact aggregates remain rejected or
+  retain their existing internal legacy fallback. No current profile may select
+  recursive exact-`i32` aggregate policy, and the shared contract must not own
+  source admission.
+- Mechanism and phase boundary: introduce one crate-private physical CopyData
+  descriptor/renderer parameterized by physical primitive-lane policy rather
+  than `LanguageProfile`. It owns recursive array/product/named-struct identity,
+  primitive type and zero representation, leaf alignment, and unit/compact/
+  general enum payload topology. `code_generator.rs` remains the only LLVM text
+  emitter and chooses exact policy only for roots already admitted by the current
+  exact profile; `ir_verifier.rs` consumes the same descriptor for physical
+  hints and corruption comparisons while existing raw verification defaults to
+  legacy policy. Symbol formatting may remain an emitter concern, but the
+  descriptor must be the single topology/lane authority. This is exactly two
+  production phases: checked-IR verification and backend generation; the shared
+  utility/module declaration is not a third phase.
+- Characterization and structural red: after committing this authorization,
+  add one focused test target that freezes accepted-head LLVM byte digests and
+  structural anchors for (1) an experimental recursive struct/array/tuple plus
+  scalar and aggregate enum/Result/Match program, (2) stable-scalar control,
+  (3) exact flat-array CAP-023 control, and (4) one recursive reference/pointee
+  control. The behavior characterization must pass before production mutation.
+  In the same target, require one shared layout module and reject the current
+  duplicate recursive renderer/hint/enum-layout function definitions; that
+  structural assertion is the only intentional red. Preserve its exact red
+  checkpoint before refactoring. Unit/mutation controls must cover legacy and
+  exact policies, recursive counts/products/named structs, compact and general
+  enum lane order, Result error payloads, zeros, alignment, malformed/excluded
+  logical types, too-large exact-root fallback, generic struct symbols, and a
+  deliberately mismatched payload/hint rejected before LLVM.
+- Exact allowed files: only `TASK_LEDGER.md`; new
+  `src/compiler/src/copy_data_layout.rs`; module wiring in
+  `src/compiler/src/lib.rs`; `src/compiler/src/primitive_contract.rs` only if
+  primitive lane/zero/alignment delegation cannot remain byte-identical without
+  it; `src/compiler/src/code_generator.rs`; `src/compiler/src/ir_verifier.rs`;
+  and one new focused
+  `src/compiler/tests/copy_data_layout_authority_tests.rs`. No parser,
+  language-profile admission, semantic analyzer, specialization module, IR
+  generator/schema, example, workflow, dependency, cumulative truth document,
+  evidence bundle, benchmark, release, package, protection, or external artifact
+  change is authorized.
+- Acceptance and evidence: require the focused target's characterization green,
+  structural red, then complete green; unit policy/topology/mutation controls;
+  exact byte-for-byte pre/post LLVM equality and deterministic repeated builds;
+  unchanged default, experimental, stable, and exact profile rejections and
+  native sentinels; external LLVM 22 verification for accepted controls; Rust
+  formatting, correctness-denying Clippy, diff hygiene, and repository-root
+  `./tools/test.sh`. Independent review must trace every prior backend and
+  verifier consumer to the shared authority and find no reachable recursive
+  exact policy. This local refactor is not accepted public state until an exact
+  candidate, protected checks, normal merge, and exact merge-head gates pass.
+- Risks, rollback, and stop conditions: the main risks are changing experimental
+  aggregate layout, compact enum padding/lane order, generic private struct
+  symbols, zero literals, alignment, reference pointees, exact flat arrays,
+  verifier diagnostics, or legacy unchecked paths; leaving a hardcoded enum or
+  Match consumer would preserve duplicate authority. Stop and rerank if any
+  emitted byte or native exit changes; if a source/profile, semantic,
+  normalization, specialization, IR-generation/schema, workflow, or third
+  compiler phase must change; if verifier/backend cannot consume one descriptor
+  without weakening corruption checks; or if recursive exact aggregates become
+  reachable. The authorization commit and frozen byte-characterization commit
+  are the clean rollback boundaries.
+
+### CAP-026 exact characterization and structural-red checkpoint
+
+- The new focused target freezes accepted-head LLVM bytes before any production
+  mutation. MD5 digests are
+  `57d513c46fe7a650b189941bf6c37e28` for the default/experimental recursive
+  struct, array, tuple, reference, scalar-enum, `Result`, and exhaustive-Match
+  program; `cbb7a6446d27119d50f70868bc2b6a96` for the stable-scalar control; and
+  `54bbfe8dc403ba00ff0587fd3b99e14a` for the accepted CAP-023 exact flat-array
+  control. The characterization also freezes the legacy `double` recursive
+  lanes, compact/general enum topology, stable `i32` function lanes, exact
+  `[20 x i32] -> [8 x i32]` function shape, and default/experimental equality.
+- With one Cargo build job and one Rust test thread, the exact characterization
+  test passes `1/1`. The exact structural test then fails `0/1` only at
+  `CAP-026 intentional structural red: shared copy_data_layout.rs is absent`,
+  before inspecting later duplicate-authority assertions. No production source
+  has changed at this checkpoint. The focused test plus this record form the
+  required red-first rollback boundary; the structural red must become green
+  without changing any frozen digest or anchor.
+
+### CAP-026 implementation and review-correction checkpoint
+
+- Implementation commit
+  `1e79a5c89991f36288dbb1f0bb542c258834a98e` introduces the crate-private
+  `CopyDataLayout`/`CopyDataLayoutPolicy` and `EnumStorageLayout` authority,
+  delegates verifier physical array hints and backend recursive type/zero/
+  schema rendering, preserves the raw `AllocaArray`/GEP paths, and selects exact
+  policy only for the already-admitted direct integer or flat exact-array root.
+  The production diff remains exactly the verifier and backend plus shared
+  module wiring; it changes no source/profile/semantic/IR schema or public
+  surface.
+- The first commit-pinned independent review found no LLVM, diagnostic,
+  generic-name, raw-array, enum-zero, or recursive-exact regression, but found
+  three incomplete authority delegations: checked enum emitters still owned tag
+  and compact/payload lane positions, checked place allocation/load/store paths
+  still repeated primitive type/alignment pairs, and the verifier computed then
+  discarded the enum physical layout. Correction commit
+  `fd29b9524bc704a042c7ee354a63e1a8c89d3097` resolves all three without widening
+  scope: every checked enum emitter queries descriptor-owned tag/compact/payload
+  roles; one profile-root-gated checked-place helper supplies type and primitive
+  alignment while retaining explicit aggregate alignment 8 and raw legacy
+  storage; and the verifier registers `(logical variants, legacy physical
+  layout)` and compares both at every repeated checked enum occurrence before
+  LLVM, returning the exact prior conflicting-schema diagnostic.
+- The focused target is green `2/2`; all three frozen LLVM MD5 values and text
+  anchors remain exact, default equals experimental, and repeated stable/exact
+  generation is deterministic. Shared module controls are green `7/7`, covering
+  recursive legacy/exact type/zero/alignment, zero-count nested arrays, generic
+  struct spelling, invalid types, unit/compact/general/Result lanes, and the
+  unreachable alternate enum integer policy. The existing changed recursive
+  enum-schema mutation still rejects before LLVM with exact
+  `conflicting checked enum schemas for \`Payload\`` identity.
+- Post-correction focused integration coverage passes `16/16` across scalar,
+  unit, recursive, and multi-field enums; payload transport; CopyData Match
+  results; recursive aggregates; generic structs; and projected CopyData call
+  loans. The complete library suite passes `270/270`; correctness-denying Clippy
+  (`--all-targets --all-features -- -D clippy::correctness`), Rust formatting,
+  and diff hygiene pass. The characterization source's direct reference is
+  intentionally scalar `&int`; recursive/generic reference and projected-loan
+  coverage comes from the existing focused targets rather than an inaccurate
+  characterization claim.
+- Repository-root `./tools/test.sh` passes end to end with the pinned LLVM
+  22.1.8 `opt`/`llvm-as` verifier required, one Cargo build job, and one Rust
+  test thread. Formatting, correctness-denying Clippy, all library, binary,
+  integration, native-system, claim-contract, and documentation tests pass;
+  no test was skipped, weakened, or removed. This also proves that the earlier
+  fixed-array native failures were only the reset host's missing LLVM toolchain,
+  not candidate behavior.
+- Final read-only review finds no actionable defect or commit blocker. It traces
+  enum tag, compact, and payload lanes; checked place type/alignment; reference,
+  struct, Result, and Match consumers; verifier physical comparisons; raw-array
+  preservation; and exact-policy selection. The cumulative diff from accepted
+  master is exactly the six authorized files (ledger, shared module and wiring,
+  verifier, backend, and focused test), and no recursive exact-policy route is
+  reachable. User/app-owned untracked directories and the quarantined stash
+  remain untouched.
+- Fresh post-CAP-026 ranking, with higher scores more favorable:
+
+  | Rank | Candidate | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Post-normalization resolved profile-shape authority prerequisite | 2 | 5 | 5 | 5 | 2 | 3 | 22 |
+  | 2 | Owned dynamic collection/streaming readiness only | 5 | 4 | 5 | 5 | 1 | 1 | 21 |
+  | 3 | Small quantized-kernel readiness only | 5 | 4 | 3 | 5 | 1 | 1 | 19 |
+
+  Rank 1 remains first after fresh inspection, not by inheritance: CAP-026
+  removes the physical-layout conflict, but profile validation still runs on
+  raw AST before semantic normalization while semantic analysis and checked-IR
+  generation separately rebuild normalized registries. Collections remain
+  rejected by checked verification/backend, and quantization still lacks frozen
+  representation and arithmetic contracts.
+- Status and exact next action: CAP-026 is a complete local candidate but is not
+  accepted public state until immutable publication, protected checks, a normal
+  merge, and exact merge-head verification pass. After that acceptance only,
+  open ledger-only/read-only `CAP-027-RESOLVED-PROFILE-SHAPE-READINESS` to prove
+  whether one descriptor can be derived from the semantic analyzer's existing
+  normalized AST and struct/enum registries between semantic completion and
+  checked-IR generation. Freeze its inputs, recursive shapes, use contexts,
+  phase owner, diagnostic precedence, and backend corruption defense before
+  reranking any behavior-neutral implementation. Do not combine CAP-027 with a
+  new application profile. Stop if it reorders diagnostics, duplicates
+  normalization or registries, needs checked-IR schema/post-IR admission or
+  more than two compiler phases, makes recursive exact layout reachable, changes
+  LLVM/native behavior, or requires new language semantics.
+
+## CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS - exact CPU plus bounded CopyData application map and red probe
+
+- Date/task/status: 2026-08-15,
+  `CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS`, authorized architecture
+  enumeration and one task-local source probe only on
+  `agent/cap-025-application-profile-composition-readiness` from exact accepted
+  CAP-024 truth-sync master `15774c47d31150326d958ebc041858b62191975a`,
+  tree `525c3840692df71665dfe6d81a341787c26b2932`. This record does not
+  authorize production implementation, widening either existing selected
+  profile, or a capability claim. User/app-owned `.codex-remote-attachments/`
+  and `tmp/` remain outside scope, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and strategic destination: accepted CAP-023/CAP-024 proves
+  one exact wrapping-`i32` CPU application over scalar values and flat nonempty
+  `[int; N]` storage under `exact-i32-array-v0`. Separate experimental paths
+  already admit finite recursive CopyData structs and enums, explicit typed
+  `Result<T, E>`, exhaustive `Match`, by-value transport, and bounded owned
+  aggregate operations, but both selected profiles reject those source shapes
+  before semantics. Experimental aggregate `int` leaves retain their accepted
+  legacy `double` physical representation, so experimental success alone cannot
+  prove exact-`i32` composition. The eventual target, if bounded reuse is
+  possible, is one new application selector rather than any change to
+  `stable-scalar-v0` or `exact-i32-array-v0`.
+- Hypothesis and decision test: a CAP-023-derived application may be able to
+  replace its all-zero malformed sentinel with one explicit
+  `Result<Success, int>` boundary, wrap its one flat `[int; 20]` input and flat
+  `[int; 8]` output as finite acyclic CopyData records, exhaustively `Match` the
+  result, and preserve exact success, malformed-input, source-preservation, and
+  exit-91 oracles without new language semantics. Proceed toward a later
+  implementation contract only if profile admission can delegate to the
+  already-accepted semantic, specialization, ownership, checked-IR, and
+  verifier authorities, and one recursive profile-aware physical renderer can
+  preserve `i32` identity for every admitted aggregate leaf within at most two
+  production compiler phases.
+- Frozen readiness scope: map profile parsing and pre-semantic validation;
+  resolved recursive CopyData type and specialization ownership; concrete
+  `Result` normalization and exhaustive `Match`; owned local construction,
+  by-value copy/transport, static projected reads or writes, and post-copy source
+  preservation; checked metadata/IR and verifier corruption boundaries; LLVM
+  struct/enum/payload/function representation; and public `check`, externally
+  verified `build`, and native `run` routes. Classify a possible later profile's
+  admitted types and operations, selection boundary, phase owner, physical
+  identity, rejections, verifier evidence, and deterministic Linux/Windows
+  oracles. The narrow candidate surface is exact `int`/`i32`, `bool`, flat
+  nonempty `[int; N]` leaves, finite acyclic concrete CopyData structs/enums,
+  concrete typed `Result` over admitted CopyData payloads, exhaustive `Match`,
+  and only the bounded ownership operations actually exercised by the probe.
+  User generics/traits, references, tuples not required by carrier lowering,
+  floats, chars, strings, dynamic storage, nested array element shapes, arrays
+  of aggregates, recursion/cycles, implicit error conversion, propagation
+  syntax, public ABI, and accelerator behavior remain excluded.
+- Task-local red probe and evidence contract: after this authorization is
+  committed, create one source only in a task-specific directory outside the
+  repository. Its exact CAP-023 kernel and source-embedded records must remain
+  byte-for-behavior equivalent while a minimal record/success/typed-error/Match
+  shell exercises the bounded composition and distinct success and malformed
+  sentinels. Record parsing, experimental semantic/checked/backend success or
+  its exact first additional failure, selected-profile `check`/`build`/`run`
+  first-failure parity, absence of failure artifacts, deterministic LLVM,
+  physical leaf identities, verifier behavior, and the native oracle when the
+  positive control reaches execution. The probe is evidence, not a committed
+  test or authoritative source spelling.
+- Initial allowed files, recovery boundary, and stop conditions: before the
+  readiness result is classified, only this `TASK_LEDGER.md` authorization may
+  change. Read-only source/tests/workflow/history inspection and task-local
+  external probes are permitted. This authorization commit is the rollback
+  boundary. Stop with `NO IMPLEMENTATION` rather than changing behavior if a
+  useful composition requires modifying either accepted profile, importing
+  broad experimental defaults, inventing struct/enum/Result/layout/ABI/
+  ownership/error semantics, duplicating or reconciling type, physical, or
+  specialization authorities, admitting recursive or nested exact arrays,
+  crossing more than two compiler phases, or claiming general CopyData,
+  inference, safety, stability, performance, or language completion.
+- Acceptance and what changes the decision: readiness succeeds only by recording
+  the exact first failure, a complete authority/phase map, explicit admitted and
+  rejected surfaces, and either one bounded later implementation contract within
+  the two-phase ceiling or a mandatory stop with an exact re-entry condition.
+  Evidence that the flat CAP-023 program is materially sufficient, runtime
+  ingress is prerequisite, the aggregate physical lane needs a second authority,
+  or broad layout/ownership work is unavoidable defers composition and triggers
+  a fresh ranking. Do not update cumulative capability/state documents for a
+  readiness-only result; carry the ledger record into the next executable
+  checkpoint unless a later accepted truth synchronization expressly requires it.
+
+### CAP-025 readiness result - mandatory shared-authority stop
+
+- Decision: `NO IMPLEMENTATION`. CAP-025 is a completed architecture/readiness
+  stop and requires a fresh ranking; it is not a blocked goal, new profile,
+  compiler capability, or widening of either accepted selected profile. The
+  exact source failure is bounded, but the first complete implementation would
+  have to move or duplicate resolved type/specialization authority and reconcile
+  conflicting physical authorities, exceeding the frozen stop boundary before
+  any production mutation.
+- Canonical external probe: task-local source
+  `D:\CodexArtifacts\aero-cap025-readiness-f022035\application_profile_composition.aero`,
+  SHA-256
+  `946b7e6ca110059df82220b02cc73dc3c073f6f82c0419b2b9121f81460c32ee`,
+  was exercised with accepted-tree compiler binary SHA-256
+  `32bf224727c61499ca5c53650c2de0266e9a1bee9e4a099307e4022bad2e2027`.
+  It preserves the CAP-023 kernel and records, wraps one flat `[int; 20]` leaf
+  in `InferenceRecord`, one flat `[int; 8]` leaf in `InferenceSuccess`, nests
+  the request in one finite `InferenceCase`, transports
+  `Result<InferenceSuccess, int>`, exhaustively matches `Ok`/`Err`, copies and
+  reuses the input records, and distinguishes success from malformed second-
+  header error 102. A flat array leaf inside a finite struct is the authorized
+  application composition; "nested array" remains an array whose element is an
+  array or aggregate, and stays rejected.
+- Exact first-failure evidence: public `check`, `build`, and `run` with
+  `exact-i32-array-v0` all exit 1 with byte-identical cause
+  `Language Profile Error: exact-i32-array-v0 rejects struct definitions`.
+  `build` leaves no requested LLVM artifact, and neither semantics, checked IR,
+  backend generation, verifier work, nor native execution is reached. This is
+  the meaningful composition failure. An invented selector name would fail
+  earlier in profile parsing and would prove only selector absence.
+- Separate-authority positive controls: under `experimental`, the same probe
+  passes semantic and checked admission, builds twice with external `opt`
+  22.1.8 verification, produces byte-identical LLVM SHA-256
+  `219fa2867d701a07dda888aea9694fd8da093685534e11cb18c90f43074f8c23`,
+  and executes on Windows with exit 91 after proving aggregate copy, typed
+  failure, and Match behavior. It reaches 91 only while explicitly observing
+  that the embedded CAP-023 exact control falls back to 1 on the legacy
+  aggregate lane; requiring that control to retain exit 91 makes the composite
+  run exit 11. The unchanged accepted CAP-023 source SHA-256
+  `8244ca26fc90ce708801e12ec6a7192bdedf01e1a1429c1479d36e233b1bb6c`
+  independently builds under `exact-i32-array-v0` to LLVM SHA-256
+  `74a317e704bd62bd79d96f1399fb6e31a22304e6889c898748f3289c7a0a8d29`
+  and executes on Windows with exit 91. Public run cleanup leaves no retained
+  run artifact.
+- Exact physical split: the exact CAP-023 control has function identity
+  `[20 x i32] -> [8 x i32]`. Experimental composition instead declares
+  `InferenceRecord` as `{ [20 x double] }`, `InferenceSuccess` as
+  `{ [8 x double] }`, and its concrete Result transport as
+  `{ i32, %aero.struct.InferenceSuccess, double }`; even the logical `int`
+  error payload is a legacy aggregate `double`. `PrimitiveKind` deliberately
+  owns that generic CopyData representation, static recursive struct and enum
+  renderers consume it, and the exact profile owns a separate top-level scalar/
+  flat-array override. Experimental success therefore proves the existing
+  logical composition only and cannot serve as exact physical evidence.
+- Type, ownership, and verifier map: accepted `StructRegistry`, `EnumRegistry`,
+  CopyData, concrete carrier normalization, exhaustive Match, by-value copy,
+  and owned-enum movement already define the required logical behavior. Both
+  semantic analysis and semantic-independent checked admission invoke the same
+  specialization/normalization functions, and the checked verifier independently
+  validates the generic logical schemas and ownership/CFG identities. However,
+  selected-profile validation runs before those resolved authorities and admits
+  only raw scalar/flat-array shapes. The verifier's current physical hints also
+  describe generic aggregate `int` as `double`; they cannot prove the promised
+  recursive exact-`i32` layout.
+- Phase result: a naive profile-plus-backend patch is invalid. A selective raw-
+  AST validator would duplicate the struct/enum/carrier registries; a permissive
+  validator would import broad experimental defaults; and a backend-only exact
+  override would leave struct fields, Result/enum payloads, Match storage, enum
+  extraction, and verifier hints physically inconsistent. The smallest honest
+  design needs at least (1) selector and source-surface admission, (2) one
+  post-normalization resolved profile-shape conformance authority before checked
+  IR, and (3) one centralized profile-aware recursive physical renderer used by
+  backend layout and verifier evidence. A separately mutated physical verifier
+  would add a fourth authority. This exceeds two production phases and triggers
+  the explicit duplicate type/physical/specialization stop.
+- Frozen later surface and rejection boundary: if reopened, admit only exact
+  `int`/`i32`, `bool`, nonempty flat integer-array leaves, finite acyclic concrete
+  CopyData structs, concrete typed Result over admitted payloads, exhaustive
+  Match, by-value CopyData transport, whole owned-enum movement, and the exact
+  source-preservation operations used by the probe. Continue to reject floats,
+  chars, strings, user generics/traits/enums not required by the product, tuples
+  not required by carrier lowering, references and borrows, aggregate mutation,
+  zero/repeat/nested arrays, arrays of aggregates, cycles, nested/context-free
+  carriers, incomplete or duplicate Match arms, implicit error conversion or
+  propagation, dynamic storage, modules, public ABI, non-CPU execution, and any
+  safety, stability, performance, or general-inference claim.
+- Re-entry evidence and cross-platform oracle: reopen only after a separately
+  frozen prerequisite architecture provides one post-normalization profile-shape
+  descriptor derived from the accepted registries and one recursive physical
+  renderer parameterized by primitive lane identity, while preserving every
+  existing profile byte-for-behavior. A later red matrix must use an independent
+  Rust wrapping-`i32` oracle and require Linux and Windows O0/O2 native parity,
+  deterministic LLVM, external LLVM 22 verification and bitcode assembly, exact
+  valid and typed-error sentinels, source preservation, all admitted aggregate
+  integer and Result error leaves as `i32`, no `double`/`fptosi`/`sitofp`, signed
+  bounds checks before GEPs, no `nsw`/`nuw`, corruption controls, and no failure
+  artifacts. Until that prerequisite is ranked and accepted, rerank instead of
+  implementing CAP-025 or updating cumulative capability documents.
+
 ## CAP-024-HISTORICAL-SCOPE-ANCHOR-REPAIR - immutable accepted-tree validation
 
 - Date/task/status: 2026-08-14,
