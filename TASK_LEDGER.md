@@ -131,6 +131,43 @@
   UTF-8 text, modules, a production frontend, self-hosting, memory-safety,
   performance, release, or accelerator execution.
 
+### CAP-035 locally green readiness checkpoint
+
+- Identity and scope: ledger-first commit
+  `d5a6413139326c34fa626f75e177a6e278c09937` and readiness/roadmap commit
+  `055c723b8c02d28841599005042353be82e92fbe` are based exactly on accepted
+  CAP-032 merge `ce70f795e17a2da10253048c587cb475582c3f50`. The cumulative
+  diff is exactly `TASK_LEDGER.md`, `SELF_HOSTING_ROADMAP.md`, and new
+  `OWNED_BYTE_BUFFER_READINESS.md`; no compiler, test, example, workflow,
+  runtime, dependency, lockfile, evidence, package, or release file changed.
+- Read-only findings: exact accepted-binary probes on D: reproduced
+  ``Semantic Analysis Error: enum `Vec` has no unique admitted definition`` for
+  `Vec::new()` and
+  `IR Generation Error: empty array literals have no admitted logical element type`
+  for `vec![]`. Static inspection confirmed that every historical `Inst::Vec*`
+  remains verifier/backend-rejected and that no accepted allocator/deallocator
+  declaration or drop path exists.
+- Result: the canonical roadmap now records P1's exact protected acceptance and
+  points to one dedicated readiness contract. That contract freezes the R1A
+  allocator ABI, R1B checked resource authority, R1C source/profile boundary,
+  source API, byte/range/growth/failure invariants, ownership/loan/drop state,
+  evidence matrix, non-claims, and mandatory stops. CAP-035 adds no executable
+  capability.
+- Commands and tests: exact three-file comparison with `origin/master`, document
+  anchor counts, and `git diff --check` passed. The full root `./tools/test.sh`
+  gate passed from a cold isolated target: correctness Clippy, 292 library tests,
+  35 binary tests, every integration target including the six CAP-032 profile
+  tests and Windows workflow contract, and doc tests are green. One Cargo build
+  job and one Rust test thread were used with pinned LLVM 22.1.8.
+- Storage and remaining boundary: task worktree
+  `D:\Aero-worktrees\cap-035-owned-byte-buffer-readiness`, generated build output
+  `D:\Aero-build-targets\cap-035`, and TEMP/TMP/probes
+  `D:\Aero-temp\cap-035` are all on D:. The installed Git Bash and Cargo tools
+  on C: were invoked read-only and received no project build/temp destination.
+  Exact publication, protected checks, merge, and accepted-head replay remain
+  required. R1A must begin only from the accepted CAP-035 head under its own
+  ledger-first/red-first contract.
+
 ## CAP-032-EXACT-I32-RECORD-RESULT-PROFILE - bounded compiler application surface
 
 - Date/task/status: 2026-08-15,
