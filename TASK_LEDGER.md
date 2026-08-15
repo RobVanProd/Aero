@@ -3,7 +3,8 @@
 ## CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER - bounded source owner and selected profile
 
 - Date/task/status: 2026-08-15,
-  `CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER`, ledger-first authorization from the
+  `CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER`, locally green implementation
+  candidate with preserved ledger-first and source-red-first history from the
   exact accepted R1B merge
   `a9bd2e389d7baed28d6abefebd5267f2a37a4a49`, tree
   `d12957a22b0e776ba61dab3904dfc481369ddc69`, on
@@ -193,6 +194,29 @@
   `D:\Aero-build-targets\r1c`, and `D:\Aero-temp\r1c`. Installed tools on C:
   are read-only dependencies; no task artifact or cache is intentionally written
   there.
+- Implementation and local evidence: the candidate adds exactly the reserved
+  selector/type/five-function source contract, profile-gated non-Copy semantic
+  owner facts, closed normalized-AST witnesses, independent checked-IR
+  admission and R1B instruction production, reverse cleanup, exact typed Result
+  mapping, mechanical exact-layout/authentication routing, CPU-only CLI/cache
+  identity, one tracked source product, and Linux/Windows workflow replay. The
+  accepted R1A runtime ABI, accepted R1B checked schema/verifier/backend, parser,
+  AST, historical Vec surface, and prior profiles remain frozen. Seven focused
+  crate-private authority tests pass; the public source/profile product target
+  passes 6/6; the accepted R1B compatibility target passes 2/2. The product is
+  deterministic, verifies under LLVM 22, exits 91 silently at O0/O2 and through
+  the public CLI, rejects accelerator routes before artifacts, and proves the
+  frozen failure mappings, state preservation, exact counters, early-return
+  cleanup, and zero leaks. Formatting and correctness Clippy are green. The
+  D:-redirected root `./tools/test.sh` exits 0 with 306 library tests, 35 binary
+  tests, every integration/native/system target, the pinned Windows LLVM 22
+  gate, and doc tests passing. Exact candidate/merge identities and protected
+  plus accepted-head workflow replay remain pending; no acceptance claim is
+  made before they complete. The exact implementation checkpoint is
+  `853dfb5e50180a1afb12ceeb924d40d5b9b5aac3`, following selector/source red
+  checkpoint `bb019aa` and ledger authorization `73ed012`; the final
+  truth-synchronized candidate identity is recorded separately after this
+  documentation update.
 
 ## CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE - verifier-owned byte storage substrate
 

@@ -4,9 +4,9 @@ Last reviewed: 2026-08-15 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is R1A merge
-`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
-`dbac56574f079b357c3459e6fbde3ad328a78acf`.
+The current accepted baseline is R1B merge
+`a9bd2e389d7baed28d6abefebd5267f2a37a4a49`, tree
+`d12957a22b0e776ba61dab3904dfc481369ddc69`.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -83,7 +83,11 @@ candidate checks passed, and the merge's CI, stable/nightly Rust, Windows LLVM
 C11 runtime and deterministic test runtime establish the allocator/link
 boundary without admitting source storage.
 
-**R1B is now a locally green candidate.** It adds the private
+**R1B is accepted.** Candidate
+`7ab0a7889f4ccb3011fb189e8112b692dc4b2142` merged as
+`a9bd2e389d7baed28d6abefebd5267f2a37a4a49`; their trees are identical and
+the exact merge's CI, stable/nightly Rust, Windows LLVM 22 native, CodeQL, and
+accepted-head evidence workflows are green. R1B adds the private
 `LogicalType::ByteBuffer`, eleven dedicated checked instructions, deterministic
 resource identities, exact owner/loan control-flow verification, and verified
 LLVM lowering to `%aero.byte_buffer = type { ptr, i32, i32 }`. Native tests prove
@@ -92,7 +96,24 @@ state preservation, exact-size deallocation, and no leaks. The full root gate
 passes with 299 library and 35 binary tests plus every integration/native/system
 target and doc tests. Parser, semantics, IR generation, public profiles, runtime
 sources, and the CPU driver remain unchanged; no source program can construct
-the resource before R1C. Protected candidate/merge evidence is still required.
+the resource at the R1B checkpoint.
+
+**R1C is now a locally green candidate.** It adds the fail-closed
+`exact-i32-byte-buffer-v0` profile, dedicated source type `ByteBuffer`, and the
+five exact free functions `bytes_new`, `bytes_push`, `bytes_len`,
+`bytes_capacity`, and `bytes_get`. The source slice permits only explicitly
+typed direct function-local owners, local moves outside conditional/loop
+topology, immediate nonescaping loans, typed `Result<int, int>` errors, and
+compiler-inserted reverse-order cleanup. Independent checked-IR generation
+revalidates that boundary and emits only accepted R1B instructions; the R1B
+verifier remains the final resource authority. The candidate's full root gate
+passes 306 library tests, 35 binary tests, every integration/native/system
+target, and doc tests. The focused source product verifies under LLVM 22, runs
+silently with exit 91 at O0/O2 and through the public CLI, maps deterministic
+allocation/read failures, proves exact cleanup counters and zero leaks, rejects
+accelerator routes before artifacts, and freezes every earlier profile. R1C
+still requires protected candidate/merge and accepted-head replay before R1 is
+accepted.
 
 ## Dependency path
 
@@ -131,7 +152,7 @@ compiler project rather than only a bootstrap bundle.
 | S0 — trusted bootstrap baseline | **Accepted** | Protected Rust compiler checkpoint with one checked preparation route, independent checked-IR verification, deterministic selected-profile LLVM, and native gates | Exact accepted commit/tree, full root gate, stable/nightly, Windows LLVM 22, CodeQL, and accepted-head workflow evidence | The Rust compiler is not self-hosted and the whole language is not stable |
 | K1 — bounded compiler kernel | **Accepted** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; protected Linux/Windows O0/O2 native parity; exact candidate/merge/post-merge evidence | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
 | P1 — selected compiler subset | **Accepted** | A post-semantic exact profile for the frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles; protected Linux/Windows O0/O2 product exits 91 | No general enums, generics, references, modules, allocation, ABI, or broad stability |
-| R1 — owned bytes | **Blocked; R1A accepted, R1B local candidate** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; sanitizer or equivalent runtime evidence | A private checked resource, dormant Vec IR, fixed arrays, and simplified stdlib helpers do not satisfy the source-visible gate |
+| R1 — owned bytes | **Blocked on protection; R1A/R1B accepted, R1C local candidate** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; Linux/Windows protected replay | A local candidate, dormant Vec IR, fixed arrays, and simplified stdlib helpers do not establish an accepted source-visible gate |
 | R2 — host byte input | **Blocked on R1** | Deterministic whole-stream byte ingestion, preferably stdin before general path semantics | Empty/short/large input, partial reads, EOF, invalid length, I/O failure, Linux/Windows parity, no uninitialized bytes | `println!`/`printf` output is not input or file I/O |
 | D1 — compiler data model | **Future** | Owned token storage, interned or owned names, maps/sets required by scopes, and a flat append-only AST arena using integer node IDs | Growth/failure/drop evidence; cycle-free arena validation; deterministic iteration; large-source stress; no host collection substitution | The current Rust `String`/`Vec`/`Box` AST is not available to Aero source |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
@@ -145,12 +166,12 @@ compiler project rather than only a bootstrap bundle.
 
 | Gap | Current repository evidence | Owning work before the gate can close |
 |---|---|---|
-| Runtime-sized source bytes | Selected exact execution uses fixed nonempty integer arrays. General runtime/file input remains excluded. | R1 then R2; do not widen fixed-array evidence into a runtime-ingestion claim |
-| Allocation and destruction | Accepted R1A supplies the replaceable CPU allocator/link object. The R1B local candidate emits allocator calls only for verifier-proven private byte-resource IR and proves move/loan/drop state, while historical Vec instructions remain rejected. No source construct produces that IR. | Protect R1B, then close R1C source/profile without widening the historical Vec surface |
+| Runtime-sized source bytes | The R1C local candidate supplies owned runtime-sized source storage, but no stdin/file byte ingestion. | Protect R1C, then close R2; do not widen owned-storage evidence into an input claim |
+| Allocation and destruction | Accepted R1A supplies the replaceable CPU allocator/link object and accepted R1B supplies verified resource IR/backend lowering. The R1C local candidate produces that IR only from the bounded source owner and proves cleanup, while historical Vec instructions remain rejected. | Protect R1C without widening the historical Vec surface; R1 then closes |
 | Owned text and names | The Rust lexer builds `String` values and returns `Vec<LocatedToken>`; Aero runtime String ownership is not accepted. | Byte buffer first, then an explicit UTF-8/ASCII and owned-name contract; the first bootstrap subset may remain documented ASCII |
 | Recursive compiler data | `ast.rs` uses `String`, `Vec`, and `Box` throughout expressions, statements, patterns, types, and blocks. | Prefer D1 flat arenas and integer IDs before recursive heap objects |
-| Compiler-safe selected surface | Accepted `exact-i32-record-result-v0` admits only the frozen record/Result application surface and still rejects allocation, modules, I/O, and dynamic storage. | R1C gets a new explicit profile rather than changing P1 or earlier profiles |
-| Input errors and typed failure | P1 accepts bounded concrete `Result` composition, but no allocator or runtime I/O failure contract exists. | R1 for allocation failures; R2 for actual host input failures |
+| Compiler-safe selected surface | Accepted `exact-i32-record-result-v0` remains frozen. The R1C local candidate adds a separate `exact-i32-byte-buffer-v0` selector for only the bounded owner API. | Protect the new selector without changing P1 or earlier profiles; later compiler subsets must extend through separately frozen gates |
+| Input errors and typed failure | R1C maps private buffer failures into concrete `Result<int, int>`, but no runtime input failure contract exists. | Protect R1C for allocation/storage failures; R2 owns actual host input failures |
 | Modules and names | Root `mod` collection is flattened and bounded; executable imports, namespaces, visibility, recursive graphs, cycles, and separate compilation are absent. | G1 after owned bytes/names and deterministic collections; a declared single-file bootstrap may precede it |
 | Front-end fidelity | The production lexer/parser are Rust and allocate dynamically. Accepted CAP-031 handles only fixed source-embedded ASCII storage. | K1 establishes bounded token-policy evidence; F1 replaces fixed storage only after R1/R2/D1 |
 | Semantic and ownership fidelity | The Rust semantic analyzer uses multiple scopes, registries, maps, fixed-point ownership state, and normalization authorities. | M1 must port bounded authorities with differential and corruption evidence rather than re-infer convenient types |
@@ -195,18 +216,20 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Finish and protect **R1B** at its exact candidate: preserve the corruption-red
-history, full root gate, deterministic LLVM, mock-runtime allocation/failure/
-drop evidence, exact merge tree, and accepted-head Linux/Windows replay. It must
-remain source-, parser-, semantic-, IR-generator-, runtime-, driver-, and
-existing-profile-neutral.
+Finish and protect **R1C** at its exact candidate: preserve the selector/source
+red history, full root gate, deterministic verified LLVM, O0/O2 and public-CLI
+exit-91 product, mock-runtime failure/cleanup evidence, exact merge tree, and
+accepted-head Linux/Windows replay. It must leave the parser, AST, accepted R1A
+runtime ABI, accepted R1B checked schema/verifier/backend, historical Vec
+surface, and every earlier profile unchanged. R1 closes only after that replay.
 
-Then authorize **R1C** from the accepted R1B head. R1C is the first checkpoint
-allowed to add the bounded `ByteBuffer` source API, semantic ownership facts,
-checked-IR production, compiler-inserted cleanup, and the new fail-closed
-`exact-i32-byte-buffer-v0` profile. Stop rather than bypass verified metadata,
-hide storage behind host collections, change the R1A ABI/R1B backend, cross the
-frozen phase limit, or claim R1 before R1C is independently protected.
+Then advance the self-hosting dependency path to **R2 whole-stream byte input**
+and **D1 deterministic compiler storage/flat AST arenas**. R2 must consume the
+accepted byte owner without inventing path/module semantics; D1 must introduce
+owned tokens/names and integer-ID arenas without hiding Rust collections behind
+source syntax. Stop rather than bypass verified metadata, broaden the bounded
+owner into a general collection claim, or call the project self-hosted before
+F1, M1, B1, and H1/H2 are independently closed.
 
 ## Deliberately absent schedule
 
