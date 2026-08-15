@@ -1,5 +1,113 @@
 # Aero Task Ledger
 
+## CAP-031-BOUNDED-AERO-LEXER-KERNEL - tracked fixed-storage token spans
+
+- Date/task/status: 2026-08-15,
+  `CAP-031-BOUNDED-AERO-LEXER-KERNEL`, authorized ledger-first on
+  `agent/cap-031-bounded-aero-lexer` from exact accepted BOOT-001 merge
+  `dd35c197bdb3eab6d5837985eacbcf40108f5051`, tree
+  `99de6e653cdf1439624ae3047ea801b441441640`. Its ordered parents are prior
+  accepted master `43a236c8af6ce182561275343619f0f0dd06d232` then reviewed candidate
+  `11d6d0abd8088d4ebfe8aa6e1d41cd135fd92d41`. Post-merge CI
+  `31895040512`, Rust CI `31895040509`, CAP-023 accepted-head evidence
+  `31895040521`, and CodeQL push-on-master `31895040127` are terminal green.
+- Observed behavior and first failure: accepted BOOT-001 establishes S0 and
+  names K1 as the next executable gate, but the repository has no tracked
+  Aero-authored compiler component. A temporary untracked probe showed that a
+  bounded fixed-array scan can execute under `exact-i32-array-v0`; it is not a
+  product, oracle, cross-platform contract, or accepted capability. The first
+  intentional red must be the absent tracked specimen and must report exactly
+  `CAP-031 intentional product red: tracked bounded ASCII token-span kernel is absent`.
+  Any earlier parse, compile, infrastructure, or test-design failure invalidates
+  the red checkpoint and must be corrected before product code is added.
+- Hypothesis and bounded purpose: one Aero function can scan a source-embedded
+  fixed-capacity ASCII buffer using only already accepted exact `i32` scalar and
+  flat-array behavior. The result is useful executable frontend-kernel evidence
+  and a future parser input contract, while making no claim of runtime source
+  ingestion, dynamic token storage, production-lexer replacement, or
+  self-hosting.
+- Frozen entry and storage contract: the tracked function is exactly
+  `fn tokenize_ascii_64(source: [int; 64], source_len: int) -> [i32; 75]`.
+  Result lane 0 is status, lane 1 is the count of completed token records, lane
+  2 is the error byte offset, and lanes 3 through 74 hold 24 ordered
+  `[kind, start, length]` records. All unused lanes are zero. On success the
+  count includes one final EOF record `(0, source_len, 0)` and lane 2 is `-1`.
+  At most 23 non-EOF records are representable so the EOF record always fits.
+  Active input is exactly `source[0..source_len)`; inactive tail lanes are never
+  inspected.
+- Frozen status contract and precedence: status 0 is success; 1 is a logical
+  length outside `0..=64` with count 0 and offset `-1`; 2 is an active lane
+  outside ASCII `0..=127` with its exact lane offset; 3 is an unsupported ASCII
+  byte or unterminated block comment, with the byte offset or opening-comment
+  offset; 4 is token capacity at the start offset of the first non-EOF token
+  that cannot be stored. Errors retain already completed token records, omit
+  EOF, set lane 1 to the completed count, and leave unused lanes zero. Scanning
+  is left-to-right: the first encountered active-lane error wins. A 24th real
+  token yields capacity status after 23 records; comments and whitespace do not
+  consume records.
+- Frozen token vocabulary: 0 EOF, 1 identifier, 2 decimal integer; 3 `fn`, 4
+  `let`, 5 `mut`, 6 `return`, 7 `if`, 8 `else`, 9 `while`; 10 `(`, 11 `)`, 12
+  `{`, 13 `}`, 14 `[`, 15 `]`, 16 `,`, 17 `:`, 18 `;`, 19 `.`, 20 `+`, 21
+  `-`, 22 `*`, 23 `/`, 24 `%`, 25 `=`, 26 `==`, 27 `!`, 28 `!=`, 29 `<`, 30
+  `<=`, 31 `>`, 32 `>=`, 33 `&&`, 34 `||`, 35 `->`, and 36 `=>`. Identifiers
+  are `[A-Za-z_][A-Za-z0-9_]*`; decimal integers are `[0-9]+`. Spaces, tabs,
+  carriage returns, and line feeds are ignored. `//` comments run through the
+  next line feed or EOF. Non-nested `/* ... */` comments are ignored; an
+  unclosed block comment is status 3. The listed two-character tokens and both
+  comment openers use maximal munch before their one-character prefixes.
+  Strings, characters, floats, nondecimal numbers, Unicode, nested block
+  comments, and every unlisted byte/token family remain unsupported.
+- Oracle and proof boundary: `src/compiler/tests/bootstrap_tokenizer_tests.rs`
+  must contain an independent Rust scanner that consumes bytes and constructs
+  the complete 75-lane result without invoking Aero's production tokenizer,
+  parser, compiler lexer types, the tracked kernel, or a checksum oracle. It
+  must drive the tracked kernel against exact vectors for empty input,
+  whitespace, both comment forms, every keyword, identifiers, decimal integers,
+  every delimiter/operator and maximal-munch pair, ignored inactive tail,
+  both invalid lengths, non-ASCII, unsupported ASCII, unterminated comment,
+  exactly-23-token success, and 24th-token capacity failure. Generated fixtures
+  may exist only under a task-specific D: temporary root locally.
+- Tracked/native product: the example
+  `examples/fixed_int_array_v0/bootstrap_ascii_tokenizer.aero` must expose the
+  exact function and a source-embedded self-test `main` that calls it over
+  representative valid and invalid cases, compares returned lanes, emits no
+  output, and returns exactly 91 only when all checks pass. Tests may extract
+  the function prefix at one frozen marker and replace only `main` with
+  independently generated oracle fixtures; they may not synthesize or duplicate
+  the Aero scanner implementation.
+- Allowed files: exactly `TASK_LEDGER.md`,
+  `src/compiler/tests/bootstrap_tokenizer_tests.rs`,
+  `examples/fixed_int_array_v0/bootstrap_ascii_tokenizer.aero`,
+  `.github/workflows/rust.yml`, and `SELF_HOSTING_ROADMAP.md`. The roadmap may
+  change only after green evidence to mark K1 accepted locally, record exact
+  limitations, and advance the next gate. Every compiler production file,
+  dependency/lockfile, existing test, other example, evidence bundle, and broad
+  capability/decision document is frozen.
+- Red-first and acceptance gates: commit this authorization before the test;
+  then commit a structural/product test whose sole initial failure is the exact
+  absent-specimen message. Before acceptance require the independent vector
+  matrix; public source/file `check`; two byte-identical verified LLVM builds;
+  exact `[64 x i32]` input and `[75 x i32]` result signatures; no `double`,
+  float conversion, overflow-promise, vector, runtime String, allocation, or
+  legacy Vec representation; and public `run` exit 91. The Linux and Windows
+  LLVM/Clang 22 workflow lanes must each verify LLVM, machine-lower, link O0 and
+  O2 executables, observe exit 91 with empty stdout/stderr, repeat public exit
+  91, and anchor deterministic tokenizer LLVM. Focused tests, formatting,
+  Clippy correctness, diff hygiene, and `./tools/test.sh` must pass with one
+  Cargo build job, one Rust test thread, pinned LLVM 22, and task-isolated
+  `CARGO_TARGET_DIR`, `TEMP`, and `TMP` on D:.
+- Risks and mandatory stops: the primary risks are a self-referential expected
+  vector, counting EOF inconsistently, reading inactive lanes, losing partial
+  records on error, accepting a prefix instead of maximal munch, disguising
+  runtime ingestion as fixed-source evidence, or inflating K1 into a lexer or
+  self-hosting claim. Stop rather than widen if any new language profile,
+  compiler production change, runtime String, Vec/allocation, file/stdin I/O,
+  module/import support, recursion, new diagnostic rule, third compiler phase,
+  external dependency, checksum-only oracle, or sixth non-ledger product file
+  is required. Stop on any existing-profile diagnostic/LLVM/native delta or a
+  red baseline. CAP-031 does not authorize P1 or the owned-byte runtime; those
+  remain separate ledger-first checkpoints after K1 acceptance.
+
 ## BOOT-001-SELF-HOSTING-ROADMAP - canonical dependency path and evidence gates
 
 - Date/task/status: 2026-08-15, `BOOT-001-SELF-HOSTING-ROADMAP`, authorized
