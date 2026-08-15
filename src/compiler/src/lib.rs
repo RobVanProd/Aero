@@ -2,6 +2,7 @@ pub mod accelerator;
 pub mod ast;
 mod binding_annotation;
 mod builtin_carrier_contract;
+mod byte_buffer_source_contract;
 mod closure_contract;
 mod code_generator;
 mod compatibility;
@@ -247,7 +248,11 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let direct_modules = direct_modules_start.elapsed();
 
     let semantics_start = Instant::now();
-    let mut semantic_analyzer = SemanticAnalyzer::new();
+    let mut semantic_analyzer = if language_profile.enables_byte_buffer_source() {
+        SemanticAnalyzer::new_with_byte_buffer_source()
+    } else {
+        SemanticAnalyzer::new()
+    };
     let (semantic_message, analyzed_ast, resolved_profile) = semantic_analyzer
         .analyze_with_resolved_profile(ast)
         .map_err(|err| format!("Semantic Analysis Error: {}", err))?;
@@ -255,7 +260,11 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let semantics = semantics_start.elapsed();
 
     let checked_ir_start = Instant::now();
-    let mut ir_generator = IrGenerator::new();
+    let mut ir_generator = if language_profile.enables_byte_buffer_source() {
+        IrGenerator::new_with_byte_buffer_source()
+    } else {
+        IrGenerator::new()
+    };
     let checked_ir = ir_generator
         .try_generate_ir(analyzed_ast)
         .map_err(render_ir_generation_error)?;

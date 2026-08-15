@@ -1631,6 +1631,74 @@ jobs:
         test "$(printf '%s\n' "${public_output}" | grep -Fxc 'Exit code: 91')" -eq 1
         ! printf '%s\n' "${public_output}" | grep -Eq '^(Output|Error output):'
 
+    - name: Test source owned byte buffer profile at O0 and O2
+      if: matrix.rust == 'stable'
+      shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="/usr/lib/llvm-22/bin:${PATH}"
+        source="examples/owned_byte_buffer_v0/source_owned_byte_buffer.aero"
+        runtime="src/compiler/runtime/aero_runtime.c"
+        llvm="${RUNNER_TEMP}/source_owned_byte_buffer.linux.ll"
+        repeat_llvm="${RUNNER_TEMP}/source_owned_byte_buffer.linux.repeat.ll"
+        bitcode="${RUNNER_TEMP}/source_owned_byte_buffer.linux.bc"
+        machine="${RUNNER_TEMP}/source_owned_byte_buffer.linux.s"
+        executable_o0="${RUNNER_TEMP}/source_owned_byte_buffer.o0"
+        executable_o2="${RUNNER_TEMP}/source_owned_byte_buffer.o2"
+
+        cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+          check "${source}" --language-profile exact-i32-byte-buffer-v0
+        for output in "${llvm}" "${repeat_llvm}"; do
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+            build "${source}" -o "${output}" --require-llvm-verifier \
+            --language-profile exact-i32-byte-buffer-v0
+        done
+        cmp -s "${llvm}" "${repeat_llvm}"
+        for anchor in \
+          '%aero.byte_buffer = type { ptr, i32, i32 }' \
+          'declare ptr @aero_alloc(i64)' \
+          'declare ptr @aero_realloc(ptr, i64, i64)' \
+          'declare void @aero_dealloc(ptr, i64)' \
+          'call ptr @aero_alloc(i64' \
+          'call ptr @aero_realloc(ptr' \
+          'call void @aero_dealloc(ptr' \
+          'zext i8'; do
+          grep -Fq "${anchor}" "${llvm}"
+        done
+        if grep -Eq 'double|fptosi|sitofp| nsw | nuw ' "${llvm}"; then
+          echo "exact-i32-byte-buffer-v0 leaked an excluded representation or overflow promise"
+          exit 1
+        fi
+        llvm-as-22 "${llvm}" -o "${bitcode}"
+        test -s "${bitcode}"
+        opt-22 -passes=verify -disable-output "${llvm}"
+        llc-22 -verify-machineinstrs "${llvm}" -o "${machine}"
+        test -s "${machine}"
+        clang-22 -O0 "${llvm}" "${runtime}" -o "${executable_o0}"
+        clang-22 -O2 "${llvm}" "${runtime}" -o "${executable_o2}"
+
+        for executable in "${executable_o0}" "${executable_o2}"; do
+          stdout="${executable}.stdout"
+          stderr="${executable}.stderr"
+          set +e
+          "${executable}" >"${stdout}" 2>"${stderr}"
+          native_status=$?
+          set -e
+          test "${native_status}" -eq 91
+          test ! -s "${stdout}"
+          test ! -s "${stderr}"
+        done
+
+        set +e
+        public_output="$(cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+          run "${source}" --language-profile exact-i32-byte-buffer-v0 2>&1)"
+        public_status=$?
+        set -e
+        printf '%s\n' "${public_output}"
+        test "${public_status}" -eq 91
+        test "$(printf '%s\n' "${public_output}" | grep -Fxc 'Exit code: 91')" -eq 1
+        ! printf '%s\n' "${public_output}" | grep -Eq '^(Output|Error output):'
+
     - name: Test representative telemetry application at O0 and O2
       if: matrix.rust == 'stable'
       shell: bash
@@ -3096,6 +3164,117 @@ jobs:
         }
         if (@($publicOutput | Where-Object { $_.ToString() -match '^(Output|Error output):' }).Count -ne 0) {
           throw "Windows exact-i32-record-result-v0 application emitted output"
+        }
+        exit 0
+
+    - name: Test source owned byte buffer profile on Windows at O0 and O2
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $env:AERO_REQUIRE_LLVM_VERIFIER = "true"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+        $source = "examples/owned_byte_buffer_v0/source_owned_byte_buffer.aero"
+        $runtime = "src/compiler/runtime/aero_runtime.c"
+        $llvm = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.windows.ll"
+        $repeatLlvm = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.windows.repeat.ll"
+        $bitcode = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.windows.bc"
+        $machine = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.windows.s"
+        $executableO0 = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.o0.exe"
+        $executableO2 = Join-Path $env:RUNNER_TEMP "source_owned_byte_buffer.o2.exe"
+
+        function Invoke-ExactByteBuffer([string] $Path) {
+          $start = [System.Diagnostics.ProcessStartInfo]::new()
+          $start.FileName = $Path
+          $start.UseShellExecute = $false
+          $start.CreateNoWindow = $true
+          $start.RedirectStandardOutput = $true
+          $start.RedirectStandardError = $true
+          $process = [System.Diagnostics.Process]::new()
+          $process.StartInfo = $start
+          if (-not $process.Start()) {
+            throw "failed to start $Path"
+          }
+          $stdout = $process.StandardOutput.ReadToEndAsync()
+          $stderr = $process.StandardError.ReadToEndAsync()
+          $process.WaitForExit()
+          [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Stdout = $stdout.Result
+            Stderr = $stderr.Result
+          }
+        }
+
+        cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- check $source --language-profile exact-i32-byte-buffer-v0
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows exact-i32-byte-buffer-v0 public check failed"
+        }
+        foreach ($output in @($llvm, $repeatLlvm)) {
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- build $source -o $output --require-llvm-verifier --language-profile exact-i32-byte-buffer-v0
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $output -PathType Leaf)) {
+            throw "Windows exact-i32-byte-buffer-v0 public build failed or omitted LLVM"
+          }
+        }
+        if (-not [System.Linq.Enumerable]::SequenceEqual([IO.File]::ReadAllBytes($llvm), [IO.File]::ReadAllBytes($repeatLlvm))) {
+          throw "Windows exact-i32-byte-buffer-v0 emitted nondeterministic LLVM"
+        }
+        $llvmText = Get-Content -LiteralPath $llvm -Raw
+        foreach ($anchor in @(
+          "%aero.byte_buffer = type { ptr, i32, i32 }",
+          "declare ptr @aero_alloc(i64)",
+          "declare ptr @aero_realloc(ptr, i64, i64)",
+          "declare void @aero_dealloc(ptr, i64)",
+          "call ptr @aero_alloc(i64",
+          "call ptr @aero_realloc(ptr",
+          "call void @aero_dealloc(ptr",
+          "zext i8"
+        )) {
+          if (-not $llvmText.Contains($anchor)) {
+            throw "Windows exact-i32-byte-buffer-v0 LLVM omitted $anchor"
+          }
+        }
+        if ($llvmText -match 'double|fptosi|sitofp| nsw | nuw ') {
+          throw "Windows exact-i32-byte-buffer-v0 leaked an excluded representation or overflow promise"
+        }
+
+        & "$llvmBin\llvm-as.exe" $llvm -o $bitcode
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $bitcode -PathType Leaf) -or (Get-Item -LiteralPath $bitcode).Length -le 0) {
+          throw "Windows exact-i32-byte-buffer-v0 bitcode verification failed"
+        }
+        & "$llvmBin\opt.exe" -passes=verify -disable-output $llvm
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows exact-i32-byte-buffer-v0 opt verification failed"
+        }
+        & "$llvmBin\llc.exe" -verify-machineinstrs $llvm -o $machine
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $machine -PathType Leaf)) {
+          throw "Windows exact-i32-byte-buffer-v0 machine verification failed"
+        }
+        & "$llvmBin\clang.exe" -O0 $llvm $runtime -o $executableO0
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $executableO0 -PathType Leaf)) {
+          throw "Windows exact-i32-byte-buffer-v0 O0 link failed"
+        }
+        & "$llvmBin\clang.exe" -O2 $llvm $runtime -o $executableO2
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $executableO2 -PathType Leaf)) {
+          throw "Windows exact-i32-byte-buffer-v0 O2 link failed"
+        }
+        foreach ($executable in @($executableO0, $executableO2)) {
+          $native = Invoke-ExactByteBuffer $executable
+          if ($native.ExitCode -ne 91 -or $native.Stdout -cne "" -or $native.Stderr -cne "") {
+            throw "Windows exact-i32-byte-buffer-v0 native behavior diverged"
+          }
+        }
+
+        $publicOutput = @(cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- run $source --language-profile exact-i32-byte-buffer-v0 2>&1)
+        $publicStatus = $LASTEXITCODE
+        $publicOutput | ForEach-Object { Write-Host $_ }
+        if ($publicStatus -ne 91) {
+          throw "Windows exact-i32-byte-buffer-v0 public run returned $publicStatus"
+        }
+        if (@($publicOutput | Where-Object { $_.ToString() -ceq "Exit code: 91" }).Count -ne 1) {
+          throw "Windows exact-i32-byte-buffer-v0 public run omitted its exact exit line"
+        }
+        if (@($publicOutput | Where-Object { $_.ToString() -match '^(Output|Error output):' }).Count -ne 0) {
+          throw "Windows exact-i32-byte-buffer-v0 application emitted output"
         }
         exit 0
 

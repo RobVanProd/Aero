@@ -226,7 +226,10 @@ pub(crate) enum ResolvedProfileExpressionKind {
     StringLiteral,
     Identifier,
     Binary(ResolvedProfileBinaryOperator),
-    FunctionCall,
+    FunctionCall {
+        name: String,
+        arguments: Vec<ResolvedProfileCallArgumentKind>,
+    },
     MethodCall,
     Print,
     Println,
@@ -240,11 +243,23 @@ pub(crate) enum ResolvedProfileExpressionKind {
     TupleLiteral,
     TupleIndex,
     StructLiteral,
-    EnumVariant { parenthesized: bool },
+    EnumVariant {
+        parenthesized: bool,
+    },
     Match,
-    Borrow { mutable: bool },
+    Borrow {
+        mutable: bool,
+    },
     Dereference,
     Closure,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileCallArgumentKind {
+    ImmutableBorrowIdentifier,
+    MutableBorrowIdentifier,
+    Other,
 }
 
 #[allow(dead_code)]
@@ -336,11 +351,18 @@ impl ResolvedProfileProgram {
         structs: &StructRegistry,
         enums: &EnumRegistry,
         admitted_function: F,
+        byte_buffer_source_enabled: bool,
     ) -> Self
     where
         F: Fn(&str) -> Option<(Vec<(String, Ty)>, Ty)>,
     {
-        Builder::new(structs, enums, &admitted_function).build(ast)
+        Builder::new(
+            structs,
+            enums,
+            &admitted_function,
+            byte_buffer_source_enabled,
+        )
+        .build(ast)
     }
 }
 
@@ -364,13 +386,19 @@ where
     function_result: Option<ResolvedProfileResolution>,
     admitted_context: bool,
     profile_context: bool,
+    byte_buffer_source_enabled: bool,
 }
 
 impl<'a, F> Builder<'a, F>
 where
     F: Fn(&str) -> Option<(Vec<(String, Ty)>, Ty)>,
 {
-    fn new(structs: &'a StructRegistry, enums: &'a EnumRegistry, admitted_function: &'a F) -> Self {
+    fn new(
+        structs: &'a StructRegistry,
+        enums: &'a EnumRegistry,
+        admitted_function: &'a F,
+        byte_buffer_source_enabled: bool,
+    ) -> Self {
         Self {
             structs,
             enums,
@@ -388,6 +416,7 @@ where
             function_result: None,
             admitted_context: false,
             profile_context: false,
+            byte_buffer_source_enabled,
         }
     }
 
@@ -1237,6 +1266,11 @@ where
     }
 
     fn resolve_annotation(&mut self, annotation: &Type) -> ResolvedProfileResolution {
+        if self.byte_buffer_source_enabled
+            && crate::byte_buffer_source_contract::is_byte_buffer_annotation(annotation)
+        {
+            return self.resolve_logical(LogicalType::ByteBuffer);
+        }
         if matches!(annotation, Type::Reference(_, _) | Type::Generic(_, _)) {
             return ResolvedProfileResolution::Excluded(None);
         }
@@ -1250,6 +1284,9 @@ where
     }
 
     fn resolve_ty(&mut self, ty: &Ty) -> ResolvedProfileResolution {
+        if self.byte_buffer_source_enabled && *ty == Ty::ByteBuffer {
+            return self.resolve_logical(LogicalType::ByteBuffer);
+        }
         if *ty == Ty::Void {
             return self.resolve_logical(LogicalType::Void);
         }
@@ -1273,6 +1310,7 @@ where
 
     fn resolve_logical(&mut self, logical: LogicalType) -> ResolvedProfileResolution {
         let candidate = match &logical {
+            LogicalType::ByteBuffer => self.byte_buffer_source_enabled,
             LogicalType::Enum { name, .. } if private_carrier_source_name(name).is_some() => {
                 self.validated_carriers.contains(name) && candidate_shape(&logical)
             }
@@ -1471,7 +1509,12 @@ fn expression_kind(expression: &Expression) -> ResolvedProfileExpressionKind {
         Expression::StringLiteral(_) => ResolvedProfileExpressionKind::StringLiteral,
         Expression::Identifier(_) => ResolvedProfileExpressionKind::Identifier,
         Expression::Binary { op, .. } => ResolvedProfileExpressionKind::Binary(binary_operator(op)),
-        Expression::FunctionCall { .. } => ResolvedProfileExpressionKind::FunctionCall,
+        Expression::FunctionCall { name, arguments } => {
+            ResolvedProfileExpressionKind::FunctionCall {
+                name: name.clone(),
+                arguments: arguments.iter().map(call_argument_kind).collect(),
+            }
+        }
         Expression::MethodCall { .. } => ResolvedProfileExpressionKind::MethodCall,
         Expression::Print { .. } => ResolvedProfileExpressionKind::Print,
         Expression::Println { .. } => ResolvedProfileExpressionKind::Println,
@@ -1498,6 +1541,24 @@ fn expression_kind(expression: &Expression) -> ResolvedProfileExpressionKind {
         }
         Expression::Deref(_) => ResolvedProfileExpressionKind::Dereference,
         Expression::Closure { .. } => ResolvedProfileExpressionKind::Closure,
+    }
+}
+
+fn call_argument_kind(argument: &Expression) -> ResolvedProfileCallArgumentKind {
+    match argument {
+        Expression::Borrow {
+            expr,
+            mutable: false,
+        } if matches!(expr.as_ref(), Expression::Identifier(_)) => {
+            ResolvedProfileCallArgumentKind::ImmutableBorrowIdentifier
+        }
+        Expression::Borrow {
+            expr,
+            mutable: true,
+        } if matches!(expr.as_ref(), Expression::Identifier(_)) => {
+            ResolvedProfileCallArgumentKind::MutableBorrowIdentifier
+        }
+        _ => ResolvedProfileCallArgumentKind::Other,
     }
 }
 
@@ -2259,7 +2320,10 @@ fn main() -> int {
                     name: "function".to_string(),
                     arguments: vec![integer()],
                 },
-                ResolvedProfileExpressionKind::FunctionCall,
+                ResolvedProfileExpressionKind::FunctionCall {
+                    name: "function".to_string(),
+                    arguments: vec![ResolvedProfileCallArgumentKind::Other],
+                },
             ),
             (
                 Expression::MethodCall {
@@ -2420,7 +2484,7 @@ fn main() -> int {
         let structs = StructRegistry::from_top_level_ast(&empty_ast);
         let enums = EnumRegistry::from_top_level_ast(&empty_ast, &structs);
         let admitted_function = |_name: &str| None;
-        let mut builder = Builder::new(&structs, &enums, &admitted_function);
+        let mut builder = Builder::new(&structs, &enums, &admitted_function, false);
         builder.walk_pattern(&Pattern::Tuple(vec![
             Pattern::Literal(integer()),
             Pattern::Struct {
@@ -2605,7 +2669,8 @@ fn outer() -> int {
         let structs = StructRegistry::from_top_level_ast(&nested);
         let enums = EnumRegistry::from_top_level_ast(&nested, &structs);
         let admitted_function = |_name: &str| None;
-        let nested_program = Builder::new(&structs, &enums, &admitted_function).build(&nested);
+        let nested_program =
+            Builder::new(&structs, &enums, &admitted_function, false).build(&nested);
         assert!(nested_program.surface.iter().any(|observation| matches!(
             observation,
             ResolvedProfileSurfaceObservation::Statement {

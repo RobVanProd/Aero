@@ -155,7 +155,7 @@ impl CodeGenerator {
     /// program's source profile. The topology decision comes from language-profile
     /// authority; this backend owns only its physical rendering.
     fn profile_copy_data_type_to_llvm(&self, logical_type: &LogicalType) -> String {
-        let policy = if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+        let policy = if self.language_profile.uses_exact_record_result_layout() {
             CopyDataLayoutPolicy::ExactI32
         } else {
             match classify_profile_logical_type(logical_type) {
@@ -176,7 +176,7 @@ impl CodeGenerator {
     }
 
     fn profile_enum_storage_layout<'a>(&self, schema: &'a EnumSchema) -> EnumStorageLayout<'a> {
-        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+        if self.language_profile.uses_exact_record_result_layout() {
             EnumStorageLayout::with_policy(schema, CopyDataLayoutPolicy::ExactI32)
         } else {
             EnumStorageLayout::legacy(schema)
@@ -190,7 +190,7 @@ impl CodeGenerator {
         &self,
         logical_type: &'a LogicalType,
     ) -> CopyDataLayout<'a> {
-        let exact_root = self.language_profile == LanguageProfile::ExactI32RecordResultV0
+        let exact_root = self.language_profile.uses_exact_record_result_layout()
             || self.language_profile.admits_exact_i32_array(logical_type)
             || self.uses_exact_i32_lane() && matches!(logical_type, LogicalType::Int);
         let policy = if exact_root {
@@ -228,7 +228,7 @@ impl CodeGenerator {
     }
 
     fn profile_logical_type_to_llvm(&self, logical_type: &LogicalType) -> String {
-        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+        if self.language_profile.uses_exact_record_result_layout() {
             return match logical_type {
                 LogicalType::Enum { name, variants } => self
                     .profile_enum_storage_layout(&EnumSchema {
@@ -875,10 +875,9 @@ impl CodeGenerator {
         count: usize,
         element_place: u32,
     ) -> String {
-        let exact_i32_index = matches!(
-            self.language_profile,
-            LanguageProfile::ExactI32ArrayV0 | LanguageProfile::ExactI32RecordResultV0
-        ) && self.is_checked_int_result(index);
+        let exact_i32_index = (self.language_profile.uses_exact_record_result_layout()
+            || self.language_profile == LanguageProfile::ExactI32ArrayV0)
+            && self.is_checked_int_result(index);
         match index {
             Value::ImmInt(index) => index.to_string(),
             Value::Reg(index) if exact_i32_index => {
@@ -1397,8 +1396,7 @@ impl CodeGenerator {
     }
 
     fn copy_data_value_to_string(&self, ty: &LogicalType, value: &Value) -> String {
-        if self.language_profile == LanguageProfile::ExactI32RecordResultV0
-            && matches!(ty, LogicalType::Int)
+        if self.language_profile.uses_exact_record_result_layout() && matches!(ty, LogicalType::Int)
         {
             return self.stable_int_value_to_string(value);
         }
@@ -1597,12 +1595,10 @@ impl CodeGenerator {
         &self,
         metadata: &IrMetadata,
         authenticated: &AuthenticatedResolvedProfileProgram,
+        profile: LanguageProfile,
     ) -> Result<(), String> {
-        validate_resolved_language_profile(
-            &authenticated.program,
-            LanguageProfile::ExactI32RecordResultV0,
-        )
-        .map_err(|error| format!("authenticated descriptor no longer admits: {error}"))?;
+        validate_resolved_language_profile(&authenticated.program, profile)
+            .map_err(|error| format!("authenticated descriptor no longer admits: {error}"))?;
 
         let expected = Self::authenticated_metadata_subjects(metadata)?;
         let mut observed = BTreeMap::new();
@@ -1644,7 +1640,10 @@ impl CodeGenerator {
         Ok(())
     }
 
-    fn ensure_exact_record_result_metadata(metadata: &IrMetadata) -> Result<(), String> {
+    fn ensure_exact_record_result_metadata(
+        metadata: &IrMetadata,
+        allow_byte_buffer_places: bool,
+    ) -> Result<(), String> {
         for (function_name, function) in &metadata.functions {
             for (parameter_name, logical) in &function.signature.parameters {
                 if !exact_record_result_logical_type_is_admitted(logical) {
@@ -1670,7 +1669,9 @@ impl CodeGenerator {
                 }
             }
             for (place, metadata) in &function.places {
-                if !exact_record_result_logical_type_is_admitted(&metadata.pointee) {
+                if !exact_record_result_logical_type_is_admitted(&metadata.pointee)
+                    && !(allow_byte_buffer_places && metadata.pointee == LogicalType::ByteBuffer)
+                {
                     return Err(format!(
                         "function `{function_name}` place {} has unsupported logical type `{}`",
                         place.0, metadata.pointee
@@ -1681,12 +1682,15 @@ impl CodeGenerator {
         Ok(())
     }
 
-    fn unsupported_exact_record_result_instruction(instructions: &[Inst]) -> Option<&'static str> {
+    fn unsupported_exact_record_result_instruction(
+        instructions: &[Inst],
+        allow_byte_buffer: bool,
+    ) -> Option<&'static str> {
         instructions
             .iter()
             .find_map(|instruction| match instruction {
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
-                    Self::unsupported_exact_record_result_instruction(body)
+                    Self::unsupported_exact_record_result_instruction(body, allow_byte_buffer)
                 }
                 Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) => {
                     Some("profile-excluded floating-point instruction")
@@ -1704,6 +1708,21 @@ impl CodeGenerator {
                 | Inst::VecCapacity { .. } => {
                     Some("profile-excluded dynamic collection instruction")
                 }
+                Inst::CheckedByteBufferNew { .. }
+                | Inst::CheckedByteBufferMove { .. }
+                | Inst::CheckedByteBufferImmutableBorrow { .. }
+                | Inst::CheckedByteBufferImmutableBorrowEnd { .. }
+                | Inst::CheckedByteBufferMutableBorrow { .. }
+                | Inst::CheckedByteBufferMutableBorrowEnd { .. }
+                | Inst::CheckedByteBufferPush { .. }
+                | Inst::CheckedByteBufferLength { .. }
+                | Inst::CheckedByteBufferCapacity { .. }
+                | Inst::CheckedByteBufferGet { .. }
+                | Inst::CheckedByteBufferDrop { .. }
+                    if !allow_byte_buffer =>
+                {
+                    Some("profile-excluded byte-buffer resource instruction")
+                }
                 _ => None,
             })
     }
@@ -1714,7 +1733,7 @@ impl CodeGenerator {
         ir_functions: &HashMap<String, Function>,
         authenticated: Option<&AuthenticatedResolvedProfileProgram>,
     ) -> Result<(), CodeGenerationError> {
-        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+        if self.language_profile.uses_exact_record_result_layout() {
             let reject = |detail: String| CodeGenerationError::LanguageProfileContract {
                 profile: self.language_profile,
                 detail,
@@ -1722,14 +1741,21 @@ impl CodeGenerator {
             let authenticated = authenticated.ok_or_else(|| {
                 reject("missing verifier-authenticated resolved profile token".to_string())
             })?;
-            Self::ensure_exact_record_result_metadata(metadata).map_err(&reject)?;
-            self.ensure_exact_record_result_authentication(metadata, authenticated)
+            let allow_byte_buffer = self.language_profile.enables_byte_buffer_source();
+            Self::ensure_exact_record_result_metadata(metadata, allow_byte_buffer)
                 .map_err(&reject)?;
+            self.ensure_exact_record_result_authentication(
+                metadata,
+                authenticated,
+                self.language_profile,
+            )
+            .map_err(&reject)?;
             let mut function_names = ir_functions.keys().collect::<Vec<_>>();
             function_names.sort();
             for function_name in function_names {
                 if let Some(instruction) = Self::unsupported_exact_record_result_instruction(
                     &ir_functions[function_name].body,
+                    allow_byte_buffer,
                 ) {
                     return Err(reject(format!(
                         "function `{function_name}` contains {instruction}"

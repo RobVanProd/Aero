@@ -1,0 +1,30 @@
+fn result_value(result: Result<int, int>) -> int {
+    return match result {
+        Ok(value) => value,
+        Err(code) => 0 - code,
+    };
+}
+
+fn main() -> int {
+    let mut source: ByteBuffer = bytes_new();
+    let first: Result<int, int> = bytes_push(&mut source, 91);
+    let mut bytes: ByteBuffer = source;
+    let mut index: int = 0;
+    while index < 2 {
+        let step: Result<int, int> = bytes_push(&mut bytes, index);
+        if result_value(step) < 0 {
+            return 2;
+        }
+        index = index + 1;
+    }
+    let found: Result<int, int> = bytes_get(&bytes, 0);
+    let missing: Result<int, int> = bytes_get(&bytes, 9);
+    if result_value(first) == 1
+        && bytes_len(&bytes) == 3
+        && bytes_capacity(&bytes) == 8
+        && result_value(found) == 91
+        && result_value(missing) == -4 {
+        return 91;
+    }
+    return 1;
+}

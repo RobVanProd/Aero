@@ -3,7 +3,12 @@ use crate::binding_annotation::{
     BindingAnnotationDisposition, BindingContractKind, classify_binding_annotation,
     is_legacy_numeric_array_annotation, is_statically_empty_fixed_array,
 };
-use crate::builtin_carrier_contract::normalize_builtin_carriers;
+use crate::builtin_carrier_contract::{normalize_builtin_carriers, private_result_int_int_name};
+use crate::byte_buffer_source_contract::{
+    BYTES_NEW, ByteBufferIntrinsic, byte_buffer_type_declaration_diagnostic,
+    classify_byte_buffer_intrinsic_call, contains_byte_buffer_annotation,
+    is_byte_buffer_annotation, is_reserved_byte_buffer_intrinsic, result_context_diagnostic,
+};
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
@@ -115,6 +120,14 @@ struct AdmissionProgram {
     reference_functions: HashMap<String, ReferenceFunctionContract>,
     structs: StructRegistry,
     enums: EnumRegistry,
+    byte_buffer_source_enabled: bool,
+}
+
+#[derive(Clone)]
+struct GeneratedByteBufferOwner {
+    name: String,
+    place: Value,
+    live: bool,
 }
 
 const STRUCT_ADMISSION_BINDING: &str = "\0aero.checked.struct.context";
@@ -185,6 +198,8 @@ pub struct IrGenerator {
     checked_place_hints: PlaceTypeHints,
     struct_registry: StructRegistry,
     enum_registry: EnumRegistry,
+    byte_buffer_source_enabled: bool,
+    generated_byte_buffer_owners: Vec<GeneratedByteBufferOwner>,
 }
 
 impl IrGenerator {
@@ -209,7 +224,15 @@ impl IrGenerator {
             checked_place_hints: BTreeMap::new(),
             struct_registry: StructRegistry::default(),
             enum_registry: EnumRegistry::default(),
+            byte_buffer_source_enabled: false,
+            generated_byte_buffer_owners: Vec::new(),
         }
+    }
+
+    pub(crate) fn new_with_byte_buffer_source() -> Self {
+        let mut generator = Self::new();
+        generator.byte_buffer_source_enabled = true;
+        generator
     }
 }
 
@@ -256,7 +279,7 @@ impl IrGenerator {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_copydata_specializations(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;
-        Self::validate_checked_ast(&ast)?;
+        Self::validate_checked_ast(&ast, self.byte_buffer_source_enabled)?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
         self.functions.clear();
@@ -275,6 +298,7 @@ impl IrGenerator {
         self.reference_function_contracts.clear();
         self.loop_label_stack.clear();
         self.checked_place_hints.clear();
+        self.generated_byte_buffer_owners.clear();
         self.checked_mode = true;
         let mut functions = self.generate_ir(ast);
         self.checked_mode = false;
@@ -558,6 +582,7 @@ impl IrGenerator {
                 | Ty::Reference(_, _)
                 | Ty::Vec(_)
                 | Ty::Fn(_)
+                | Ty::ByteBuffer
         )
     }
 
@@ -615,7 +640,201 @@ impl IrGenerator {
         })
     }
 
-    fn validate_checked_ast(ast: &[AstNode]) -> Result<(), IrGenerationError> {
+    fn validate_byte_buffer_owner(
+        bindings: &HashMap<String, AdmissionBinding>,
+        name: &str,
+        require_mutable: bool,
+    ) -> Result<(), IrGenerationError> {
+        let binding = bindings.get(name).ok_or_else(|| {
+            IrGenerationError::Admission(format!(
+                "byte-buffer intrinsic owner `{name}` is not a live local binding"
+            ))
+        })?;
+        if binding.ty != Ty::ByteBuffer || !binding.initialized {
+            return Err(IrGenerationError::Admission(format!(
+                "byte-buffer intrinsic owner `{name}` is not a live ByteBuffer"
+            )));
+        }
+        match binding.ownership {
+            OwnershipState::Owned => {}
+            OwnershipState::Moved => {
+                return Err(IrGenerationError::Admission(format!(
+                    "use of moved ByteBuffer owner `{name}` in checked IR"
+                )));
+            }
+            OwnershipState::MaybeMoved => {
+                return Err(IrGenerationError::Admission(maybe_moved_diagnostic(name)));
+            }
+            _ => {
+                return Err(IrGenerationError::Admission(format!(
+                    "byte-buffer intrinsic owner `{name}` is already borrowed"
+                )));
+            }
+        }
+        if require_mutable && !binding.mutable {
+            return Err(IrGenerationError::Admission(format!(
+                "byte-buffer intrinsic `bytes_push` requires mutable owner `{name}`"
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate_byte_buffer_intrinsic(
+        name: &str,
+        arguments: &[Expression],
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_impl: bool,
+        admit_static_string_equality: bool,
+    ) -> Result<Option<Ty>, IrGenerationError> {
+        if !program.byte_buffer_source_enabled {
+            return Ok(None);
+        }
+        let Some(call) = classify_byte_buffer_intrinsic_call(name, arguments)
+            .map_err(IrGenerationError::Admission)?
+        else {
+            return Ok(None);
+        };
+        if call.intrinsic == ByteBufferIntrinsic::New {
+            return Err(IrGenerationError::Admission(
+                "byte-buffer intrinsic `bytes_new` must directly initialize an explicit ByteBuffer binding"
+                    .to_string(),
+            ));
+        }
+        let owner = call
+            .owner
+            .expect("non-constructor byte-buffer intrinsic retains an owner");
+        Self::validate_byte_buffer_owner(
+            bindings,
+            owner,
+            call.intrinsic == ByteBufferIntrinsic::Push,
+        )?;
+        if let Some(scalar) = call.scalar {
+            let actual = Self::validate_expression(
+                scalar,
+                bindings,
+                program,
+                ExpressionUse::Value,
+                inside_impl,
+                admit_static_string_equality,
+            )?;
+            if actual != Ty::Int {
+                return Err(IrGenerationError::Admission(format!(
+                    "byte-buffer intrinsic `{name}` scalar argument has type {actual}, expected int"
+                )));
+            }
+        }
+        Ok(Some(match call.intrinsic {
+            ByteBufferIntrinsic::Push | ByteBufferIntrinsic::Get => {
+                let result = private_result_int_int_name();
+                program
+                    .enums
+                    .owned_place_logical_type(&result)
+                    .map_err(|_| IrGenerationError::Admission(result_context_diagnostic(name)))?;
+                Ty::Enum(result)
+            }
+            ByteBufferIntrinsic::Length | ByteBufferIntrinsic::Capacity => Ty::Int,
+            ByteBufferIntrinsic::New => unreachable!("constructor handled above"),
+        }))
+    }
+
+    fn validate_byte_buffer_binding(
+        name: &str,
+        mutable: bool,
+        type_annotation: Option<&Type>,
+        value: Option<&Expression>,
+        bindings: &mut HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        direct_byte_buffer_owner_scope: bool,
+    ) -> Result<bool, IrGenerationError> {
+        if !program.byte_buffer_source_enabled {
+            return Ok(false);
+        }
+        let byte_buffer_initializer = value.is_some_and(|value| match value {
+            Expression::FunctionCall { name, .. } => name == BYTES_NEW,
+            Expression::Identifier(source) => bindings
+                .get(source)
+                .is_some_and(|binding| binding.ty == Ty::ByteBuffer),
+            _ => false,
+        });
+        let byte_buffer_annotation = type_annotation.is_some_and(contains_byte_buffer_annotation);
+        if !byte_buffer_annotation && !byte_buffer_initializer {
+            return Ok(false);
+        }
+        if !direct_byte_buffer_owner_scope {
+            return Err(IrGenerationError::Admission(
+                "ByteBuffer owners may be declared or moved only in a direct nongeneric function body outside control-flow topology"
+                    .to_string(),
+            ));
+        }
+        if !type_annotation.is_some_and(is_byte_buffer_annotation) {
+            return Err(IrGenerationError::Admission(format!(
+                "byte-buffer owner `{name}` requires the explicit `ByteBuffer` annotation"
+            )));
+        }
+        let value = value.ok_or_else(|| {
+            IrGenerationError::Admission(format!(
+                "byte-buffer owner `{name}` must be initialized at declaration"
+            ))
+        })?;
+        match value {
+            Expression::FunctionCall {
+                name: intrinsic,
+                arguments,
+            } => {
+                let Some(call) = classify_byte_buffer_intrinsic_call(intrinsic, arguments)
+                    .map_err(IrGenerationError::Admission)?
+                else {
+                    return Err(IrGenerationError::Admission(format!(
+                        "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                    )));
+                };
+                if call.intrinsic != ByteBufferIntrinsic::New {
+                    return Err(IrGenerationError::Admission(format!(
+                        "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                    )));
+                }
+            }
+            Expression::Identifier(source) => {
+                Self::validate_byte_buffer_owner(bindings, source, false)?;
+                bindings
+                    .get_mut(source)
+                    .expect("validated ByteBuffer move source remains in scope")
+                    .ownership = OwnershipState::Moved;
+            }
+            _ => {
+                return Err(IrGenerationError::Admission(format!(
+                    "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                )));
+            }
+        }
+        bindings.insert(
+            name.to_string(),
+            AdmissionBinding {
+                ty: Ty::ByteBuffer,
+                mutable,
+                initialized: true,
+                ownership: OwnershipState::Owned,
+                callable: false,
+                static_string: None,
+            },
+        );
+        Ok(true)
+    }
+
+    fn validate_checked_ast(
+        ast: &[AstNode],
+        byte_buffer_source_enabled: bool,
+    ) -> Result<(), IrGenerationError> {
+        if byte_buffer_source_enabled {
+            for node in ast {
+                if let AstNode::Statement(statement) = node
+                    && let Some(diagnostic) = byte_buffer_type_declaration_diagnostic(statement)
+                {
+                    return Err(IrGenerationError::Admission(diagnostic));
+                }
+            }
+        }
         let mut program: HashMap<String, AdmissionTopLevelFunction> = HashMap::new();
         let mut enum_functions = HashMap::new();
         let mut reference_functions = HashMap::new();
@@ -630,6 +849,24 @@ impl IrGenerator {
                 ..
             }) = node
             {
+                if byte_buffer_source_enabled {
+                    if is_reserved_byte_buffer_intrinsic(name) {
+                        return Err(IrGenerationError::Admission(format!(
+                            "byte-buffer intrinsic name `{name}` is reserved by exact-i32-byte-buffer-v0"
+                        )));
+                    }
+                    if parameters
+                        .iter()
+                        .any(|parameter| contains_byte_buffer_annotation(&parameter.param_type))
+                        || return_type
+                            .as_ref()
+                            .is_some_and(contains_byte_buffer_annotation)
+                    {
+                        return Err(IrGenerationError::Admission(format!(
+                            "function `{name}` cannot transport ByteBuffer in a parameter or result"
+                        )));
+                    }
+                }
                 let reference_contract = match classify_reference_function_with_enums(
                     name,
                     parameters,
@@ -753,6 +990,7 @@ impl IrGenerator {
             reference_functions,
             structs,
             enums,
+            byte_buffer_source_enabled,
         };
         let mut bindings = HashMap::new();
         let mut loop_controls = Vec::<AdmissionLoopControl>::new();
@@ -766,6 +1004,7 @@ impl IrGenerator {
                     false,
                     false,
                     true,
+                    false,
                     &mut loop_controls,
                 )?,
                 AstNode::Expression(_) => {
@@ -827,6 +1066,7 @@ impl IrGenerator {
         inside_loop: bool,
         inside_impl: bool,
         inside_generic_impl: bool,
+        direct_byte_buffer_owner_scope: bool,
         loop_controls: &mut Vec<AdmissionLoopControl>,
     ) -> Result<(), IrGenerationError> {
         for statement in &block.statements {
@@ -838,6 +1078,7 @@ impl IrGenerator {
                 inside_impl,
                 inside_generic_impl,
                 false,
+                direct_byte_buffer_owner_scope,
                 loop_controls,
             )?;
         }
@@ -1118,6 +1359,7 @@ impl IrGenerator {
         inside_impl: bool,
         inside_generic_impl: bool,
         is_top_level: bool,
+        direct_byte_buffer_owner_scope: bool,
         loop_controls: &mut Vec<AdmissionLoopControl>,
     ) -> Result<(), IrGenerationError> {
         match statement {
@@ -1130,6 +1372,17 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                if Self::validate_byte_buffer_binding(
+                    name,
+                    *mutable,
+                    type_annotation.as_ref(),
+                    value.as_ref(),
+                    bindings,
+                    program,
+                    direct_byte_buffer_owner_scope,
+                )? {
+                    return Ok(());
+                }
                 let disposition = type_annotation.as_ref().map_or(
                     BindingAnnotationDisposition::PreservedQuarantinedTopology,
                     |annotation| classify_binding_annotation(annotation, value.is_some()),
@@ -1341,6 +1594,15 @@ impl IrGenerator {
                 }
             }
             Statement::Assignment { target, value } => {
+                if let Expression::Identifier(name) = target
+                    && bindings
+                        .get(name)
+                        .is_some_and(|binding| binding.ty == Ty::ByteBuffer)
+                {
+                    return Err(IrGenerationError::Admission(format!(
+                        "ByteBuffer owner `{name}` may only be initialized or moved by direct binding"
+                    )));
+                }
                 let mut array_selector_types = Vec::new();
                 if let Some(selectors) = projected_copydata_assignment_array_selectors(target)
                     .map_err(IrGenerationError::Admission)?
@@ -1507,6 +1769,7 @@ impl IrGenerator {
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
+                    false,
                     loop_controls,
                 )?;
             }
@@ -1525,6 +1788,7 @@ impl IrGenerator {
                         true,
                         inside_impl,
                         inside_generic_impl,
+                        false,
                         loop_controls,
                     );
                     let control = loop_controls
@@ -1697,6 +1961,11 @@ impl IrGenerator {
                     false,
                     inside_impl,
                     inside_generic_impl,
+                    program.byte_buffer_source_enabled
+                        && is_top_level
+                        && !inside_impl
+                        && !inside_generic_impl
+                        && type_params.is_empty(),
                     loop_controls,
                 )?;
             }
@@ -1723,6 +1992,7 @@ impl IrGenerator {
                     inside_loop,
                     inside_impl,
                     inside_generic_impl,
+                    false,
                     loop_controls,
                 )?;
                 let else_bindings = if let Some(else_statement) = else_block {
@@ -1734,6 +2004,7 @@ impl IrGenerator {
                         inside_loop,
                         inside_impl,
                         inside_generic_impl,
+                        false,
                         false,
                         loop_controls,
                     )?;
@@ -1783,6 +2054,7 @@ impl IrGenerator {
                         true,
                         inside_impl,
                         inside_generic_impl,
+                        false,
                         loop_controls,
                     );
                     let control = loop_controls
@@ -1872,6 +2144,7 @@ impl IrGenerator {
                         true,
                         inside_impl,
                         inside_generic_impl,
+                        false,
                         loop_controls,
                     );
                     let control = loop_controls
@@ -1932,6 +2205,7 @@ impl IrGenerator {
                         false,
                         true,
                         methods_are_generic,
+                        false,
                         false,
                         loop_controls,
                     )?;
@@ -2206,6 +2480,11 @@ impl IrGenerator {
                 if binding.ownership == OwnershipState::MaybeMoved {
                     return Err(IrGenerationError::Admission(maybe_moved_diagnostic(name)));
                 }
+                if binding.ty == Ty::ByteBuffer {
+                    return Err(admission_error(
+                        "ByteBuffer owners may only be moved by direct binding or used by byte-buffer intrinsics",
+                    ));
+                }
                 Ok(binding.ty.clone())
             }
             Expression::Binary {
@@ -2262,6 +2541,16 @@ impl IrGenerator {
                 Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
+                if let Some(result) = Self::validate_byte_buffer_intrinsic(
+                    name,
+                    arguments,
+                    bindings,
+                    program,
+                    inside_impl,
+                    admit_static_string_equality,
+                )? {
+                    return Ok(result);
+                }
                 Self::validate_function_call_expression(
                     name,
                     arguments,
@@ -3125,6 +3414,22 @@ impl IrGenerator {
                     result: Value::Reg(register),
                     ..
                 }
+                | Inst::CheckedByteBufferNew {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedByteBufferMove {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedByteBufferImmutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
+                | Inst::CheckedByteBufferMutableBorrow {
+                    result: Value::Reg(register),
+                    ..
+                }
                 | Inst::CheckedImmutableReferenceParameter {
                     result: Value::Reg(register),
                     ..
@@ -3213,6 +3518,25 @@ impl IrGenerator {
                     Self::rewrite_place(root, &places);
                     Self::rewrite_place(source, &places);
                 }
+                Inst::CheckedByteBufferNew { result, .. } => Self::rewrite_place(result, &places),
+                Inst::CheckedByteBufferMove { result, source, .. }
+                | Inst::CheckedByteBufferImmutableBorrow { result, source }
+                | Inst::CheckedByteBufferMutableBorrow { result, source } => {
+                    Self::rewrite_place(result, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedByteBufferImmutableBorrowEnd { reference, source }
+                | Inst::CheckedByteBufferMutableBorrowEnd { reference, source } => {
+                    Self::rewrite_place(reference, &places);
+                    Self::rewrite_place(source, &places);
+                }
+                Inst::CheckedByteBufferPush { reference, .. }
+                | Inst::CheckedByteBufferLength { reference, .. }
+                | Inst::CheckedByteBufferCapacity { reference, .. }
+                | Inst::CheckedByteBufferGet { reference, .. } => {
+                    Self::rewrite_place(reference, &places)
+                }
+                Inst::CheckedByteBufferDrop { owner } => Self::rewrite_place(owner, &places),
                 Inst::CheckedMutableDereferenceAssignment { target, .. } => {
                     Self::rewrite_place(target, &places);
                 }
@@ -3301,7 +3625,11 @@ impl IrGenerator {
             | Inst::CheckedEnumPayload { result, .. }
             | Inst::CheckedEnumField { result, .. }
             | Inst::CheckedImmutableEnumMatchRead { result, .. }
-            | Inst::CheckedMutableEnumMatchRead { result, .. } => Some(result),
+            | Inst::CheckedMutableEnumMatchRead { result, .. }
+            | Inst::CheckedByteBufferPush { result, .. }
+            | Inst::CheckedByteBufferLength { result, .. }
+            | Inst::CheckedByteBufferCapacity { result, .. }
+            | Inst::CheckedByteBufferGet { result, .. } => Some(result),
             Inst::Call {
                 result: Some(result),
                 ..
@@ -3928,6 +4256,279 @@ impl IrGenerator {
         }
     }
 
+    fn emit_live_byte_buffer_drops(&self, function: &mut Function) {
+        for owner in self
+            .generated_byte_buffer_owners
+            .iter()
+            .rev()
+            .filter(|owner| owner.live)
+        {
+            function.body.push(Inst::CheckedByteBufferDrop {
+                owner: owner.place.clone(),
+            });
+        }
+    }
+
+    fn generate_byte_buffer_binding(
+        &mut self,
+        name: &str,
+        type_annotation: Option<&Type>,
+        value: Option<&Expression>,
+        function: &mut Function,
+    ) -> bool {
+        if !self.checked_mode
+            || !self.byte_buffer_source_enabled
+            || !type_annotation.is_some_and(is_byte_buffer_annotation)
+        {
+            return false;
+        }
+        let value = value.expect("checked ByteBuffer binding is initialized");
+        let place = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        match value {
+            Expression::FunctionCall {
+                name: intrinsic,
+                arguments,
+            } => {
+                let call = classify_byte_buffer_intrinsic_call(intrinsic, arguments)
+                    .expect("checked ByteBuffer constructor has exact syntax")
+                    .expect("checked ByteBuffer constructor is reserved");
+                debug_assert_eq!(call.intrinsic, ByteBufferIntrinsic::New);
+                function.body.push(Inst::CheckedByteBufferNew {
+                    result: place.clone(),
+                    name: name.to_string(),
+                });
+            }
+            Expression::Identifier(source) => {
+                let (source_place, source_ty) = self
+                    .symbol_table
+                    .get(source)
+                    .expect("checked ByteBuffer move source exists")
+                    .clone();
+                debug_assert_eq!(source_ty, Ty::ByteBuffer);
+                function.body.push(Inst::CheckedByteBufferMove {
+                    result: place.clone(),
+                    source: source_place,
+                    name: name.to_string(),
+                });
+                self.generated_byte_buffer_owners
+                    .iter_mut()
+                    .rev()
+                    .find(|owner| owner.name == *source && owner.live)
+                    .expect("checked ByteBuffer move source is live")
+                    .live = false;
+            }
+            _ => unreachable!("checked ByteBuffer binding has exact constructor or move syntax"),
+        }
+        self.symbol_table
+            .insert(name.to_string(), (place.clone(), Ty::ByteBuffer));
+        self.generated_byte_buffer_owners
+            .push(GeneratedByteBufferOwner {
+                name: name.to_string(),
+                place,
+                live: true,
+            });
+        true
+    }
+
+    fn generate_result_int_int_variant(
+        &mut self,
+        variant: &str,
+        payload: Value,
+        function: &mut Function,
+    ) -> (Value, EnumSchema) {
+        let enum_name = private_result_int_int_name();
+        let resolved = self
+            .enum_registry
+            .resolve_constructor(
+                &enum_name,
+                variant,
+                Some(1),
+                EnumExecutionContext::AdmittedFunction,
+            )
+            .expect("normalized Result<int, int> constructor is admitted");
+        let result = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::CheckedEnumVariant {
+            result: result.clone(),
+            schema: resolved.contract.schema.clone(),
+            variant_index: resolved.variant_index,
+            payload: Some(payload),
+        });
+        (result, resolved.contract.schema)
+    }
+
+    fn wrap_byte_buffer_status_result(
+        &mut self,
+        status: Value,
+        function: &mut Function,
+    ) -> (Value, Ty) {
+        let initial_zero = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Add(
+            initial_zero.clone(),
+            Value::ImmInt(0),
+            Value::ImmInt(0),
+        ));
+        let (initial, schema) = self.generate_result_int_int_variant("Err", initial_zero, function);
+        let result_place = Value::Reg(self.next_ptr);
+        let result_name = format!("__aero_byte_buffer_result_{}", self.next_ptr);
+        self.next_ptr += 1;
+        let logical_type = LogicalType::Enum {
+            name: schema.name.clone(),
+            variants: schema.variants.clone(),
+        };
+        function.body.push(Inst::CheckedMutableOwnedPlaceAlloca {
+            result: result_place.clone(),
+            name: result_name,
+            ty: logical_type.clone(),
+        });
+        function
+            .body
+            .push(Inst::Store(result_place.clone(), initial));
+
+        let failed = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::ICmp {
+            op: "slt".to_string(),
+            result: failed.clone(),
+            left: status.clone(),
+            right: Value::ImmInt(0),
+        });
+        let error_label = self.fresh_control_label("byte_buffer_error");
+        let success_label = self.fresh_control_label("byte_buffer_success");
+        let join_label = self.fresh_control_label("byte_buffer_result");
+        function.body.push(Inst::Branch {
+            condition: failed,
+            true_label: error_label.clone(),
+            false_label: success_label.clone(),
+        });
+
+        function.body.push(Inst::Label(error_label));
+        let error_code = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Sub(
+            error_code.clone(),
+            Value::ImmInt(0),
+            status.clone(),
+        ));
+        let (error_value, error_schema) =
+            self.generate_result_int_int_variant("Err", error_code, function);
+        debug_assert_eq!(error_schema, schema);
+        function.body.push(Inst::CheckedOwnedPlaceAssignment {
+            target: result_place.clone(),
+            value: error_value,
+            ty: logical_type.clone(),
+        });
+        function.body.push(Inst::Jump(join_label.clone()));
+
+        function.body.push(Inst::Label(success_label));
+        let (success_value, success_schema) =
+            self.generate_result_int_int_variant("Ok", status, function);
+        debug_assert_eq!(success_schema, schema);
+        function.body.push(Inst::CheckedOwnedPlaceAssignment {
+            target: result_place.clone(),
+            value: success_value,
+            ty: logical_type,
+        });
+        function.body.push(Inst::Jump(join_label.clone()));
+
+        function.body.push(Inst::Label(join_label));
+        let result = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::Load(result.clone(), result_place));
+        (result, Ty::Enum(schema.name))
+    }
+
+    fn generate_byte_buffer_intrinsic(
+        &mut self,
+        name: &str,
+        arguments: &[Expression],
+        function: &mut Function,
+    ) -> Option<(Value, Ty)> {
+        if !self.checked_mode || !self.byte_buffer_source_enabled {
+            return None;
+        }
+        let call = classify_byte_buffer_intrinsic_call(name, arguments)
+            .expect("checked byte-buffer intrinsic has exact syntax")?;
+        debug_assert_ne!(call.intrinsic, ByteBufferIntrinsic::New);
+        let owner = call
+            .owner
+            .expect("checked byte-buffer operation retains an owner");
+        let (owner_place, owner_ty) = self
+            .symbol_table
+            .get(owner)
+            .expect("checked byte-buffer owner exists")
+            .clone();
+        debug_assert_eq!(owner_ty, Ty::ByteBuffer);
+        // Evaluate the scalar completely before opening the operation's immediate
+        // loan. This keeps nested, already-validated integer calls from extending
+        // or overlapping the outer resource loan.
+        let scalar = call.scalar.map(|expression| {
+            let (value, ty) = self.generate_expression_ir(expression.clone(), function);
+            debug_assert_eq!(ty, Ty::Int);
+            value
+        });
+        let reference = Value::Reg(self.next_ptr);
+        self.next_ptr += 1;
+        let mutable = call.intrinsic == ByteBufferIntrinsic::Push;
+        if mutable {
+            function.body.push(Inst::CheckedByteBufferMutableBorrow {
+                result: reference.clone(),
+                source: owner_place.clone(),
+            });
+        } else {
+            function.body.push(Inst::CheckedByteBufferImmutableBorrow {
+                result: reference.clone(),
+                source: owner_place.clone(),
+            });
+        }
+
+        let result = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(match call.intrinsic {
+            ByteBufferIntrinsic::Push => Inst::CheckedByteBufferPush {
+                result: result.clone(),
+                reference: reference.clone(),
+                byte: scalar.expect("push retains a byte"),
+            },
+            ByteBufferIntrinsic::Length => Inst::CheckedByteBufferLength {
+                result: result.clone(),
+                reference: reference.clone(),
+            },
+            ByteBufferIntrinsic::Capacity => Inst::CheckedByteBufferCapacity {
+                result: result.clone(),
+                reference: reference.clone(),
+            },
+            ByteBufferIntrinsic::Get => Inst::CheckedByteBufferGet {
+                result: result.clone(),
+                reference: reference.clone(),
+                index: scalar.expect("get retains an index"),
+            },
+            ByteBufferIntrinsic::New => unreachable!("constructor lowers through binding"),
+        });
+        if mutable {
+            function.body.push(Inst::CheckedByteBufferMutableBorrowEnd {
+                reference,
+                source: owner_place,
+            });
+        } else {
+            function
+                .body
+                .push(Inst::CheckedByteBufferImmutableBorrowEnd {
+                    reference,
+                    source: owner_place,
+                });
+        }
+        Some(match call.intrinsic {
+            ByteBufferIntrinsic::Push | ByteBufferIntrinsic::Get => {
+                self.wrap_byte_buffer_status_result(result, function)
+            }
+            ByteBufferIntrinsic::Length | ByteBufferIntrinsic::Capacity => (result, Ty::Int),
+            ByteBufferIntrinsic::New => unreachable!("constructor lowers through binding"),
+        })
+    }
+
     fn generate_statement_ir(&mut self, stmt: Statement, current_function: &mut Function) {
         match stmt {
             Statement::Const { .. } => {
@@ -3939,6 +4540,14 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                if self.generate_byte_buffer_binding(
+                    &name,
+                    type_annotation.as_ref(),
+                    value.as_ref(),
+                    current_function,
+                ) {
+                    return;
+                }
                 let binding_name = name.clone();
                 let mutable_borrow_source = self
                     .checked_mode
@@ -4214,6 +4823,7 @@ impl IrGenerator {
                 }
                 if self.checked_mode {
                     self.end_all_active_mutable_owner_immutable_enum_references(current_function);
+                    self.emit_live_byte_buffer_drops(current_function);
                 }
                 current_function.body.push(Inst::Return(return_value));
             }
@@ -4542,6 +5152,11 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                if let Some(result) =
+                    self.generate_byte_buffer_intrinsic(&name, &arguments, function)
+                {
+                    return result;
+                }
                 let mutable_calls = self
                     .checked_mode
                     .then(|| self.reference_function_contracts.get(&name))
@@ -5277,6 +5892,7 @@ impl IrGenerator {
             self.mutable_owner_immutable_enum_reference_sources.clone();
         let saved_immutable_owned_enum_places = self.immutable_owned_enum_places.clone();
         let saved_mutable_owned_enum_places = self.mutable_owned_enum_places.clone();
+        let saved_generated_byte_buffer_owners = self.generated_byte_buffer_owners.clone();
         let saved_next_reg = self.next_reg;
         let saved_next_ptr = self.next_ptr;
 
@@ -5287,6 +5903,7 @@ impl IrGenerator {
         self.mutable_owner_immutable_enum_reference_sources.clear();
         self.immutable_owned_enum_places.clear();
         self.mutable_owned_enum_places.clear();
+        self.generated_byte_buffer_owners.clear();
         self.next_reg = 0;
         self.next_ptr = 0;
 
@@ -5417,6 +6034,7 @@ impl IrGenerator {
                 self.load_copy_aggregate_value(return_value, &return_ty, &mut function_ir);
             if self.checked_mode {
                 self.end_all_active_mutable_owner_immutable_enum_references(&mut function_ir);
+                self.emit_live_byte_buffer_drops(&mut function_ir);
             }
             function_ir.body.push(Inst::Return(return_value));
         } else if !function_ir
@@ -5428,6 +6046,7 @@ impl IrGenerator {
             // `None` return type is lowered as `void` in codegen.
             if self.checked_mode {
                 self.end_all_active_mutable_owner_immutable_enum_references(&mut function_ir);
+                self.emit_live_byte_buffer_drops(&mut function_ir);
             }
             function_ir.body.push(Inst::Return(Value::ImmInt(0)));
         }
@@ -5497,6 +6116,7 @@ impl IrGenerator {
             saved_mutable_owner_immutable_enum_reference_sources;
         self.immutable_owned_enum_places = saved_immutable_owned_enum_places;
         self.mutable_owned_enum_places = saved_mutable_owned_enum_places;
+        self.generated_byte_buffer_owners = saved_generated_byte_buffer_owners;
         self.next_reg = saved_next_reg;
         self.next_ptr = saved_next_ptr;
     }
@@ -6252,6 +6872,7 @@ impl IrGenerator {
             Ty::Bool => "bool".to_string(),
             Ty::Char => "char".to_string(),
             Ty::String => "String".to_string(),
+            Ty::ByteBuffer => "ByteBuffer".to_string(),
             Ty::Void => "void".to_string(),
             Ty::Array(_, _) => "array".to_string(),
             Ty::Tuple(_) => "tuple".to_string(),

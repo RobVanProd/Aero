@@ -10,6 +10,8 @@ pub enum Ty {
     Bool,
     Char,
     String,
+    /// Profile-gated, uniquely owned runtime byte storage. This is not CopyData.
+    ByteBuffer,
     Array(Box<Ty>, usize), // element type, size (fixed-size array)
     Tuple(Vec<Ty>),        // product type
     Struct(String),        // struct name (fields resolved via StructRegistry)
@@ -35,6 +37,7 @@ impl fmt::Display for Ty {
             Ty::Bool => f.write_str("bool"),
             Ty::Char => f.write_str("char"),
             Ty::String => f.write_str("String"),
+            Ty::ByteBuffer => f.write_str("ByteBuffer"),
             Ty::Array(elem, size) => write!(f, "[{}; {}]", elem, size),
             Ty::Tuple(elems) => {
                 write!(f, "(")?;
@@ -164,8 +167,8 @@ impl Ty {
             Ty::Reference(_, true) => false,
             Ty::Tuple(elems) => elems.iter().all(|t| t.is_copy_type()),
             Ty::Array(elem, _) => elem.is_copy_type(),
-            // Move types: String, Struct, Enum, Option, Result, Vec, HashMap
-            Ty::String | Ty::Struct(_) | Ty::Enum(_) => false,
+            // Move types: String, ByteBuffer, Struct, Enum, Option, Result, Vec, HashMap
+            Ty::String | Ty::ByteBuffer | Ty::Struct(_) | Ty::Enum(_) => false,
             Ty::Option(_) | Ty::Result(_, _) | Ty::Vec(_) | Ty::HashMap(_, _) => false,
             Ty::TypeParam(_) => false, // conservative: generics are not Copy by default
             Ty::Fn(_) => true,         // function pointers are Copy

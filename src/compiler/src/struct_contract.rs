@@ -139,6 +139,7 @@ fn resolve_copy_ty_shape(
         | Ty::Char
         | Ty::Void
         | Ty::String
+        | Ty::ByteBuffer
         | Ty::Enum(_)
         | Ty::Reference(_, _)
         | Ty::Option(_)

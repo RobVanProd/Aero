@@ -90,10 +90,6 @@ fn accepted_source_runtime_and_legacy_vec_boundaries_are_frozen_before_r1b() {
             "src/compiler/runtime/aero_test_runtime.c",
             "5f1db08f29355e78a1dda31747ec7055",
         ),
-        (
-            "src/compiler/src/main.rs",
-            "445a1274d3ac083df46931b4a33fb07e",
-        ),
     ] {
         let bytes = fs::read(root.join(relative))
             .unwrap_or_else(|error| panic!("read {relative}: {error}"));
@@ -101,6 +97,19 @@ fn accepted_source_runtime_and_legacy_vec_boundaries_are_frozen_before_r1b() {
             format!("{:x}", md5::compute(bytes)),
             expected,
             "accepted R1A authority `{relative}` drifted during R1B"
+        );
+    }
+
+    let cli = read(&root, "src/compiler/src/main.rs");
+    for accepted_r1b_boundary in [
+        "--require-llvm-verifier",
+        "aero_runtime.c",
+        "PRODUCTION_RUNTIME_SOURCE",
+        "exact_profiles_reject_every_accelerator_selector_in_build_and_run",
+    ] {
+        assert!(
+            cli.contains(accepted_r1b_boundary),
+            "R1C CLI routing lost accepted R1B boundary `{accepted_r1b_boundary}`"
         );
     }
 }
@@ -181,16 +190,27 @@ fn r1b_checked_resource_verifier_and_backend_authorities_are_required() {
         );
     }
 
-    for relative in [
-        "src/compiler/src/ast.rs",
-        "src/compiler/src/types.rs",
-        "src/compiler/src/parser.rs",
-        "src/compiler/src/semantic_analyzer.rs",
-        "src/compiler/src/ir_generator.rs",
-    ] {
+    for relative in ["src/compiler/src/ast.rs", "src/compiler/src/parser.rs"] {
         assert!(
             !read(&root, relative).contains("ByteBuffer"),
-            "R1B must not admit source behavior through `{relative}`"
+            "R1C must preserve R1B's parser/AST boundary through `{relative}`"
+        );
+    }
+    let types = read(&root, "src/compiler/src/types.rs");
+    let semantics = read(&root, "src/compiler/src/semantic_analyzer.rs");
+    let generator = read(&root, "src/compiler/src/ir_generator.rs");
+    assert!(
+        types.contains("ByteBuffer,"),
+        "R1C must represent the source owner as an explicit non-Copy type"
+    );
+    for (authority, source) in [
+        ("semantic", semantics.as_str()),
+        ("checked IR", generator.as_str()),
+    ] {
+        assert!(
+            source.contains("byte_buffer_source_enabled: false")
+                && source.contains("new_with_byte_buffer_source"),
+            "R1C {authority} authority must remain mode-off by default"
         );
     }
 
