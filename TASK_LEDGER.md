@@ -76,6 +76,48 @@
   not implement a language profile, reject source, add compiler syntax, or claim
   self-hosting.
 
+### CAP-033 locally green candidate checkpoint
+
+- Identity and scope: ledger commit
+  `46aa10a3e85fabfe9a9a79b479a3fbd31d0e92da`, intentional-red commit
+  `8f2ac7d9d5f55b4e11b74ec2ec1f97c84416e9b0`, and implementation commit
+  `8043d3e0b1733b21e90f70b8e953fe42e41c8a36` are based exactly on accepted
+  CAP-031 merge `a89b405098d5ccbda49e26ac53e01ccc2a9cc296`. The implementation
+  tree before this evidence update is
+  `a9111633d401fb1438343f1481cf22c591a89e6a`. The cumulative change remains
+  exactly the four authorized files and one compiler authority phase; no
+  profile, semantic analyzer, authentication, checked-IR, verifier, backend,
+  CLI, workflow, dependency, or existing integration test changed.
+- Red-first history: after the ledger-only authorization, the committed focused
+  target preserved root and function-wrapped source/file compilation and native
+  results, then failed only with
+  `CAP-033 intentional structural red: surface context authority is absent`.
+  Production mutation began only after that exact checkpoint.
+- Implementation result: each existing statement, expression, and pattern
+  witness now carries either `FileScope` or the exact already-active
+  `ResolvedProfileOrigin`. Kind order and multiplicity remain unchanged. A
+  function declaration retains its enclosing context; its body uses its own
+  source, normalized generic/private, impl-method, or trait-method origin; and
+  nested function restoration is explicit and covered. Context is captured at
+  the existing push sites in the same one-pass finalizer, with no second AST
+  walk, location map, event identity, inference, or downstream consumer.
+- Focused and full evidence: internal descriptor tests pass 10/10; the new
+  context target passes 2/2; the neighboring shape-authority,
+  authentication, and surface-witness targets each pass 3/3. Formatting,
+  correctness-denying all-target/all-feature Clippy, and diff hygiene pass.
+  The exact repository-root `./tools/test.sh` gate exits 0 with 290 library
+  tests, 35 binary tests, every integration target, and doc tests green.
+- Storage discipline: the worktree is under
+  `D:\Aero-worktrees\cap-033-resolved-surface-context`; Cargo output is under
+  `D:\Aero-build-targets\cap-033`; and TEMP/TMP/log evidence is under
+  `D:\Aero-temp\cap-033`. The preinstalled Cargo and Git Bash executables on
+  C: were invoked without directing generated project artifacts there.
+- Status and next boundary: this is a locally green behavior-neutral candidate,
+  not accepted public state. Exact publication identity, protected checks,
+  normal merge, and post-merge replay remain required. CAP-032/P1 may resume
+  only from the accepted CAP-033 head; CAP-033 itself adds no source acceptance,
+  selected profile, allocation, runtime input, or self-hosting claim.
+
 ## CAP-031-BOUNDED-AERO-LEXER-KERNEL - tracked fixed-storage token spans
 
 - Date/task/status: 2026-08-15,
