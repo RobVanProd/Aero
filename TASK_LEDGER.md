@@ -61,13 +61,20 @@
   `ResolvedProfileProgram`, populated in deterministic preorder by the current
   `Builder::build` / `walk_statement` / `walk_expression` route. Witness types
   are the closed neutral vocabularies `ResolvedProfileStatementKind`,
-  `ResolvedProfileExpressionKind`, and `ResolvedProfilePatternKind`, plus
+  `ResolvedProfileExpressionKind`, `ResolvedProfileBinaryOperator`,
+  `ResolvedProfileComparisonOperator`, `ResolvedProfileLogicalOperator`,
+  `ResolvedProfileUnaryOperator`, and `ResolvedProfilePatternKind`, plus
   `ResolvedProfileAssignmentTarget`, `ResolvedProfileAssignmentRoot`, and
   `ResolvedProfileAssignmentProjection`; all derive Debug/Clone/PartialEq/Eq.
   They record no literal value, identifier/callee/member/type name, source text,
   source location, inferred or resolved type, registry result, profile policy,
   physical lane, AST pointer/index, IR result/place/instruction ID, or event-to-IR
   correspondence.
+  `statement_kind`, `expression_kind`, and `pattern_kind` are authorized only as
+  total syntax projections invoked inside that one walk; apart from
+  `statement_kind` delegating to the separately frozen recursive
+  `assignment_target` topology projection, they may not traverse children,
+  query or infer types, or become a second validator.
   - Statement witnesses distinguish Const; Let with exact `mutable`,
     `annotated`, and `initialized` flags; Assignment with a neutral recursive
     target topology; Return with/without value; expression statement; block;
