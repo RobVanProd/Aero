@@ -1,5 +1,160 @@
 # Aero Task Ledger
 
+## CAP-030-RESOLVED-PROFILE-SURFACE-WITNESS - behavior-neutral normalized-syntax observation
+
+- Date/task/status: 2026-08-15,
+  `CAP-030-RESOLVED-PROFILE-SURFACE-WITNESS`, authorized ledger-first and
+  characterization/structural-red-first on
+  `agent/cap-030-resolved-profile-surface-authority` from exact accepted CAP-029
+  merge `70ac37fad8f7a0bbef2f4958429f4f77b2f9ed87`, tree
+  `7bd6e95165727b316d23463cac25065ae7920b70`. CAP-029 and its accepted
+  CORE-092 Windows stack-safety prerequisite are merged; the post-integration
+  repository-root gate and all accepted-head CI, Rust stable/nightly, Windows
+  LLVM 22, CodeQL, and evidence workflows are green. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched.
+- Fresh ranking and eligibility: two independent adversarial audits rank this
+  behavior-neutral surface-witness prerequisite first at
+  `25 = 2 usefulness + 5 roadmap + 5 leverage + 5 correctness + 4 favorable
+  risk + 4 favorable evidence cost`. The bounded exact-`i32` record/typed-Result
+  application profile remains nominally 24 but is ineligible until this task is
+  accepted; owned dynamic collection/streaming readiness remains 21 and
+  quantized-kernel readiness remains 19. The earlier direct-application ranking
+  is superseded by the concrete pre-IR exclusion bypass below.
+- Observed behavior and first honest failure: CAP-028's immutable
+  `ResolvedProfileProgram` records logical shapes, nominal identities, explicit
+  typed uses, and declaration/construction/exhaustive-Match operations, but not
+  every normalized statement, expression, operator, pattern, or assignment
+  target. For example, this semantically valid Experimental program can reach
+  checked IR while leaving no descriptor fact for either the unannotated float
+  binding or output operation:
+
+  ```aero
+  fn main() -> int {
+      let hidden = 1.0;
+      println!("{}", hidden);
+      return 0;
+  }
+  ```
+
+  The current walk omits unannotated `let` uses, discards float/char/string
+  literal categories and binary operator identity, traverses Print/Println,
+  methods, borrows, dereferences, projections, and closures without recording
+  their category, ignores module/import declarations and several statement
+  kinds, does not retain Match pattern categories, and records only direct-name
+  assignment ownership. CAP-029 runs after IR and deliberately leaves metadata
+  results and non-correlatable places uncovered, so it cannot turn those missing
+  pre-IR source exclusions into authenticated facts. A new profile gate based
+  only on the accepted descriptor could therefore admit unsupported syntax or
+  reject it only after IR, which is forbidden.
+- Hypothesis and bounded usefulness: extend the one existing total
+  post-semantic normalized-AST finalization walk with one ordered, immutable,
+  policy-neutral surface-witness stream. The stream records syntax categories
+  already present in that walk; it does not infer a type, decide admission,
+  rebuild a registry, rerun normalization, create a diagnostic, correlate a
+  source occurrence with IR, or select physical layout. A later separately
+  authorized profile can combine these neutral witnesses with the already
+  resolved shapes/origins/uses/operations and reject its unsupported surface
+  before `IrGenerator`, without a second AST validator or mini type system.
+- Frozen witness schema: add exactly one crate-private ordered field,
+  `surface: Vec<ResolvedProfileSurfaceObservation>`, to
+  `ResolvedProfileProgram`, populated in deterministic preorder by the current
+  `Builder::build` / `walk_statement` / `walk_expression` route. Witness types
+  are a closed neutral syntax vocabulary and derive Debug/Clone/PartialEq/Eq.
+  They record no literal value, identifier/callee/member/type name, source text,
+  source location, inferred or resolved type, registry result, profile policy,
+  physical lane, AST pointer/index, IR result/place/instruction ID, or event-to-IR
+  correspondence.
+  - Statement witnesses distinguish Const; Let with exact `mutable`,
+    `annotated`, and `initialized` flags; Assignment with a neutral recursive
+    target topology; Return with/without value; expression statement; block;
+    Function with top-level/generic/trait-bound/explicit-result flags; If with
+    else presence; While; For; Loop; Break; Continue; Struct/Enum definition
+    generic and bound state; Impl generic/trait-impl state; Trait definition
+    generic state; public/private module declaration; and import syntax/alias
+    presence.
+  - Expression witnesses distinguish integer, float, character, and string
+    literals; identifier; every binary, comparison, logical, and unary operator;
+    function call; method call; Print; Println; array literal; array repeat;
+    index access; field access; tuple literal; tuple index; struct literal; enum
+    variant; Match; immutable/mutable borrow; dereference; and closure. Existing
+    child traversal order stays exact.
+  - Pattern witnesses distinguish wildcard, literal, identifier, tuple, struct,
+    and enum patterns and recursively observe their children. An expression used
+    as a literal pattern retains its ordinary expression witness as well.
+  - Assignment topology distinguishes an identifier or unsupported root and the
+    complete ordered field/index/dereference projection path, without names or
+    indices. Thus `lanes[index]` differs from `frame.lanes[index]` without
+    performing type inference.
+- Ordering and authority boundary: emit each statement/expression/pattern
+  category before its children, exactly once in the already accepted finalizer
+  traversal. Function, block, Match-arm, impl-method, and trait-method traversal
+  must retain the existing save/restore and scope behavior. Do not add another
+  AST pass, an append-only semantic fixed-point log, provisional semantic event
+  capture, a second annotation grammar, or a second expression/type classifier.
+  Existing shapes, nominals, uses, operations, their order, and CAP-029
+  authentication coverage remain byte-for-byte/equality-identical apart from
+  the new private field being populated.
+- Compatibility and capability boundary: this task adds no `LanguageProfile`
+  selector, source acceptance/rejection, diagnostic, public API or Debug field,
+  cache material, checked-IR schema, verifier rule, LLVM rendering, CPU/ROCm/CUDA
+  behavior, module behavior, application capability, evidence claim, stability
+  claim, benchmark claim, package, release, or external artifact. Existing
+  Experimental, `stable-scalar-v0`, and `exact-i32-array-v0` source/file
+  check/compile behavior, diagnostics, checked IR, LLVM bytes, native exits,
+  cache keys/hits, and `CheckedProgram` Debug text remain exact.
+- Exact allowed files: only this `TASK_LEDGER.md`;
+  `src/compiler/src/resolved_profile_shape.rs`; and one new focused
+  `src/compiler/tests/resolved_profile_surface_witness_tests.rs`. Unit tests may
+  live inside `resolved_profile_shape.rs`. No change is authorized in
+  `semantic_analyzer.rs`, `lib.rs`, `language_profile.rs`,
+  `resolved_profile_authentication.rs`, `ir.rs`, `ir_generator.rs`,
+  `ir_verifier.rs`, `copy_data_layout.rs`, `code_generator.rs`, `main.rs`, any
+  existing test, example, workflow, capability/state/roadmap document,
+  dependency, evidence bundle, benchmark, release, package, cache artifact, or
+  external artifact. Concurrent writers are forbidden; auditors remain
+  read-only.
+- Red-first proof and acceptance tests: first add a focused public
+  characterization that preserves source/file behavior and the accepted
+  representative LLVM MD5s—Experimental
+  `724bac62708812d4302224fec1047be6`, stable
+  `cbb7a6446d27119d50f70868bc2b6a96`, and exact array
+  `54bbfe8dc403ba00ff0587fd3b99e14a`—plus exact semantic diagnostic parity,
+  `CheckedProgram` Debug compatibility, and relevant cache/native controls. Its
+  only red must be structural absence of the new witness field/types/one-walk
+  recording authority; production code remains untouched at that checkpoint.
+  Final crate-private tests must prove deterministic preorder and exhaustive
+  category coverage, distinguish the clean scalar fixture from hidden
+  float/unannotated binding, Print/Println, method, borrow/deref, division/modulo,
+  module/import, wildcard/nonexact Match, and direct-index versus field-index
+  assignment fixtures, and prove repeated rich semantic success yields identical
+  witnesses and unchanged shapes/nominals/uses/operations. Structural tests must
+  require exactly one surface field, one builder-owned vector, one final move,
+  and the existing single `record_declaration(node)` plus single
+  `walk_node(node)` call; forbid policy/profile/layout/backend/authentication/IR
+  dependencies, registry construction, normalizer calls, inference, locations,
+  IDs, a second AST loop, and public exposure. Run focused descriptor,
+  authentication, generic/carrier/Match/ownership/profile/cache compatibility
+  targets, formatting, all-target/all-feature correctness-denying Clippy, diff
+  hygiene, and repository-root `./tools/test.sh` with one Cargo job, one Rust
+  test thread, and pinned LLVM 22.
+- Risks and mandatory stops: risks are accidentally making a witness a policy
+  decision, changing existing traversal order or descriptor facts, storing user
+  spelling or unstable values, missing normalized private/generated contexts,
+  flattening assignment topology, emitting pattern/literal nodes twice in an
+  unstable order, leaking the private descriptor through Debug/cache, or
+  widening this prerequisite into CAP-025. Stop with `NO IMPLEMENTATION` and
+  rerank if complete neutral observation requires `semantic_analyzer.rs`,
+  `lib.rs`, authentication, language-profile, IR/generator/verifier, backend,
+  layout, CLI, workflow, or existing-test changes; type inference; locations;
+  normalizer/registry work; a second AST walk; an AST/IR occurrence bijection; a
+  source diagnostic/rejection; a public API delta; more than these three files;
+  or any current diagnostic/checked-IR/LLVM/native/cache delta. The later public
+  selector spelling `exact-i32-record-result-v0` and Rust variant
+  `ExactI32RecordResultV0` are recommendations only and remain unauthorized and
+  unfrozen until CAP-030 is accepted and a separate application ledger freezes
+  them.
+
 ## CAP-029-RESOLVED-PROFILE-AUTHENTICATION - behavior-neutral semantic-to-checked binding
 
 - Date/task/status: 2026-08-15,
