@@ -128,6 +128,11 @@ enum ExpressionUse {
     MatchArm,
 }
 
+enum LogicalLoweringTask {
+    Evaluate(Expression),
+    Combine(crate::ast::LogicalOp),
+}
+
 #[derive(Clone)]
 struct GeneratedScopeSnapshot {
     bindings: HashMap<String, (Value, Ty)>,
@@ -2130,6 +2135,36 @@ impl IrGenerator {
         }))
     }
 
+    fn validate_logical_expression_iterative(
+        left: &Expression,
+        right: &Expression,
+        bindings: &HashMap<String, AdmissionBinding>,
+        program: &AdmissionProgram,
+        inside_impl: bool,
+        admit_static_string_equality: bool,
+    ) -> Result<Ty, IrGenerationError> {
+        let mut pending = vec![right, left];
+        while let Some(operand) = pending.pop() {
+            match operand {
+                Expression::Logical { left, right, .. } => {
+                    pending.push(right);
+                    pending.push(left);
+                }
+                operand => {
+                    Self::validate_expression(
+                        operand,
+                        bindings,
+                        program,
+                        ExpressionUse::Value,
+                        inside_impl,
+                        admit_static_string_equality,
+                    )?;
+                }
+            }
+        }
+        Ok(Ty::Bool)
+    }
+
     fn validate_expression(
         expression: &Expression,
         bindings: &HashMap<String, AdmissionBinding>,
@@ -2364,25 +2399,14 @@ impl IrGenerator {
                 }
                 Ok(Ty::Bool)
             }
-            Expression::Logical { left, right, .. } => {
-                Self::validate_expression(
-                    left,
-                    bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    admit_static_string_equality,
-                )?;
-                Self::validate_expression(
-                    right,
-                    bindings,
-                    program,
-                    ExpressionUse::Value,
-                    inside_impl,
-                    admit_static_string_equality,
-                )?;
-                Ok(Ty::Bool)
-            }
+            Expression::Logical { left, right, .. } => Self::validate_logical_expression_iterative(
+                left,
+                right,
+                bindings,
+                program,
+                inside_impl,
+                admit_static_string_equality,
+            ),
             Expression::Unary { op, operand } => {
                 if matches!(op, crate::ast::UnaryOp::Negate)
                     && let Expression::IntegerLiteral(value) = operand.as_ref()
@@ -6447,27 +6471,65 @@ impl IrGenerator {
         right: Expression,
         function: &mut Function,
     ) -> (Value, Ty) {
-        let (left_val, _) = self.generate_expression_ir(left, function);
-        let (right_val, _) = self.generate_expression_ir(right, function);
+        self.generate_logical_ir_iterative(op, left, right, function)
+    }
 
-        let result_reg = Value::Reg(self.next_reg);
-        self.next_reg += 1;
+    fn generate_logical_ir_iterative(
+        &mut self,
+        op: crate::ast::LogicalOp,
+        left: Expression,
+        right: Expression,
+        function: &mut Function,
+    ) -> (Value, Ty) {
+        let mut pending = vec![
+            LogicalLoweringTask::Combine(op),
+            LogicalLoweringTask::Evaluate(right),
+            LogicalLoweringTask::Evaluate(left),
+        ];
+        let mut values = Vec::new();
 
-        let inst = match op {
-            crate::ast::LogicalOp::And => Inst::And {
-                result: result_reg.clone(),
-                left: left_val,
-                right: right_val,
-            },
-            crate::ast::LogicalOp::Or => Inst::Or {
-                result: result_reg.clone(),
-                left: left_val,
-                right: right_val,
-            },
-        };
+        while let Some(task) = pending.pop() {
+            match task {
+                LogicalLoweringTask::Evaluate(Expression::Logical { op, left, right }) => {
+                    pending.push(LogicalLoweringTask::Combine(op));
+                    pending.push(LogicalLoweringTask::Evaluate(*right));
+                    pending.push(LogicalLoweringTask::Evaluate(*left));
+                }
+                LogicalLoweringTask::Evaluate(expression) => {
+                    let (value, _) = self.generate_expression_ir(expression, function);
+                    values.push(value);
+                }
+                LogicalLoweringTask::Combine(op) => {
+                    let right = values
+                        .pop()
+                        .expect("logical lowering must produce a right operand");
+                    let left = values
+                        .pop()
+                        .expect("logical lowering must produce a left operand");
+                    let result = Value::Reg(self.next_reg);
+                    self.next_reg += 1;
+                    function.body.push(match op {
+                        crate::ast::LogicalOp::And => Inst::And {
+                            result: result.clone(),
+                            left,
+                            right,
+                        },
+                        crate::ast::LogicalOp::Or => Inst::Or {
+                            result: result.clone(),
+                            left,
+                            right,
+                        },
+                    });
+                    values.push(result);
+                }
+            }
+        }
 
-        function.body.push(inst);
-        (result_reg, Ty::Bool)
+        let result = values
+            .pop()
+            .expect("logical lowering must produce one result");
+        debug_assert!(values.is_empty(), "logical lowering left extra values");
+        (result, Ty::Bool)
     }
 
     fn generate_unary_ir(
