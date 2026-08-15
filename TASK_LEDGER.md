@@ -102,6 +102,47 @@
   is red. This checkpoint authorizes no implementation; BOOT-002 requires its
   own ledger and, for behavior, a failing regression before production change.
 
+### BOOT-001 locally green checkpoint
+
+- Checkpoint commits: ledger-first authorization is
+  `fb22bf09211115e26a9cec166cd2143c91f401f7`; the canonical roadmap plus its
+  README and broad-roadmap discoverability links are
+  `592744074d28859a23ee7ec3a821cf9910894d16`. The cumulative diff from accepted
+  CAP-030 changes exactly the four authorized documentation files and no
+  compiler, test, workflow, example, dependency, evidence, or user-owned file.
+- Roadmap result: `SELF_HOSTING_ROADMAP.md` now defines the self-hosting claim,
+  current S0 position, K1 through H2 dependency graph and stage gates, gap-owner
+  matrix, minimum compiler subset, evidence checklist, exact next task, and the
+  deliberate absence of calendar estimates. Its next task is the separately
+  authorized, zero-production bounded ASCII token-span kernel; dormant Vec IR,
+  fixed-buffer evidence, and parsed module/import syntax remain explicitly
+  insufficient for owned runtime storage, ingestion, or self-hosting.
+- Focused evidence: all local Markdown links in the three changed public
+  documents resolve; the required roadmap structure check passes; version-claim
+  verification passes `8/8`; repository-governance verification passes `1/1`;
+  and `git diff --check` passes. The first version-claim run correctly caught a
+  README line wrap that split the frozen phrase `minimal prototype under
+  correctness recovery`; the wording was restored without changing its meaning
+  before this checkpoint.
+- Complete gate: the first C:-resident target attempt stopped before the test
+  matrix on unchanged Windows linker error `LNK1318: Unexpected PDB error;
+  LIMIT (12)`. A fresh C: target then stopped while compiling dependencies with
+  `os error 112` because the drive had no free space. Neither was a test or
+  source failure. The authoritative rerun placed `CARGO_TARGET_DIR`, `TEMP`, and
+  `TMP` under task-only `D:\Aero-build-targets\boot-001*`, with one Cargo job,
+  one Rust test thread, and pinned LLVM 22. Exact repository-root
+  `./tools/test.sh` exits zero: formatting, correctness-denying Clippy, `289/289`
+  library tests, `35/35` binary tests, every integration and native/system
+  target, CAP-024 claim verification `6/6`, version-claim verification `8/8`,
+  and doc tests pass. Future task worktrees, Cargo targets, generated fixtures,
+  linker temporaries, and native artifacts must remain on D:.
+- Remaining boundary and next action: this is a locally green documentation
+  candidate, not a language capability or accepted public checkpoint. Publish
+  only through one bounded protected PR with exact-head workflows and a
+  post-merge check. After acceptance, start `CAP-031-BOUNDED-AERO-LEXER-KERNEL`
+  ledger-first and structural-red-first; do not stack compiler production on
+  BOOT-001 or treat the roadmap as implementation evidence.
+
 ## CAP-030-RESOLVED-PROFILE-SURFACE-WITNESS - behavior-neutral normalized-syntax observation
 
 - Date/task/status: 2026-08-15,
