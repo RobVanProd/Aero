@@ -4,54 +4,42 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### R1C local candidate: bounded source-owned byte storage
+### R2 authorized: deterministic whole-stream binary stdin
 
-The current accepted public master is R1B merge
-`a9bd2e389d7baed28d6abefebd5267f2a37a4a49`, tree
-`d12957a22b0e776ba61dab3904dfc481369ddc69`. R1B candidate
-`7ab0a7889f4ccb3011fb189e8112b692dc4b2142` has the identical tree; every
-candidate check and accepted-head CI, stable/nightly Rust, Windows LLVM 22
-native, CodeQL, and evidence workflow passed. Accepted R1A owns the three-symbol
-allocator ABI; accepted R1B owns the dedicated checked resource schema,
-resource-state verifier, and byte-buffer backend lowering. Historical Vec
-instructions remain rejected.
+The current accepted public master is bounded R1 merge
+`cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
+`cd03dde4fb14f66d65a193c3600b56e1fd9441c9`. R1C candidate
+`0b30e1f923b7f349011d8e8f5b9750146b305274` has the identical tree. All
+candidate checks passed, and accepted-head CI `31915409139`, Rust CI
+`31915409157`, CodeQL `31915409048`, and evidence `31915409130` are
+terminal-success. R1 therefore accepts one bounded source-visible owned byte
+buffer with verified allocation/growth/read/move/immediate-loan/drop behavior,
+typed failures, deterministic LLVM, Linux/Windows O0/O2 exit 91, and zero-leak
+controls. Historical Vec remains rejected; this is not a general collection or
+memory-safety claim.
 
-CAP-038/R1C is now a locally green candidate based exactly on that accepted
-head. It adds the separate fail-closed `exact-i32-byte-buffer-v0` profile,
-dedicated non-Copy `ByteBuffer` source type, and only `bytes_new`, `bytes_push`,
-`bytes_len`, `bytes_capacity`, and `bytes_get`. The admitted surface is limited
-to explicitly typed initialized direct function-local owners, direct local
-moves outside conditional/loop topology, immediate nonescaping shared/exclusive
-loans, one outer owner used by admitted loops, concrete `Result<int, int>`
-errors, and compiler-inserted reverse-order cleanup on every return and
-fallthrough.
+CAP-039/R2 is ledger-authorized from that exact head. The first honest gap is
+host input: no runtime input symbol or checked instruction exists,
+`stdin_read_byte()` is unresolved, emitted LLVM has no input declaration, and
+the public runner currently closes the compiled child's stdin through
+`Command::output`.
 
-The source/semantic-profile authority rejects uninitialized or inferred owners,
-reassignment, stored aliases, use after move, wrong mutability/arity/topology,
-ordinary-call or function-ABI transport, nested owner types, conditional/loop
-creation or moves, discarded/untyped Result calls, reserved-name collisions,
-and accelerator routes before checked IR or artifacts. Checked-IR generation
-independently revalidates that contract, emits only accepted R1B instructions,
-ends temporary loans before typed Result construction, and leaves resource
-identity/lifecycle enforcement to the accepted R1B verifier. Parser, AST,
-checked-IR schema, verifier, runtime C, allocator ABI, and physical byte-buffer
-lowering remain unchanged; every earlier profile remains frozen.
+The frozen R2 slice adds a separate fail-closed
+`exact-i32-byte-input-v0` selector and only
+`stdin_read_byte() -> Result<int, int>`. Production C returns one binary byte as
+`0..=255`, sticky EOF as `-1`, and sticky I/O or Windows binary-mode failure as
+`-2`; source maps them to `Ok(byte)`, `Err(1)`, and `Err(2)`. One dedicated
+checked scalar instruction and independent verifier/backend authority prevent a
+raw external call. An Aero-authored loop owns EOF handling and pushes each byte
+through accepted R1. CPU `aero run` forwards stdin; check/compile/cache never
+consume it.
 
-Seven focused crate-private authority tests and six public source/product tests
-pass. The product is deterministic, verifies with LLVM 22, runs silently with
-exit 91 at O0/O2 and through the public CLI, and is rejected for ROCm/CUDA
-before artifact creation. Deterministic runtime controls prove invalid-byte
-`Err(1)`, allocation/reallocation `Err(2)` with state/prefix preservation,
-out-of-bounds `Err(4)`, exact allocation/reallocation/deallocation counts,
-early-return cleanup, and zero leaks. The full root gate passes 306 library
-tests, 35 binary tests, every integration/native/system target, and doc tests;
-formatting and correctness Clippy are green.
-
-R1C does not add stdin/file input, strings, general collections, a flat AST
-arena, modules, a production front end, accelerator execution, or self-hosting.
-R1 remains blocked only on protected R1C candidate/merge and accepted-head
-Linux/Windows replay. After acceptance, the next dependency gates are R2
-whole-stream byte input and D1 owned compiler storage/flat integer-ID arenas.
+The exact contract, evidence matrix, allowed files, and mandatory stops are in
+[`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md) and the CAP-039 ledger.
+R2 deliberately excludes file paths, text decoding, strings, general streams,
+buffer ABI transport, modules, accelerator execution, and frontend claims.
+After protected R2, D1 owns deterministic compiler token/name storage and flat
+integer-ID AST arenas.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3388,21 +3376,20 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish and protect CAP-038/R1C from the accepted R1B head. Preserve its
-ledger-first and source-red-first history, exact allowed-file scope, full root
-gate, deterministic LLVM, O0/O2 and public-CLI exit-91 product, mock-runtime
-failure/cleanup counters, accelerator pre-artifact rejection, exact merge tree,
-and post-merge Linux/Windows workflow replay. Do not change the accepted R1A runtime
-ABI, accepted R1B checked schema/verifier/backend, parser/AST, historical Vec
-surface, or earlier profiles. R1 becomes accepted only after that evidence is
-terminal-green.
+Implement CAP-039/R2 from accepted R1 with a characterization-green,
+selector/runtime/checked-authority-red checkpoint first. Add only binary
+`aero_stdin_read_byte`, dedicated checked scalar read, explicit typed source
+Result, the separate `exact-i32-byte-input-v0` selector, and CPU child-stdin
+inheritance. The Aero product—not Rust—must own the whole-stream EOF loop and
+accepted ByteBuffer pushes. Preserve every R1 and earlier profile byte,
+diagnostic, ownership, verifier, and cleanup contract; stop on path/text
+semantics, input-driven uninitialized storage, cross-platform divergence, or a
+third compiler authority.
 
-Then authorize R2 whole-stream byte input and D1 deterministic owned compiler
-storage/flat AST arenas as separate ledger-first, red-first gates. R2 owns host
-read/EOF/I/O failure without path/module semantics; D1 owns token/name storage
-and cycle-free integer-ID arenas without hidden Rust collections. Neither gate
-may be inferred from R1C, and self-hosting is not claimed before the later F1,
-M1, B1, and H1/H2 gates close.
+After protected R2, authorize D1 deterministic owned compiler storage and flat
+AST arenas. D1 owns tokens/names and cycle-free integer-ID arenas without hidden
+Rust collections. Self-hosting remains unclaimed until F1, M1, B1, and H1/H2
+also close.
 
 ## Historical post-CAP-024 ranking
 

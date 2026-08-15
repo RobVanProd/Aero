@@ -1,7 +1,7 @@
 # Owned Byte Buffer Readiness Contract
 
-Status: CAP-035 readiness contract plus R1A/R1B accepted; R1C locally green
-candidate, 2026-08-15.
+Status: CAP-035 route plus R1A/R1B/R1C and bounded R1 accepted,
+2026-08-15.
 
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
@@ -276,8 +276,13 @@ counters, early-return cleanup, and zero leaks. The complete root gate passes
 306 library tests, 35 binary tests, every integration/native/system target, and
 doc tests; formatting, correctness Clippy, and LLVM verification are green.
 Every earlier profile and both accepted byte-buffer substrates remain frozen.
-R1C remains local until its exact candidate, protected merge, and accepted-head
-Linux/Windows workflows pass.
+R1C remained local until its exact candidate, protected merge, and accepted-head
+Linux/Windows workflows passed. Those gates are complete: candidate
+`0b30e1f923b7f349011d8e8f5b9750146b305274` merged as
+`cc75e2caa888a52f9d1c79bf806bb041b64a0a77` with identical tree
+`cd03dde4fb14f66d65a193c3600b56e1fd9441c9`; candidate and accepted-head CI,
+Rust CI, CodeQL, and evidence are terminal-success. This closes only bounded R1
+owned bytes.
 
 ## Checkpoint boundaries
 
@@ -311,18 +316,17 @@ candidate identity, merge identity, and accepted-head workflow replay.
 
 CAP-035 itself added no runtime, allocator, source type, IR, verifier rule,
 backend behavior, input, or owned storage. Accepted R1A and R1B individually do
-not make `ByteBuffer` source-valid; the R1C local candidate adds only the frozen
-bounded owner. Even accepted R1 will not provide stdin/file
+not make `ByteBuffer` source-valid; accepted R1C adds only the frozen bounded
+owner. Accepted R1 does not provide stdin/file
 input (R2), general collections or a flat AST arena (D1), owned UTF-8 text,
 modules, a production Aero frontend, self-hosting, general memory safety,
 performance, release readiness, or CPU/GPU parity.
 
 ## Exact next action
 
-Protect the exact R1C candidate with its source-red history, deterministic LLVM,
-mock-runtime failure/cleanup evidence, Linux and Windows O0/O2 native product,
-exact merge-tree identity, and accepted-head replay. Do not change the accepted
-R1A runtime, accepted R1B schema/verifier/backend, or reconstruct resource
-authority outside R1B verifier metadata. Once that replay is green, close R1
-and proceed separately to R2 whole-stream input and D1 owned compiler
-collections/flat arenas; neither capability is implied by R1C.
+R1 is accepted at merge `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`.
+Proceed separately to CAP-039/R2 binary stdin using the scalar runtime read and
+checked source contract in [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
+Do not change the accepted R1A allocator ABI, R1B schema/verifier/backend, or
+R1C owner/profile. After protected R2, D1 owns compiler collections and flat
+arenas; neither input nor compiler storage is implied by accepted R1.
