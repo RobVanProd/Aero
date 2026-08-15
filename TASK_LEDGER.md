@@ -52,10 +52,13 @@
   failure. `check` and LLVM-text `build` do not compile or link a runtime.
 - Frozen deterministic test runtime: `aero_test_runtime.c` exports the same three
   production symbols plus test-only
-  `aero_test_reset(uint64_t fail_after_successes)` and getters for attempted
-  allocate, reallocate, deallocate, live-allocation, and size-mismatch counts.
-  Reset is valid only with zero live allocations, clears every counter, and uses
-  `UINT64_MAX` to disable injected failure. Otherwise, after exactly
+  `int32_t aero_test_reset(uint64_t fail_after_successes)` and exact `uint64_t`
+  getters `aero_test_alloc_calls`, `aero_test_realloc_calls`,
+  `aero_test_dealloc_calls`, `aero_test_live_allocations`, and
+  `aero_test_size_mismatch_calls`. Reset returns one only with zero live
+  allocations, then clears every counter; it returns zero without changing
+  state when an allocation remains live. `UINT64_MAX` disables injected
+  failure. Otherwise, after exactly
   `fail_after_successes` successful allocate/reallocate events, every later
   allocate/reallocate attempt returns null until reset. Calls are counted even
   when they fail; failed reallocation leaves the old tracked block and bytes
