@@ -14,19 +14,21 @@
   runtime source/object path, and the repository has no production or
   deterministic-test implementation of `aero_alloc`, `aero_realloc`, or
   `aero_dealloc`. The first R1A regression is therefore structural/native-link
-  failure at the absent `src/compiler/src/runtime_link.rs` and runtime sources,
-  not a source-language diagnostic. Existing Experimental probes remain exactly
+  failure at the absent embedded link authority in the existing CLI driver and
+  absent runtime sources, not a source-language diagnostic. Existing
+  Experimental probes remain exactly
   ``Semantic Analysis Error: enum `Vec` has no unique admitted definition`` for
   `Vec::new()` and
   `IR Generation Error: empty array literals have no admitted logical element type`
   for `vec![]`.
 - Hypothesis and phase boundary: R1A is feasible as one CPU driver/link phase plus
-  runtime artifacts. A C11 production allocator can be embedded into the compiler
-  binary, materialized inside each already-isolated native-run directory, compiled
-  by the same discovered host Clang, and explicitly linked on both CPU native
-  paths. A separate C11 test runtime can implement the same three symbols with
-  deterministic failure and counters. No compiler language, logical type,
-  ownership, IR, verifier, backend instruction, profile, or cache phase is needed.
+  runtime artifacts. A C11 production allocator can be embedded by the existing
+  canonical CLI driver, materialized inside each already-isolated native-run
+  directory, compiled by the same discovered host Clang, and explicitly linked
+  on both CPU native paths. A separate C11 test runtime can implement the same
+  three symbols with deterministic failure and counters. No new binary-owned
+  Rust module and no compiler language, logical type, ownership, IR, verifier,
+  backend instruction, profile, or cache phase is needed.
 - Frozen production ABI: the only production runtime symbols are
   `void *aero_alloc(uint64_t size)`,
   `void *aero_realloc(void *old, uint64_t old_size, uint64_t new_size)`, and
@@ -39,8 +41,9 @@
   the exact current sizes. Zero sizes, null old/deallocation pointers, or sizes
   unrepresentable as `size_t` are invalid caller states; the defensive runtime
   returns null or performs no deallocation and never turns them into success.
-- Frozen production artifact/link route: `aero_runtime.c` is embedded at Rust
-  compile time with `include_bytes!`, so installed compiler execution never
+- Frozen production artifact/link route: the existing `src/compiler/src/main.rs`
+  driver embeds `aero_runtime.c` at Rust compile time with `include_bytes!`, so
+  installed compiler execution never
   discovers it from the current working directory or an environment-selected
   fallback. After source preparation and LLVM verification have succeeded, CPU
   `run` writes the exact embedded bytes to the unique `target/aero-run/<nonce>`
@@ -88,8 +91,7 @@
   Linux and Windows native gates must both execute the runtime harnesses.
 - Exact allowed files: only `TASK_LEDGER.md`, `SELF_HOSTING_ROADMAP.md`,
   `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`,
-  `src/compiler/src/main.rs`, new `src/compiler/src/runtime_link.rs`, new
-  `src/compiler/runtime/aero_runtime.c`, new
+  `src/compiler/src/main.rs`, new `src/compiler/runtime/aero_runtime.c`, new
   `src/compiler/runtime/aero_test_runtime.c`, and new
   `src/compiler/tests/allocator_runtime_abi_tests.rs`. No Cargo manifest,
   lockfile, workflow, parser, AST, semantic analyzer, profile, IR, IR generator,
@@ -100,7 +102,7 @@
   the Linux and Windows C/LLVM ABIs differ; any accepted source/diagnostic/LLVM/
   cache/native result changes; the test allocator can silently substitute for
   production; artifact cleanup becomes incomplete; a semantic, IR, verifier, or
-  backend change is needed; a tenth file is required; or protected platform
+  backend change is needed; a ninth file is required; or protected platform
   evidence cannot execute. Do not hide allocation behind a Rust collection,
   request an overcommit-sized allocation as a failure oracle, add a linker-stack
   workaround, revive historical Vec instructions, or claim owned bytes. R1A
@@ -112,6 +114,22 @@
   `D:\Aero-build-targets\r1a`, and `D:\Aero-temp\r1a`). Installed tools on C:
   may be invoked read-only; no task artifact or cache is intentionally written
   there.
+
+### CAP-036 canonical-driver correction after the first full gate
+
+- The first cumulative `./tools/test.sh` reached the new focused target green
+  `2/2`, the existing binary target green `35/35`, and the early integration
+  ring green, then failed only at
+  `canonical_compiler_graph_tests::binary_uses_one_canonical_library_compiler_graph`.
+  That accepted structural authority freezes the complete set of binary-owned
+  modules and rejected the proposed `mod runtime_link;` as an eighth module.
+- This is an implementation-location correction, not an ABI or behavior change.
+  The runtime compile helper and embedded bytes belong inline in the already
+  canonical CLI driver. Adding `canonical_compiler_graph_tests.rs` as a tenth
+  file would weaken the graph invariant and is forbidden. The focused structural
+  red is updated to require the inline authority and the absence of
+  `mod runtime_link`; production must delete the temporary module and preserve
+  every frozen runtime/test/compatibility condition above.
 
 ## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
 

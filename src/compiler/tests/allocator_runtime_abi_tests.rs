@@ -287,13 +287,8 @@ fn accepted_profiles_source_boundaries_and_native_exit_are_frozen_before_r1a() {
 #[test]
 fn r1a_runtime_and_driver_boundary_executes_with_deterministic_failure() {
     let root = repository_root();
-    let runtime_link_path = root.join("src/compiler/src/runtime_link.rs");
     let production_runtime_path = root.join("src/compiler/runtime/aero_runtime.c");
     let test_runtime_path = root.join("src/compiler/runtime/aero_test_runtime.c");
-    assert!(
-        runtime_link_path.is_file(),
-        "R1A red: the embedded runtime-link authority is absent"
-    );
     assert!(
         production_runtime_path.is_file(),
         "R1A red: the production allocator runtime is absent"
@@ -305,12 +300,20 @@ fn r1a_runtime_and_driver_boundary_executes_with_deterministic_failure() {
 
     let main =
         fs::read_to_string(root.join("src/compiler/src/main.rs")).expect("read compiler driver");
-    let runtime_link = fs::read_to_string(&runtime_link_path).expect("read runtime-link authority");
+    assert!(
+        !main.contains("mod runtime_link;"),
+        "R1A red: runtime linking must remain in the canonical CLI driver"
+    );
     for anchor in [
-        "mod runtime_link;",
+        "const PRODUCTION_RUNTIME_SOURCE",
+        "include_bytes!(\"../runtime/aero_runtime.c\")",
+        "fn compile_production_runtime",
         "compile_production_runtime",
         "runtime_source_file",
         "runtime_obj_file",
+        "-std=c11",
+        "-O2",
+        "-c",
     ] {
         assert!(main.contains(anchor), "compiler driver omitted `{anchor}`");
     }
@@ -319,18 +322,6 @@ fn r1a_runtime_and_driver_boundary_executes_with_deterministic_failure() {
         2,
         "both CPU link paths must consume the compiled runtime object"
     );
-    for anchor in [
-        "include_bytes!(\"../runtime/aero_runtime.c\")",
-        "-std=c11",
-        "-O2",
-        "-c",
-    ] {
-        assert!(
-            runtime_link.contains(anchor),
-            "runtime-link authority omitted `{anchor}`"
-        );
-    }
-
     let production_runtime =
         fs::read_to_string(&production_runtime_path).expect("read production allocator runtime");
     let test_runtime = fs::read_to_string(&test_runtime_path).expect("read test allocator runtime");
