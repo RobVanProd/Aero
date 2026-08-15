@@ -1,5 +1,115 @@
 # Aero Task Ledger
 
+## CAP-036-R1A-ALLOCATOR-RUNTIME-ABI - replaceable CPU allocator link boundary
+
+- Date/task/status: 2026-08-15,
+  `CAP-036-R1A-ALLOCATOR-RUNTIME-ABI`, ledger-first and red-first from exact
+  accepted CAP-035 merge `da2ad95d4a1db3a991128a63223c82639d24ff2a`,
+  tree `fb4739291690efa5c940d929f69435b063ea67f6`, on
+  `agent/r1a-allocator-runtime-abi` in the D:-resident worktree
+  `D:\Aero-worktrees\r1a-allocator-runtime-abi`.
+- Observed behavior and first honest failure: the accepted CPU `run` path lowers
+  the verified program with `llc` and links only the program object with Clang;
+  its fallback passes only textual LLVM to Clang. `RunArtifactPaths` has no
+  runtime source/object path, and the repository has no production or
+  deterministic-test implementation of `aero_alloc`, `aero_realloc`, or
+  `aero_dealloc`. The first R1A regression is therefore structural/native-link
+  failure at the absent `src/compiler/src/runtime_link.rs` and runtime sources,
+  not a source-language diagnostic. Existing Experimental probes remain exactly
+  ``Semantic Analysis Error: enum `Vec` has no unique admitted definition`` for
+  `Vec::new()` and
+  `IR Generation Error: empty array literals have no admitted logical element type`
+  for `vec![]`.
+- Hypothesis and phase boundary: R1A is feasible as one CPU driver/link phase plus
+  runtime artifacts. A C11 production allocator can be embedded into the compiler
+  binary, materialized inside each already-isolated native-run directory, compiled
+  by the same discovered host Clang, and explicitly linked on both CPU native
+  paths. A separate C11 test runtime can implement the same three symbols with
+  deterministic failure and counters. No compiler language, logical type,
+  ownership, IR, verifier, backend instruction, profile, or cache phase is needed.
+- Frozen production ABI: the only production runtime symbols are
+  `void *aero_alloc(uint64_t size)`,
+  `void *aero_realloc(void *old, uint64_t old_size, uint64_t new_size)`, and
+  `void aero_dealloc(void *allocation, uint64_t size)`. On the accepted 64-bit
+  Linux GNU and Windows MSVC targets these are exactly LLVM
+  `pointer (i64)`, `pointer (pointer, i64, i64)`, and
+  `void (pointer, i64)`. Successful allocation is suitably aligned host storage;
+  allocation failure is null. Failed reallocation is null and preserves the old
+  allocation and bytes; successful reallocation may move it. The caller supplies
+  the exact current sizes. Zero sizes, null old/deallocation pointers, or sizes
+  unrepresentable as `size_t` are invalid caller states; the defensive runtime
+  returns null or performs no deallocation and never turns them into success.
+- Frozen production artifact/link route: `aero_runtime.c` is embedded at Rust
+  compile time with `include_bytes!`, so installed compiler execution never
+  discovers it from the current working directory or an environment-selected
+  fallback. After source preparation and LLVM verification have succeeded, CPU
+  `run` writes the exact embedded bytes to the unique `target/aero-run/<nonce>`
+  directory, compiles them as C11 `-O2` to `aero_runtime.o`, requires a regular
+  object result, and passes that object explicitly to Clang in both the
+  `llc -> program.o -> link` and direct textual-LLVM fallback link routes. Any
+  runtime compilation/link failure is an error and uses no alternate allocator.
+  The existing wrapper removes the complete unique directory after success or
+  failure. `check` and LLVM-text `build` do not compile or link a runtime.
+- Frozen deterministic test runtime: `aero_test_runtime.c` exports the same three
+  production symbols plus test-only
+  `aero_test_reset(uint64_t fail_after_successes)` and getters for attempted
+  allocate, reallocate, deallocate, live-allocation, and size-mismatch counts.
+  Reset is valid only with zero live allocations, clears every counter, and uses
+  `UINT64_MAX` to disable injected failure. Otherwise, after exactly
+  `fail_after_successes` successful allocate/reallocate events, every later
+  allocate/reallocate attempt returns null until reset. Calls are counted even
+  when they fail; failed reallocation leaves the old tracked block and bytes
+  unchanged; successful reallocation preserves the initialized prefix and does
+  not change the live-allocation count. The test runtime stores and checks each
+  live allocation's exact size, is single-threaded test infrastructure only, and
+  is never linked by the production CLI.
+- Frozen compatibility boundary: R1A does not declare allocator symbols in
+  emitted application LLVM and admits no `ByteBuffer`, Vec, String, file/input,
+  profile, parser, AST, semantic, checked-IR, verifier, backend, ownership, drop,
+  or source behavior. Existing diagnostics, checked IR, emitted LLVM bytes,
+  cache keys/hits, CLI output/exit, native program output/exit, ROCm/CUDA
+  behavior, and invalid-program fail-before-backend ordering remain exact. R1A
+  establishes only the replaceable CPU runtime/link substrate required by R1B.
+- Red-first and acceptance tests: one focused
+  `allocator_runtime_abi_tests` target first preserves accepted source/LLVM/native
+  behavior and fails at the absent runtime/link boundary. Green acceptance must
+  compile and execute independent C harnesses against the production and test
+  runtimes; prove allocate/reallocate/prefix/deallocate success; inject a
+  deterministic failed reallocation after one success; prove old pointer bytes
+  remain usable; assert exact call/live/mismatch counters; prove the CPU CLI
+  links through the embedded production runtime on both driver paths by source
+  structure; and prove run-directory hygiene. Existing-profile LLVM digests and
+  exact Vec-source diagnostics remain frozen controls. The focused target,
+  relevant CLI/bin tests, formatting, correctness Clippy, `git diff --check`,
+  and root `./tools/test.sh` must pass with pinned LLVM 22 on Windows; protected
+  Linux and Windows native gates must both execute the runtime harnesses.
+- Exact allowed files: only `TASK_LEDGER.md`, `SELF_HOSTING_ROADMAP.md`,
+  `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`,
+  `src/compiler/src/main.rs`, new `src/compiler/src/runtime_link.rs`, new
+  `src/compiler/runtime/aero_runtime.c`, new
+  `src/compiler/runtime/aero_test_runtime.c`, and new
+  `src/compiler/tests/allocator_runtime_abi_tests.rs`. No Cargo manifest,
+  lockfile, workflow, parser, AST, semantic analyzer, profile, IR, IR generator,
+  verifier, backend, example, claim evidence, package, or release file may
+  change.
+- Risks and mandatory stops: stop if runtime selection depends on the working
+  directory or ambient allocator override; failure cannot be deterministic;
+  the Linux and Windows C/LLVM ABIs differ; any accepted source/diagnostic/LLVM/
+  cache/native result changes; the test allocator can silently substitute for
+  production; artifact cleanup becomes incomplete; a semantic, IR, verifier, or
+  backend change is needed; a tenth file is required; or protected platform
+  evidence cannot execute. Do not hide allocation behind a Rust collection,
+  request an overcommit-sized allocation as a failure oracle, add a linker-stack
+  workaround, revive historical Vec instructions, or claim owned bytes. R1A
+  alone does not close R1, memory safety, runtime input, self-hosting, release,
+  performance, or accelerator execution.
+- Storage rule: all task-created worktrees, build targets, temp workspaces,
+  probes, logs, native harnesses, and PR files remain under D: (respectively
+  `D:\Aero-worktrees\r1a-allocator-runtime-abi`,
+  `D:\Aero-build-targets\r1a`, and `D:\Aero-temp\r1a`). Installed tools on C:
+  may be invoked read-only; no task artifact or cache is intentionally written
+  there.
+
 ## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
 
 - Date/task/status: 2026-08-15,
