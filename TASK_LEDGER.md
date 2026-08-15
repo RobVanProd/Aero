@@ -1,5 +1,89 @@
 # Aero Task Ledger
 
+## CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS - exact CPU plus bounded CopyData application map and red probe
+
+- Date/task/status: 2026-08-15,
+  `CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS`, authorized architecture
+  enumeration and one task-local source probe only on
+  `agent/cap-025-application-profile-composition-readiness` from exact accepted
+  CAP-024 truth-sync master `15774c47d31150326d958ebc041858b62191975a`,
+  tree `525c3840692df71665dfe6d81a341787c26b2932`. This record does not
+  authorize production implementation, widening either existing selected
+  profile, or a capability claim. User/app-owned `.codex-remote-attachments/`
+  and `tmp/` remain outside scope, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` must remain untouched.
+- Observed behavior and strategic destination: accepted CAP-023/CAP-024 proves
+  one exact wrapping-`i32` CPU application over scalar values and flat nonempty
+  `[int; N]` storage under `exact-i32-array-v0`. Separate experimental paths
+  already admit finite recursive CopyData structs and enums, explicit typed
+  `Result<T, E>`, exhaustive `Match`, by-value transport, and bounded owned
+  aggregate operations, but both selected profiles reject those source shapes
+  before semantics. Experimental aggregate `int` leaves retain their accepted
+  legacy `double` physical representation, so experimental success alone cannot
+  prove exact-`i32` composition. The eventual target, if bounded reuse is
+  possible, is one new application selector rather than any change to
+  `stable-scalar-v0` or `exact-i32-array-v0`.
+- Hypothesis and decision test: a CAP-023-derived application may be able to
+  replace its all-zero malformed sentinel with one explicit
+  `Result<Success, int>` boundary, wrap its one flat `[int; 20]` input and flat
+  `[int; 8]` output as finite acyclic CopyData records, exhaustively `Match` the
+  result, and preserve exact success, malformed-input, source-preservation, and
+  exit-91 oracles without new language semantics. Proceed toward a later
+  implementation contract only if profile admission can delegate to the
+  already-accepted semantic, specialization, ownership, checked-IR, and
+  verifier authorities, and one recursive profile-aware physical renderer can
+  preserve `i32` identity for every admitted aggregate leaf within at most two
+  production compiler phases.
+- Frozen readiness scope: map profile parsing and pre-semantic validation;
+  resolved recursive CopyData type and specialization ownership; concrete
+  `Result` normalization and exhaustive `Match`; owned local construction,
+  by-value copy/transport, static projected reads or writes, and post-copy source
+  preservation; checked metadata/IR and verifier corruption boundaries; LLVM
+  struct/enum/payload/function representation; and public `check`, externally
+  verified `build`, and native `run` routes. Classify a possible later profile's
+  admitted types and operations, selection boundary, phase owner, physical
+  identity, rejections, verifier evidence, and deterministic Linux/Windows
+  oracles. The narrow candidate surface is exact `int`/`i32`, `bool`, flat
+  nonempty `[int; N]` leaves, finite acyclic concrete CopyData structs/enums,
+  concrete typed `Result` over admitted CopyData payloads, exhaustive `Match`,
+  and only the bounded ownership operations actually exercised by the probe.
+  User generics/traits, references, tuples not required by carrier lowering,
+  floats, chars, strings, dynamic storage, nested array element shapes, arrays
+  of aggregates, recursion/cycles, implicit error conversion, propagation
+  syntax, public ABI, and accelerator behavior remain excluded.
+- Task-local red probe and evidence contract: after this authorization is
+  committed, create one source only in a task-specific directory outside the
+  repository. Its exact CAP-023 kernel and source-embedded records must remain
+  byte-for-behavior equivalent while a minimal record/success/typed-error/Match
+  shell exercises the bounded composition and distinct success and malformed
+  sentinels. Record parsing, experimental semantic/checked/backend success or
+  its exact first additional failure, selected-profile `check`/`build`/`run`
+  first-failure parity, absence of failure artifacts, deterministic LLVM,
+  physical leaf identities, verifier behavior, and the native oracle when the
+  positive control reaches execution. The probe is evidence, not a committed
+  test or authoritative source spelling.
+- Initial allowed files, recovery boundary, and stop conditions: before the
+  readiness result is classified, only this `TASK_LEDGER.md` authorization may
+  change. Read-only source/tests/workflow/history inspection and task-local
+  external probes are permitted. This authorization commit is the rollback
+  boundary. Stop with `NO IMPLEMENTATION` rather than changing behavior if a
+  useful composition requires modifying either accepted profile, importing
+  broad experimental defaults, inventing struct/enum/Result/layout/ABI/
+  ownership/error semantics, duplicating or reconciling type, physical, or
+  specialization authorities, admitting recursive or nested exact arrays,
+  crossing more than two compiler phases, or claiming general CopyData,
+  inference, safety, stability, performance, or language completion.
+- Acceptance and what changes the decision: readiness succeeds only by recording
+  the exact first failure, a complete authority/phase map, explicit admitted and
+  rejected surfaces, and either one bounded later implementation contract within
+  the two-phase ceiling or a mandatory stop with an exact re-entry condition.
+  Evidence that the flat CAP-023 program is materially sufficient, runtime
+  ingress is prerequisite, the aggregate physical lane needs a second authority,
+  or broad layout/ownership work is unavoidable defers composition and triggers
+  a fresh ranking. Do not update cumulative capability/state documents for a
+  readiness-only result; carry the ledger record into the next executable
+  checkpoint unless a later accepted truth synchronization expressly requires it.
+
 ## CAP-024-HISTORICAL-SCOPE-ANCHOR-REPAIR - immutable accepted-tree validation
 
 - Date/task/status: 2026-08-14,
