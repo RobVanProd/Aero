@@ -108,6 +108,52 @@
   red baseline. CAP-031 does not authorize P1 or the owned-byte runtime; those
   remain separate ledger-first checkpoints after K1 acceptance.
 
+### CAP-031 locally green candidate checkpoint
+
+- Identity and scope: authorization commit
+  `9fb03df462ed6ac9284da60b8a122a4e5dc6d989`, intentional-red commit
+  `30d3f4fd3b2734aeb5e73f62a9e350a18494ce61`, and implementation commit
+  `4e385df457e1f406f19cc7de208465f7e6ee2b5c` are based exactly on accepted
+  BOOT-001 merge `dd35c197bdb3eab6d5837985eacbcf40108f5051`.
+  The implementation tree before this record update is
+  `324199958f1ec497b0b747e9f3d41daa654e9f99`. Product changes are confined to
+  the new focused test, new Aero specimen, and the existing Rust workflow;
+  there is no compiler production, dependency, lockfile, runtime, or existing
+  test mutation.
+- Red-first history: after the ledger-only authorization, the committed focused
+  target ran 2/3 green and failed only with the frozen message
+  `CAP-031 intentional product red: tracked bounded ASCII token-span kernel is absent`.
+  The product was added only after that checkpoint. The independent Rust
+  scanner does not call Aero's production lexer or parser and produces complete
+  75-lane expected vectors for 18 valid and invalid fixtures.
+- Local focused evidence: the final bootstrap target passes 3/3, including the
+  independent contract, D:-temporary-path contract, generated-oracle execution,
+  tracked specimen, and cross-platform workflow anchors. The existing exact
+  fixed-array profile target passes 20/20. Public exact-profile `check` exits 0;
+  public `run` exits 91. Two verified builds are byte-identical and retain one
+  exact `[64 x i32]` to `[75 x i32]` tokenizer definition, eight tracked calls,
+  and 53 dynamic bounds guards without `double`, allocation, runtime String, or
+  legacy Vec representation.
+- Native and complete local gates: pinned LLVM/Clang 22 on Windows verifies and
+  machine-lowers the emitted module, links O0 and O2 executables, and observes
+  exit 91 with empty stdout and stderr for both. Formatting, focused
+  correctness-denying Clippy, workflow structure, and diff hygiene pass. The
+  exact repository-root `./tools/test.sh` gate exits 0 with 289 library tests,
+  35 binary tests, every integration target, and doc tests green.
+- Storage discipline: all CAP-031 worktree, Cargo target, TEMP/TMP, generated
+  oracle, LLVM, object, executable, and gate artifacts were routed to
+  task-specific paths on D:. The already installed Cargo executable on C: was
+  invoked without writing build or temporary output there. User-owned state and
+  the original checkout were not mutated.
+- Status and remaining boundary: this is locally green candidate evidence, not
+  public acceptance. Linux and Windows protected workflow results, exact public
+  candidate identity, protected merge identity, and post-merge workflows remain
+  pending. K1 is only a source-embedded, fixed-capacity ASCII token-span kernel;
+  runtime input, dynamic tokens, Unicode, production-lexer replacement,
+  self-hosting, stability, safety, performance, and accelerator claims remain
+  absent. P1 may begin only from the accepted protected K1 head under its own
+  ledger-first, red-first contract.
+
 ## BOOT-001-SELF-HOSTING-ROADMAP - canonical dependency path and evidence gates
 
 - Date/task/status: 2026-08-15, `BOOT-001-SELF-HOSTING-ROADMAP`, authorized
