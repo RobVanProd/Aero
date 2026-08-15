@@ -178,6 +178,10 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
     let library = read(&root.join("src/compiler/src/lib.rs"));
     let backend = read(&root.join("src/compiler/src/code_generator.rs"));
     let verifier = read(&root.join("src/compiler/src/ir_verifier.rs"));
+    let backend_production = backend
+        .split("\n#[cfg(test)]")
+        .next()
+        .expect("backend source has a production prefix");
 
     assert!(
         library.contains("mod copy_data_layout;"),
@@ -188,6 +192,7 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
         "CopyDataLayoutPolicy",
         "llvm_type",
         "zero_value",
+        "alignment",
         "enum_llvm_type",
     ] {
         assert!(
@@ -198,17 +203,37 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
     for duplicate in [
         "fn copy_data_type_to_llvm",
         "fn enum_schema_to_llvm",
+        "fn enum_schema_is_scalar_only",
+        "fn enum_payload_lane",
         "fn copy_data_zero_value",
         "fn struct_field_type_to_llvm",
     ] {
         assert!(
-            !backend.contains(duplicate),
+            !backend_production.contains(duplicate),
             "backend retained duplicate physical authority `{duplicate}`"
         );
     }
     assert!(
         !verifier.contains("fn physical_copy_type_hint"),
         "verifier retained its duplicate recursive physical hint renderer"
+    );
+    for primitive_duplicate in [".copy_data_llvm_type()", ".copy_data_zero()"] {
+        assert!(
+            !backend_production.contains(primitive_duplicate),
+            "backend bypasses shared primitive-lane authority via `{primitive_duplicate}`"
+        );
+        assert!(
+            !verifier.contains(primitive_duplicate),
+            "verifier bypasses shared primitive-lane authority via `{primitive_duplicate}`"
+        );
+        assert!(
+            shared.contains(primitive_duplicate),
+            "shared authority does not delegate primitive identity via `{primitive_duplicate}`"
+        );
+    }
+    assert!(
+        !backend_production.contains("\"{ i32, double, i1 }\""),
+        "backend retained the hardcoded compact-enum physical schema"
     );
     assert!(
         backend.contains("CopyDataLayout"),
