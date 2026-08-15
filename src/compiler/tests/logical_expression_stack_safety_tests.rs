@@ -33,6 +33,16 @@ fn main() -> int {
 }
 "#;
 
+const CHECKED_IR_SNAPSHOT_SOURCE: &str = r#"
+fn main() -> int {
+    let value: bool = (1 < 2) && (2 < 3) || (4 < 3) && (5 < 6);
+    if value {
+        return 92;
+    }
+    return 1;
+}
+"#;
+
 const LEFT_FAILURE_SOURCE: &str = r#"
 fn main() -> int {
     if (2147483648 == 0) && (1 / 0 == 0) {
@@ -129,7 +139,7 @@ fn deep_logical_source(terms: usize) -> String {
         .collect::<Vec<_>>()
         .join(" && ");
     format!(
-        "fn main() -> int {{\n    if {condition} {{\n        return 92;\n    }}\n    return 1;\n}}\n"
+        "fn main() -> int {{\n    let contract = {condition};\n    if contract {{\n        return 92;\n    }}\n    return 1;\n}}\n"
     )
 }
 
@@ -155,6 +165,8 @@ fn visible_output(output: &Output) -> String {
 fn accepted_shallow_logical_behavior_and_failure_order_are_frozen() {
     let checked = checked_ir(SHALLOW_LOGICAL_SOURCE);
     let checked_metadata = format!("{:?}", checked.metadata());
+    let checked_snapshot = checked_ir(CHECKED_IR_SNAPSHOT_SOURCE);
+    let checked_snapshot_debug = format!("{checked_snapshot:?}");
     let llvm = compile_program(SHALLOW_LOGICAL_SOURCE, CompilerOptions::default())
         .expect("shallow logical source must compile");
 
@@ -164,9 +176,19 @@ fn accepted_shallow_logical_behavior_and_failure_order_are_frozen() {
         "accepted checked metadata changed before the stack-safety correction"
     );
     assert_eq!(
+        md5_hex(checked_snapshot_debug.as_bytes()),
+        "6644809fc3fce047c713ed814416c0ff",
+        "accepted logical instruction/register sequence changed"
+    );
+    assert_eq!(
         checked_ir(SHALLOW_LOGICAL_SOURCE),
         checked,
         "shallow checked IR is not deterministic"
+    );
+    assert_eq!(
+        checked_ir(CHECKED_IR_SNAPSHOT_SOURCE),
+        checked_snapshot,
+        "single-function checked IR snapshot is not deterministic"
     );
     assert_eq!(
         md5_hex(llvm.as_bytes()),
@@ -232,8 +254,13 @@ fn logical_validation_and_lowering_have_explicit_worklist_authorities() {
         );
     }
 
-    let validation_arm = production
-        .split("Expression::Logical { left, right, .. } => {")
+    let validation_function = production
+        .split("\n    fn validate_expression(")
+        .nth(1)
+        .and_then(|tail| tail.split("\n    fn static_string_value(").next())
+        .expect("active expression validator must remain isolated");
+    let validation_arm = validation_function
+        .split("Expression::Logical { left, right, .. } =>")
         .nth(1)
         .and_then(|tail| tail.split("Expression::Unary").next())
         .expect("active logical validation arm must remain isolated");
