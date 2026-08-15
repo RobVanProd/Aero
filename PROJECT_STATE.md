@@ -69,13 +69,13 @@ analyses `1617281747`/`1617282341`/`1617285598`, and CAP-024 aggregate replay jo
 `94659621233`/`94659603455` are correctly skipped because protected master validates
 the tracked bundle rather than replacing accepted observations.
 
-At the CAP-024 checkpoint, accepted public master and evidence head was merge
+Current accepted public master and public evidence checkpoint is protected CAP-024 merge
 `2f7ec325e423461a8e867f4ee2573ae6dcf15dfd`, tree
 `9520f24e4f1626f16782a9775480f9653f6059bb`; its ordered parents are accepted base
 `918c9222eb61e2435e18847e30b946cd08013238` then reviewed candidate
 `617bfce86feb879ee5eef61b44cf4e2a5520f022`.
 
-CAP-024 remains an immutable historical public evidence checkpoint.
+CAP-024 is the current accepted public evidence checkpoint and protected public master.
 It adds no compiler production, parser, grammar, source semantics, profile, semantic
 analysis, checked IR, verifier, backend, example, product oracle, runtime behavior, ABI,
 capability classification, benchmark, resource-usage, performance, accelerator, safety,
@@ -83,8 +83,8 @@ or general-inference capability. Its only claim is immutable accepted-head CAP-0
 correctness, within-platform target-artifact reproducibility, exact observable behavior,
 and artifact byte-size footprint under the closed recorded boundary.
 
-At that checkpoint, CAP-019 was the latest compiler/profile widening and CAP-023
-was the latest product checkpoint. The selected `exact-i32-array-v0` row and the existing CAP-023 CPU
+CAP-019 remains the latest compiler/profile widening; CAP-023 remains the latest product
+checkpoint. The selected `exact-i32-array-v0` row and the existing CAP-023 CPU
 backend-summary row remain byte-identical, and CAP-024 adds no language,
 selected-profile, or backend-summary row.
 
@@ -115,9 +115,7 @@ module migration across more than two compiler phases. No new module RFC or
 decision-changing evidence exists, so CAP-016 remains a mandatory `NO IMPLEMENTATION`
 stop until its explicit re-entry condition is met.
 
-CAP-022's direct runtime-acquisition proposal remains stopped. CAP-035 later
-authorized only the independently protected R1A/R1B/R1C route recorded above;
-runtime source ingestion remains unavailable.
+CAP-022 remains a mandatory `NO IMPLEMENTATION` runtime-acquisition stop.
 
 ### CAP-023 accepted: source-embedded fixed-shape exact-i32 inference product
 

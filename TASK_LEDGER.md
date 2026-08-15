@@ -136,6 +136,14 @@
   child-tool failure earlier than final link, so its nonzero status must retain
   that exact historical prefix rather than introduce a new diagnostic class.
   This compatibility correction changes no successful path or runtime ABI.
+- The following full gate passed the complete compiler/native corpus and failed
+  only in `version_claim_contract_tests` because the R1A state edit had rewritten
+  exact present-tense sentences inside archived CAP-023/CAP-024 mutation
+  fixtures. Those historical strings are immutable test inputs even though the
+  new top current-objective section supersedes their old meaning. Restore them
+  byte-for-byte; keep current CAP-035/R1A truth only in the new leading section
+  and its explicit chronological-scope note. No claim test or historical record
+  is widened.
 
 ## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
 
