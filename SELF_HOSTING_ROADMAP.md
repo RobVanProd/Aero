@@ -4,9 +4,9 @@ Last reviewed: 2026-08-15 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is BOOT-001 merge
-`dd35c197bdb3eab6d5837985eacbcf40108f5051`, tree
-`99de6e653cdf1439624ae3047ea801b441441640`.
+The current accepted baseline is CAP-031 merge
+`a89b405098d5ccbda49e26ac53e01ccc2a9cc296`, tree
+`c0793d9cd30e7742ceee5d4e762b07c87b814b26`.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -41,20 +41,23 @@ self-hosting. Those can be valuable checkpoints only when labeled precisely.
 
 ## Current position
 
-The accepted project remains at **S0: trusted Rust bootstrap baseline**. CAP-031
-is now a **locally green K1 candidate**: the repository tracks an Aero-written
+The project remains bootstrapped by the accepted Rust stage 0, and **K1 is now
+accepted**: the repository tracks an Aero-written
 function that scans a source-embedded `[int; 64]` and logical length into 24
 fixed token-kind/start/length records. An independent Rust oracle covers 18
 valid and invalid fixtures, the public exact-profile routes pass, deterministic
-LLVM is verified, Windows O0/O2 native execution returns 91 with empty output,
-and the complete root gate is green. No compiler production file changed.
+LLVM is verified, protected Linux and Windows O0/O2 native execution returns 91
+with empty output, and candidate plus post-merge gates are green. No compiler
+production file changed. K1 remains fixed-storage evidence, not runtime source
+ingestion, dynamic token storage, Unicode lexing, a production-lexer
+replacement, or self-hosting.
 
-This does not advance the accepted baseline until the exact candidate passes
-the protected Linux and Windows workflows and is merged without substitution.
-It is not runtime source ingestion, dynamic token storage, Unicode lexing, a
-production-lexer replacement, or self-hosting. After protected K1 acceptance,
-the next executable checkpoint is **P1: a compiler-oriented exact
-record/Result profile**.
+P1's public selector red is preserved. Its first admission proof exposed the
+missing root-versus-function context described by CAP-033. That behavior-neutral
+prerequisite is now locally green: every normalized surface witness carries
+exact file-scope or enclosing-function origin without changing source behavior.
+It remains a candidate until protected acceptance and post-merge replay; P1
+resumes only from that accepted head.
 
 The first hard runtime blocker is **R1: owned bytes**. Legacy Vec-shaped IR names
 exist in [`ir.rs`](src/compiler/src/ir.rs), but the checked verifier and backend
@@ -95,8 +98,8 @@ compiler project rather than only a bootstrap bundle.
 | Stage | Status | Required product | Evidence to advance | Explicit non-claim |
 |---|---|---|---|---|
 | S0 — trusted bootstrap baseline | **Accepted** | Protected Rust compiler checkpoint with one checked preparation route, independent checked-IR verification, deterministic selected-profile LLVM, and native gates | Exact accepted commit/tree, full root gate, stable/nightly, Windows LLVM 22, CodeQL, and accepted-head workflow evidence | The Rust compiler is not self-hosted and the whole language is not stable |
-| K1 — bounded compiler kernel | **Locally green candidate; protected acceptance pending** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; local Windows O0/O2 native parity; protected Linux/Windows and post-merge evidence pending | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
-| P1 — selected compiler subset | **Next after K1 acceptance** | A post-semantic exact profile for the already frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles | No general enums, generics, references, modules, allocation, ABI, or broad stability |
+| K1 — bounded compiler kernel | **Accepted** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; protected Linux/Windows O0/O2 native parity; exact candidate/merge/post-merge evidence | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
+| P1 — selected compiler subset | **Selector red preserved; CAP-033 locally green pending acceptance** | A post-semantic exact profile for the already frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles | No general enums, generics, references, modules, allocation, ABI, or broad stability |
 | R1 — owned bytes | **Blocked** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | RFC/readiness proof; source negatives; checked ownership identity; verifier corruption matrix; allocation-failure and drop tests; sanitizer or equivalent runtime evidence | Dormant Vec IR and simplified stdlib helpers do not satisfy this gate |
 | R2 — host byte input | **Blocked on R1** | Deterministic whole-stream byte ingestion, preferably stdin before general path semantics | Empty/short/large input, partial reads, EOF, invalid length, I/O failure, Linux/Windows parity, no uninitialized bytes | `println!`/`printf` output is not input or file I/O |
 | D1 — compiler data model | **Future** | Owned token storage, interned or owned names, maps/sets required by scopes, and a flat append-only AST arena using integer node IDs | Growth/failure/drop evidence; cycle-free arena validation; deterministic iteration; large-source stress; no host collection substitution | The current Rust `String`/`Vec`/`Box` AST is not available to Aero source |
@@ -118,7 +121,7 @@ compiler project rather than only a bootstrap bundle.
 | Compiler-safe selected surface | `stable-scalar-v0` is too narrow; `exact-i32-array-v0` rejects records, typed carriers, modules, I/O, and allocation. | P1 may admit only already frozen record/Result composition after CAP-026 through CAP-030 prerequisites |
 | Input errors and typed failure | Experimental typed carriers exist, but no compiler-oriented selected profile and runtime I/O failure contract compose them. | P1 for bounded typed failure; R2 for actual host failures |
 | Modules and names | Root `mod` collection is flattened and bounded; executable imports, namespaces, visibility, recursive graphs, cycles, and separate compilation are absent. | G1 after owned bytes/names and deterministic collections; a declared single-file bootstrap may precede it |
-| Front-end fidelity | The production lexer/parser are Rust and allocate dynamically. CAP-031's tracked Aero K1 candidate handles only fixed source-embedded ASCII storage. | Protected K1 acceptance establishes bounded token-policy evidence; F1 replaces fixed storage only after R1/R2/D1 |
+| Front-end fidelity | The production lexer/parser are Rust and allocate dynamically. Accepted CAP-031 handles only fixed source-embedded ASCII storage. | K1 establishes bounded token-policy evidence; F1 replaces fixed storage only after R1/R2/D1 |
 | Semantic and ownership fidelity | The Rust semantic analyzer uses multiple scopes, registries, maps, fixed-point ownership state, and normalization authorities. | M1 must port bounded authorities with differential and corruption evidence rather than re-infer convenient types |
 | Checked IR and verification | Current checked IR and verifier are trusted Rust authority. | M1 constructs it; B1 independently verifies it before emission |
 | Code emission and driver | LLVM text, cache, CLI, process execution, object lowering, and linking are Rust-owned. | B1 plus a narrow runtime/process/file contract; LLVM and the linker can remain declared external tools |
@@ -161,12 +164,10 @@ ledger and failing regression first.
 
 ## Exact next task
 
-Publish the exact CAP-031 candidate through protected Linux and Windows checks,
-merge it only without head or tree substitution, and verify post-merge evidence.
-No compiler production change is authorized while that acceptance is pending.
-
-After K1 acceptance, authorize P1 in a separate ledger-first and red-first
-checkpoint. P1 must consume the already captured CAP-030 surface witnesses and
+Publish and protect the locally green `CAP-033-RESOLVED-SURFACE-CONTEXT`
+candidate, verify its exact merge tree, and replay the required accepted-head
+workflows. Then resume CAP-032/P1 from that accepted CAP-033 head. P1 must
+consume the context-bound CAP-030 surface witnesses and
 CAP-029 verified-IR authentication to admit only the frozen compiler-oriented
 combination of exact `int`/`bool`, flat arrays, nongeneric records, concrete
 typed `Result`, and exhaustive `Match`. Existing profiles and public behavior

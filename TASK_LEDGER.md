@@ -1,5 +1,123 @@
 # Aero Task Ledger
 
+## CAP-033-RESOLVED-SURFACE-CONTEXT - bind normalized witnesses to enclosing scope
+
+- Date/task/status: 2026-08-15,
+  `CAP-033-RESOLVED-SURFACE-CONTEXT`, authorized ledger-first and
+  characterization/structural-red-first on
+  `agent/cap-033-resolved-surface-context` from exact accepted CAP-031 merge
+  `a89b405098d5ccbda49e26ac53e01ccc2a9cc296`, tree
+  `c0793d9cd30e7742ceee5d4e762b07c87b814b26`. CAP-032's contract commit
+  `f7b2057` and selector-red commit `ec7a306` remain preserved on their separate
+  branch; no CAP-032 production mutation was made.
+- Observed behavior and first honest failure: the canonical Experimental route
+  accepts the complete file `1;`. CAP-030 records that root only as an integer-
+  literal expression witness, identical to the kind emitted for an integer
+  literal inside a function. Its ordered witness stream carries no enclosing
+  function/file-scope context or closing identity, so a later post-semantic
+  profile cannot admit the in-function literal while rejecting the file-scope
+  executable root without rewalking/re-inferring or guessing event boundaries.
+  This triggered CAP-032's explicit descriptor-field stop before production
+  mutation. The focused test's sole red must be exactly
+  `CAP-033 intentional structural red: surface context authority is absent`;
+  any behavior, diagnostic, build, or infrastructure failure invalidates the
+  red checkpoint.
+- Frozen semantics: this is behavior-neutral metadata only. Preserve the exact
+  CAP-030 statement/expression/pattern vocabulary, preorder, multiplicity, and
+  existing resolved shapes, nominals, uses, and operations. Replace each bare
+  surface enum item with one immutable observation that pairs the same kind with
+  exactly one `ResolvedProfileSurfaceContext`: `FileScope` when no enclosing
+  function/method origin is active, or `Function(ResolvedProfileOrigin)` with
+  the builder's exact existing source, generic/private, impl, or trait method
+  origin. A function-declaration witness belongs to its enclosing context;
+  observations from its body belong to the function's own context. Root AST
+  expressions must therefore be `FileScope`, while an identical literal inside
+  `fn main` must be `Function(Source { normalized: "main" })`.
+- Authority boundary: context is captured at the same push site in the existing
+  single normalized-AST semantic-finalization walk. It may clone only the
+  builder's already-owned `self.function`; it must not inspect source locations,
+  rebuild scopes, infer types, normalize again, correlate counts, add event IDs,
+  walk the AST a second time, or consult language-profile/authentication/IR/
+  backend policy. CAP-029 continues to carry the descriptor out of band and may
+  ignore the added field; public `CheckedProgram` Debug and cache identity remain
+  exact.
+- Exact allowed files: only this `TASK_LEDGER.md`;
+  `SELF_HOSTING_ROADMAP.md`;
+  `src/compiler/src/resolved_profile_shape.rs`; and one new
+  `src/compiler/tests/resolved_profile_surface_context_tests.rs`. Production is
+  one compiler phase and one authority file. `semantic_analyzer.rs`,
+  `language_profile.rs`, `resolved_profile_authentication.rs`, `lib.rs`, all AST,
+  IR/generator/verifier/backend/layout files, CLI/workflows, existing tests,
+  dependencies/lockfiles, examples, evidence, claims, packages, releases, and
+  external artifacts are frozen.
+- Red-first and acceptance gates: commit this authorization, then commit one
+  focused target whose public source/file characterization proves accepted root
+  and function-wrapped scalar sources still compile identically and whose sole
+  failure is the exact missing-context red. Final internal tests must project
+  the old kind sequence unchanged; prove root expression/statement context,
+  top-level source-function declaration/body separation, nested block context,
+  source-generic/private specialization context, impl-method context, trait-
+  default and bodyless-method context, nested function restoration, Match
+  pattern/expression context, and deterministic repeated descriptors. Structural
+  controls must prove one AST loop, one declaration call, one walk call, one
+  context helper, no parallel context vector, and no second classifier/walk.
+  Require accepted LLVM/diagnostic/native characterizations, focused CAP-028/
+  CAP-029/CAP-030 targets, formatting, correctness-denying all-target/all-feature
+  Clippy, diff hygiene, and exact root `./tools/test.sh`, all with one Cargo job,
+  one test thread, pinned LLVM 22, and D-only task target/TEMP/TMP.
+- Risks and mandatory stops: risks are labeling the function declaration with
+  its own rather than enclosing context, leaking a nested/preserved origin after
+  restoration, changing witness order, adding an invalid parallel-vector state,
+  or accidentally exposing metadata publicly. Stop rather than widen if exact
+  context requires a semantic rule, source location, event ID, second AST walk,
+  inference/registry/normalizer work, authentication/IR/backend consumption,
+  a second compiler phase, a fifth file, or any accepted diagnostic, descriptor
+  fact other than context, checked IR, LLVM, cache, or native delta. CAP-033 does
+  not implement a language profile, reject source, add compiler syntax, or claim
+  self-hosting.
+
+### CAP-033 locally green candidate checkpoint
+
+- Identity and scope: ledger commit
+  `46aa10a3e85fabfe9a9a79b479a3fbd31d0e92da`, intentional-red commit
+  `8f2ac7d9d5f55b4e11b74ec2ec1f97c84416e9b0`, and implementation commit
+  `8043d3e0b1733b21e90f70b8e953fe42e41c8a36` are based exactly on accepted
+  CAP-031 merge `a89b405098d5ccbda49e26ac53e01ccc2a9cc296`. The implementation
+  tree before this evidence update is
+  `a9111633d401fb1438343f1481cf22c591a89e6a`. The cumulative change remains
+  exactly the four authorized files and one compiler authority phase; no
+  profile, semantic analyzer, authentication, checked-IR, verifier, backend,
+  CLI, workflow, dependency, or existing integration test changed.
+- Red-first history: after the ledger-only authorization, the committed focused
+  target preserved root and function-wrapped source/file compilation and native
+  results, then failed only with
+  `CAP-033 intentional structural red: surface context authority is absent`.
+  Production mutation began only after that exact checkpoint.
+- Implementation result: each existing statement, expression, and pattern
+  witness now carries either `FileScope` or the exact already-active
+  `ResolvedProfileOrigin`. Kind order and multiplicity remain unchanged. A
+  function declaration retains its enclosing context; its body uses its own
+  source, normalized generic/private, impl-method, or trait-method origin; and
+  nested function restoration is explicit and covered. Context is captured at
+  the existing push sites in the same one-pass finalizer, with no second AST
+  walk, location map, event identity, inference, or downstream consumer.
+- Focused and full evidence: internal descriptor tests pass 10/10; the new
+  context target passes 2/2; the neighboring shape-authority,
+  authentication, and surface-witness targets each pass 3/3. Formatting,
+  correctness-denying all-target/all-feature Clippy, and diff hygiene pass.
+  The exact repository-root `./tools/test.sh` gate exits 0 with 290 library
+  tests, 35 binary tests, every integration target, and doc tests green.
+- Storage discipline: the worktree is under
+  `D:\Aero-worktrees\cap-033-resolved-surface-context`; Cargo output is under
+  `D:\Aero-build-targets\cap-033`; and TEMP/TMP/log evidence is under
+  `D:\Aero-temp\cap-033`. The preinstalled Cargo and Git Bash executables on
+  C: were invoked without directing generated project artifacts there.
+- Status and next boundary: this is a locally green behavior-neutral candidate,
+  not accepted public state. Exact publication identity, protected checks,
+  normal merge, and post-merge replay remain required. CAP-032/P1 may resume
+  only from the accepted CAP-033 head; CAP-033 itself adds no source acceptance,
+  selected profile, allocation, runtime input, or self-hosting claim.
+
 ## CAP-031-BOUNDED-AERO-LEXER-KERNEL - tracked fixed-storage token spans
 
 - Date/task/status: 2026-08-15,
