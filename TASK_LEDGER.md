@@ -84,6 +84,105 @@
   readiness-only result; carry the ledger record into the next executable
   checkpoint unless a later accepted truth synchronization expressly requires it.
 
+### CAP-025 readiness result - mandatory shared-authority stop
+
+- Decision: `NO IMPLEMENTATION`. CAP-025 is a completed architecture/readiness
+  stop and requires a fresh ranking; it is not a blocked goal, new profile,
+  compiler capability, or widening of either accepted selected profile. The
+  exact source failure is bounded, but the first complete implementation would
+  have to move or duplicate resolved type/specialization authority and reconcile
+  conflicting physical authorities, exceeding the frozen stop boundary before
+  any production mutation.
+- Canonical external probe: task-local source
+  `D:\CodexArtifacts\aero-cap025-readiness-f022035\application_profile_composition.aero`,
+  SHA-256
+  `946b7e6ca110059df82220b02cc73dc3c073f6f82c0419b2b9121f81460c32ee`,
+  was exercised with accepted-tree compiler binary SHA-256
+  `32bf224727c61499ca5c53650c2de0266e9a1bee9e4a099307e4022bad2e2027`.
+  It preserves the CAP-023 kernel and records, wraps one flat `[int; 20]` leaf
+  in `InferenceRecord`, one flat `[int; 8]` leaf in `InferenceSuccess`, nests
+  the request in one finite `InferenceCase`, transports
+  `Result<InferenceSuccess, int>`, exhaustively matches `Ok`/`Err`, copies and
+  reuses the input records, and distinguishes success from malformed second-
+  header error 102. A flat array leaf inside a finite struct is the authorized
+  application composition; "nested array" remains an array whose element is an
+  array or aggregate, and stays rejected.
+- Exact first-failure evidence: public `check`, `build`, and `run` with
+  `exact-i32-array-v0` all exit 1 with byte-identical cause
+  `Language Profile Error: exact-i32-array-v0 rejects struct definitions`.
+  `build` leaves no requested LLVM artifact, and neither semantics, checked IR,
+  backend generation, verifier work, nor native execution is reached. This is
+  the meaningful composition failure. An invented selector name would fail
+  earlier in profile parsing and would prove only selector absence.
+- Separate-authority positive controls: under `experimental`, the same probe
+  passes semantic and checked admission, builds twice with external `opt`
+  22.1.8 verification, produces byte-identical LLVM SHA-256
+  `219fa2867d701a07dda888aea9694fd8da093685534e11cb18c90f43074f8c23`,
+  and executes on Windows with exit 91 after proving aggregate copy, typed
+  failure, and Match behavior. It reaches 91 only while explicitly observing
+  that the embedded CAP-023 exact control falls back to 1 on the legacy
+  aggregate lane; requiring that control to retain exit 91 makes the composite
+  run exit 11. The unchanged accepted CAP-023 source SHA-256
+  `8244ca26fc90ce708801e12ec6a7192bdedf01e1a1429c1479d36e233b1bb6c`
+  independently builds under `exact-i32-array-v0` to LLVM SHA-256
+  `74a317e704bd62bd79d96f1399fb6e31a22304e6889c898748f3289c7a0a8d29`
+  and executes on Windows with exit 91. Public run cleanup leaves no retained
+  run artifact.
+- Exact physical split: the exact CAP-023 control has function identity
+  `[20 x i32] -> [8 x i32]`. Experimental composition instead declares
+  `InferenceRecord` as `{ [20 x double] }`, `InferenceSuccess` as
+  `{ [8 x double] }`, and its concrete Result transport as
+  `{ i32, %aero.struct.InferenceSuccess, double }`; even the logical `int`
+  error payload is a legacy aggregate `double`. `PrimitiveKind` deliberately
+  owns that generic CopyData representation, static recursive struct and enum
+  renderers consume it, and the exact profile owns a separate top-level scalar/
+  flat-array override. Experimental success therefore proves the existing
+  logical composition only and cannot serve as exact physical evidence.
+- Type, ownership, and verifier map: accepted `StructRegistry`, `EnumRegistry`,
+  CopyData, concrete carrier normalization, exhaustive Match, by-value copy,
+  and owned-enum movement already define the required logical behavior. Both
+  semantic analysis and semantic-independent checked admission invoke the same
+  specialization/normalization functions, and the checked verifier independently
+  validates the generic logical schemas and ownership/CFG identities. However,
+  selected-profile validation runs before those resolved authorities and admits
+  only raw scalar/flat-array shapes. The verifier's current physical hints also
+  describe generic aggregate `int` as `double`; they cannot prove the promised
+  recursive exact-`i32` layout.
+- Phase result: a naive profile-plus-backend patch is invalid. A selective raw-
+  AST validator would duplicate the struct/enum/carrier registries; a permissive
+  validator would import broad experimental defaults; and a backend-only exact
+  override would leave struct fields, Result/enum payloads, Match storage, enum
+  extraction, and verifier hints physically inconsistent. The smallest honest
+  design needs at least (1) selector and source-surface admission, (2) one
+  post-normalization resolved profile-shape conformance authority before checked
+  IR, and (3) one centralized profile-aware recursive physical renderer used by
+  backend layout and verifier evidence. A separately mutated physical verifier
+  would add a fourth authority. This exceeds two production phases and triggers
+  the explicit duplicate type/physical/specialization stop.
+- Frozen later surface and rejection boundary: if reopened, admit only exact
+  `int`/`i32`, `bool`, nonempty flat integer-array leaves, finite acyclic concrete
+  CopyData structs, concrete typed Result over admitted payloads, exhaustive
+  Match, by-value CopyData transport, whole owned-enum movement, and the exact
+  source-preservation operations used by the probe. Continue to reject floats,
+  chars, strings, user generics/traits/enums not required by the product, tuples
+  not required by carrier lowering, references and borrows, aggregate mutation,
+  zero/repeat/nested arrays, arrays of aggregates, cycles, nested/context-free
+  carriers, incomplete or duplicate Match arms, implicit error conversion or
+  propagation, dynamic storage, modules, public ABI, non-CPU execution, and any
+  safety, stability, performance, or general-inference claim.
+- Re-entry evidence and cross-platform oracle: reopen only after a separately
+  frozen prerequisite architecture provides one post-normalization profile-shape
+  descriptor derived from the accepted registries and one recursive physical
+  renderer parameterized by primitive lane identity, while preserving every
+  existing profile byte-for-behavior. A later red matrix must use an independent
+  Rust wrapping-`i32` oracle and require Linux and Windows O0/O2 native parity,
+  deterministic LLVM, external LLVM 22 verification and bitcode assembly, exact
+  valid and typed-error sentinels, source preservation, all admitted aggregate
+  integer and Result error leaves as `i32`, no `double`/`fptosi`/`sitofp`, signed
+  bounds checks before GEPs, no `nsw`/`nuw`, corruption controls, and no failure
+  artifacts. Until that prerequisite is ranked and accepted, rerank instead of
+  implementing CAP-025 or updating cumulative capability documents.
+
 ## CAP-024-HISTORICAL-SCOPE-ANCHOR-REPAIR - immutable accepted-tree validation
 
 - Date/task/status: 2026-08-14,
