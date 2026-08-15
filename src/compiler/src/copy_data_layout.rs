@@ -54,7 +54,9 @@ impl<'a> CopyDataLayout<'a> {
         }
     }
 
-    /// Render with the verifier's accepted raw private-struct spelling.
+    /// Render with the verifier's accepted raw private-struct spelling for
+    /// module-local contract controls.
+    #[cfg(test)]
     pub(crate) fn llvm_type(self) -> String {
         self.llvm_type_with(&|name| format!("%aero.struct.{name}"))
     }
@@ -176,6 +178,10 @@ pub(crate) struct EnumStorageLayout<'a> {
 }
 
 impl<'a> EnumStorageLayout<'a> {
+    const TAG_LANE: usize = 0;
+    const COMPACT_NUMERIC_LANE: usize = 1;
+    const COMPACT_BOOLEAN_LANE: usize = 2;
+
     pub(crate) fn legacy(schema: &'a EnumSchema) -> Self {
         Self {
             schema,
@@ -203,6 +209,18 @@ impl<'a> EnumStorageLayout<'a> {
                     LogicalType::Int | LogicalType::Float | LogicalType::Bool
                 )
             })
+    }
+
+    pub(crate) fn tag_lane(self) -> usize {
+        Self::TAG_LANE
+    }
+
+    pub(crate) fn compact_numeric_lane(self) -> Option<usize> {
+        (!self.is_unit() && self.is_compact()).then_some(Self::COMPACT_NUMERIC_LANE)
+    }
+
+    pub(crate) fn compact_boolean_lane(self) -> Option<usize> {
+        (!self.is_unit() && self.is_compact()).then_some(Self::COMPACT_BOOLEAN_LANE)
     }
 
     fn compact_numeric_primitive(self) -> PrimitiveKind {
@@ -259,17 +277,37 @@ impl<'a> EnumStorageLayout<'a> {
         let payload = self.schema.variants.get(variant_index)?.payload.as_ref()?;
         if self.is_compact() {
             return match payload {
-                LogicalType::Int | LogicalType::Float => Some(1),
-                LogicalType::Bool => Some(2),
+                LogicalType::Int | LogicalType::Float => Some(Self::COMPACT_NUMERIC_LANE),
+                LogicalType::Bool => Some(Self::COMPACT_BOOLEAN_LANE),
                 _ => None,
             };
         }
         Some(
-            1 + self.schema.variants[..variant_index]
-                .iter()
-                .filter(|variant| variant.payload.is_some())
-                .count(),
+            Self::TAG_LANE
+                + 1
+                + self.schema.variants[..variant_index]
+                    .iter()
+                    .filter(|variant| variant.payload.is_some())
+                    .count(),
         )
+    }
+
+    pub(crate) fn payload_variants(self) -> Vec<(usize, usize, &'a LogicalType)> {
+        self.schema
+            .variants
+            .iter()
+            .enumerate()
+            .filter_map(|(variant_index, variant)| {
+                variant.payload.as_ref().map(|payload| {
+                    (
+                        variant_index,
+                        self.payload_lane(variant_index)
+                            .expect("payload-bearing enum variant has a storage lane"),
+                        payload,
+                    )
+                })
+            })
+            .collect()
     }
 
     pub(crate) fn lane_llvm_type(
@@ -278,13 +316,13 @@ impl<'a> EnumStorageLayout<'a> {
         named_struct: &impl Fn(&str) -> String,
     ) -> Option<String> {
         match lane {
-            0 => Some("i32".to_string()),
-            1 if self.is_compact() => Some(
+            Self::TAG_LANE => Some("i32".to_string()),
+            Self::COMPACT_NUMERIC_LANE if self.is_compact() => Some(
                 self.policy
                     .primitive_llvm_type(self.compact_numeric_primitive())
                     .to_string(),
             ),
-            2 if self.is_compact() => Some("i1".to_string()),
+            Self::COMPACT_BOOLEAN_LANE if self.is_compact() => Some("i1".to_string()),
             _ if !self.is_compact() => self
                 .schema
                 .variants
@@ -300,13 +338,13 @@ impl<'a> EnumStorageLayout<'a> {
 
     pub(crate) fn lane_zero_value(self, lane: usize) -> Option<String> {
         match lane {
-            0 => Some("0".to_string()),
-            1 if self.is_compact() => Some(
+            Self::TAG_LANE => Some("0".to_string()),
+            Self::COMPACT_NUMERIC_LANE if self.is_compact() => Some(
                 self.policy
                     .primitive_zero(self.compact_numeric_primitive())
                     .to_string(),
             ),
-            2 if self.is_compact() => Some("false".to_string()),
+            Self::COMPACT_BOOLEAN_LANE if self.is_compact() => Some("false".to_string()),
             _ if !self.is_compact() => self
                 .schema
                 .variants
@@ -448,6 +486,21 @@ mod tests {
 
     #[test]
     fn enum_storage_owns_compact_and_general_lane_topology() {
+        let unit = EnumSchema {
+            name: "State".to_string(),
+            variants: vec![variant("Idle", None), variant("Ready", None)],
+        };
+        let unit = EnumStorageLayout::legacy(&unit);
+        assert!(unit.is_unit());
+        assert_eq!(unit.tag_lane(), 0);
+        assert_eq!(unit.enum_llvm_type(), "i32");
+        assert_eq!(
+            unit.lane_llvm_type(unit.tag_lane(), &|name| format!("%aero.struct.{name}")),
+            Some("i32".to_string())
+        );
+        assert_eq!(unit.lane_zero_value(unit.tag_lane()).as_deref(), Some("0"));
+        assert!(unit.payload_variants().is_empty());
+
         let compact = EnumSchema {
             name: "Scalar".to_string(),
             variants: vec![
@@ -458,6 +511,9 @@ mod tests {
         };
         let compact = EnumStorageLayout::legacy(&compact);
         assert!(compact.is_compact());
+        assert_eq!(compact.tag_lane(), 0);
+        assert_eq!(compact.compact_numeric_lane(), Some(1));
+        assert_eq!(compact.compact_boolean_lane(), Some(2));
         assert_eq!(compact.enum_llvm_type(), "{ i32, double, i1 }");
         assert_eq!(compact.payload_lane(1), Some(1));
         assert_eq!(compact.payload_lane(2), Some(2));
@@ -466,6 +522,14 @@ mod tests {
             Some("0x0000000000000000")
         );
         assert_eq!(compact.lane_zero_value(2).as_deref(), Some("false"));
+        assert_eq!(
+            compact
+                .payload_variants()
+                .into_iter()
+                .map(|(variant, lane, payload)| (variant, lane, payload.clone()))
+                .collect::<Vec<_>>(),
+            vec![(1, 1, LogicalType::Int), (2, 2, LogicalType::Bool)]
+        );
 
         let general = EnumSchema {
             name: "Outcome".to_string(),
@@ -485,6 +549,16 @@ mod tests {
         assert_eq!(general.enum_llvm_type(), "{ i32, { double, i1 }, i32 }");
         assert_eq!(general.payload_lane(1), Some(1));
         assert_eq!(general.payload_lane(2), Some(2));
+        assert_eq!(general.compact_numeric_lane(), None);
+        assert_eq!(general.compact_boolean_lane(), None);
+        assert_eq!(
+            general
+                .payload_variants()
+                .into_iter()
+                .map(|(variant, lane, _)| (variant, lane))
+                .collect::<Vec<_>>(),
+            vec![(1, 1), (2, 2)]
+        );
         assert_eq!(
             general.lane_llvm_type(1, &|name| format!("%aero.struct.{name}")),
             Some("{ double, i1 }".to_string())

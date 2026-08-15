@@ -127,6 +127,16 @@ fn accepted_profile_llvm_bytes_are_frozen_before_layout_consolidation() {
 
     let stable = llvm(STABLE_SCALAR_SOURCE, LanguageProfile::StableScalarV0);
     let exact = llvm(EXACT_CAP023_SOURCE, LanguageProfile::ExactI32ArrayV0);
+    assert_eq!(
+        stable,
+        llvm(STABLE_SCALAR_SOURCE, LanguageProfile::StableScalarV0),
+        "stable-scalar LLVM became nondeterministic"
+    );
+    assert_eq!(
+        exact,
+        llvm(EXACT_CAP023_SOURCE, LanguageProfile::ExactI32ArrayV0),
+        "exact CAP-023 LLVM became nondeterministic"
+    );
     let actual = [
         md5_hex(experimental.as_bytes()),
         md5_hex(stable.as_bytes()),
@@ -242,10 +252,29 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
     for compact_lane_duplicate in [
         "insertvalue {enum_type} %{with_tag}, double",
         "insertvalue {enum_type} %{numeric}, i1",
+        ".lane_llvm_type(1,",
+        ".lane_llvm_type(2,",
+        ".lane_zero_value(1)",
+        ".lane_zero_value(2)",
+        "insertvalue {enum_type} poison, i32",
+        "extractvalue {enum_type} %{parameter}, 0",
+        "extractvalue {enum_type} %reg{value}, 0",
     ] {
         assert!(
             !backend_production.contains(compact_lane_duplicate),
             "backend retained hardcoded compact-enum lane `{compact_lane_duplicate}`"
+        );
+    }
+    for shared_consumer in [
+        ".tag_lane()",
+        ".compact_numeric_lane()",
+        ".compact_boolean_lane()",
+        ".payload_variants()",
+        "checked_place_storage",
+    ] {
+        assert!(
+            backend_production.contains(shared_consumer),
+            "backend does not delegate `{shared_consumer}` to the shared layout authority"
         );
     }
     for checked_array_duplicate in [
@@ -266,6 +295,14 @@ fn recursive_copydata_physical_layout_has_one_shared_authority() {
         verifier.contains("CopyDataLayout::legacy")
             && verifier.contains("EnumStorageLayout::legacy"),
         "verifier does not consume the shared physical descriptor"
+    );
+    assert!(
+        !verifier.contains("let _physical_layout = EnumStorageLayout"),
+        "verifier computes and discards the shared enum layout"
+    );
+    assert!(
+        verifier.contains("existing_physical_layout != &physical_layout"),
+        "verifier does not compare repeated checked enum physical layouts"
     );
     for raw_legacy_anchor in [
         "\"  %{} = alloca [{} x {}], align 8\\n\"",

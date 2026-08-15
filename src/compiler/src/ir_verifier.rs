@@ -5278,11 +5278,8 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_type(
         logical_type: &LogicalType,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
-        if valid_copy_data_type(logical_type) {
-            let _physical_layout = CopyDataLayout::legacy(logical_type).llvm_type();
-        }
         if let LogicalType::Array { element, .. } = logical_type {
             if !valid_copy_data_type(logical_type) {
                 return Err(IrVerificationError::new(
@@ -5376,7 +5373,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn register_enum(
         schema: &EnumSchema,
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
         if !valid_enum_schema(schema) {
             return Err(IrVerificationError::new(
@@ -5388,7 +5385,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 )),
             ));
         }
-        let _physical_layout = EnumStorageLayout::legacy(schema).enum_llvm_type();
+        let physical_layout = EnumStorageLayout::legacy(schema).enum_llvm_type();
         if schemas.contains_key(&schema.name) {
             return Err(IrVerificationError::new(
                 "<module>",
@@ -5399,8 +5396,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 )),
             ));
         }
-        if let Some(existing) = enum_schemas.get(&schema.name) {
-            if existing != &schema.variants {
+        if let Some((existing_variants, existing_physical_layout)) = enum_schemas.get(&schema.name)
+        {
+            if existing_physical_layout != &physical_layout || existing_variants != &schema.variants
+            {
                 return Err(IrVerificationError::new(
                     "<module>",
                     None,
@@ -5411,7 +5410,10 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
                 ));
             }
         } else {
-            enum_schemas.insert(schema.name.clone(), schema.variants.clone());
+            enum_schemas.insert(
+                schema.name.clone(),
+                (schema.variants.clone(), physical_layout),
+            );
         }
         for payload in schema
             .variants
@@ -5426,7 +5428,7 @@ fn validate_program_struct_schemas(ir: &RawIr) -> Result<(), IrVerificationError
     fn visit(
         instructions: &[Inst],
         schemas: &mut BTreeMap<String, Vec<LogicalType>>,
-        enum_schemas: &mut BTreeMap<String, Vec<EnumVariantSchema>>,
+        enum_schemas: &mut BTreeMap<String, (Vec<EnumVariantSchema>, String)>,
     ) -> Result<(), IrVerificationError> {
         for instruction in instructions {
             match instruction {
@@ -7303,25 +7305,29 @@ mod tests {
             element: Box::new(LogicalType::Bool),
             count: 3,
         });
-        assert!(
-            verify_ir(function(vec![
-                checked_variant(Value::Reg(0), schema, 0),
-                checked_dispatch(
-                    Value::Reg(0),
-                    changed_schema,
-                    &["idle", "flags", "pair", "row"],
-                ),
-                Inst::Label("idle".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("flags".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("pair".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-                Inst::Label("row".to_string()),
-                Inst::Return(Value::ImmInt(0)),
-            ]))
-            .is_err(),
-            "changed aggregate lane schema passed checked IR dispatch"
+        let error = verify_ir(function(vec![
+            checked_variant(Value::Reg(0), schema, 0),
+            checked_dispatch(
+                Value::Reg(0),
+                changed_schema,
+                &["idle", "flags", "pair", "row"],
+            ),
+            Inst::Label("idle".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("flags".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("pair".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+            Inst::Label("row".to_string()),
+            Inst::Return(Value::ImmInt(0)),
+        ]))
+        .expect_err("changed aggregate lane schema passed checked IR dispatch");
+        assert_eq!(
+            error.kind,
+            IrVerificationErrorKind::MetadataMismatch(
+                "conflicting checked enum schemas for `Payload`".to_string()
+            ),
+            "physical enum-layout comparison changed the accepted corruption diagnostic"
         );
     }
 
