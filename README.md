@@ -21,9 +21,12 @@ The founding direction is preserved in the
 [original language design paper](<__Aero___%20A%20High-Performance,%20Ergonomic%20Programming%20Language.pdf>)
 and the [strategy capture](<Aero%20Programming%20Language%20Framework%20-%20Claude.pdf>).
 [Framework alignment](FRAMEWORK_ALIGNMENT.md) explains how that direction maps
-to current evidence and the active roadmap. Aero is presently an experimental
-minimal prototype under correctness recovery; historical `v1.0.0` labels are not
-evidence of a stable release.
+to current evidence and the active roadmap. The
+[self-hosting roadmap](SELF_HOSTING_ROADMAP.md) gives the canonical dependency
+path, current blockers, and evidence gates from the Rust bootstrap compiler to
+stage convergence. Aero is presently an experimental
+minimal prototype under correctness recovery; historical `v1.0.0` labels are
+not evidence of a stable release.
 
 ## Verified Results
 

@@ -1,5 +1,148 @@
 # Aero Task Ledger
 
+## BOOT-001-SELF-HOSTING-ROADMAP - canonical dependency path and evidence gates
+
+- Date/task/status: 2026-08-15, `BOOT-001-SELF-HOSTING-ROADMAP`, authorized
+  documentation-only checkpoint on `agent/boot-001-self-hosting-roadmap` from
+  exact accepted CAP-030 merge
+  `43a236c8af6ce182561275343619f0f0dd06d232`, tree
+  `9aab4f6a05b3e23994eb9c9bb6290debb8077af9`. CAP-030 is integrated on
+  protected `origin/master`; its candidate and merge trees are identical and
+  its exact-head and post-merge CI, Rust stable/nightly, Windows LLVM 22,
+  CodeQL, and evidence workflows are green. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain outside this task.
+- Observed behavior and gap: Aero's founding documents retain the progression
+  `Design -> Minimal Prototype -> Self-Host -> Stabilize -> Optimize`, and
+  `FRAMEWORK_ALIGNMENT.md` records eventual self-hosting, but the actionable
+  path is fragmented across `Roadmap.md`, `FRAMEWORK_ALIGNMENT.md`,
+  `PROJECT_STATE.md`, `SPEC_IMPLEMENTATION_MATRIX.md`, `README.md`, and this
+  ledger. There is no single short source that defines the self-hosting claim,
+  orders its hard dependencies, marks current evidence at each gate, or names
+  the next executable checkpoint. The existing broad roadmap is chronological
+  and capability-oriented rather than a bootstrap dependency graph.
+- Current evidence and first honest boundary: accepted Aero can compile and
+  natively execute exact wrapping `i32`, nonempty flat fixed arrays, guarded
+  reads/writes, loops, and internal calls under the selected CPU-only
+  `exact-i32-array-v0` profile. A temporary, untracked probe demonstrated that
+  this surface can scan the source-embedded ASCII bytes for
+  `fn main() -> int { return 91; }` and return native exit `91`; its first exact
+  failure, function calls inside logical operands, was removed by expressing
+  the same scan with admitted control flow. That probe is corroboration only:
+  it is not tracked evidence, a general lexer, runtime ingestion, or
+  self-hosting. The production compiler remains roughly 78,000 lines of Rust
+  and uses `String`, `Vec`, maps, recursive/boxed AST data, filesystem input,
+  modules, and host tooling that Aero source cannot yet reproduce.
+- Hypothesis and bounded usefulness: one concise canonical
+  `SELF_HOSTING_ROADMAP.md` can turn the founding direction into an
+  evidence-gated dependency path without changing semantics or claiming
+  implementation. It will make the immediate kernel checkpoint and the
+  blocking runtime/compiler foundations independently reviewable, prevent a
+  bounded demo from being mislabeled as self-hosting, and give every later
+  bootstrap task one stable gate to advance.
+- Frozen roadmap contract: define exact bootstrap stages from the current
+  trusted Rust stage-0 compiler through bounded Aero-written compiler kernels,
+  owned byte/runtime storage, host input and module resolution, an Aero-owned
+  compiler data model, Aero front end, Aero checked middle/backend path, and
+  reproducible stage-0 -> stage-1 -> stage-2 convergence. For every stage,
+  record its required product, current status (`accepted`, `next`, `blocked`,
+  or `future`), evidence needed to advance, and explicit non-claims. Define
+  self-hosting only as an Aero-authored compiler built by the trusted stage-0,
+  whose stage-1 build can compile the same source into a stage-2 result that
+  satisfies a frozen reproducibility comparison and the same conformance/system
+  gates. A lexer demo, syntax recognition, emitted LLVM text, a compiler-like
+  sample, or Rust helpers behind Aero syntax is not self-hosting.
+- Required dependency graph and priority rule: show the critical path
+  `bounded compiler kernel -> owned byte buffer/allocation/drop -> runtime file
+  input -> stable compiler subset and owned compiler data model -> Aero lexer
+  and parser -> semantic/checked-IR/backend compiler -> stage convergence`.
+  Permit bounded fixed-storage kernels to progress in parallel only as
+  executable specification/evidence; they may not be used to bypass the owned
+  runtime, source-ingestion, recursive-data, module, or reproducibility gates.
+  The immediate next executable checkpoint is a tracked, independently oracled,
+  fixed-capacity ASCII lexer kernel under the already accepted exact profile,
+  provided its separate ledger proves useful token kind/span output over
+  multiple fixtures and labels every fixed-storage limitation. The next hard
+  production foundation is owned runtime bytes with allocation, capacity,
+  growth/failure, move, and exactly-once drop authority; implementation remains
+  unauthorized until a separate readiness contract freezes its semantics.
+- Required gap inventory: distinguish source surface, storage/ownership,
+  runtime/host I/O, module/name resolution, compiler data structures,
+  diagnostics, code emission/linking, reproducibility, cross-platform evidence,
+  and trust/bootstrapping. Anchor each gap to current repository evidence and
+  name the completion test rather than an elapsed-time estimate. Preserve the
+  separate CPU, ROCm, and CUDA capability boundaries; accelerator execution is
+  not on the minimum CPU self-hosting critical path.
+- Exact allowed files: only this `TASK_LEDGER.md`; one new root
+  `SELF_HOSTING_ROADMAP.md`; `README.md` for a short discoverability link; and
+  `Roadmap.md` for a short canonical-pointer note. No compiler source, test,
+  example, workflow, dependency, language/specification, capability matrix,
+  project-state claim, evidence bundle, benchmark, release, package, cache,
+  master, external repository, or user-owned temporary content may change.
+- Acceptance tests: cross-check every current-status claim against accepted
+  CAP-030 source and the existing authoritative state/matrix documents; require
+  all local Markdown links to resolve; require the new document to contain one
+  definition of self-hosting, one staged dependency table, one critical-path
+  graph, one current-gap table, one evidence checklist, and one exact-next-task
+  section; run formatting/document/version-claim checks, `git diff --check`, and
+  the exact repository-root `./tools/test.sh` gate with one Cargo build job, one
+  Rust test thread, pinned LLVM 22, and a task-isolated external target. An
+  independent read-only audit must find no invented semantics, accepted-status
+  inflation, missing hard dependency, or path that silently retains Rust in the
+  claimed stage-2 compiler route.
+- Risks and mandatory stops: risks are turning an aspiration into a capability
+  claim, treating the bounded lexer probe as runtime ingestion, treating legacy
+  rejected Vec IR or simplified standard-library helpers as owned storage,
+  assuming positive import/module semantics, hiding allocator/drop or recursive
+  AST requirements, defining reproducibility after implementation, or allowing
+  time estimates to substitute for evidence. Stop and correct the document if a
+  claimed current capability lacks accepted source-to-native evidence, a stage
+  depends on undefined language/ownership semantics, a link points at mutable or
+  external evidence, any production/test/workflow file changes, or the baseline
+  is red. This checkpoint authorizes no implementation; BOOT-002 requires its
+  own ledger and, for behavior, a failing regression before production change.
+
+### BOOT-001 locally green checkpoint
+
+- Checkpoint commits: ledger-first authorization is
+  `fb22bf09211115e26a9cec166cd2143c91f401f7`; the canonical roadmap plus its
+  README and broad-roadmap discoverability links are
+  `592744074d28859a23ee7ec3a821cf9910894d16`. The cumulative diff from accepted
+  CAP-030 changes exactly the four authorized documentation files and no
+  compiler, test, workflow, example, dependency, evidence, or user-owned file.
+- Roadmap result: `SELF_HOSTING_ROADMAP.md` now defines the self-hosting claim,
+  current S0 position, K1 through H2 dependency graph and stage gates, gap-owner
+  matrix, minimum compiler subset, evidence checklist, exact next task, and the
+  deliberate absence of calendar estimates. Its next task is the separately
+  authorized, zero-production bounded ASCII token-span kernel; dormant Vec IR,
+  fixed-buffer evidence, and parsed module/import syntax remain explicitly
+  insufficient for owned runtime storage, ingestion, or self-hosting.
+- Focused evidence: all local Markdown links in the three changed public
+  documents resolve; the required roadmap structure check passes; version-claim
+  verification passes `8/8`; repository-governance verification passes `1/1`;
+  and `git diff --check` passes. The first version-claim run correctly caught a
+  README line wrap that split the frozen phrase `minimal prototype under
+  correctness recovery`; the wording was restored without changing its meaning
+  before this checkpoint.
+- Complete gate: the first C:-resident target attempt stopped before the test
+  matrix on unchanged Windows linker error `LNK1318: Unexpected PDB error;
+  LIMIT (12)`. A fresh C: target then stopped while compiling dependencies with
+  `os error 112` because the drive had no free space. Neither was a test or
+  source failure. The authoritative rerun placed `CARGO_TARGET_DIR`, `TEMP`, and
+  `TMP` under task-only `D:\Aero-build-targets\boot-001*`, with one Cargo job,
+  one Rust test thread, and pinned LLVM 22. Exact repository-root
+  `./tools/test.sh` exits zero: formatting, correctness-denying Clippy, `289/289`
+  library tests, `35/35` binary tests, every integration and native/system
+  target, CAP-024 claim verification `6/6`, version-claim verification `8/8`,
+  and doc tests pass. Future task worktrees, Cargo targets, generated fixtures,
+  linker temporaries, and native artifacts must remain on D:.
+- Remaining boundary and next action: this is a locally green documentation
+  candidate, not a language capability or accepted public checkpoint. Publish
+  only through one bounded protected PR with exact-head workflows and a
+  post-merge check. After acceptance, start `CAP-031-BOUNDED-AERO-LEXER-KERNEL`
+  ledger-first and structural-red-first; do not stack compiler production on
+  BOOT-001 or treat the roadmap as implementation evidence.
+
 ## CAP-030-RESOLVED-PROFILE-SURFACE-WITNESS - behavior-neutral normalized-syntax observation
 
 - Date/task/status: 2026-08-15,
