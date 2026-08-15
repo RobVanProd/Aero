@@ -35,6 +35,7 @@ mod performance_optimizations;
 mod primitive_contract;
 pub mod quantization;
 pub mod registry;
+mod resolved_profile_shape;
 mod scalar_assignment;
 pub mod semantic_analyzer;
 mod specialization_contract;
@@ -123,13 +124,29 @@ pub struct CheckedProgramTimings {
 /// This type is public only so the package's CLI binary can consume the library-owned
 /// authority. It is not a stable package or language API.
 #[doc(hidden)]
-#[derive(Debug)]
 pub struct CheckedProgram {
     checked_ir: CheckedIr,
     language_profile: LanguageProfile,
+    _resolved_profile: resolved_profile_shape::ResolvedProfileProgram,
     semantic_message: String,
     direct_module_cache_material: Option<Vec<u8>>,
     timings: CheckedProgramTimings,
+}
+
+impl std::fmt::Debug for CheckedProgram {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CheckedProgram")
+            .field("checked_ir", &self.checked_ir)
+            .field("language_profile", &self.language_profile)
+            .field("semantic_message", &self.semantic_message)
+            .field(
+                "direct_module_cache_material",
+                &self.direct_module_cache_material,
+            )
+            .field("timings", &self.timings)
+            .finish()
+    }
 }
 
 impl CheckedProgram {
@@ -221,8 +238,8 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
 
     let semantics_start = Instant::now();
     let mut semantic_analyzer = SemanticAnalyzer::new();
-    let (semantic_message, analyzed_ast) = semantic_analyzer
-        .analyze(ast)
+    let (semantic_message, analyzed_ast, resolved_profile) = semantic_analyzer
+        .analyze_with_resolved_profile(ast)
         .map_err(|err| format!("Semantic Analysis Error: {}", err))?;
     let semantics = semantics_start.elapsed();
 
@@ -236,6 +253,7 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     Ok(CheckedProgram {
         checked_ir,
         language_profile,
+        _resolved_profile: resolved_profile,
         semantic_message,
         direct_module_cache_material,
         timings: CheckedProgramTimings {

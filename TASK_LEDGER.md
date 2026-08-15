@@ -1,5 +1,202 @@
 # Aero Task Ledger
 
+## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
+
+- Date/task/status: 2026-08-15,
+  `CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY`, authorized ledger-first,
+  structural-red-first implementation on
+  `agent/cap-028-resolved-profile-shape-authority` from exact accepted CAP-027
+  merge `62e79fd85bceca671578ce21cd18adf6979b68e4`, tree
+  `7c70e5963b8f395a209c4db81aad29a170502628`. CAP-027 is accepted through
+  protected PR #67; candidate and merge trees are identical; fresh accepted-
+  head CI, Rust stable/nightly, Windows LLVM 22, CodeQL, and evidence replay are
+  green. User/app-owned `.codex-remote-attachments/` and `tmp/` and quarantined
+  stash `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched.
+- Selection and observed behavior: CAP-027 ranks this behavior-neutral logical
+  authority first at 23, ahead of owned dynamic collection/streaming readiness
+  at 21 and quantized-kernel readiness at 19. The canonical pipeline's semantic
+  analyzer already owns the normalized AST plus the authoritative
+  `StructRegistry`/`EnumRegistry`, but public semantic success returns only the
+  message and AST. A future exact aggregate profile would otherwise have to
+  repeat normalization, rebuild registries, or re-infer aggregate types. No
+  resolved profile descriptor or application profile exists today.
+- Hypothesis: the same analyzer instance can finalize one deterministic,
+  immutable, logical `ResolvedProfileProgram` after all semantic/ownership
+  checks succeed, by walking the final normalized AST and querying its existing
+  registries. The library can carry that product beside `CheckedIr` without
+  changing public behavior, checked-IR bytes/schema, current diagnostics,
+  emitted LLVM, native results, or the public `SemanticAnalyzer::analyze`
+  signature. This task proves the authority in code; it does not add or select a
+  profile and does not authorize CAP-025 application behavior.
+- Frozen descriptor semantics: the descriptor is observation only, never source
+  admission or physical layout. Reuse existing `LogicalType` and
+  `ProfileTypeUse` rather than create a second type or use-role engine. Add only
+  the missing immutable facts needed by a later policy: ordered nominal field
+  and variant identities, opaque normalized concrete identity, decoded source
+  origin, explicit transport roots, declaration/construction/exhaustive-Match
+  operation observations, and coarse unresolved/excluded state. Preserve exact
+  normalized private symbols for equality while retaining decoded generic or
+  builtin-carrier provenance. A valid builtin `Result<T, E>` observation must
+  retain exact ordered `Ok`/`Err` payload topology; a decoded display name alone
+  is insufficient.
+- Frozen root and inference boundary: collect only explicit declaration,
+  function parameter/result, explicitly typed binding/mutable-binding, and
+  syntactically exact constructor/Match roots whose annotations or existing
+  registry contracts make identity available without expression inference.
+  Unannotated/inferred aggregate roots, ambiguous/unsupported/cyclic contracts,
+  source-facing generic specializations, user enums for the minimal future
+  product, Option/nested/context-free carriers, references, dynamic storage,
+  floats/chars/strings/tuples as future-profile leaves, unsupported arrays, and
+  every unfrozen ABI/accelerator context remain representable only as excluded
+  or unresolved observations where encountered. This task may record existing
+  facts but may not newly accept or reject any program.
+- Authority and fixed-point invariant: finalization happens once, after the
+  analyzer's final normalized registries and all semantic checks, and must be
+  total for every currently successful program. It may query those exact
+  registry instances and existing private-name decoders, but may not call a
+  normalizer, construct a registry, recursively reinterpret raw types as a
+  competing classifier, or rerun expression inference. It must not append facts
+  from provisional loop ownership iterations. Nominal DAGs are memoized; a
+  defensive visiting revisit and every registry `None` fail closed without a
+  new diagnostic or invented reason/depth limit.
+- Compatibility and phase boundary: preserve the public
+  `SemanticAnalyzer::analyze -> (String, Vec<AstNode>)` contract and every direct
+  semantic/IR/codegen compatibility route. Add only a crate-private rich
+  canonical success/finalizer used by library preparation. `CheckedProgram` may
+  own the immutable descriptor out-of-band beside unchanged `CheckedIr`; no
+  backend consumer, cache behavior, selector, IR generator/verifier/schema, or
+  physical-policy selection is authorized. This prerequisite touches semantic
+  finalization plus library plumbing only; a later backend corruption guard is
+  separately reranked work.
+- Exact allowed files: only this `TASK_LEDGER.md`; one new
+  `src/compiler/src/resolved_profile_shape.rs`; module/rich-success plumbing in
+  `src/compiler/src/lib.rs`; descriptor finalization/reuse in
+  `src/compiler/src/semantic_analyzer.rs`; and one new focused
+  `src/compiler/tests/resolved_profile_shape_authority_tests.rs`. No other
+  source, test, example, profile/capability/state/roadmap document, workflow,
+  dependency, evidence bundle, benchmark, release, package, or external
+  artifact may change. Concurrent writers are forbidden; auditors are
+  read-only.
+- Red-first and acceptance tests: first freeze representative accepted-head
+  source/file diagnostic parity and LLVM byte digests for Experimental, stable,
+  and exact programs, then require exactly one descriptor authority/finalizer;
+  the behavior characterization must pass while the structural authority check
+  fails intentionally. Final focused tests must prove deterministic analyzer
+  reuse; no normalizer/registry construction in the descriptor module; exact
+  private/source identity; declaration and ordered record/Result schema;
+  `ProfileTypeUse` transport roles; explicit constructor and exhaustive-Match
+  observations; memoized repeated nominal children; unresolved/cyclic fail-
+  closed behavior; and identical diagnostics, checked IR, LLVM, and native
+  sentinels for representative Experimental/stable/exact routes. Run focused
+  semantic/registry/generic-specialization/carrier/Match/ownership/profile
+  targets, Rust formatting, correctness-denying Clippy, diff hygiene, and the
+  repository-root `./tools/test.sh` with pinned LLVM 22.
+- Risks and stop conditions: risks are duplicating type inference or registry
+  authority, losing private carrier identity, nondeterministic ordering,
+  recording provisional loop facts, changing public APIs/diagnostic precedence,
+  silently classifying unsupported shapes, or allowing a future cache/backend
+  route to mistake an unauthenticated descriptor for admission. Stop and rerank
+  if any current diagnostic, checked-IR/LLVM byte, native result, or accepted
+  source behavior changes; if a normalizer or registry must be rebuilt; if
+  expression facts unavailable at semantic success are required; if checked IR,
+  IR generation/verification, backend, language-profile admission, cache,
+  physical layout, or a third compiler phase must change; if the five-file
+  budget is insufficient; or if any new language, ownership, ABI, accelerator,
+  stability, correctness, or performance claim is needed. Authorization,
+  characterization, and structural-red commits are explicit rollback points.
+
+### CAP-028 accepted-head characterization and structural-red checkpoint
+
+- The focused target freezes accepted CAP-027 behavior before any production
+  mutation. Exact MD5 digests are
+  `724bac62708812d4302224fec1047be6` for the Experimental recursive
+  record/enum/typed-Result/Match specimen,
+  `cbb7a6446d27119d50f70868bc2b6a96` for the stable-scalar control, and
+  `54bbfe8dc403ba00ff0587fd3b99e14a` for the accepted CAP-023 exact-array
+  control. Each repeated source compilation is byte-identical, and each
+  source/file route emits the same bytes and digest. The exact undeclared-name
+  semantic diagnostic is identical across source/file, compile/check, and all
+  three profiles. Stable and exact excluded-struct diagnostics are identical
+  across source/file and compile/check routes and match their exact frozen
+  strings, preserving the current pre-semantic rejection boundary.
+- With one Cargo build job, one Rust test thread, and pinned LLVM 22, the exact
+  behavior characterization passes `1/1`. The exact structural test then fails
+  `0/1` only at `CAP-028 intentional structural red:
+  resolved_profile_shape.rs is absent`, before inspecting later authority and
+  plumbing assertions. No production source has changed. The authorization and
+  this characterization/structural-red checkpoint are the clean rollback
+  boundaries; implementation must turn the structural control green without
+  changing any frozen digest or diagnostic.
+
+### CAP-028 locally green implementation and adversarial-correction checkpoint
+
+- Implementation summary: one new crate-private `resolved_profile_shape`
+  authority reuses `LogicalType`, `ProfileTypeUse`, and the semantic analyzer's
+  final `StructRegistry`/`EnumRegistry` plus admitted function contracts. One
+  deterministic normalized-AST walk records memoized logical shapes, ordered
+  record and enum declarations, opaque normalized identities with decoded
+  source provenance, explicit transport roots, construction order, exact enum
+  variants, and exhaustive-Match arm order. Unsupported, ambiguous, cyclic,
+  inferred, generic-source, preserved-method, nested-carrier, and otherwise
+  unfrozen observations fail closed as excluded or unresolved. No profile,
+  checked-IR, verifier, backend, cache key, layout selector, or source
+  diagnostic changed.
+- Canonical plumbing: public `SemanticAnalyzer::analyze` remains unchanged. A
+  single crate-private rich success calls it once, then finalizes from the same
+  analyzer-owned registries. Library preparation stores the immutable product
+  beside unchanged `CheckedIr`. `CheckedProgram` keeps its prior Debug field
+  set and order through an explicit implementation, so the out-of-band product
+  does not alter that compatibility surface.
+- Adversarial corrections: independent reviewers found and closed fail-closed
+  context gaps for private generic functions, admitted call arguments,
+  wildcard-only Match identity, validated Result reuse, nested carriers,
+  implicit returns, impl/top-level name collisions, and trait default methods.
+  Impl and trait methods now use isolated container-qualified preserved-method
+  frames; their explicit parameters, results, bindings, assignments, returns,
+  and operations retain exact shapes only as excluded facts and cannot inherit
+  an outer function scope. The final design re-review reports no remaining
+  concrete blocker.
+- Exact proof: descriptor unit tests pass `4/4`, including exact private-name
+  decoder round trips and logical-name equality; shared child memoization;
+  ordered Pair and Result schemas; `Result<Pair, int>` constructor and Match
+  identities; a constructor-free by-value call; concrete generic-function
+  roots as `Excluded(Some(Int-or-Bool))`; flat-array reuse and unsupported-array
+  negatives; nested-carrier exclusion; one loop-body observation; analyzer
+  reuse; checked-IR equality; cyclic/unknown declarations; implicit results;
+  and isolated impl/trait contexts. The public focused target passes `3/3`,
+  preserving the three accepted LLVM MD5 digests, exact source/file and
+  compile/check diagnostics, the prior `CheckedProgram` Debug surface, and
+  native exit `91` under Experimental, stable-scalar-v0, and
+  exact-i32-array-v0 with pinned LLVM 22.
+- Compatibility evidence: the nine focused targets
+  `canonical_checked_pipeline_tests`, `generic_copydata_struct_tests`,
+  `generic_copydata_enum_tests`, `generic_copydata_function_tests`,
+  `typed_error_carrier_tests`, `copydata_match_result_tests`,
+  `loop_enum_fixed_point_tests`, `stable_scalar_profile_tests`, and
+  `fixed_int_array_profile_tests` all pass. `cargo fmt --check`, all-target and
+  all-feature correctness-denying Clippy, and `git diff --check` pass. Exact
+  repository-root `./tools/test.sh`, immutable candidate identity, public
+  workflows, protected merge, and post-merge verification remain pending, so
+  this is local candidate evidence only and not public acceptance.
+- Scope and risk: the cumulative task changes exactly the five authorized files.
+  User/app-owned untracked directories and the quarantined stash remain
+  untouched. The descriptor is intentionally unused policy input in this task;
+  a future profile consumer must be separately authorized and must authenticate
+  it against observed checked IR before selecting CAP-026 physical layout.
+  Implementation commit `280350bdb89b3572336afe9410b760d8f1270917`
+  has tree `20571682e3e698607d726ba1b6c639d7bfd8e31d`, parent
+  `d5e17e9313225ffcbbccd7b6dffa004c945eac94`, and cumulative stable patch ID
+  `36a2c41308cceb23bdc58d37f17886a5e16757b5` from accepted CAP-027 master.
+- Complete local gate: exact implementation head `280350bdb89b3572336afe9410b760d8f1270917`
+  passes repository-root `./tools/test.sh` with one Cargo build job, one Rust test
+  thread, and pinned LLVM 22. The gate passes formatting, correctness-denying
+  Clippy, `274/274` library tests, `35/35` binary tests, every integration target,
+  and doc tests. The focused CAP-028 target is green `3/3` inside that run,
+  including all three native exit-`91` sentinels; the repaired historical CAP-024
+  scope contract is green `6/6`. Public workflows, protected merge, and fresh
+  accepted-head verification remain pending, so public acceptance is not yet
+  claimed.
+
 ## CAP-027-RESOLVED-PROFILE-SHAPE-READINESS - post-normalization descriptor placement proof
 
 - Date/task/status: 2026-08-15,

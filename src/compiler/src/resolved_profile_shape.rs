@@ -1,0 +1,2174 @@
+use crate::ast::{
+    AstNode, Block, Expression, MatchArm, Pattern, Statement, Type, VariantDecl, VariantDeclKind,
+};
+use crate::builtin_carrier_contract::private_carrier_source_name;
+use crate::enum_match_contract::{EnumExecutionContext, EnumRegistry};
+use crate::generic_enum_contract::{private_generic_enum_source_name, valid_generic_enum_schema};
+use crate::generic_function_contract::private_generic_function_source_name;
+use crate::generic_struct_contract::{
+    private_generic_struct_source_name, valid_generic_struct_schema,
+};
+use crate::ir::{EnumVariantSchema, LogicalType};
+use crate::language_profile::ProfileTypeUse;
+use crate::struct_contract::{StructExecutionContext, StructRegistry};
+use crate::types::Ty;
+use std::collections::{BTreeMap, BTreeSet};
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ResolvedProfileShapeId(pub(crate) usize);
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileResolution {
+    Resolved(ResolvedProfileShapeId),
+    Excluded(Option<ResolvedProfileShapeId>),
+    Unresolved,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileOrigin {
+    Source {
+        normalized: String,
+    },
+    ImplMethod {
+        type_name: String,
+        trait_name: Option<String>,
+        method: String,
+    },
+    TraitMethod {
+        trait_name: String,
+        method: String,
+    },
+    SourceGenericStruct {
+        normalized: String,
+    },
+    SourceGenericEnum {
+        normalized: String,
+    },
+    SourceGenericFunction {
+        normalized: String,
+    },
+    GenericStruct {
+        normalized: String,
+        source: String,
+    },
+    GenericEnum {
+        normalized: String,
+        source: String,
+    },
+    GenericFunction {
+        normalized: String,
+        source: String,
+    },
+    BuiltinCarrier {
+        normalized: String,
+        source: String,
+    },
+    OpaquePrivate {
+        normalized: String,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedProfileField {
+    pub(crate) name: String,
+    pub(crate) resolution: ResolvedProfileResolution,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedProfileVariant {
+    pub(crate) name: String,
+    pub(crate) payload: Option<ResolvedProfileResolution>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileNominal {
+    Struct {
+        origin: ResolvedProfileOrigin,
+        resolution: ResolvedProfileResolution,
+        fields: Vec<ResolvedProfileField>,
+    },
+    Enum {
+        origin: ResolvedProfileOrigin,
+        resolution: ResolvedProfileResolution,
+        variants: Vec<ResolvedProfileVariant>,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedProfileUse {
+    pub(crate) role: ProfileTypeUse,
+    pub(crate) function: Option<ResolvedProfileOrigin>,
+    pub(crate) name: Option<String>,
+    pub(crate) resolution: ResolvedProfileResolution,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileOperation {
+    Declaration {
+        origin: ResolvedProfileOrigin,
+        resolution: ResolvedProfileResolution,
+    },
+    StructConstruction {
+        function: Option<ResolvedProfileOrigin>,
+        origin: ResolvedProfileOrigin,
+        resolution: ResolvedProfileResolution,
+        source_to_declaration: Vec<usize>,
+    },
+    EnumConstruction {
+        function: Option<ResolvedProfileOrigin>,
+        origin: ResolvedProfileOrigin,
+        variant: String,
+        resolution: ResolvedProfileResolution,
+        variant_index: Option<usize>,
+    },
+    ExhaustiveMatch {
+        function: Option<ResolvedProfileOrigin>,
+        origin: Option<ResolvedProfileOrigin>,
+        resolution: ResolvedProfileResolution,
+        arm_for_variant: Vec<usize>,
+        result: Option<ResolvedProfileResolution>,
+    },
+}
+
+/// Immutable logical facts produced after successful semantic analysis.
+///
+/// This is deliberately not a profile decision and owns no physical layout.
+/// CAP-028 carries it out of band so a later task can add one source-policy
+/// consumer without rebuilding semantic registries or re-inferring expressions.
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedProfileProgram {
+    pub(crate) shapes: Vec<LogicalType>,
+    pub(crate) nominals: Vec<ResolvedProfileNominal>,
+    pub(crate) uses: Vec<ResolvedProfileUse>,
+    pub(crate) operations: Vec<ResolvedProfileOperation>,
+}
+
+impl ResolvedProfileProgram {
+    pub(crate) fn from_semantic_success<F>(
+        ast: &[AstNode],
+        structs: &StructRegistry,
+        enums: &EnumRegistry,
+        admitted_function: F,
+    ) -> Self
+    where
+        F: Fn(&str) -> Option<(Vec<(String, Ty)>, Ty)>,
+    {
+        Builder::new(structs, enums, &admitted_function).build(ast)
+    }
+}
+
+struct Builder<'a, F>
+where
+    F: Fn(&str) -> Option<(Vec<(String, Ty)>, Ty)>,
+{
+    structs: &'a StructRegistry,
+    enums: &'a EnumRegistry,
+    admitted_function: &'a F,
+    shape_ids: BTreeMap<LogicalType, ResolvedProfileShapeId>,
+    visiting_shapes: BTreeSet<LogicalType>,
+    shapes: Vec<LogicalType>,
+    nominals: Vec<ResolvedProfileNominal>,
+    uses: Vec<ResolvedProfileUse>,
+    operations: Vec<ResolvedProfileOperation>,
+    validated_carriers: BTreeSet<String>,
+    binding_scopes: Vec<BTreeMap<String, Option<ResolvedProfileResolution>>>,
+    function: Option<ResolvedProfileOrigin>,
+    function_result: Option<ResolvedProfileResolution>,
+    admitted_context: bool,
+    profile_context: bool,
+}
+
+impl<'a, F> Builder<'a, F>
+where
+    F: Fn(&str) -> Option<(Vec<(String, Ty)>, Ty)>,
+{
+    fn new(structs: &'a StructRegistry, enums: &'a EnumRegistry, admitted_function: &'a F) -> Self {
+        Self {
+            structs,
+            enums,
+            admitted_function,
+            shape_ids: BTreeMap::new(),
+            visiting_shapes: BTreeSet::new(),
+            shapes: Vec::new(),
+            nominals: Vec::new(),
+            uses: Vec::new(),
+            operations: Vec::new(),
+            validated_carriers: BTreeSet::new(),
+            binding_scopes: vec![BTreeMap::new()],
+            function: None,
+            function_result: None,
+            admitted_context: false,
+            profile_context: false,
+        }
+    }
+
+    fn build(mut self, ast: &[AstNode]) -> ResolvedProfileProgram {
+        for node in ast {
+            self.record_declaration(node);
+            self.walk_node(node);
+        }
+        ResolvedProfileProgram {
+            shapes: self.shapes,
+            nominals: self.nominals,
+            uses: self.uses,
+            operations: self.operations,
+        }
+    }
+
+    fn record_declaration(&mut self, node: &AstNode) {
+        let AstNode::Statement(statement) = node else {
+            return;
+        };
+        match statement {
+            Statement::StructDef {
+                name, type_params, ..
+            } => {
+                let origin = struct_origin(name, !type_params.is_empty());
+                let (resolution, fields) = if !type_params.is_empty() {
+                    (ResolvedProfileResolution::Excluded(None), Vec::new())
+                } else if let Some(contract) =
+                    self.structs.copy_struct_contract(&Ty::Struct(name.clone()))
+                {
+                    let logical = contract.logical_type();
+                    let valid = valid_generic_struct_schema(
+                        name,
+                        match &logical {
+                            LogicalType::Struct { fields, .. } => fields,
+                            _ => unreachable!("a struct contract has struct logical identity"),
+                        },
+                    );
+                    if valid {
+                        let resolution = self.resolve_logical(logical);
+                        let fields = contract
+                            .fields
+                            .into_iter()
+                            .map(|field| {
+                                let resolution = self.resolve_logical(field.logical_type());
+                                ResolvedProfileField {
+                                    name: field.name,
+                                    resolution,
+                                }
+                            })
+                            .collect();
+                        (resolution, fields)
+                    } else {
+                        (ResolvedProfileResolution::Unresolved, Vec::new())
+                    }
+                } else {
+                    (ResolvedProfileResolution::Unresolved, Vec::new())
+                };
+                self.operations.push(ResolvedProfileOperation::Declaration {
+                    origin: origin.clone(),
+                    resolution: resolution.clone(),
+                });
+                self.nominals.push(ResolvedProfileNominal::Struct {
+                    origin,
+                    resolution,
+                    fields,
+                });
+            }
+            Statement::EnumDef {
+                name,
+                variants,
+                type_params,
+                ..
+            } => {
+                let origin = enum_origin(name, !type_params.is_empty());
+                let (resolution, resolved_variants) = if !type_params.is_empty() {
+                    (ResolvedProfileResolution::Excluded(None), Vec::new())
+                } else if let Ok(logical) = self.enums.owned_place_logical_type(name) {
+                    let LogicalType::Enum {
+                        variants: schema, ..
+                    } = &logical
+                    else {
+                        unreachable!("an enum contract has enum logical identity")
+                    };
+                    if self.valid_enum_declaration(name, variants, schema) {
+                        if private_carrier_source_name(name).is_some() {
+                            self.validated_carriers.insert(name.clone());
+                        }
+                        let schema = schema.clone();
+                        let resolution = self.resolve_logical(logical);
+                        let resolved_variants = schema
+                            .into_iter()
+                            .map(|variant| ResolvedProfileVariant {
+                                name: variant.name,
+                                payload: variant
+                                    .payload
+                                    .map(|payload| self.resolve_logical(payload)),
+                            })
+                            .collect();
+                        (resolution, resolved_variants)
+                    } else {
+                        (ResolvedProfileResolution::Unresolved, Vec::new())
+                    }
+                } else {
+                    (ResolvedProfileResolution::Unresolved, Vec::new())
+                };
+                self.operations.push(ResolvedProfileOperation::Declaration {
+                    origin: origin.clone(),
+                    resolution: resolution.clone(),
+                });
+                self.nominals.push(ResolvedProfileNominal::Enum {
+                    origin,
+                    resolution,
+                    variants: resolved_variants,
+                });
+            }
+            _ => {}
+        }
+    }
+
+    fn valid_enum_declaration(
+        &self,
+        name: &str,
+        variants: &[VariantDecl],
+        schema: &[EnumVariantSchema],
+    ) -> bool {
+        if private_generic_enum_source_name(name).is_some()
+            && !valid_generic_enum_schema(name, schema)
+        {
+            return false;
+        }
+        let Some(source) = private_carrier_source_name(name) else {
+            return true;
+        };
+        self.valid_carrier_declaration(&source, variants, schema)
+    }
+
+    fn valid_carrier_declaration(
+        &self,
+        source: &str,
+        variants: &[VariantDecl],
+        schema: &[EnumVariantSchema],
+    ) -> bool {
+        let resolved_payload = |variant: &VariantDecl| match &variant.kind {
+            VariantDeclKind::Tuple(fields) if fields.len() == 1 => self
+                .structs
+                .resolve_copy_annotation(&fields[0])
+                .map(|contract| (contract.ty, contract.logical_type)),
+            _ => None,
+        };
+        match (variants, schema) {
+            (
+                [some, none],
+                [
+                    EnumVariantSchema {
+                        name: schema_some,
+                        payload: Some(schema_payload),
+                    },
+                    EnumVariantSchema {
+                        name: schema_none,
+                        payload: None,
+                    },
+                ],
+            ) if source.starts_with("Option<")
+                && some.name == "Some"
+                && none.name == "None"
+                && schema_some == "Some"
+                && schema_none == "None" =>
+            {
+                resolved_payload(some).is_some_and(|(ty, logical)| {
+                    logical == *schema_payload && source == format!("Option<{ty}>")
+                })
+            }
+            (
+                [ok, error],
+                [
+                    EnumVariantSchema {
+                        name: schema_ok,
+                        payload: Some(schema_ok_payload),
+                    },
+                    EnumVariantSchema {
+                        name: schema_error,
+                        payload: Some(schema_error_payload),
+                    },
+                ],
+            ) if source.starts_with("Result<")
+                && ok.name == "Ok"
+                && error.name == "Err"
+                && schema_ok == "Ok"
+                && schema_error == "Err" =>
+            {
+                match (resolved_payload(ok), resolved_payload(error)) {
+                    (Some((ok_ty, ok_logical)), Some((error_ty, error_logical))) => {
+                        ok_logical == *schema_ok_payload
+                            && error_logical == *schema_error_payload
+                            && source == format!("Result<{ok_ty}, {error_ty}>")
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    fn walk_node(&mut self, node: &AstNode) {
+        match node {
+            AstNode::Statement(statement) => self.walk_statement(statement, true),
+            AstNode::Expression(expression) => self.walk_expression(expression, None, false),
+        }
+    }
+
+    fn walk_statement(&mut self, statement: &Statement, is_top_level: bool) {
+        match statement {
+            Statement::Const {
+                name,
+                type_annotation,
+                value,
+                ..
+            } => {
+                let resolution = self.resolve_annotation(type_annotation);
+                let resolution = self.contextual_resolution(resolution);
+                self.record_use(
+                    ProfileTypeUse::Binding,
+                    Some(name.clone()),
+                    resolution.clone(),
+                );
+                self.walk_expression(value, Some(resolution.clone()), true);
+                self.bind(name.clone(), Some(resolution));
+            }
+            Statement::Let {
+                name,
+                mutable,
+                type_annotation,
+                value,
+            } => {
+                let resolution = type_annotation
+                    .as_ref()
+                    .map(|annotation| self.resolve_annotation(annotation))
+                    .map(|resolution| self.contextual_resolution(resolution));
+                if let Some(resolution) = &resolution {
+                    self.record_use(
+                        if *mutable {
+                            ProfileTypeUse::MutableBinding
+                        } else {
+                            ProfileTypeUse::Binding
+                        },
+                        Some(name.clone()),
+                        resolution.clone(),
+                    );
+                }
+                if let Some(value) = value {
+                    self.walk_expression(value, resolution.clone(), resolution.is_some());
+                }
+                self.bind(name.clone(), resolution);
+            }
+            Statement::Assignment { target, value } => {
+                let resolution = match target {
+                    Expression::Identifier(name) => self.lookup_binding(name),
+                    _ => None,
+                };
+                if let Some(resolution) = &resolution {
+                    let name = match target {
+                        Expression::Identifier(name) => Some(name.clone()),
+                        _ => None,
+                    };
+                    self.record_use(ProfileTypeUse::OwnedAssignment, name, resolution.clone());
+                }
+                self.walk_expression(target, None, false);
+                self.walk_expression(value, resolution.clone(), resolution.is_some());
+            }
+            Statement::Return(value) => {
+                if let Some(value) = value {
+                    let expected = self.function_result.clone();
+                    self.walk_expression(value, expected.clone(), expected.is_some());
+                }
+            }
+            Statement::Expression(expression) => self.walk_expression(expression, None, false),
+            Statement::Block(block) => self.walk_block(block, None),
+            Statement::Function {
+                name,
+                parameters,
+                return_type,
+                body,
+                type_params,
+                ..
+            } => self.walk_function(
+                name,
+                parameters,
+                return_type.as_ref(),
+                type_params,
+                body,
+                is_top_level,
+            ),
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.walk_expression(condition, None, false);
+                self.walk_block(then_block, None);
+                if let Some(else_block) = else_block {
+                    self.walk_statement(else_block, false);
+                }
+            }
+            Statement::While { condition, body } => {
+                self.walk_expression(condition, None, false);
+                self.walk_block(body, None);
+            }
+            Statement::For {
+                variable,
+                iterable,
+                body,
+            } => {
+                self.walk_expression(iterable, None, false);
+                self.push_scope();
+                self.bind(variable.clone(), None);
+                self.walk_block(body, None);
+                self.pop_scope();
+            }
+            Statement::Loop { body } => self.walk_block(body, None),
+            Statement::ImplBlock {
+                type_name,
+                methods,
+                trait_name,
+                ..
+            } => {
+                for method in methods {
+                    if let Statement::Function {
+                        name,
+                        parameters,
+                        return_type,
+                        body,
+                        ..
+                    } = method
+                    {
+                        self.walk_preserved_method(
+                            ResolvedProfileOrigin::ImplMethod {
+                                type_name: type_name.clone(),
+                                trait_name: trait_name.clone(),
+                                method: name.clone(),
+                            },
+                            parameters,
+                            return_type.as_ref(),
+                            Some(body),
+                        );
+                    }
+                }
+            }
+            Statement::TraitDef { name, methods, .. } => {
+                for method in methods {
+                    self.walk_preserved_method(
+                        ResolvedProfileOrigin::TraitMethod {
+                            trait_name: name.clone(),
+                            method: method.name.clone(),
+                        },
+                        &method.parameters,
+                        method.return_type.as_ref(),
+                        method.body.as_ref(),
+                    );
+                }
+            }
+            Statement::StructDef { .. }
+            | Statement::EnumDef { .. }
+            | Statement::Break
+            | Statement::Continue
+            | Statement::ModDecl { .. }
+            | Statement::UseImport { .. } => {}
+        }
+    }
+
+    fn walk_function(
+        &mut self,
+        name: &str,
+        parameters: &[crate::ast::Parameter],
+        return_type: Option<&Type>,
+        type_params: &[String],
+        body: &Block,
+        is_top_level: bool,
+    ) {
+        let saved_function = self.function.clone();
+        let saved_result = self.function_result.clone();
+        let saved_context = self.admitted_context;
+        let saved_profile_context = self.profile_context;
+        let function = function_origin(name, !type_params.is_empty());
+        let admitted = is_top_level
+            .then(|| (self.admitted_function)(name))
+            .flatten();
+        let has_admitted_contract = admitted.is_some();
+        self.function = Some(function.clone());
+        self.admitted_context = is_top_level && type_params.is_empty();
+        self.profile_context = self.admitted_context
+            && has_admitted_contract
+            && matches!(function, ResolvedProfileOrigin::Source { .. });
+        self.push_scope();
+
+        let (parameter_resolutions, result_resolution) = if let Some((resolved, result)) = admitted
+        {
+            let parameters = resolved
+                .into_iter()
+                .map(|(name, ty)| {
+                    let resolution = self.resolve_ty(&ty);
+                    (name, self.contextual_resolution(resolution))
+                })
+                .collect::<Vec<_>>();
+            let result = self.resolve_ty(&result);
+            (parameters, self.contextual_resolution(result))
+        } else {
+            let parameters = parameters
+                .iter()
+                .map(|parameter| {
+                    (
+                        parameter.name.clone(),
+                        force_excluded(self.resolve_annotation(&parameter.param_type)),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let result = force_excluded(match return_type {
+                Some(annotation) => self.resolve_annotation(annotation),
+                None => self.resolve_logical(LogicalType::Void),
+            });
+            (parameters, result)
+        };
+
+        for (parameter, resolution) in parameter_resolutions {
+            self.record_use(
+                ProfileTypeUse::Parameter,
+                Some(parameter.clone()),
+                resolution.clone(),
+            );
+            self.bind(parameter, Some(resolution));
+        }
+        let explicit_result = return_type.is_some().then_some(result_resolution);
+        if let Some(resolution) = &explicit_result {
+            self.record_use(ProfileTypeUse::Result, None, resolution.clone());
+        }
+        self.function_result = explicit_result.clone();
+        self.walk_block(body, explicit_result);
+
+        self.pop_scope();
+        self.function = saved_function;
+        self.function_result = saved_result;
+        self.admitted_context = saved_context;
+        self.profile_context = saved_profile_context;
+    }
+
+    fn walk_preserved_method(
+        &mut self,
+        origin: ResolvedProfileOrigin,
+        parameters: &[crate::ast::Parameter],
+        return_type: Option<&Type>,
+        body: Option<&Block>,
+    ) {
+        let saved_function = self.function.clone();
+        let saved_result = self.function_result.clone();
+        let saved_context = self.admitted_context;
+        let saved_profile_context = self.profile_context;
+        self.function = Some(origin);
+        self.function_result = None;
+        self.admitted_context = false;
+        self.profile_context = false;
+        self.push_scope();
+
+        for parameter in parameters {
+            let resolution = force_excluded(self.resolve_annotation(&parameter.param_type));
+            self.record_use(
+                ProfileTypeUse::Parameter,
+                Some(parameter.name.clone()),
+                resolution.clone(),
+            );
+            self.bind(parameter.name.clone(), Some(resolution));
+        }
+        let result = return_type.map(|annotation| {
+            let resolution = force_excluded(self.resolve_annotation(annotation));
+            self.record_use(ProfileTypeUse::Result, None, resolution.clone());
+            resolution
+        });
+        self.function_result = result.clone();
+        if let Some(body) = body {
+            self.walk_block(body, result);
+        }
+
+        self.pop_scope();
+        self.function = saved_function;
+        self.function_result = saved_result;
+        self.admitted_context = saved_context;
+        self.profile_context = saved_profile_context;
+    }
+
+    fn walk_block(&mut self, block: &Block, tail_expected: Option<ResolvedProfileResolution>) {
+        self.push_scope();
+        for statement in &block.statements {
+            self.walk_statement(statement, false);
+        }
+        if let Some(expression) = &block.expression {
+            self.walk_expression(expression, tail_expected.clone(), tail_expected.is_some());
+        }
+        self.pop_scope();
+    }
+
+    fn walk_expression(
+        &mut self,
+        expression: &Expression,
+        expected: Option<ResolvedProfileResolution>,
+        record_expected_value: bool,
+    ) {
+        if record_expected_value {
+            if let Some(expected) = &expected {
+                self.record_use(ProfileTypeUse::Value, None, expected.clone());
+            }
+        }
+        match expression {
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::CharacterLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::Identifier(_) => {}
+            Expression::Binary { left, right, .. }
+            | Expression::Comparison { left, right, .. }
+            | Expression::Logical { left, right, .. } => {
+                self.walk_expression(left, None, false);
+                self.walk_expression(right, None, false);
+            }
+            Expression::FunctionCall { name, arguments } => {
+                let contract = (self.admitted_function)(name);
+                let source_callee = matches!(
+                    function_origin(name, false),
+                    ResolvedProfileOrigin::Source { .. }
+                );
+                let expected = contract
+                    .map(|(parameters, _)| parameters)
+                    .unwrap_or_default();
+                let expected_count = expected.len();
+                for (argument, (_, ty)) in arguments.iter().zip(expected) {
+                    let resolution = self.resolve_ty(&ty);
+                    let resolution = if self.profile_context && source_callee {
+                        resolution
+                    } else {
+                        force_excluded(resolution)
+                    };
+                    self.walk_expression(argument, Some(resolution), true);
+                }
+                for argument in arguments.iter().skip(expected_count) {
+                    self.walk_expression(argument, None, false);
+                }
+            }
+            Expression::Print { arguments, .. } | Expression::Println { arguments, .. } => {
+                for argument in arguments {
+                    self.walk_expression(argument, None, false);
+                }
+            }
+            Expression::MethodCall {
+                object, arguments, ..
+            } => {
+                self.walk_expression(object, None, false);
+                for argument in arguments {
+                    self.walk_expression(argument, None, false);
+                }
+            }
+            Expression::Unary { operand, .. }
+            | Expression::Borrow { expr: operand, .. }
+            | Expression::Deref(operand)
+            | Expression::FieldAccess {
+                object: operand, ..
+            } => self.walk_expression(operand, None, false),
+            Expression::ArrayLiteral(elements) | Expression::TupleLiteral(elements) => {
+                for element in elements {
+                    self.walk_expression(element, None, false);
+                }
+            }
+            Expression::ArrayRepeat { value, .. } => {
+                self.walk_expression(value, None, false);
+            }
+            Expression::IndexAccess { object, index } => {
+                self.walk_expression(object, None, false);
+                self.walk_expression(index, None, false);
+            }
+            Expression::TupleIndex { object, .. } => {
+                self.walk_expression(object, None, false);
+            }
+            Expression::StructLiteral { name, fields } => {
+                self.walk_struct_construction(name, fields, record_expected_value);
+            }
+            Expression::EnumVariant {
+                enum_name,
+                variant,
+                data,
+            } => self.walk_enum_construction(
+                enum_name,
+                variant,
+                data.as_deref(),
+                record_expected_value,
+            ),
+            Expression::Match { expr, arms } => {
+                self.walk_match(expr, arms, expected);
+            }
+            Expression::Closure { body, .. } => {
+                let saved = self.admitted_context;
+                let saved_profile = self.profile_context;
+                self.admitted_context = false;
+                self.profile_context = false;
+                self.walk_expression(body, None, false);
+                self.admitted_context = saved;
+                self.profile_context = saved_profile;
+            }
+        }
+    }
+
+    fn walk_struct_construction(
+        &mut self,
+        name: &str,
+        fields: &[(String, Expression)],
+        already_recorded_value: bool,
+    ) {
+        let origin = struct_origin(name, false);
+        let resolved = self.structs.resolve_construction(
+            name,
+            fields,
+            if self.admitted_context {
+                StructExecutionContext::AdmittedFunction
+            } else {
+                StructExecutionContext::PreservedContext
+            },
+        );
+        let (resolution, source_to_declaration, expected_fields) = match resolved {
+            Ok(resolved) => {
+                let resolution = self.resolve_logical(resolved.contract.logical_type());
+                let resolution = self.contextual_resolution(resolution);
+                let expected = resolved
+                    .source_to_declaration
+                    .iter()
+                    .map(|index| {
+                        let resolution =
+                            self.resolve_logical(resolved.contract.fields[*index].logical_type());
+                        self.contextual_resolution(resolution)
+                    })
+                    .collect::<Vec<_>>();
+                (resolution, resolved.source_to_declaration, expected)
+            }
+            Err(_) => (
+                ResolvedProfileResolution::Unresolved,
+                Vec::new(),
+                Vec::new(),
+            ),
+        };
+        if !already_recorded_value {
+            self.record_use(ProfileTypeUse::Value, None, resolution.clone());
+        }
+        self.operations
+            .push(ResolvedProfileOperation::StructConstruction {
+                function: self.function.clone(),
+                origin,
+                resolution,
+                source_to_declaration,
+            });
+        let expected_count = expected_fields.len();
+        for ((_, value), expected) in fields.iter().zip(expected_fields) {
+            self.walk_expression(value, Some(expected), true);
+        }
+        for (_, value) in fields.iter().skip(expected_count) {
+            self.walk_expression(value, None, false);
+        }
+    }
+
+    fn walk_enum_construction(
+        &mut self,
+        enum_name: &str,
+        variant: &str,
+        data: Option<&[Expression]>,
+        already_recorded_value: bool,
+    ) {
+        let origin = enum_origin(enum_name, false);
+        let resolved = self.enums.resolve_constructor(
+            enum_name,
+            variant,
+            data.map(<[Expression]>::len),
+            if self.admitted_context {
+                EnumExecutionContext::AdmittedFunction
+            } else {
+                EnumExecutionContext::PreservedContext
+            },
+        );
+        let (resolution, variant_index, expected_payloads) = match resolved {
+            Ok(resolved) => {
+                let logical = resolved.contract.schema.logical_type();
+                let resolution = self.resolve_logical(logical);
+                let resolution = self.contextual_resolution(resolution);
+                let payloads = resolved.contract.schema.variants[resolved.variant_index]
+                    .payload
+                    .as_ref()
+                    .map(payload_logical_fields)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|payload| {
+                        let resolution = self.resolve_logical(payload);
+                        self.contextual_resolution(resolution)
+                    })
+                    .collect();
+                (resolution, Some(resolved.variant_index), payloads)
+            }
+            Err(_) => (ResolvedProfileResolution::Unresolved, None, Vec::new()),
+        };
+        if !already_recorded_value {
+            self.record_use(ProfileTypeUse::Value, None, resolution.clone());
+        }
+        self.operations
+            .push(ResolvedProfileOperation::EnumConstruction {
+                function: self.function.clone(),
+                origin,
+                variant: variant.to_string(),
+                resolution,
+                variant_index,
+            });
+        let data = data.unwrap_or_default();
+        for (value, expected) in data.iter().zip(&expected_payloads) {
+            self.walk_expression(value, Some(expected.clone()), true);
+        }
+        for value in data.iter().skip(expected_payloads.len()) {
+            self.walk_expression(value, None, false);
+        }
+    }
+
+    fn walk_match(
+        &mut self,
+        scrutinee: &Expression,
+        arms: &[MatchArm],
+        result: Option<ResolvedProfileResolution>,
+    ) {
+        self.walk_expression(scrutinee, None, false);
+        let identity =
+            exact_match_identity(arms).or_else(|| self.exact_scrutinee_enum_identity(scrutinee));
+        let resolved = identity.as_ref().and_then(|name| {
+            self.enums
+                .resolve_match_patterns(
+                    &Ty::Enum(name.clone()),
+                    scrutinee,
+                    arms,
+                    if self.admitted_context {
+                        EnumExecutionContext::AdmittedFunction
+                    } else {
+                        EnumExecutionContext::PreservedContext
+                    },
+                )
+                .ok()
+        });
+        let (origin, resolution, arm_for_variant) = match (identity, resolved) {
+            (Some(name), Some(resolved)) => (
+                Some(enum_origin(&name, false)),
+                {
+                    let resolution = self.resolve_logical(resolved.contract.schema.logical_type());
+                    self.contextual_resolution(resolution)
+                },
+                resolved.arm_for_variant,
+            ),
+            (Some(name), None) => (
+                Some(enum_origin(&name, false)),
+                ResolvedProfileResolution::Unresolved,
+                Vec::new(),
+            ),
+            (None, _) => (None, ResolvedProfileResolution::Unresolved, Vec::new()),
+        };
+        self.operations
+            .push(ResolvedProfileOperation::ExhaustiveMatch {
+                function: self.function.clone(),
+                origin,
+                resolution,
+                arm_for_variant,
+                result: result.clone(),
+            });
+        for arm in arms {
+            self.push_scope();
+            bind_pattern_names(&arm.pattern, |name| self.bind(name, None));
+            self.walk_expression(&arm.body, result.clone(), result.is_some());
+            self.pop_scope();
+        }
+    }
+
+    fn resolve_annotation(&mut self, annotation: &Type) -> ResolvedProfileResolution {
+        if matches!(annotation, Type::Reference(_, _) | Type::Generic(_, _)) {
+            return ResolvedProfileResolution::Excluded(None);
+        }
+        if let Ok(Some(contract)) = self.enums.reference_annotation_type(annotation) {
+            return self.resolve_logical(contract.logical_type);
+        }
+        self.structs
+            .resolve_copy_annotation(annotation)
+            .map(|contract| self.resolve_logical(contract.logical_type))
+            .unwrap_or(ResolvedProfileResolution::Unresolved)
+    }
+
+    fn resolve_ty(&mut self, ty: &Ty) -> ResolvedProfileResolution {
+        if *ty == Ty::Void {
+            return self.resolve_logical(LogicalType::Void);
+        }
+        if let Ok(Some(contract)) = self.enums.reference_pointee_type(ty) {
+            return self.resolve_logical(contract.logical_type);
+        }
+        self.structs
+            .resolve_copy_type(ty)
+            .map(|contract| self.resolve_logical(contract.logical_type))
+            .unwrap_or_else(|| match ty {
+                Ty::Reference(_, _)
+                | Ty::TypeParam(_)
+                | Ty::Option(_)
+                | Ty::Result(_, _)
+                | Ty::Vec(_)
+                | Ty::HashMap(_, _)
+                | Ty::Fn(_) => ResolvedProfileResolution::Excluded(None),
+                _ => ResolvedProfileResolution::Unresolved,
+            })
+    }
+
+    fn resolve_logical(&mut self, logical: LogicalType) -> ResolvedProfileResolution {
+        let candidate = match &logical {
+            LogicalType::Enum { name, .. } if private_carrier_source_name(name).is_some() => {
+                self.validated_carriers.contains(name) && candidate_shape(&logical)
+            }
+            _ => candidate_shape(&logical),
+        };
+        match self.intern_shape(logical) {
+            Some(id) if candidate => ResolvedProfileResolution::Resolved(id),
+            Some(id) => ResolvedProfileResolution::Excluded(Some(id)),
+            None => ResolvedProfileResolution::Excluded(None),
+        }
+    }
+
+    fn contextual_resolution(
+        &self,
+        resolution: ResolvedProfileResolution,
+    ) -> ResolvedProfileResolution {
+        if self.profile_context {
+            resolution
+        } else {
+            force_excluded(resolution)
+        }
+    }
+
+    fn exact_scrutinee_enum_identity(&self, scrutinee: &Expression) -> Option<String> {
+        match scrutinee {
+            Expression::Identifier(name) => self
+                .lookup_binding(name)
+                .as_ref()
+                .and_then(|resolution| self.enum_name_for_resolution(resolution)),
+            Expression::EnumVariant { enum_name, .. } => Some(enum_name.clone()),
+            Expression::FunctionCall { name, .. } => {
+                let (_, result) = (self.admitted_function)(name)?;
+                match result {
+                    Ty::Enum(name) => Some(name),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn enum_name_for_resolution(&self, resolution: &ResolvedProfileResolution) -> Option<String> {
+        let id = match resolution {
+            ResolvedProfileResolution::Resolved(id)
+            | ResolvedProfileResolution::Excluded(Some(id)) => *id,
+            ResolvedProfileResolution::Excluded(None) | ResolvedProfileResolution::Unresolved => {
+                return None;
+            }
+        };
+        match self.shapes.get(id.0) {
+            Some(LogicalType::Enum { name, .. }) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn intern_shape(&mut self, logical: LogicalType) -> Option<ResolvedProfileShapeId> {
+        if let Some(id) = self.shape_ids.get(&logical) {
+            return Some(*id);
+        }
+        if !self.visiting_shapes.insert(logical.clone()) {
+            return None;
+        }
+        for child in logical_children(&logical) {
+            if self.intern_shape(child.clone()).is_none() {
+                self.visiting_shapes.remove(&logical);
+                return None;
+            }
+        }
+        self.visiting_shapes.remove(&logical);
+        let id = ResolvedProfileShapeId(self.shapes.len());
+        self.shapes.push(logical.clone());
+        self.shape_ids.insert(logical, id);
+        Some(id)
+    }
+
+    fn record_use(
+        &mut self,
+        role: ProfileTypeUse,
+        name: Option<String>,
+        resolution: ResolvedProfileResolution,
+    ) {
+        self.uses.push(ResolvedProfileUse {
+            role,
+            function: self.function.clone(),
+            name,
+            resolution,
+        });
+    }
+
+    fn push_scope(&mut self) {
+        self.binding_scopes.push(BTreeMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.binding_scopes
+            .pop()
+            .expect("resolved profile binding scopes remain balanced");
+    }
+
+    fn bind(&mut self, name: String, resolution: Option<ResolvedProfileResolution>) {
+        self.binding_scopes
+            .last_mut()
+            .expect("resolved profile binding scope is present")
+            .insert(name, resolution);
+    }
+
+    fn lookup_binding(&self, name: &str) -> Option<ResolvedProfileResolution> {
+        for scope in self.binding_scopes.iter().rev() {
+            if let Some(resolution) = scope.get(name) {
+                return resolution.clone();
+            }
+        }
+        None
+    }
+}
+
+fn force_excluded(resolution: ResolvedProfileResolution) -> ResolvedProfileResolution {
+    match resolution {
+        ResolvedProfileResolution::Resolved(id) | ResolvedProfileResolution::Excluded(Some(id)) => {
+            ResolvedProfileResolution::Excluded(Some(id))
+        }
+        ResolvedProfileResolution::Excluded(None) => ResolvedProfileResolution::Excluded(None),
+        ResolvedProfileResolution::Unresolved => ResolvedProfileResolution::Unresolved,
+    }
+}
+
+fn struct_origin(name: &str, source_generic: bool) -> ResolvedProfileOrigin {
+    if let Some(source) = private_generic_struct_source_name(name) {
+        ResolvedProfileOrigin::GenericStruct {
+            normalized: name.to_string(),
+            source,
+        }
+    } else if source_generic {
+        ResolvedProfileOrigin::SourceGenericStruct {
+            normalized: name.to_string(),
+        }
+    } else if name.starts_with("__aero$") {
+        ResolvedProfileOrigin::OpaquePrivate {
+            normalized: name.to_string(),
+        }
+    } else {
+        ResolvedProfileOrigin::Source {
+            normalized: name.to_string(),
+        }
+    }
+}
+
+fn enum_origin(name: &str, source_generic: bool) -> ResolvedProfileOrigin {
+    if let Some(source) = private_carrier_source_name(name) {
+        ResolvedProfileOrigin::BuiltinCarrier {
+            normalized: name.to_string(),
+            source,
+        }
+    } else if let Some(source) = private_generic_enum_source_name(name) {
+        ResolvedProfileOrigin::GenericEnum {
+            normalized: name.to_string(),
+            source,
+        }
+    } else if source_generic {
+        ResolvedProfileOrigin::SourceGenericEnum {
+            normalized: name.to_string(),
+        }
+    } else if name.starts_with("__aero$") {
+        ResolvedProfileOrigin::OpaquePrivate {
+            normalized: name.to_string(),
+        }
+    } else {
+        ResolvedProfileOrigin::Source {
+            normalized: name.to_string(),
+        }
+    }
+}
+
+fn function_origin(name: &str, source_generic: bool) -> ResolvedProfileOrigin {
+    if let Some(source) = private_generic_function_source_name(name) {
+        ResolvedProfileOrigin::GenericFunction {
+            normalized: name.to_string(),
+            source,
+        }
+    } else if source_generic {
+        ResolvedProfileOrigin::SourceGenericFunction {
+            normalized: name.to_string(),
+        }
+    } else if name.starts_with("__aero$") {
+        ResolvedProfileOrigin::OpaquePrivate {
+            normalized: name.to_string(),
+        }
+    } else {
+        ResolvedProfileOrigin::Source {
+            normalized: name.to_string(),
+        }
+    }
+}
+
+fn candidate_shape(logical: &LogicalType) -> bool {
+    match logical {
+        LogicalType::Int | LogicalType::Bool | LogicalType::Void => true,
+        LogicalType::Array { element, count } => {
+            *count > 0 && *count <= i32::MAX as usize && **element == LogicalType::Int
+        }
+        LogicalType::Struct { .. } => candidate_non_carrier_shape(logical),
+        LogicalType::Enum { name, variants } => {
+            private_carrier_source_name(name).is_some_and(|source| {
+                source.starts_with("Result<")
+                    && matches!(
+                        variants.as_slice(),
+                        [EnumVariantSchema {
+                            name: ok,
+                            payload: Some(ok_payload),
+                        }, EnumVariantSchema {
+                            name: error,
+                            payload: Some(error_payload),
+                        }] if ok == "Ok"
+                            && error == "Err"
+                            && candidate_non_carrier_shape(ok_payload)
+                            && candidate_non_carrier_shape(error_payload)
+                    )
+            })
+        }
+        LogicalType::Float
+        | LogicalType::Char
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Tuple { .. }
+        | LogicalType::EnumFields { .. } => false,
+    }
+}
+
+fn candidate_non_carrier_shape(logical: &LogicalType) -> bool {
+    match logical {
+        LogicalType::Int | LogicalType::Bool => true,
+        LogicalType::Array { element, count } => {
+            *count > 0 && *count <= i32::MAX as usize && **element == LogicalType::Int
+        }
+        LogicalType::Struct { name, fields } => {
+            private_generic_struct_source_name(name).is_none()
+                && fields.iter().all(candidate_non_carrier_shape)
+        }
+        LogicalType::Float
+        | LogicalType::Char
+        | LogicalType::Void
+        | LogicalType::String
+        | LogicalType::ImmutableReference { .. }
+        | LogicalType::MutableReference { .. }
+        | LogicalType::Tuple { .. }
+        | LogicalType::EnumFields { .. }
+        | LogicalType::Enum { .. } => false,
+    }
+}
+
+fn logical_children(logical: &LogicalType) -> Vec<&LogicalType> {
+    match logical {
+        LogicalType::ImmutableReference { pointee }
+        | LogicalType::MutableReference { pointee }
+        | LogicalType::Array {
+            element: pointee, ..
+        } => vec![pointee],
+        LogicalType::Struct { fields, .. } | LogicalType::EnumFields { fields } => {
+            fields.iter().collect()
+        }
+        LogicalType::Tuple { elements } => elements.iter().collect(),
+        LogicalType::Enum { variants, .. } => variants
+            .iter()
+            .filter_map(|variant| variant.payload.as_ref())
+            .collect(),
+        LogicalType::Int
+        | LogicalType::Float
+        | LogicalType::Bool
+        | LogicalType::Char
+        | LogicalType::Void
+        | LogicalType::String => Vec::new(),
+    }
+}
+
+fn payload_logical_fields(payload: &LogicalType) -> Vec<LogicalType> {
+    match payload {
+        LogicalType::EnumFields { fields } => fields.clone(),
+        payload => vec![payload.clone()],
+    }
+}
+
+fn exact_match_identity(arms: &[MatchArm]) -> Option<String> {
+    let mut identity = None::<String>;
+    for arm in arms {
+        match &arm.pattern {
+            Pattern::Enum { enum_name, .. } => match &identity {
+                Some(expected) if expected != enum_name => return None,
+                Some(_) => {}
+                None => identity = Some(enum_name.clone()),
+            },
+            Pattern::Wildcard => {}
+            _ => return None,
+        }
+    }
+    identity
+}
+
+fn bind_pattern_names(pattern: &Pattern, mut bind: impl FnMut(String)) {
+    fn visit(pattern: &Pattern, bind: &mut impl FnMut(String)) {
+        match pattern {
+            Pattern::Identifier(name) => bind(name.clone()),
+            Pattern::Tuple(patterns) => {
+                for pattern in patterns {
+                    visit(pattern, bind);
+                }
+            }
+            Pattern::Struct { fields, .. } => {
+                for (_, pattern) in fields {
+                    visit(pattern, bind);
+                }
+            }
+            Pattern::Enum { data, .. } => {
+                for pattern in data.iter().flatten() {
+                    visit(pattern, bind);
+                }
+            }
+            Pattern::Wildcard | Pattern::Literal(_) => {}
+        }
+    }
+    visit(pattern, &mut bind);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{IrGenerator, SemanticAnalyzer, parse_with_locations, try_tokenize_with_locations};
+
+    const DESCRIPTOR_FIXTURE: &str = r#"
+struct Leaf {
+    value: int,
+}
+
+struct Pair {
+    left: Leaf,
+    right: Leaf,
+}
+
+struct Box<T> {
+    value: T,
+}
+
+enum Sample<T> {
+    Present(T),
+    Missing,
+}
+
+fn choose<T>(first: T, second: T, use_first: bool) -> T {
+    let mut selected: T = second;
+    if use_first {
+        selected = first;
+    }
+    selected
+}
+
+fn boxed(value: int) -> Box<int> {
+    return Box { value: value };
+}
+
+fn sampled(value: int) -> Sample<int> {
+    return Sample::Present(value);
+}
+
+fn array_id(value: [int; 2]) -> [int; 2] {
+    return value;
+}
+
+fn make(input: Pair, valid: bool) -> Result<Pair, int> {
+    let mut current: Pair = Pair {
+        right: input.right,
+        left: input.left,
+    };
+    let inferred = Pair {
+        right: current.right,
+        left: current.left,
+    };
+    let mut step: int = 0;
+    while step < 1 {
+        let loop_value = Pair {
+            right: current.right,
+            left: current.left,
+        };
+        current = loop_value;
+        step = step + 1;
+    }
+    if valid {
+        return Ok(inferred);
+    }
+    return Err(7);
+}
+
+fn score(value: Result<Pair, int>) -> int {
+    return match value {
+        Err(code) => code,
+        Ok(pair) => pair.left.value + pair.right.value,
+    };
+}
+
+fn wildcard_score(value: Result<Pair, int>) -> int {
+    return match value {
+        _ => 1,
+    };
+}
+
+fn consume(value: Pair) -> int {
+    return value.left.value;
+}
+
+fn forward(value: Pair) -> int {
+    return consume(value);
+}
+
+fn main() -> int {
+    let seed: Pair = Pair {
+        left: Leaf { value: 2 },
+        right: Leaf { value: 3 },
+    };
+    let result: Result<Pair, int> = make(seed, 1 < 2);
+    let chosen: int = choose(4, 5, 2 < 3);
+    return score(result) + chosen;
+}
+"#;
+
+    fn parsed(source: &str) -> Vec<AstNode> {
+        let tokens = try_tokenize_with_locations(source, None).expect("fixture must lex");
+        parse_with_locations(tokens).expect("fixture must parse")
+    }
+
+    fn rich(
+        analyzer: &mut SemanticAnalyzer,
+        source: &str,
+    ) -> (String, Vec<AstNode>, ResolvedProfileProgram) {
+        analyzer
+            .analyze_with_resolved_profile(parsed(source))
+            .expect("fixture must pass rich semantic analysis")
+    }
+
+    fn logical_for<'a>(
+        program: &'a ResolvedProfileProgram,
+        resolution: &ResolvedProfileResolution,
+    ) -> Option<&'a LogicalType> {
+        let id = match resolution {
+            ResolvedProfileResolution::Resolved(id)
+            | ResolvedProfileResolution::Excluded(Some(id)) => *id,
+            ResolvedProfileResolution::Excluded(None) | ResolvedProfileResolution::Unresolved => {
+                return None;
+            }
+        };
+        program.shapes.get(id.0)
+    }
+
+    #[test]
+    fn descriptor_retains_identity_order_roles_and_memoized_shapes() {
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), DESCRIPTOR_FIXTURE);
+
+        let pair = program
+            .nominals
+            .iter()
+            .find_map(|nominal| match nominal {
+                ResolvedProfileNominal::Struct {
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    resolution,
+                    fields,
+                } if normalized == "Pair" => Some((resolution, fields)),
+                _ => None,
+            })
+            .expect("Pair nominal must be observed");
+        assert!(matches!(pair.0, ResolvedProfileResolution::Resolved(_)));
+        let pair_resolution = pair.0.clone();
+        assert_eq!(
+            pair.1
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<Vec<_>>(),
+            ["left", "right"],
+            "record declaration order drifted"
+        );
+        let [left, right] = pair.1.as_slice() else {
+            panic!("Pair must retain exactly two fields")
+        };
+        assert_eq!(
+            left.resolution, right.resolution,
+            "repeated Leaf children must reuse one shape ID"
+        );
+        assert!(matches!(
+            logical_for(&program, &left.resolution),
+            Some(LogicalType::Struct { name, .. }) if name == "Leaf"
+        ));
+
+        let generic_box = program
+            .nominals
+            .iter()
+            .find_map(|nominal| match nominal {
+                ResolvedProfileNominal::Struct {
+                    origin: ResolvedProfileOrigin::GenericStruct { normalized, source },
+                    resolution: ResolvedProfileResolution::Excluded(Some(id)),
+                    ..
+                } if source == "Box<int>" => Some((normalized, *id)),
+                _ => None,
+            })
+            .expect("normalized Box<int> nominal must be observed");
+        assert_eq!(
+            private_generic_struct_source_name(generic_box.0).as_deref(),
+            Some("Box<int>")
+        );
+        assert!(matches!(
+            program.shapes.get(generic_box.1.0),
+            Some(LogicalType::Struct { name, .. }) if name == generic_box.0
+        ));
+
+        let generic_sample = program
+            .nominals
+            .iter()
+            .find_map(|nominal| match nominal {
+                ResolvedProfileNominal::Enum {
+                    origin: ResolvedProfileOrigin::GenericEnum { normalized, source },
+                    resolution: ResolvedProfileResolution::Excluded(Some(id)),
+                    ..
+                } if source == "Sample<int>" => Some((normalized, *id)),
+                _ => None,
+            })
+            .expect("normalized Sample<int> nominal must be observed");
+        assert_eq!(
+            private_generic_enum_source_name(generic_sample.0).as_deref(),
+            Some("Sample<int>")
+        );
+        assert!(matches!(
+            program.shapes.get(generic_sample.1.0),
+            Some(LogicalType::Enum { name, .. }) if name == generic_sample.0
+        ));
+
+        let result = program
+            .nominals
+            .iter()
+            .find_map(|nominal| match nominal {
+                ResolvedProfileNominal::Enum {
+                    origin: ResolvedProfileOrigin::BuiltinCarrier { normalized, source },
+                    resolution,
+                    variants,
+                } if source == "Result<Pair, int>" => Some((normalized, resolution, variants)),
+                _ => None,
+            })
+            .expect("normalized Result<Pair, int> nominal must be observed");
+        assert!(matches!(result.1, ResolvedProfileResolution::Resolved(_)));
+        let result_resolution = result.1.clone();
+        let result_logical = logical_for(&program, &result_resolution)
+            .expect("resolved Result must have a logical shape")
+            .clone();
+        assert_eq!(
+            private_carrier_source_name(result.0).as_deref(),
+            Some("Result<Pair, int>")
+        );
+        assert!(matches!(
+            &result_logical,
+            LogicalType::Enum { name, .. } if name == result.0
+        ));
+        assert!(candidate_shape(&result_logical));
+        assert!(
+            !candidate_shape(&LogicalType::Struct {
+                name: "NestedCarrier".to_string(),
+                fields: vec![result_logical],
+            }),
+            "a nested carrier must never become a candidate record field"
+        );
+        assert_eq!(
+            result
+                .2
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Ok", "Err"],
+            "Result variant order drifted"
+        );
+        let [ok, error] = result.2.as_slice() else {
+            panic!("Result must retain exactly Ok and Err")
+        };
+        assert!(matches!(
+            ok.payload
+                .as_ref()
+                .and_then(|payload| logical_for(&program, payload)),
+            Some(LogicalType::Struct { name, .. }) if name == "Pair"
+        ));
+        assert_eq!(
+            error
+                .payload
+                .as_ref()
+                .and_then(|payload| logical_for(&program, payload)),
+            Some(&LogicalType::Int)
+        );
+        let int_resolution = ResolvedProfileResolution::Resolved(ResolvedProfileShapeId(
+            program
+                .shapes
+                .iter()
+                .position(|shape| shape == &LogicalType::Int)
+                .expect("Int shape must be interned"),
+        ));
+        let bool_resolution = ResolvedProfileResolution::Resolved(ResolvedProfileShapeId(
+            program
+                .shapes
+                .iter()
+                .position(|shape| shape == &LogicalType::Bool)
+                .expect("Bool shape must be interned"),
+        ));
+        let array_resolution = ResolvedProfileResolution::Resolved(ResolvedProfileShapeId(
+            program
+                .shapes
+                .iter()
+                .position(|shape| {
+                    matches!(
+                        shape,
+                        LogicalType::Array { element, count }
+                            if **element == LogicalType::Int && *count == 2
+                    )
+                })
+                .expect("flat [int; 2] shape must be interned once"),
+        ));
+
+        let roles = program
+            .uses
+            .iter()
+            .map(|usage| usage.role)
+            .collect::<Vec<_>>();
+        for expected in [
+            ProfileTypeUse::Parameter,
+            ProfileTypeUse::Result,
+            ProfileTypeUse::Binding,
+            ProfileTypeUse::MutableBinding,
+            ProfileTypeUse::OwnedAssignment,
+            ProfileTypeUse::Value,
+        ] {
+            assert!(
+                roles.contains(&expected),
+                "missing transport role {expected:?}"
+            );
+        }
+        let exact_use = |function: &str,
+                         name: Option<&str>,
+                         role: ProfileTypeUse,
+                         resolution: &ResolvedProfileResolution| {
+            program.uses.iter().any(|usage| {
+                usage.role == role
+                    && usage.name.as_deref() == name
+                    && &usage.resolution == resolution
+                    && matches!(
+                        &usage.function,
+                        Some(ResolvedProfileOrigin::Source { normalized })
+                            if normalized == function
+                    )
+            })
+        };
+        assert!(exact_use(
+            "make",
+            Some("input"),
+            ProfileTypeUse::Parameter,
+            &pair_resolution
+        ));
+        assert!(exact_use(
+            "array_id",
+            Some("value"),
+            ProfileTypeUse::Parameter,
+            &array_resolution
+        ));
+        assert!(exact_use(
+            "array_id",
+            None,
+            ProfileTypeUse::Result,
+            &array_resolution
+        ));
+        assert!(exact_use(
+            "make",
+            None,
+            ProfileTypeUse::Result,
+            &result_resolution
+        ));
+        assert!(exact_use(
+            "make",
+            Some("current"),
+            ProfileTypeUse::MutableBinding,
+            &pair_resolution
+        ));
+        assert!(exact_use(
+            "make",
+            Some("current"),
+            ProfileTypeUse::OwnedAssignment,
+            &pair_resolution
+        ));
+        assert!(exact_use(
+            "main",
+            Some("seed"),
+            ProfileTypeUse::Binding,
+            &pair_resolution
+        ));
+        let forward_pair_values = program
+            .uses
+            .iter()
+            .filter(|usage| {
+                usage.role == ProfileTypeUse::Value
+                    && usage.resolution == pair_resolution
+                    && matches!(
+                        &usage.function,
+                        Some(ResolvedProfileOrigin::Source { normalized })
+                            if normalized == "forward"
+                    )
+            })
+            .count();
+        assert_eq!(
+            forward_pair_values, 1,
+            "the constructor-free forward call must retain its exact Pair argument transport"
+        );
+        assert!(exact_use(
+            "main",
+            Some("result"),
+            ProfileTypeUse::Binding,
+            &result_resolution
+        ));
+        assert!(exact_use(
+            "main",
+            None,
+            ProfileTypeUse::Value,
+            &pair_resolution
+        ));
+        assert!(
+            !program
+                .uses
+                .iter()
+                .any(|usage| usage.name.as_deref() == Some("inferred")),
+            "an unannotated aggregate binding became a resolved root"
+        );
+
+        let generic_uses = program
+            .uses
+            .iter()
+            .filter(|usage| {
+                matches!(
+                    &usage.function,
+                    Some(ResolvedProfileOrigin::GenericFunction { source, .. })
+                        if source == "choose<int>"
+                )
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !generic_uses.is_empty(),
+            "normalized choose<int> roots were not observed"
+        );
+        let generic_names = generic_uses
+            .iter()
+            .filter_map(|usage| match &usage.function {
+                Some(ResolvedProfileOrigin::GenericFunction { normalized, .. }) => {
+                    Some(normalized.as_str())
+                }
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(generic_names.len(), 1);
+        assert_eq!(
+            private_generic_function_source_name(generic_names.first().copied().unwrap())
+                .as_deref(),
+            Some("choose<int>")
+        );
+        assert!(
+            generic_uses.iter().all(|usage| {
+                matches!(
+                    &usage.resolution,
+                    ResolvedProfileResolution::Excluded(Some(id))
+                        if program.shapes.get(id.0).is_some_and(|shape| {
+                            matches!(shape, LogicalType::Int | LogicalType::Bool)
+                        })
+                )
+            }),
+            "source-facing generic function roots lost their exact excluded shape"
+        );
+        let generic_exact_use =
+            |name: Option<&str>, role: ProfileTypeUse, expected: &ResolvedProfileResolution| {
+                generic_uses.iter().any(|usage| {
+                    usage.name.as_deref() == name
+                        && usage.role == role
+                        && usage.resolution == force_excluded(expected.clone())
+                })
+            };
+        for name in ["first", "second"] {
+            assert!(generic_exact_use(
+                Some(name),
+                ProfileTypeUse::Parameter,
+                &int_resolution
+            ));
+        }
+        assert!(generic_exact_use(
+            Some("use_first"),
+            ProfileTypeUse::Parameter,
+            &bool_resolution
+        ));
+        assert!(generic_exact_use(
+            None,
+            ProfileTypeUse::Result,
+            &int_resolution
+        ));
+        assert!(generic_exact_use(
+            Some("selected"),
+            ProfileTypeUse::MutableBinding,
+            &int_resolution
+        ));
+        assert!(generic_exact_use(
+            Some("selected"),
+            ProfileTypeUse::OwnedAssignment,
+            &int_resolution
+        ));
+
+        assert!(!candidate_shape(&LogicalType::Array {
+            element: Box::new(LogicalType::Int),
+            count: 0,
+        }));
+        assert!(!candidate_shape(&LogicalType::Array {
+            element: Box::new(LogicalType::Bool),
+            count: 2,
+        }));
+        assert!(!candidate_shape(&LogicalType::Array {
+            element: Box::new(LogicalType::Array {
+                element: Box::new(LogicalType::Int),
+                count: 2,
+            }),
+            count: 2,
+        }));
+
+        assert!(program.operations.iter().any(|operation| matches!(
+            operation,
+            ResolvedProfileOperation::StructConstruction {
+                function: Some(ResolvedProfileOrigin::Source { normalized: function }),
+                origin: ResolvedProfileOrigin::Source { normalized },
+                resolution,
+                source_to_declaration,
+                ..
+            } if function == "make"
+                && normalized == "Pair"
+                && resolution == &pair_resolution
+                && source_to_declaration == &[1, 0]
+        )));
+        assert!(program.operations.iter().any(|operation| matches!(
+            operation,
+            ResolvedProfileOperation::EnumConstruction {
+                origin: ResolvedProfileOrigin::BuiltinCarrier { source, .. },
+                variant,
+                variant_index: Some(0),
+                resolution,
+                ..
+            } if source == "Result<Pair, int>"
+                && variant == "Ok"
+                && resolution == &result_resolution
+        )));
+        assert!(program.operations.iter().any(|operation| matches!(
+            operation,
+            ResolvedProfileOperation::EnumConstruction {
+                origin: ResolvedProfileOrigin::BuiltinCarrier { source, .. },
+                variant,
+                variant_index: Some(1),
+                resolution,
+                ..
+            } if source == "Result<Pair, int>"
+                && variant == "Err"
+                && resolution == &result_resolution
+        )));
+        assert!(program.operations.iter().any(|operation| matches!(
+            operation,
+            ResolvedProfileOperation::ExhaustiveMatch {
+                origin: Some(ResolvedProfileOrigin::BuiltinCarrier { source, .. }),
+                arm_for_variant,
+                resolution,
+                result: Some(result),
+                ..
+            } if source == "Result<Pair, int>"
+                && arm_for_variant == &[1, 0]
+                && resolution == &result_resolution
+                && result == &int_resolution
+        )));
+        assert!(program.operations.iter().any(|operation| matches!(
+            operation,
+            ResolvedProfileOperation::ExhaustiveMatch {
+                function: Some(ResolvedProfileOrigin::Source { normalized }),
+                origin: Some(ResolvedProfileOrigin::BuiltinCarrier { source, .. }),
+                resolution,
+                arm_for_variant,
+                result: Some(result),
+            } if normalized == "wildcard_score"
+                && source == "Result<Pair, int>"
+                && resolution == &result_resolution
+                && arm_for_variant == &[0, 0]
+                && result == &int_resolution
+        )));
+    }
+
+    #[test]
+    fn rich_analysis_is_deterministic_and_preserves_checked_ir() {
+        let mut analyzer = SemanticAnalyzer::new();
+        let (first_message, first_ast, first_program) = rich(&mut analyzer, DESCRIPTOR_FIXTURE);
+        let (second_message, second_ast, second_program) = rich(&mut analyzer, DESCRIPTOR_FIXTURE);
+
+        assert_eq!(first_message, second_message);
+        assert_eq!(format!("{first_ast:?}"), format!("{second_ast:?}"));
+        assert_eq!(first_program, second_program);
+        assert_eq!(
+            first_program.operations.len(),
+            second_program.operations.len(),
+            "descriptor observations accumulated across analyzer reuse"
+        );
+        let loop_pair_count = first_program
+            .operations
+            .iter()
+            .filter(|operation| {
+                matches!(
+                    operation,
+                    ResolvedProfileOperation::StructConstruction {
+                        origin: ResolvedProfileOrigin::Source { normalized },
+                        source_to_declaration,
+                        ..
+                    } if normalized == "Pair" && source_to_declaration == &[1, 0]
+                )
+            })
+            .count();
+        assert_eq!(
+            loop_pair_count, 3,
+            "each reversed Pair constructor, including the loop body, must be observed once"
+        );
+
+        let rich_checked = IrGenerator::new()
+            .try_generate_ir(first_ast)
+            .expect("rich normalized AST must reach checked IR");
+        let (_, public_ast) = SemanticAnalyzer::new()
+            .analyze(parsed(DESCRIPTOR_FIXTURE))
+            .expect("public semantic route must remain compatible");
+        let public_checked = IrGenerator::new()
+            .try_generate_ir(public_ast)
+            .expect("public normalized AST must reach checked IR");
+        assert_eq!(
+            rich_checked, public_checked,
+            "rich semantic success changed checked IR"
+        );
+    }
+
+    #[test]
+    fn unresolved_declarations_fail_closed_without_a_new_diagnostic() {
+        let source = r#"
+struct Cycle {
+    next: Cycle,
+}
+
+struct UnknownChild {
+    child: Missing,
+}
+
+fn main() -> int {
+    return 0;
+}
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+        for name in ["Cycle", "UnknownChild"] {
+            let resolution = program
+                .nominals
+                .iter()
+                .find_map(|nominal| match nominal {
+                    ResolvedProfileNominal::Struct {
+                        origin: ResolvedProfileOrigin::Source { normalized },
+                        resolution,
+                        ..
+                    } if normalized == name => Some(resolution),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{name} declaration must remain observable"));
+            assert_eq!(
+                resolution,
+                &ResolvedProfileResolution::Unresolved,
+                "{name} must fail closed"
+            );
+            assert!(
+                logical_for(&program, resolution).is_none(),
+                "{name} silently fell back to a concrete shape"
+            );
+        }
+
+        SemanticAnalyzer::new()
+            .analyze(parsed(source))
+            .expect("public semantics must retain declaration-only compatibility");
+    }
+
+    #[test]
+    fn implicit_results_and_non_top_level_name_collisions_stay_excluded() {
+        let source = r#"
+struct Pair {
+    left: int,
+    right: int,
+}
+
+fn collide(value: Pair) -> Pair {
+    return Pair { right: 2, left: 1 };
+}
+
+impl Pair {
+    fn collide(value: Pair) -> Pair {
+        let method_local: Pair = value;
+        return method_local;
+    }
+}
+
+trait Probe {
+    fn required(value: Pair) -> Pair;
+
+    fn collide(value: Pair) -> Pair {
+        let trait_local: Pair = value;
+        value = value;
+        return value;
+    }
+}
+
+fn implicit() {
+}
+
+fn main() -> int {
+    let value = Pair { left: 1, right: 2 };
+    return collide(value).left;
+}
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+
+        assert!(
+            !program.uses.iter().any(|usage| {
+                usage.role == ProfileTypeUse::Result
+                    && matches!(
+                        &usage.function,
+                        Some(ResolvedProfileOrigin::Source { normalized })
+                            if normalized == "implicit"
+                    )
+            }),
+            "an implicit void function acquired an explicit Result root"
+        );
+
+        let pair_resolution = pair_resolution_for(&program);
+        let excluded_pair = force_excluded(pair_resolution.clone());
+        let top_level_parameter = program.uses.iter().find(|usage| {
+            usage.role == ProfileTypeUse::Parameter
+                && usage.name.as_deref() == Some("value")
+                && matches!(
+                    &usage.function,
+                    Some(ResolvedProfileOrigin::Source { normalized })
+                        if normalized == "collide"
+                )
+        });
+        assert_eq!(
+            top_level_parameter.map(|usage| &usage.resolution),
+            Some(&pair_resolution),
+            "the admitted top-level collide parameter must remain resolved"
+        );
+
+        let impl_origin = ResolvedProfileOrigin::ImplMethod {
+            type_name: "Pair".to_string(),
+            trait_name: None,
+            method: "collide".to_string(),
+        };
+        let trait_origin = ResolvedProfileOrigin::TraitMethod {
+            trait_name: "Probe".to_string(),
+            method: "collide".to_string(),
+        };
+        for origin in [&impl_origin, &trait_origin] {
+            for (role, name) in [
+                (ProfileTypeUse::Parameter, Some("value")),
+                (ProfileTypeUse::Result, None),
+            ] {
+                assert!(program.uses.iter().any(|usage| {
+                    usage.role == role
+                        && usage.name.as_deref() == name
+                        && usage.function.as_ref() == Some(origin)
+                        && usage.resolution == excluded_pair
+                }));
+            }
+        }
+        let required_origin = ResolvedProfileOrigin::TraitMethod {
+            trait_name: "Probe".to_string(),
+            method: "required".to_string(),
+        };
+        for (role, name) in [
+            (ProfileTypeUse::Parameter, Some("value")),
+            (ProfileTypeUse::Result, None),
+        ] {
+            assert!(program.uses.iter().any(|usage| {
+                usage.role == role
+                    && usage.name.as_deref() == name
+                    && usage.function.as_ref() == Some(&required_origin)
+                    && usage.resolution == excluded_pair
+            }));
+        }
+        for (name, origin) in [
+            ("method_local", &impl_origin),
+            ("trait_local", &trait_origin),
+        ] {
+            let usage = program
+                .uses
+                .iter()
+                .find(|usage| {
+                    usage.role == ProfileTypeUse::Binding
+                        && usage.name.as_deref() == Some(name)
+                        && usage.function.as_ref() == Some(origin)
+                })
+                .unwrap_or_else(|| panic!("{name} preserved binding must be observed"));
+            assert_eq!(
+                usage.resolution, excluded_pair,
+                "{name} must stay outside the profile context"
+            );
+        }
+        assert!(program.uses.iter().any(|usage| {
+            usage.role == ProfileTypeUse::OwnedAssignment
+                && usage.name.as_deref() == Some("value")
+                && usage.function.as_ref() == Some(&trait_origin)
+                && usage.resolution == excluded_pair
+        }));
+
+        let reversed_pair_constructions = program
+            .operations
+            .iter()
+            .filter_map(|operation| match operation {
+                ResolvedProfileOperation::StructConstruction {
+                    function:
+                        Some(ResolvedProfileOrigin::Source {
+                            normalized: function,
+                        }),
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    resolution,
+                    source_to_declaration,
+                } if function == "collide"
+                    && normalized == "Pair"
+                    && source_to_declaration == &[1, 0] =>
+                {
+                    Some(resolution)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(reversed_pair_constructions, [&pair_resolution]);
+    }
+
+    fn pair_resolution_for(program: &ResolvedProfileProgram) -> ResolvedProfileResolution {
+        program
+            .nominals
+            .iter()
+            .find_map(|nominal| match nominal {
+                ResolvedProfileNominal::Struct {
+                    origin: ResolvedProfileOrigin::Source { normalized },
+                    resolution,
+                    ..
+                } if normalized == "Pair" => Some(resolution.clone()),
+                _ => None,
+            })
+            .expect("Pair nominal must be present")
+    }
+}
