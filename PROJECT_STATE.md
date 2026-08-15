@@ -1,8 +1,44 @@
 # Aero Project State
 
-Last updated: 2026-08-14 (America/New_York)
+Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
+
+### R1A local candidate: replaceable allocator runtime and CPU link boundary
+
+The current accepted public master is CAP-035 merge
+`da2ad95d4a1db3a991128a63223c82639d24ff2a`, tree
+`fb4739291690efa5c940d929f69435b063ea67f6`. CAP-035 candidate
+`c50ae7c8ef92f910244f383363b811d8a37622f9` has the identical tree; all 12
+candidate checks and every accepted-head CI, Rust CI, CodeQL, and evidence
+workflow passed. It freezes the dependency-ordered R1A/R1B/R1C owned-byte route
+without adding behavior.
+
+CAP-036/R1A is currently a local candidate based exactly on that accepted head.
+Its production C11 runtime exports only `aero_alloc`, `aero_realloc`, and
+`aero_dealloc`. The source is embedded in the compiler binary, materialized
+after checked compilation succeeds, compiled in the unique CPU run directory,
+and explicitly linked on both `llc` and direct-Clang native paths. Runtime
+selection does not inspect the working directory or accept an ambient override.
+
+A separate test runtime implements the same ABI plus deterministic fail-after,
+attempt/live/size-mismatch counters, and exact allocation-size validation.
+Independent C harnesses pass successful allocation/reallocation/deallocation,
+prefix preservation, mismatch rejection, failed-reallocation preservation, and
+counter checks. The focused R1A target passes 2/2, all 292 library and 35 binary
+tests pass, every integration/native/system target and doc test passes, and
+correctness Clippy is green. Protected Linux/Windows candidate/merge evidence
+remains pending.
+
+R1A changes only CPU native runtime linking. It does not emit allocator calls,
+admit `ByteBuffer`, change Vec rejection, add ownership/drop semantics, change
+checked IR or LLVM bytes, provide input, or close R1. R1 remains blocked on
+accepted R1A followed by independently protected R1B and R1C.
+
+The checkpoint sections below are retained chronological records. Any
+present-tense `current` or `latest` wording inside an older checkpoint is scoped
+to that historical checkpoint and is superseded by this current-objective
+section.
 
 ### CAP-024 accepted: immutable accepted-head inference evidence checkpoint
 

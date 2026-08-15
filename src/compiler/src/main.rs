@@ -28,6 +28,48 @@ use std::process::{Command, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+const PRODUCTION_RUNTIME_SOURCE: &[u8] = include_bytes!("../runtime/aero_runtime.c");
+
+fn compile_production_runtime(
+    clang_bin: &str,
+    source_file: &Path,
+    object_file: &Path,
+) -> Result<(), String> {
+    fs::write(source_file, PRODUCTION_RUNTIME_SOURCE).map_err(|error| {
+        format!(
+            "Error writing embedded Aero runtime source to {}: {error}",
+            source_file.display()
+        )
+    })?;
+
+    let output = Command::new(clang_bin)
+        .arg("-std=c11")
+        .arg("-O2")
+        .args(["-Wall", "-Wextra", "-Werror", "-c"])
+        .arg(source_file)
+        .arg("-o")
+        .arg(object_file)
+        .output()
+        .map_err(|error| {
+            format!("Error executing clang for embedded Aero runtime ({clang_bin}): {error}")
+        })?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Error running clang: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    if !object_file.is_file() {
+        return Err(format!(
+            "embedded Aero runtime compilation reported success without producing {}",
+            object_file.display()
+        ));
+    }
+
+    Ok(())
+}
+
 fn render_code_generation_error(error: CodeGenerationError) -> String {
     match error {
         CodeGenerationError::IrVerification(error) => error.to_string(),
@@ -100,6 +142,8 @@ struct RunArtifactPaths {
     directory: PathBuf,
     ll_file: PathBuf,
     obj_file: PathBuf,
+    runtime_source_file: PathBuf,
+    runtime_obj_file: PathBuf,
     exe_file: PathBuf,
     gpu_obj_file: PathBuf,
 }
@@ -186,6 +230,8 @@ fn create_run_artifact_paths(
 
     let ll_file = run_dir.join(format!("{}.ll", safe_stem));
     let obj_file = run_dir.join(format!("{}.o", safe_stem));
+    let runtime_source_file = run_dir.join("aero_runtime.c");
+    let runtime_obj_file = run_dir.join("aero_runtime.o");
     let exe_name = if cfg!(windows) {
         format!("{}.exe", safe_stem)
     } else {
@@ -202,6 +248,8 @@ fn create_run_artifact_paths(
         directory: run_dir,
         ll_file,
         obj_file,
+        runtime_source_file,
+        runtime_obj_file,
         exe_file,
         gpu_obj_file,
     })
@@ -1882,6 +1930,7 @@ fn run_aero_program_with_artifacts(
 ) -> Result<Option<i32>, String> {
     let ll_path = artifacts.ll_file.to_string_lossy().to_string();
     let obj_path = artifacts.obj_file.to_string_lossy().to_string();
+    let runtime_obj_path = artifacts.runtime_obj_file.to_string_lossy().to_string();
     let exe_path = artifacts.exe_file.to_string_lossy().to_string();
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
@@ -1902,6 +1951,11 @@ fn run_aero_program_with_artifacts(
                 "Error executing clang: program not found. Make sure LLVM/clang is installed and in your PATH."
                     .to_string()
             })?;
+            compile_production_runtime(
+                &clang_bin,
+                &artifacts.runtime_source_file,
+                &artifacts.runtime_obj_file,
+            )?;
 
             if let Some(llc_bin) = find_llvm_tool("llc") {
                 let llc_output = Command::new(&llc_bin)
@@ -1917,7 +1971,7 @@ fn run_aero_program_with_artifacts(
                 }
 
                 let clang_output = Command::new(&clang_bin)
-                    .args([&obj_path, "-o", &exe_path])
+                    .args([&obj_path, &runtime_obj_path, "-o", &exe_path])
                     .output()
                     .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
 
@@ -1934,7 +1988,7 @@ fn run_aero_program_with_artifacts(
                 );
 
                 let clang_output = Command::new(&clang_bin)
-                    .args([&ll_path, "-o", &exe_path])
+                    .args([&ll_path, &runtime_obj_path, "-o", &exe_path])
                     .output()
                     .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
 
@@ -2539,6 +2593,18 @@ mod tests {
         assert!(dir.contains("target"));
         assert!(dir.contains("aero-run"));
         assert!(artifacts.ll_file.to_string_lossy().ends_with(".ll"));
+        assert!(
+            artifacts
+                .runtime_source_file
+                .to_string_lossy()
+                .ends_with("aero_runtime.c")
+        );
+        assert!(
+            artifacts
+                .runtime_obj_file
+                .to_string_lossy()
+                .ends_with("aero_runtime.o")
+        );
         assert!(artifacts.gpu_obj_file.to_string_lossy().contains("gfx1101"));
         let _ = fs::remove_dir_all(artifacts.directory);
     }
