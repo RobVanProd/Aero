@@ -1405,6 +1405,7 @@ fn copy_logical_ty(logical_type: &LogicalType) -> Ty {
         LogicalType::EnumFields { .. }
         | LogicalType::Void
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
         | LogicalType::Enum { .. } => {

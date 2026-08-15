@@ -111,6 +111,7 @@ impl<'a> CopyDataLayout<'a> {
             )),
             LogicalType::Void
             | LogicalType::String
+            | LogicalType::ByteBuffer
             | LogicalType::ImmutableReference { .. }
             | LogicalType::MutableReference { .. }
             | LogicalType::Enum { .. } => None,
@@ -131,6 +132,7 @@ impl<'a> CopyDataLayout<'a> {
             | LogicalType::EnumFields { .. } => "zeroinitializer".to_string(),
             LogicalType::Void
             | LogicalType::String
+            | LogicalType::ByteBuffer
             | LogicalType::ImmutableReference { .. }
             | LogicalType::MutableReference { .. }
             | LogicalType::Enum { .. } => {
@@ -163,6 +165,7 @@ impl<'a> CopyDataLayout<'a> {
             }
             LogicalType::Void
             | LogicalType::String
+            | LogicalType::ByteBuffer
             | LogicalType::ImmutableReference { .. }
             | LogicalType::MutableReference { .. }
             | LogicalType::Enum { .. } => None,

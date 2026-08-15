@@ -81,6 +81,9 @@ mod checked_ir_contract_test;
 #[cfg(test)]
 mod error_test;
 
+#[cfg(test)]
+mod owned_byte_buffer_contract_test;
+
 /// Compiler options for benchmarking.
 ///
 /// Optimization, debug-info, and target overrides remain unsupported. The typed

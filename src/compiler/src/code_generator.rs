@@ -1,7 +1,7 @@
 use crate::copy_data_layout::{CopyDataLayout, CopyDataLayoutPolicy, EnumStorageLayout};
 use crate::ir::{
-    CheckedIr, EnumSchema, Function, FunctionMetadata, Inst, IrMetadata, LogicalType, PlaceId,
-    ResultId, Value,
+    ByteBufferPlaceRole, CheckedIr, EnumSchema, Function, FunctionMetadata, Inst, IrMetadata,
+    LogicalType, PlaceId, ResultId, Value,
 };
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
 use crate::language_profile::{
@@ -141,8 +141,8 @@ impl CodeGenerator {
                 name: name.clone(),
                 variants: variants.clone(),
             }),
-            LogicalType::String => {
-                unreachable!("verified call signatures exclude String values")
+            LogicalType::String | LogicalType::ByteBuffer => {
+                unreachable!("verified call signatures exclude resource and String values")
             }
         }
     }
@@ -269,6 +269,7 @@ impl CodeGenerator {
             | LogicalType::EnumFields { .. } => Self::render_copy_data_layout(pointee),
             LogicalType::Void
             | LogicalType::String
+            | LogicalType::ByteBuffer
             | LogicalType::ImmutableReference { .. }
             | LogicalType::MutableReference { .. } => Self::logical_type_to_llvm(pointee),
         }
@@ -447,7 +448,8 @@ impl CodeGenerator {
             | LogicalType::Bool
             | LogicalType::Char
             | LogicalType::Void
-            | LogicalType::String => {}
+            | LogicalType::String
+            | LogicalType::ByteBuffer => {}
         }
     }
 
@@ -525,8 +527,46 @@ impl CodeGenerator {
                 | Inst::CheckedImmutableEnumOwnerPlaceAlloca { result: ptr, .. }
                 | Inst::CheckedMatchResultPlaceAlloca { result: ptr, .. }
                 | Inst::AllocaArray { result: ptr, .. }
-                | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. } => {
+                | Inst::CheckedCopyStructArrayAlloca { result: ptr, .. }
+                | Inst::CheckedByteBufferNew { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
+                }
+                Inst::CheckedByteBufferMove { result, source, .. }
+                | Inst::CheckedByteBufferImmutableBorrow { result, source }
+                | Inst::CheckedByteBufferMutableBorrow { result, source } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedByteBufferImmutableBorrowEnd { reference, source }
+                | Inst::CheckedByteBufferMutableBorrowEnd { reference, source } => {
+                    Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, source);
+                }
+                Inst::CheckedByteBufferPush {
+                    result,
+                    reference,
+                    byte,
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, byte);
+                }
+                Inst::CheckedByteBufferLength { result, reference }
+                | Inst::CheckedByteBufferCapacity { result, reference } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, reference);
+                }
+                Inst::CheckedByteBufferGet {
+                    result,
+                    reference,
+                    index,
+                } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, reference);
+                    Self::bump_seed_from_value(&mut seed, index);
+                }
+                Inst::CheckedByteBufferDrop { owner } => {
+                    Self::bump_seed_from_value(&mut seed, owner);
                 }
                 Inst::CheckedImmutableBorrow { result, source, .. }
                 | Inst::CheckedMutableBorrow { result, source, .. } => {
@@ -943,6 +983,378 @@ impl CodeGenerator {
             .map(|place| &place.pointee)
     }
 
+    fn byte_buffer_place_id(value: &Value) -> PlaceId {
+        let Value::Reg(register) = value else {
+            unreachable!("verified checked byte-buffer operands are place registers")
+        };
+        PlaceId(*register)
+    }
+
+    fn byte_buffer_owner_place(&self, reference: &Value) -> PlaceId {
+        let place = Self::byte_buffer_place_id(reference);
+        let metadata = self
+            .current_function_metadata()
+            .and_then(|function| function.byte_buffers.get(&place))
+            .expect("re-verified checked byte-buffer place has resource metadata");
+        match metadata.role {
+            ByteBufferPlaceRole::Owner { .. } => metadata.place,
+            ByteBufferPlaceRole::ImmutableLoan { owner }
+            | ByteBufferPlaceRole::MutableLoan { owner } => owner,
+        }
+    }
+
+    fn emit_checked_byte_buffer_new(&mut self, llvm_ir: &mut String, result: &Value) {
+        let place = Self::byte_buffer_place_id(result);
+        llvm_ir.push_str(&format!(
+            "  %ptr{} = alloca %aero.byte_buffer, align 8\n",
+            place.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  store %aero.byte_buffer zeroinitializer, ptr %ptr{}, align 8\n",
+            place.0
+        ));
+    }
+
+    fn emit_checked_byte_buffer_move(
+        &mut self,
+        llvm_ir: &mut String,
+        result: &Value,
+        source: &Value,
+    ) {
+        let destination = Self::byte_buffer_place_id(result);
+        let source = Self::byte_buffer_place_id(source);
+        let descriptor = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %ptr{} = alloca %aero.byte_buffer, align 8\n",
+            destination.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{descriptor} = load %aero.byte_buffer, ptr %ptr{}, align 8\n",
+            source.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  store %aero.byte_buffer %{descriptor}, ptr %ptr{}, align 8\n",
+            destination.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  store %aero.byte_buffer zeroinitializer, ptr %ptr{}, align 8\n",
+            source.0
+        ));
+    }
+
+    fn emit_checked_byte_buffer_length_or_capacity(
+        &mut self,
+        llvm_ir: &mut String,
+        result: &Value,
+        reference: &Value,
+        field_index: u32,
+    ) {
+        let Value::Reg(result) = result else {
+            unreachable!("verified checked byte-buffer read has an SSA result")
+        };
+        let owner = self.byte_buffer_owner_place(reference);
+        let field = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 {field_index}\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %reg{result} = load i32, ptr %{field}, align 4\n"
+        ));
+    }
+
+    fn emit_checked_byte_buffer_push(
+        &mut self,
+        llvm_ir: &mut String,
+        result: &Value,
+        reference: &Value,
+        byte: &Value,
+    ) {
+        let Value::Reg(result) = result else {
+            unreachable!("verified checked byte-buffer push has an SSA result")
+        };
+        let owner = self.byte_buffer_owner_place(reference);
+        let byte = self.stable_int_value_to_string(byte);
+        let prefix = format!("aero.bytes.push.{result}");
+        let valid_label = format!("{prefix}.valid");
+        let invalid_label = format!("{prefix}.invalid");
+        let grow_label = format!("{prefix}.grow");
+        let overflow_label = format!("{prefix}.overflow");
+        let allocate_label = format!("{prefix}.allocate");
+        let reallocate_label = format!("{prefix}.reallocate");
+        let growth_result_label = format!("{prefix}.growth.result");
+        let growth_success_label = format!("{prefix}.growth.success");
+        let growth_failure_label = format!("{prefix}.growth.failure");
+        let write_label = format!("{prefix}.write");
+        let done_label = format!("{prefix}.done");
+
+        let byte_nonnegative = self.fresh_reg();
+        let byte_bounded = self.fresh_reg();
+        let byte_valid = self.fresh_reg();
+        llvm_ir.push_str(&format!("  %{byte_nonnegative} = icmp sge i32 {byte}, 0\n"));
+        llvm_ir.push_str(&format!("  %{byte_bounded} = icmp sle i32 {byte}, 255\n"));
+        llvm_ir.push_str(&format!(
+            "  %{byte_valid} = and i1 %{byte_nonnegative}, %{byte_bounded}\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{byte_valid}, label %{valid_label}, label %{invalid_label}\n"
+        ));
+
+        llvm_ir.push_str(&format!("{invalid_label}:\n"));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+
+        llvm_ir.push_str(&format!("{valid_label}:\n"));
+        let data_field = self.fresh_reg();
+        let length_field = self.fresh_reg();
+        let capacity_field = self.fresh_reg();
+        let data = self.fresh_reg();
+        let length = self.fresh_reg();
+        let capacity = self.fresh_reg();
+        let has_capacity = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{data_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 0\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{length_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 1\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{capacity_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 2\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{data} = load ptr, ptr %{data_field}, align 8\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{length} = load i32, ptr %{length_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{capacity} = load i32, ptr %{capacity_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{has_capacity} = icmp slt i32 %{length}, %{capacity}\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{has_capacity}, label %{write_label}, label %{grow_label}\n"
+        ));
+
+        llvm_ir.push_str(&format!("{grow_label}:\n"));
+        let capacity_is_zero = self.fresh_reg();
+        let capacity_can_double = self.fresh_reg();
+        let growth_allowed = self.fresh_reg();
+        let doubled_capacity = self.fresh_reg();
+        let new_capacity = self.fresh_reg();
+        let old_size = self.fresh_reg();
+        let new_size = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{capacity_is_zero} = icmp eq i32 %{capacity}, 0\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{capacity_can_double} = icmp sle i32 %{capacity}, 1073741823\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{growth_allowed} = or i1 %{capacity_is_zero}, %{capacity_can_double}\n"
+        ));
+        llvm_ir.push_str(&format!("  %{doubled_capacity} = mul i32 %{capacity}, 2\n"));
+        llvm_ir.push_str(&format!(
+            "  %{new_capacity} = select i1 %{capacity_is_zero}, i32 8, i32 %{doubled_capacity}\n"
+        ));
+        llvm_ir.push_str(&format!("  %{old_size} = zext i32 %{capacity} to i64\n"));
+        llvm_ir.push_str(&format!(
+            "  %{new_size} = zext i32 %{new_capacity} to i64\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{growth_allowed}, label %{allocate_label}, label %{overflow_label}\n"
+        ));
+
+        llvm_ir.push_str(&format!("{overflow_label}:\n"));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+
+        llvm_ir.push_str(&format!("{allocate_label}:\n"));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{capacity_is_zero}, label %{allocate_label}.empty, label %{reallocate_label}\n"
+        ));
+        llvm_ir.push_str(&format!("{allocate_label}.empty:\n"));
+        let allocated = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{allocated} = call ptr @aero_alloc(i64 %{new_size})\n"
+        ));
+        llvm_ir.push_str(&format!("  br label %{growth_result_label}\n"));
+
+        llvm_ir.push_str(&format!("{reallocate_label}:\n"));
+        let reallocated = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{reallocated} = call ptr @aero_realloc(ptr %{data}, i64 %{old_size}, i64 %{new_size})\n"
+        ));
+        llvm_ir.push_str(&format!("  br label %{growth_result_label}\n"));
+
+        llvm_ir.push_str(&format!("{growth_result_label}:\n"));
+        let grown_data = self.fresh_reg();
+        let growth_failed = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{grown_data} = phi ptr [ %{allocated}, %{allocate_label}.empty ], [ %{reallocated}, %{reallocate_label} ]\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{growth_failed} = icmp eq ptr %{grown_data}, null\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{growth_failed}, label %{growth_failure_label}, label %{growth_success_label}\n"
+        ));
+
+        llvm_ir.push_str(&format!("{growth_failure_label}:\n"));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+
+        llvm_ir.push_str(&format!("{growth_success_label}:\n"));
+        llvm_ir.push_str(&format!(
+            "  store ptr %{grown_data}, ptr %{data_field}, align 8\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  store i32 %{new_capacity}, ptr %{capacity_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!("  br label %{write_label}\n"));
+
+        llvm_ir.push_str(&format!("{write_label}:\n"));
+        let write_data = self.fresh_reg();
+        let length_index = self.fresh_reg();
+        let byte_address = self.fresh_reg();
+        let byte_i8 = self.fresh_reg();
+        let new_length = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{write_data} = phi ptr [ %{data}, %{valid_label} ], [ %{grown_data}, %{growth_success_label} ]\n"
+        ));
+        llvm_ir.push_str(&format!("  %{length_index} = zext i32 %{length} to i64\n"));
+        llvm_ir.push_str(&format!(
+            "  %{byte_address} = getelementptr inbounds i8, ptr %{write_data}, i64 %{length_index}\n"
+        ));
+        llvm_ir.push_str(&format!("  %{byte_i8} = trunc i32 {byte} to i8\n"));
+        llvm_ir.push_str(&format!(
+            "  store i8 %{byte_i8}, ptr %{byte_address}, align 1\n"
+        ));
+        llvm_ir.push_str(&format!("  %{new_length} = add i32 %{length}, 1\n"));
+        llvm_ir.push_str(&format!(
+            "  store i32 %{new_length}, ptr %{length_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+
+        llvm_ir.push_str(&format!("{done_label}:\n"));
+        llvm_ir.push_str(&format!(
+            "  %reg{result} = phi i32 [ -1, %{invalid_label} ], [ -3, %{overflow_label} ], [ -2, %{growth_failure_label} ], [ %{new_length}, %{write_label} ]\n"
+        ));
+    }
+
+    fn emit_checked_byte_buffer_get(
+        &mut self,
+        llvm_ir: &mut String,
+        result: &Value,
+        reference: &Value,
+        index: &Value,
+    ) {
+        let Value::Reg(result) = result else {
+            unreachable!("verified checked byte-buffer get has an SSA result")
+        };
+        let owner = self.byte_buffer_owner_place(reference);
+        let index = self.stable_int_value_to_string(index);
+        let valid_label = format!("aero.bytes.get.{result}.valid");
+        let invalid_label = format!("aero.bytes.get.{result}.invalid");
+        let done_label = format!("aero.bytes.get.{result}.done");
+        let data_field = self.fresh_reg();
+        let length_field = self.fresh_reg();
+        let data = self.fresh_reg();
+        let length = self.fresh_reg();
+        let nonnegative = self.fresh_reg();
+        let below_length = self.fresh_reg();
+        let in_bounds = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{data_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 0\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{length_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 1\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{data} = load ptr, ptr %{data_field}, align 8\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{length} = load i32, ptr %{length_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!("  %{nonnegative} = icmp sge i32 {index}, 0\n"));
+        llvm_ir.push_str(&format!(
+            "  %{below_length} = icmp slt i32 {index}, %{length}\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{in_bounds} = and i1 %{nonnegative}, %{below_length}\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{in_bounds}, label %{valid_label}, label %{invalid_label}\n"
+        ));
+        llvm_ir.push_str(&format!("{valid_label}:\n"));
+        let index_i64 = self.fresh_reg();
+        let byte_address = self.fresh_reg();
+        let byte = self.fresh_reg();
+        let byte_i32 = self.fresh_reg();
+        llvm_ir.push_str(&format!("  %{index_i64} = zext i32 {index} to i64\n"));
+        llvm_ir.push_str(&format!(
+            "  %{byte_address} = getelementptr inbounds i8, ptr %{data}, i64 %{index_i64}\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{byte} = load i8, ptr %{byte_address}, align 1\n"
+        ));
+        llvm_ir.push_str(&format!("  %{byte_i32} = zext i8 %{byte} to i32\n"));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+        llvm_ir.push_str(&format!("{invalid_label}:\n"));
+        llvm_ir.push_str(&format!("  br label %{done_label}\n"));
+        llvm_ir.push_str(&format!("{done_label}:\n"));
+        llvm_ir.push_str(&format!(
+            "  %reg{result} = phi i32 [ %{byte_i32}, %{valid_label} ], [ -4, %{invalid_label} ]\n"
+        ));
+    }
+
+    fn emit_checked_byte_buffer_drop(&mut self, llvm_ir: &mut String, owner: &Value) {
+        let owner = self.byte_buffer_owner_place(owner);
+        let suffix = self.fresh_reg();
+        let release_label = format!("aero.bytes.drop.{suffix}.release");
+        let clear_label = format!("aero.bytes.drop.{suffix}.clear");
+        let data_field = self.fresh_reg();
+        let capacity_field = self.fresh_reg();
+        let data = self.fresh_reg();
+        let capacity = self.fresh_reg();
+        let has_allocation = self.fresh_reg();
+        llvm_ir.push_str(&format!(
+            "  %{data_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 0\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{capacity_field} = getelementptr inbounds %aero.byte_buffer, ptr %ptr{}, i32 0, i32 2\n",
+            owner.0
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{data} = load ptr, ptr %{data_field}, align 8\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{capacity} = load i32, ptr %{capacity_field}, align 4\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  %{has_allocation} = icmp ne ptr %{data}, null\n"
+        ));
+        llvm_ir.push_str(&format!(
+            "  br i1 %{has_allocation}, label %{release_label}, label %{clear_label}\n"
+        ));
+        llvm_ir.push_str(&format!("{release_label}:\n"));
+        let size = self.fresh_reg();
+        llvm_ir.push_str(&format!("  %{size} = zext i32 %{capacity} to i64\n"));
+        llvm_ir.push_str(&format!(
+            "  call void @aero_dealloc(ptr %{data}, i64 %{size})\n"
+        ));
+        llvm_ir.push_str(&format!("  br label %{clear_label}\n"));
+        llvm_ir.push_str(&format!("{clear_label}:\n"));
+        llvm_ir.push_str(&format!(
+            "  store %aero.byte_buffer zeroinitializer, ptr %ptr{}, align 8\n",
+            owner.0
+        ));
+    }
+
     fn uses_exact_i32_lane(&self) -> bool {
         self.language_profile.uses_exact_i32_lane()
     }
@@ -1095,7 +1507,8 @@ impl CodeGenerator {
             | LogicalType::Bool
             | LogicalType::Char
             | LogicalType::Void
-            | LogicalType::String => {}
+            | LogicalType::String
+            | LogicalType::ByteBuffer => {}
         }
         Ok(())
     }
@@ -1500,7 +1913,18 @@ impl CodeGenerator {
                 | Inst::CheckedEnumVariantFields { .. }
                 | Inst::CheckedEnumPayload { .. }
                 | Inst::CheckedEnumField { .. }
-                | Inst::CheckedEnumDispatch { .. } => {}
+                | Inst::CheckedEnumDispatch { .. }
+                | Inst::CheckedByteBufferNew { .. }
+                | Inst::CheckedByteBufferMove { .. }
+                | Inst::CheckedByteBufferImmutableBorrow { .. }
+                | Inst::CheckedByteBufferImmutableBorrowEnd { .. }
+                | Inst::CheckedByteBufferMutableBorrow { .. }
+                | Inst::CheckedByteBufferMutableBorrowEnd { .. }
+                | Inst::CheckedByteBufferPush { .. }
+                | Inst::CheckedByteBufferLength { .. }
+                | Inst::CheckedByteBufferCapacity { .. }
+                | Inst::CheckedByteBufferGet { .. }
+                | Inst::CheckedByteBufferDrop { .. } => {}
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
                     Self::ensure_instruction_support(body)?
                 }
@@ -1591,6 +2015,26 @@ impl CodeGenerator {
         })
     }
 
+    fn contains_checked_byte_buffer(instructions: &[Inst]) -> bool {
+        instructions.iter().any(|instruction| match instruction {
+            Inst::CheckedByteBufferNew { .. }
+            | Inst::CheckedByteBufferMove { .. }
+            | Inst::CheckedByteBufferImmutableBorrow { .. }
+            | Inst::CheckedByteBufferImmutableBorrowEnd { .. }
+            | Inst::CheckedByteBufferMutableBorrow { .. }
+            | Inst::CheckedByteBufferMutableBorrowEnd { .. }
+            | Inst::CheckedByteBufferPush { .. }
+            | Inst::CheckedByteBufferLength { .. }
+            | Inst::CheckedByteBufferCapacity { .. }
+            | Inst::CheckedByteBufferGet { .. }
+            | Inst::CheckedByteBufferDrop { .. } => true,
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                Self::contains_checked_byte_buffer(body)
+            }
+            _ => false,
+        })
+    }
+
     /// Verifies private IR and emits LLVM only after the complete program is admitted.
     pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
     where
@@ -1610,6 +2054,17 @@ impl CodeGenerator {
         let checked_ir = ir.into();
         let metadata =
             verify_checked_ir(&checked_ir).map_err(CodeGenerationError::IrVerification)?;
+        let contains_checked_byte_buffer = checked_ir
+            .raw()
+            .values()
+            .any(|function| Self::contains_checked_byte_buffer(&function.body));
+        if contains_checked_byte_buffer && !self.uses_exact_i32_lane() {
+            return Err(CodeGenerationError::LanguageProfileContract {
+                profile: self.language_profile,
+                detail: "checked byte-buffer resources require an exact i32 backend lane"
+                    .to_string(),
+            });
+        }
         self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw(), authenticated)?;
         Self::ensure_checked_codegen_support(checked_ir.raw())?;
 
@@ -1658,6 +2113,9 @@ impl CodeGenerator {
         let requires_array_bounds_trap = ir_functions
             .values()
             .any(|function| Self::contains_dynamic_checked_copy_array_index(&function.body));
+        let requires_byte_buffer_runtime = ir_functions
+            .values()
+            .any(|function| Self::contains_checked_byte_buffer(&function.body));
         let mut generic_enum_identities = BTreeSet::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_generic_enum_identities(metadata, &mut generic_enum_identities);
@@ -1690,6 +2148,12 @@ impl CodeGenerator {
             llvm_ir.push('\n');
         }
         self.generate_printf_declaration(&mut llvm_ir);
+        if requires_byte_buffer_runtime {
+            llvm_ir.push_str("%aero.byte_buffer = type { ptr, i32, i32 }\n");
+            llvm_ir.push_str("declare ptr @aero_alloc(i64)\n");
+            llvm_ir.push_str("declare ptr @aero_realloc(ptr, i64, i64)\n");
+            llvm_ir.push_str("declare void @aero_dealloc(ptr, i64)\n\n");
+        }
         if requires_array_bounds_trap {
             llvm_ir.push_str("declare void @llvm.trap()\n\n");
         }
@@ -1916,6 +2380,39 @@ impl CodeGenerator {
 
         for inst in instructions {
             match inst {
+                Inst::CheckedByteBufferNew { result, .. } => {
+                    self.emit_checked_byte_buffer_new(llvm_ir, result);
+                }
+                Inst::CheckedByteBufferMove { result, source, .. } => {
+                    self.emit_checked_byte_buffer_move(llvm_ir, result, source);
+                }
+                Inst::CheckedByteBufferImmutableBorrow { .. }
+                | Inst::CheckedByteBufferImmutableBorrowEnd { .. }
+                | Inst::CheckedByteBufferMutableBorrow { .. }
+                | Inst::CheckedByteBufferMutableBorrowEnd { .. } => {}
+                Inst::CheckedByteBufferPush {
+                    result,
+                    reference,
+                    byte,
+                } => {
+                    self.emit_checked_byte_buffer_push(llvm_ir, result, reference, byte);
+                }
+                Inst::CheckedByteBufferLength { result, reference } => {
+                    self.emit_checked_byte_buffer_length_or_capacity(llvm_ir, result, reference, 1);
+                }
+                Inst::CheckedByteBufferCapacity { result, reference } => {
+                    self.emit_checked_byte_buffer_length_or_capacity(llvm_ir, result, reference, 2);
+                }
+                Inst::CheckedByteBufferGet {
+                    result,
+                    reference,
+                    index,
+                } => {
+                    self.emit_checked_byte_buffer_get(llvm_ir, result, reference, index);
+                }
+                Inst::CheckedByteBufferDrop { owner } => {
+                    self.emit_checked_byte_buffer_drop(llvm_ir, owner);
+                }
                 Inst::CheckedMutableOwnedPlaceAlloca { result, ty, .. } => {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked mutable owned-place alloca")
@@ -3791,6 +4288,7 @@ mod tests {
                         reachable: true,
                         successors: Vec::new(),
                     }],
+                    byte_buffers: BTreeMap::new(),
                 },
             )]),
         });

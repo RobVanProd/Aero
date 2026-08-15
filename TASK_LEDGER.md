@@ -1,5 +1,178 @@
 # Aero Task Ledger
 
+## CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE - verifier-owned byte storage substrate
+
+- Date/task/status: 2026-08-15,
+  `CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE`, locally green implementation
+  candidate with preserved ledger-first and corruption-red-first history from
+  exact accepted R1A merge
+  `d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
+  `dbac56574f079b357c3459e6fbde3ad328a78acf`, on
+  `agent/r1b-owned-byte-resource` in the D:-resident worktree
+  `D:\Aero-worktrees\r1b-owned-byte-resource`. The accepted R1A candidate was
+  `9a422eed653a9e0a80fdf264a50cc68d9d42c16a`; candidate and merge have the
+  same tree, the candidate-versus-merge diff is empty, all 12 candidate checks
+  passed, and the exact merge's CI, stable/nightly Rust, Windows LLVM 22 native,
+  CodeQL, and accepted-head evidence workflows are terminal-success.
+- Observed behavior and first honest failure: R1A now supplies and links the
+  three-symbol allocator ABI, but no application LLVM declares or calls it.
+  `LogicalType` has no byte-owner identity, every historical `Inst::Vec*`
+  remains rejected by the checked verifier and backend, and there is no checked
+  allocation, move, loan, initialized-range, growth, or destruction operation.
+  The first R1B regression is therefore the absent checked-resource schema and
+  verifier/backend authority, not a source parser or semantic diagnostic.
+  Accepted source still rejects `Vec::new()` as
+  ``Semantic Analysis Error: enum `Vec` has no unique admitted definition`` and
+  `vec![]` as
+  `IR Generation Error: empty array literals have no admitted logical element type`.
+- Hypothesis and two-phase boundary: R1B is feasible as one checked-IR/verifier
+  phase plus one LLVM backend phase. The shared checked schema may add a
+  dedicated logical resource and metadata, while the independent verifier
+  derives resource identity and proves lifecycle/loan control flow before the
+  backend consumes that metadata. Parser, AST, source types, semantic analysis,
+  IR generation, selected-profile admission, CLI syntax, cache identity,
+  allocator runtime sources, and driver linking remain frozen. Exhaustive
+  matches outside the two active phases may receive only explicit fail-closed or
+  observation-neutral `ByteBuffer` arms required by the shared enum; those arms
+  are not new consumers and may not admit, infer, normalize, lay out, or emit the
+  resource.
+- Frozen logical and metadata schema: add exactly `LogicalType::ByteBuffer`. It
+  is neither CopyData nor an enum, aggregate, reference signature, source type,
+  function parameter/result, or generally loadable/storable value. Dedicated
+  verifier metadata assigns each empty-owner creation a deterministic
+  `ByteBufferId` independent of names and raw register coincidence. Every owner
+  destination and loan place is bound to that identity and an exact role:
+  original owner, moved owner with its source place, immutable loan with its
+  source owner, or mutable loan with its source owner. Backend correlation uses
+  only this re-derived metadata after successful verification.
+- Frozen checked instruction set: add dedicated instructions only for empty
+  local owner creation, local-to-local move, immutable loan start/end, mutable
+  loan start/end, push, length, capacity, get, and drop. Owner and loan results
+  are place identities; push/length/capacity/get results are exact logical Int
+  values. Push returns the new positive length on success or `-1`, `-2`, `-3`
+  for invalid byte, allocator failure, or capacity overflow. Get returns the
+  zero-extended byte `0..=255` on success or `-4` for bounds failure. These are a
+  private checked-IR encoding; future R1C must map them exactly to
+  `Ok(value)`/`Err(1..=4)` and may not expose negative error values as the source
+  API. Length and capacity are nonnegative exact i32 values.
+- Frozen verifier lifecycle: each reachable path begins with no resources.
+  Empty creation establishes one live owner. A move requires the exact current
+  owner, no live loan, and transfers the same identity to a new owner place;
+  the old place is thereafter unusable. Immutable loans require the current live
+  owner and no exclusive loan; multiple exact shared loans may coexist and each
+  must end with its own reference/source pair. A mutable loan requires no live
+  loan; while it is active only its exact push operations and matching end are
+  permitted. Length/capacity/get require an active exact immutable loan.
+  Mutation, move, or drop under any shared loan and every other access under an
+  exclusive loan are rejected. Drop requires the current owner and no loan and
+  is exactly once. Use after move/drop, duplicate move/drop, mismatched or
+  duplicate loan end, forged types/roles/identities, generic load/store/borrow,
+  and all historical Vec instructions are rejected.
+- Frozen control-flow rule: the verifier runs a deterministic forward worklist
+  over reachable checked blocks. Complete resource state—including absent,
+  current owner place, active shared-reference set, exclusive reference, and
+  dropped state—must be exactly equal at every join and loop backedge. A
+  reachable return requires every created resource dropped and every loan ended.
+  Thus branch/loop-local creation, conditional move/drop, missing drop, live
+  loan at return, or divergent identity is fail-closed. One outer live owner may
+  traverse a loop only when the backedge restores the exact incoming state.
+  Checked get is the sole byte read and backend bounds-checks against current
+  initialized length; no unchecked pointer/value instruction may substitute.
+- Frozen physical/backend contract: after re-verification, emit one private
+  `%aero.byte_buffer = type { ptr, i32, i32 }` descriptor and declare the exact
+  accepted R1A `aero_alloc(i64)`, `aero_realloc(ptr,i64,i64)`, and
+  `aero_dealloc(ptr,i64)` symbols only for modules containing verified byte
+  instructions. Empty is `(null,0,0)`. Move copies the descriptor and zeros the
+  source. Push checks the i32 byte before allocation, grows 0 to 8 then doubles
+  without exceeding `i32::MAX`, preserves all state on failure, writes one i8,
+  and increments length only on success. Get checks `0 <= index < length`, loads
+  one i8, and zero-extends to i32. Drop skips null, otherwise supplies the exact
+  capacity as i64 once, then zeros the descriptor. Internal LLVM blocks use a
+  backend-only label namespace impossible for admitted source labels. No host
+  collection, fallback allocator, trap, panic, overcommit oracle, hidden
+  deallocation, or unchecked reconstruction from instruction spelling exists.
+- Red-first and acceptance evidence: first add a focused public structural/
+  compatibility test that keeps all four accepted profile LLVM bytes, exact Vec
+  diagnostics, absence of allocator declarations from ordinary source, and the
+  accepted R1A runtime/driver hashes fixed, and whose sole intended failure is
+  the absent R1B authority. Before green, add crate-private checked-IR tests that
+  construct valid programs directly and mutate every type, identity, move,
+  drop, loan, access, join, backedge, and initialized-range boundary. Each
+  corruption must fail deterministically before codegen; a forged checked
+  wrapper must reverify and fail. Valid empty/drop, move/drop, shared reads,
+  exclusive push, allocation failure, failed reallocation with preserved prefix,
+  and outer-owner loop programs must verify. LLVM must be deterministic, pass
+  LLVM 22 verification, and link against mock C runtimes whose exit/counter/
+  exact-size assertions prove success, failure preservation, and exactly-once
+  drop on Linux and Windows. Existing Vec instructions remain independently red.
+- Exact allowed files: `TASK_LEDGER.md`, `SELF_HOSTING_ROADMAP.md`,
+  `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`,
+  `src/compiler/src/ir.rs`, `src/compiler/src/ir_verifier.rs`,
+  `src/compiler/src/code_generator.rs`, test-only module wiring in
+  `src/compiler/src/lib.rs`, new
+  `src/compiler/src/owned_byte_buffer_contract_test.rs`, and new
+  `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs`. The only
+  additionally allowed production edits are mechanical shared-enum
+  exhaustiveness arms in `src/compiler/src/copy_data_layout.rs`,
+  `src/compiler/src/enum_match_contract.rs`,
+  `src/compiler/src/language_profile.rs`,
+  `src/compiler/src/resolved_profile_authentication.rs`, and
+  `src/compiler/src/resolved_profile_shape.rs`; each must leave `ByteBuffer`
+  excluded or leaf-neutral. No other file may change.
+- Compatibility boundary: no `ByteBuffer` token or behavior may enter
+  `ast.rs`, `types.rs`, `parser.rs`, `semantic_analyzer.rs`, `ir_generator.rs`,
+  any source profile selector, CLI option, cache key, module/import behavior,
+  runtime C source, driver, workflow, manifest, lockfile, example, claim
+  evidence, package, release, ROCm, or CUDA path. Existing source diagnostics,
+  checked IR, metadata, Debug output, all four profile LLVM bytes, cache results,
+  native exits/output, and invalid-program fail-before-backend order remain
+  exact. R1B alone exposes no source owner and does not close R1.
+- Risks and mandatory stops: stop if resource identity needs source inference or
+  event IDs; exact joins cannot be proven without widening the IR generator; a
+  function parameter/result or nested owner becomes necessary; a third compiler
+  phase gains behavior; any existing profile/source result changes; generic
+  load/store/borrow can access the descriptor; codegen can run before lifecycle
+  verification; the backend needs new runtime/driver facts; deterministic
+  allocator failure or failed-reallocation preservation cannot be proved;
+  Linux/Windows ABI or LLVM differs; runtime-sized memory is hidden in Rust;
+  accepted Vec rejection weakens; or any unlisted file is required. Do not add
+  source syntax to make the tests convenient. R1B is a substrate checkpoint, not
+  owned input, collection support, memory-safety, self-hosting, release,
+  performance, or accelerator execution.
+- Checkpoint history and implementation summary: ledger-only commit
+  `7bff34a` froze this contract. Red-test commit `426399f` ran the public focused
+  target 2 tests with 1 pass and exactly one intended failure: absent
+  `ByteBuffer,` in the checked schema. The current implementation adds all
+  eleven dedicated instructions, deterministic identity/role metadata, exact
+  resource-flow verification, backend lowering through the accepted R1A ABI,
+  and crate-private corruption plus native evidence. Generic access and
+  transport remain rejected, checked wrappers are reverified, and runtime
+  symbols are reserved only in programs that contain the private resource.
+- Local evidence: `cargo test --lib owned_byte_buffer_contract_test` passes 7/7;
+  `cargo test --test owned_byte_buffer_checked_resource_tests` passes 2/2;
+  the full library target passes 299/299; and
+  `cargo clippy --all-targets -- -D clippy::correctness` exits zero. The root
+  `./tools/test.sh` gate passes all 299 library tests, 35 binary tests, every
+  integration/native/system target, the pinned Windows LLVM 22 system gate, and
+  doc tests. LLVM 22 verifies deterministic resource modules. Native C/LLVM
+  fixtures prove allocate/grow/read/drop, injected allocation failure, failed
+  reallocation with preserved prefix, invalid-byte prevalidation, empty bounds
+  failure, exact allocator call/size counters, and zero live allocations.
+- Files changed by the implementation candidate: the three behavioral files
+  `src/compiler/src/ir.rs`, `src/compiler/src/ir_verifier.rs`, and
+  `src/compiler/src/code_generator.rs`; test-only wiring and the new
+  `src/compiler/src/owned_byte_buffer_contract_test.rs`; the focused committed
+  integration test; the five enumerated fail-closed shared-enum arms; and the
+  four truth/ledger documents. No unlisted file changed. Remaining uncertainty
+  is protected Linux/Windows candidate, merge-tree, and accepted-head replay;
+  those are required before R1B becomes accepted or R1C may start.
+- Storage rule: all task-created worktrees, Cargo targets, temp workspaces,
+  probes, logs, generated LLVM, C mocks, objects, executables, and PR files stay
+  on D:, respectively `D:\Aero-worktrees\r1b-owned-byte-resource`,
+  `D:\Aero-build-targets\r1b`, and `D:\Aero-temp\r1b`. Installed tools on C:
+  are read-only dependencies; no task artifact or cache is intentionally written
+  there.
+
 ## CAP-036-R1A-ALLOCATOR-RUNTIME-ABI - replaceable CPU allocator link boundary
 
 - Date/task/status: 2026-08-15,

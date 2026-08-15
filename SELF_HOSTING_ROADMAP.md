@@ -4,9 +4,9 @@ Last reviewed: 2026-08-15 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is CAP-035 merge
-`da2ad95d4a1db3a991128a63223c82639d24ff2a`, tree
-`fb4739291690efa5c940d929f69435b063ea67f6`.
+The current accepted baseline is R1A merge
+`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
+`dbac56574f079b357c3459e6fbde3ad328a78acf`.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -66,23 +66,33 @@ downstream exhaustive matches to add the new arm or a catch-all.
 The first hard runtime blocker is **R1: owned bytes**. Legacy Vec-shaped IR names
 exist in [`ir.rs`](src/compiler/src/ir.rs), but the checked verifier and backend
 deliberately reject every Vec instruction. They are dormant historical surface,
-not an allocator, collection contract, or implementation. The LLVM backend
-declares `printf` and `llvm.trap`; it has no accepted `malloc`, `realloc`,
-`free`, or file-read runtime path. Accepted source probes also show that
+not an allocator, collection contract, or implementation. Accepted ordinary
+source LLVM declares `printf` and conditional `llvm.trap` but emits no allocator
+or file-read call; R1A's accepted runtime is therefore unreachable from source.
+Accepted source probes also show that
 `Vec::new()` is parsed as an unresolved enum constructor while `vec![]` is
 erased into fixed-array syntax. CAP-035 now freezes the three-step readiness
 route in [`OWNED_BYTE_BUFFER_READINESS.md`](OWNED_BYTE_BUFFER_READINESS.md): R1A
 runtime ABI, R1B checked resource/verifier/backend, then R1C source/profile.
 
-**R1A is now a locally green candidate.** Its production C11 allocator is
-embedded into the compiler, compiled inside the isolated CPU run directory,
-and explicitly linked on both native driver paths. A separately linked test
-runtime supplies deterministic fail-after behavior and exact call/live/size
-counters. Focused native harnesses, all 292 library tests, the 35 binary tests,
-every integration/native/system target, doc tests, and correctness Clippy pass.
-Protected candidate and accepted-head Linux/Windows evidence remain
-required, so this is not yet an accepted checkpoint and exposes no source
-`ByteBuffer`.
+**R1A is accepted.** Candidate
+`9a422eed653a9e0a80fdf264a50cc68d9d42c16a` merged as
+`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`; their trees are identical, all 12
+candidate checks passed, and the merge's CI, stable/nightly Rust, Windows LLVM
+22 native, CodeQL, and accepted-head evidence workflows are green. Its embedded
+C11 runtime and deterministic test runtime establish the allocator/link
+boundary without admitting source storage.
+
+**R1B is now a locally green candidate.** It adds the private
+`LogicalType::ByteBuffer`, eleven dedicated checked instructions, deterministic
+resource identities, exact owner/loan control-flow verification, and verified
+LLVM lowering to `%aero.byte_buffer = type { ptr, i32, i32 }`. Native tests prove
+allocation, growth, byte reads, injected allocation/reallocation failure with
+state preservation, exact-size deallocation, and no leaks. The full root gate
+passes with 299 library and 35 binary tests plus every integration/native/system
+target and doc tests. Parser, semantics, IR generation, public profiles, runtime
+sources, and the CPU driver remain unchanged; no source program can construct
+the resource before R1C. Protected candidate/merge evidence is still required.
 
 ## Dependency path
 
@@ -121,7 +131,7 @@ compiler project rather than only a bootstrap bundle.
 | S0 — trusted bootstrap baseline | **Accepted** | Protected Rust compiler checkpoint with one checked preparation route, independent checked-IR verification, deterministic selected-profile LLVM, and native gates | Exact accepted commit/tree, full root gate, stable/nightly, Windows LLVM 22, CodeQL, and accepted-head workflow evidence | The Rust compiler is not self-hosted and the whole language is not stable |
 | K1 — bounded compiler kernel | **Accepted** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; protected Linux/Windows O0/O2 native parity; exact candidate/merge/post-merge evidence | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
 | P1 — selected compiler subset | **Accepted** | A post-semantic exact profile for the frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles; protected Linux/Windows O0/O2 product exits 91 | No general enums, generics, references, modules, allocation, ABI, or broad stability |
-| R1 — owned bytes | **Blocked; CAP-035 accepted, R1A local candidate** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; sanitizer or equivalent runtime evidence | Dormant Vec IR, fixed arrays, and simplified stdlib helpers do not satisfy this gate |
+| R1 — owned bytes | **Blocked; R1A accepted, R1B local candidate** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; sanitizer or equivalent runtime evidence | A private checked resource, dormant Vec IR, fixed arrays, and simplified stdlib helpers do not satisfy the source-visible gate |
 | R2 — host byte input | **Blocked on R1** | Deterministic whole-stream byte ingestion, preferably stdin before general path semantics | Empty/short/large input, partial reads, EOF, invalid length, I/O failure, Linux/Windows parity, no uninitialized bytes | `println!`/`printf` output is not input or file I/O |
 | D1 — compiler data model | **Future** | Owned token storage, interned or owned names, maps/sets required by scopes, and a flat append-only AST arena using integer node IDs | Growth/failure/drop evidence; cycle-free arena validation; deterministic iteration; large-source stress; no host collection substitution | The current Rust `String`/`Vec`/`Box` AST is not available to Aero source |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
@@ -136,7 +146,7 @@ compiler project rather than only a bootstrap bundle.
 | Gap | Current repository evidence | Owning work before the gate can close |
 |---|---|---|
 | Runtime-sized source bytes | Selected exact execution uses fixed nonempty integer arrays. General runtime/file input remains excluded. | R1 then R2; do not widen fixed-array evidence into a runtime-ingestion claim |
-| Allocation and destruction | CAP-035 freezes the contract and the R1A local candidate supplies a replaceable CPU allocator/link object, but no allocator call is emitted and no checked owner/drop path exists. Vec instructions at `ir.rs:358-383` remain rejected at `ir_verifier.rs:867-873` and `code_generator.rs:1517-1551`. | Protect R1A, then close R1B checked-resource and R1C source/profile independently |
+| Allocation and destruction | Accepted R1A supplies the replaceable CPU allocator/link object. The R1B local candidate emits allocator calls only for verifier-proven private byte-resource IR and proves move/loan/drop state, while historical Vec instructions remain rejected. No source construct produces that IR. | Protect R1B, then close R1C source/profile without widening the historical Vec surface |
 | Owned text and names | The Rust lexer builds `String` values and returns `Vec<LocatedToken>`; Aero runtime String ownership is not accepted. | Byte buffer first, then an explicit UTF-8/ASCII and owned-name contract; the first bootstrap subset may remain documented ASCII |
 | Recursive compiler data | `ast.rs` uses `String`, `Vec`, and `Box` throughout expressions, statements, patterns, types, and blocks. | Prefer D1 flat arenas and integer IDs before recursive heap objects |
 | Compiler-safe selected surface | Accepted `exact-i32-record-result-v0` admits only the frozen record/Result application surface and still rejects allocation, modules, I/O, and dynamic storage. | R1C gets a new explicit profile rather than changing P1 or earlier profiles |
@@ -185,16 +195,18 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Finish and protect **R1A** at its exact candidate: full root gate, deterministic
-allocator failure/counters, Linux and Windows CPU runtime linking, exact merge
-tree, and accepted-head replay. It must remain source/IR/profile neutral.
+Finish and protect **R1B** at its exact candidate: preserve the corruption-red
+history, full root gate, deterministic LLVM, mock-runtime allocation/failure/
+drop evidence, exact merge tree, and accepted-head Linux/Windows replay. It must
+remain source-, parser-, semantic-, IR-generator-, runtime-, driver-, and
+existing-profile-neutral.
 
-Then authorize **R1B** from the accepted R1A head. R1B may add only the dedicated
-checked owned-byte resource, verifier lifecycle/loan authority, and backend
-lowering; it must not admit `ByteBuffer` source syntax. Stop rather than use an
-overcommit-sized failure oracle, hide allocation behind host collections,
-discover a runtime from the working directory, cross a third compiler phase, or
-claim owned bytes before R1B and R1C are independently protected.
+Then authorize **R1C** from the accepted R1B head. R1C is the first checkpoint
+allowed to add the bounded `ByteBuffer` source API, semantic ownership facts,
+checked-IR production, compiler-inserted cleanup, and the new fail-closed
+`exact-i32-byte-buffer-v0` profile. Stop rather than bypass verified metadata,
+hide storage behind host collections, change the R1A ABI/R1B backend, cross the
+frozen phase limit, or claim R1 before R1C is independently protected.
 
 ## Deliberately absent schedule
 

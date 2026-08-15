@@ -248,6 +248,7 @@ fn exact_record_result_non_enum_shape(
         | LogicalType::Char
         | LogicalType::Void
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
         | LogicalType::Tuple { .. }

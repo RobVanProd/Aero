@@ -693,7 +693,8 @@ fn collect_metadata_nominals(
             | LogicalType::Bool
             | LogicalType::Char
             | LogicalType::Void
-            | LogicalType::String => {}
+            | LogicalType::String
+            | LogicalType::ByteBuffer => {}
         }
     }
     Ok(())

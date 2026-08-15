@@ -1686,6 +1686,7 @@ fn candidate_shape(logical: &LogicalType) -> bool {
         LogicalType::Float
         | LogicalType::Char
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
         | LogicalType::Tuple { .. }
@@ -1707,6 +1708,7 @@ fn candidate_non_carrier_shape(logical: &LogicalType) -> bool {
         | LogicalType::Char
         | LogicalType::Void
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
         | LogicalType::Tuple { .. }
@@ -1735,7 +1737,8 @@ fn logical_children(logical: &LogicalType) -> Vec<&LogicalType> {
         | LogicalType::Bool
         | LogicalType::Char
         | LogicalType::Void
-        | LogicalType::String => Vec::new(),
+        | LogicalType::String
+        | LogicalType::ByteBuffer => Vec::new(),
     }
 }
 
