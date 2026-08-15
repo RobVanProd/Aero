@@ -1,5 +1,6 @@
 use crate::ast::{
-    AstNode, Block, Expression, MatchArm, Pattern, Statement, Type, VariantDecl, VariantDeclKind,
+    AstNode, BinaryOp, Block, ComparisonOp, Expression, ImportSyntax, LogicalOp, MatchArm, Pattern,
+    Statement, Type, UnaryOp, VariantDecl, VariantDeclKind,
 };
 use crate::builtin_carrier_contract::private_carrier_source_name;
 use crate::enum_match_contract::{EnumExecutionContext, EnumRegistry};
@@ -138,6 +139,166 @@ pub(crate) enum ResolvedProfileOperation {
     },
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileSurfaceObservation {
+    Statement(ResolvedProfileStatementKind),
+    Expression(ResolvedProfileExpressionKind),
+    Pattern(ResolvedProfilePatternKind),
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileStatementKind {
+    Const,
+    Let {
+        mutable: bool,
+        annotated: bool,
+        initialized: bool,
+    },
+    Assignment {
+        target: ResolvedProfileAssignmentTarget,
+    },
+    Return {
+        has_value: bool,
+    },
+    Expression,
+    Block,
+    Function {
+        top_level: bool,
+        generic: bool,
+        trait_bounded: bool,
+        explicit_result: bool,
+    },
+    If {
+        has_else: bool,
+    },
+    While,
+    For,
+    Loop,
+    Break,
+    Continue,
+    StructDefinition {
+        generic: bool,
+    },
+    EnumDefinition {
+        generic: bool,
+        trait_bounded: bool,
+    },
+    ImplBlock {
+        generic: bool,
+        trait_impl: bool,
+    },
+    TraitDefinition {
+        generic: bool,
+    },
+    ModuleDeclaration {
+        public: bool,
+    },
+    UseImport {
+        founding_syntax: bool,
+        aliased: bool,
+    },
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileExpressionKind {
+    IntegerLiteral,
+    FloatLiteral,
+    CharacterLiteral,
+    StringLiteral,
+    Identifier,
+    Binary(ResolvedProfileBinaryOperator),
+    FunctionCall,
+    MethodCall,
+    Print,
+    Println,
+    Comparison(ResolvedProfileComparisonOperator),
+    Logical(ResolvedProfileLogicalOperator),
+    Unary(ResolvedProfileUnaryOperator),
+    ArrayLiteral,
+    ArrayRepeat,
+    IndexAccess,
+    FieldAccess,
+    TupleLiteral,
+    TupleIndex,
+    StructLiteral,
+    EnumVariant { parenthesized: bool },
+    Match,
+    Borrow { mutable: bool },
+    Dereference,
+    Closure,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileBinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileComparisonOperator {
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessEqual,
+    GreaterEqual,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileLogicalOperator {
+    And,
+    Or,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileUnaryOperator {
+    Not,
+    Negate,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedProfilePatternKind {
+    Wildcard,
+    Literal,
+    Identifier,
+    Tuple,
+    Struct,
+    Enum { parenthesized: bool },
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResolvedProfileAssignmentTarget {
+    pub(crate) root: ResolvedProfileAssignmentRoot,
+    pub(crate) projections: Vec<ResolvedProfileAssignmentProjection>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileAssignmentRoot {
+    Identifier,
+    Other,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ResolvedProfileAssignmentProjection {
+    Field,
+    Index,
+    Dereference,
+}
+
 /// Immutable logical facts produced after successful semantic analysis.
 ///
 /// This is deliberately not a profile decision and owns no physical layout.
@@ -150,6 +311,7 @@ pub(crate) struct ResolvedProfileProgram {
     pub(crate) nominals: Vec<ResolvedProfileNominal>,
     pub(crate) uses: Vec<ResolvedProfileUse>,
     pub(crate) operations: Vec<ResolvedProfileOperation>,
+    pub(crate) surface: Vec<ResolvedProfileSurfaceObservation>,
 }
 
 impl ResolvedProfileProgram {
@@ -179,6 +341,7 @@ where
     nominals: Vec<ResolvedProfileNominal>,
     uses: Vec<ResolvedProfileUse>,
     operations: Vec<ResolvedProfileOperation>,
+    surface: Vec<ResolvedProfileSurfaceObservation>,
     validated_carriers: BTreeSet<String>,
     binding_scopes: Vec<BTreeMap<String, Option<ResolvedProfileResolution>>>,
     function: Option<ResolvedProfileOrigin>,
@@ -202,6 +365,7 @@ where
             nominals: Vec::new(),
             uses: Vec::new(),
             operations: Vec::new(),
+            surface: Vec::new(),
             validated_carriers: BTreeSet::new(),
             binding_scopes: vec![BTreeMap::new()],
             function: None,
@@ -221,6 +385,7 @@ where
             nominals: self.nominals,
             uses: self.uses,
             operations: self.operations,
+            surface: self.surface,
         }
     }
 
@@ -420,6 +585,10 @@ where
     }
 
     fn walk_statement(&mut self, statement: &Statement, is_top_level: bool) {
+        self.surface
+            .push(ResolvedProfileSurfaceObservation::Statement(
+                statement_kind(statement, is_top_level),
+            ));
         match statement {
             Statement::Const {
                 name,
@@ -540,9 +709,19 @@ where
                         parameters,
                         return_type,
                         body,
-                        ..
+                        type_params,
+                        trait_bounds,
                     } = method
                     {
+                        self.surface
+                            .push(ResolvedProfileSurfaceObservation::Statement(
+                                ResolvedProfileStatementKind::Function {
+                                    top_level: false,
+                                    generic: !type_params.is_empty(),
+                                    trait_bounded: !trait_bounds.is_empty(),
+                                    explicit_result: return_type.is_some(),
+                                },
+                            ));
                         self.walk_preserved_method(
                             ResolvedProfileOrigin::ImplMethod {
                                 type_name: type_name.clone(),
@@ -558,6 +737,15 @@ where
             }
             Statement::TraitDef { name, methods, .. } => {
                 for method in methods {
+                    self.surface
+                        .push(ResolvedProfileSurfaceObservation::Statement(
+                            ResolvedProfileStatementKind::Function {
+                                top_level: false,
+                                generic: false,
+                                trait_bounded: false,
+                                explicit_result: method.return_type.is_some(),
+                            },
+                        ));
                     self.walk_preserved_method(
                         ResolvedProfileOrigin::TraitMethod {
                             trait_name: name.clone(),
@@ -713,6 +901,10 @@ where
         expected: Option<ResolvedProfileResolution>,
         record_expected_value: bool,
     ) {
+        self.surface
+            .push(ResolvedProfileSurfaceObservation::Expression(
+                expression_kind(expression),
+            ));
         if record_expected_value {
             if let Some(expected) = &expected {
                 self.record_use(ProfileTypeUse::Value, None, expected.clone());
@@ -978,9 +1170,36 @@ where
             });
         for arm in arms {
             self.push_scope();
+            self.walk_pattern(&arm.pattern);
             bind_pattern_names(&arm.pattern, |name| self.bind(name, None));
             self.walk_expression(&arm.body, result.clone(), result.is_some());
             self.pop_scope();
+        }
+    }
+
+    fn walk_pattern(&mut self, pattern: &Pattern) {
+        self.surface
+            .push(ResolvedProfileSurfaceObservation::Pattern(pattern_kind(
+                pattern,
+            )));
+        match pattern {
+            Pattern::Literal(expression) => self.walk_expression(expression, None, false),
+            Pattern::Tuple(patterns) => {
+                for pattern in patterns {
+                    self.walk_pattern(pattern);
+                }
+            }
+            Pattern::Struct { fields, .. } => {
+                for (_, pattern) in fields {
+                    self.walk_pattern(pattern);
+                }
+            }
+            Pattern::Enum { data, .. } => {
+                for pattern in data.as_deref().unwrap_or_default() {
+                    self.walk_pattern(pattern);
+                }
+            }
+            Pattern::Wildcard | Pattern::Identifier(_) => {}
         }
     }
 
@@ -1134,6 +1353,197 @@ where
             }
         }
         None
+    }
+}
+
+fn statement_kind(statement: &Statement, is_top_level: bool) -> ResolvedProfileStatementKind {
+    match statement {
+        Statement::Const { .. } => ResolvedProfileStatementKind::Const,
+        Statement::Let {
+            mutable,
+            type_annotation,
+            value,
+            ..
+        } => ResolvedProfileStatementKind::Let {
+            mutable: *mutable,
+            annotated: type_annotation.is_some(),
+            initialized: value.is_some(),
+        },
+        Statement::Assignment { target, .. } => ResolvedProfileStatementKind::Assignment {
+            target: assignment_target(target),
+        },
+        Statement::Return(value) => ResolvedProfileStatementKind::Return {
+            has_value: value.is_some(),
+        },
+        Statement::Expression(_) => ResolvedProfileStatementKind::Expression,
+        Statement::Block(_) => ResolvedProfileStatementKind::Block,
+        Statement::Function {
+            return_type,
+            type_params,
+            trait_bounds,
+            ..
+        } => ResolvedProfileStatementKind::Function {
+            top_level: is_top_level,
+            generic: !type_params.is_empty(),
+            trait_bounded: !trait_bounds.is_empty(),
+            explicit_result: return_type.is_some(),
+        },
+        Statement::If { else_block, .. } => ResolvedProfileStatementKind::If {
+            has_else: else_block.is_some(),
+        },
+        Statement::While { .. } => ResolvedProfileStatementKind::While,
+        Statement::For { .. } => ResolvedProfileStatementKind::For,
+        Statement::Loop { .. } => ResolvedProfileStatementKind::Loop,
+        Statement::Break => ResolvedProfileStatementKind::Break,
+        Statement::Continue => ResolvedProfileStatementKind::Continue,
+        Statement::StructDef { type_params, .. } => {
+            ResolvedProfileStatementKind::StructDefinition {
+                generic: !type_params.is_empty(),
+            }
+        }
+        Statement::EnumDef {
+            type_params,
+            trait_bounds,
+            ..
+        } => ResolvedProfileStatementKind::EnumDefinition {
+            generic: !type_params.is_empty(),
+            trait_bounded: !trait_bounds.is_empty(),
+        },
+        Statement::ImplBlock {
+            type_params,
+            trait_name,
+            ..
+        } => ResolvedProfileStatementKind::ImplBlock {
+            generic: !type_params.is_empty(),
+            trait_impl: trait_name.is_some(),
+        },
+        Statement::TraitDef { type_params, .. } => ResolvedProfileStatementKind::TraitDefinition {
+            generic: !type_params.is_empty(),
+        },
+        Statement::ModDecl { is_public, .. } => {
+            ResolvedProfileStatementKind::ModuleDeclaration { public: *is_public }
+        }
+        Statement::UseImport { syntax, alias, .. } => ResolvedProfileStatementKind::UseImport {
+            founding_syntax: matches!(syntax, ImportSyntax::FoundingDottedImport),
+            aliased: alias.is_some(),
+        },
+    }
+}
+
+fn expression_kind(expression: &Expression) -> ResolvedProfileExpressionKind {
+    match expression {
+        Expression::IntegerLiteral(_) => ResolvedProfileExpressionKind::IntegerLiteral,
+        Expression::FloatLiteral(_) => ResolvedProfileExpressionKind::FloatLiteral,
+        Expression::CharacterLiteral(_) => ResolvedProfileExpressionKind::CharacterLiteral,
+        Expression::StringLiteral(_) => ResolvedProfileExpressionKind::StringLiteral,
+        Expression::Identifier(_) => ResolvedProfileExpressionKind::Identifier,
+        Expression::Binary { op, .. } => ResolvedProfileExpressionKind::Binary(binary_operator(op)),
+        Expression::FunctionCall { .. } => ResolvedProfileExpressionKind::FunctionCall,
+        Expression::MethodCall { .. } => ResolvedProfileExpressionKind::MethodCall,
+        Expression::Print { .. } => ResolvedProfileExpressionKind::Print,
+        Expression::Println { .. } => ResolvedProfileExpressionKind::Println,
+        Expression::Comparison { op, .. } => {
+            ResolvedProfileExpressionKind::Comparison(comparison_operator(op))
+        }
+        Expression::Logical { op, .. } => {
+            ResolvedProfileExpressionKind::Logical(logical_operator(op))
+        }
+        Expression::Unary { op, .. } => ResolvedProfileExpressionKind::Unary(unary_operator(op)),
+        Expression::ArrayLiteral(_) => ResolvedProfileExpressionKind::ArrayLiteral,
+        Expression::ArrayRepeat { .. } => ResolvedProfileExpressionKind::ArrayRepeat,
+        Expression::IndexAccess { .. } => ResolvedProfileExpressionKind::IndexAccess,
+        Expression::FieldAccess { .. } => ResolvedProfileExpressionKind::FieldAccess,
+        Expression::TupleLiteral(_) => ResolvedProfileExpressionKind::TupleLiteral,
+        Expression::TupleIndex { .. } => ResolvedProfileExpressionKind::TupleIndex,
+        Expression::StructLiteral { .. } => ResolvedProfileExpressionKind::StructLiteral,
+        Expression::EnumVariant { data, .. } => ResolvedProfileExpressionKind::EnumVariant {
+            parenthesized: data.is_some(),
+        },
+        Expression::Match { .. } => ResolvedProfileExpressionKind::Match,
+        Expression::Borrow { mutable, .. } => {
+            ResolvedProfileExpressionKind::Borrow { mutable: *mutable }
+        }
+        Expression::Deref(_) => ResolvedProfileExpressionKind::Dereference,
+        Expression::Closure { .. } => ResolvedProfileExpressionKind::Closure,
+    }
+}
+
+fn pattern_kind(pattern: &Pattern) -> ResolvedProfilePatternKind {
+    match pattern {
+        Pattern::Wildcard => ResolvedProfilePatternKind::Wildcard,
+        Pattern::Literal(_) => ResolvedProfilePatternKind::Literal,
+        Pattern::Identifier(_) => ResolvedProfilePatternKind::Identifier,
+        Pattern::Tuple(_) => ResolvedProfilePatternKind::Tuple,
+        Pattern::Struct { .. } => ResolvedProfilePatternKind::Struct,
+        Pattern::Enum { data, .. } => ResolvedProfilePatternKind::Enum {
+            parenthesized: data.is_some(),
+        },
+    }
+}
+
+fn assignment_target(expression: &Expression) -> ResolvedProfileAssignmentTarget {
+    fn classify(
+        expression: &Expression,
+        projections: &mut Vec<ResolvedProfileAssignmentProjection>,
+    ) -> ResolvedProfileAssignmentRoot {
+        match expression {
+            Expression::Identifier(_) => ResolvedProfileAssignmentRoot::Identifier,
+            Expression::FieldAccess { object, .. } => {
+                let root = classify(object, projections);
+                projections.push(ResolvedProfileAssignmentProjection::Field);
+                root
+            }
+            Expression::IndexAccess { object, .. } => {
+                let root = classify(object, projections);
+                projections.push(ResolvedProfileAssignmentProjection::Index);
+                root
+            }
+            Expression::Deref(inner) => {
+                let root = classify(inner, projections);
+                projections.push(ResolvedProfileAssignmentProjection::Dereference);
+                root
+            }
+            _ => ResolvedProfileAssignmentRoot::Other,
+        }
+    }
+
+    let mut projections = Vec::new();
+    let root = classify(expression, &mut projections);
+    ResolvedProfileAssignmentTarget { root, projections }
+}
+
+fn binary_operator(operator: &BinaryOp) -> ResolvedProfileBinaryOperator {
+    match operator {
+        BinaryOp::Add => ResolvedProfileBinaryOperator::Add,
+        BinaryOp::Subtract => ResolvedProfileBinaryOperator::Subtract,
+        BinaryOp::Multiply => ResolvedProfileBinaryOperator::Multiply,
+        BinaryOp::Divide => ResolvedProfileBinaryOperator::Divide,
+        BinaryOp::Modulo => ResolvedProfileBinaryOperator::Modulo,
+    }
+}
+
+fn comparison_operator(operator: &ComparisonOp) -> ResolvedProfileComparisonOperator {
+    match operator {
+        ComparisonOp::Equal => ResolvedProfileComparisonOperator::Equal,
+        ComparisonOp::NotEqual => ResolvedProfileComparisonOperator::NotEqual,
+        ComparisonOp::LessThan => ResolvedProfileComparisonOperator::LessThan,
+        ComparisonOp::GreaterThan => ResolvedProfileComparisonOperator::GreaterThan,
+        ComparisonOp::LessEqual => ResolvedProfileComparisonOperator::LessEqual,
+        ComparisonOp::GreaterEqual => ResolvedProfileComparisonOperator::GreaterEqual,
+    }
+}
+
+fn logical_operator(operator: &LogicalOp) -> ResolvedProfileLogicalOperator {
+    match operator {
+        LogicalOp::And => ResolvedProfileLogicalOperator::And,
+        LogicalOp::Or => ResolvedProfileLogicalOperator::Or,
+    }
+}
+
+fn unary_operator(operator: &UnaryOp) -> ResolvedProfileUnaryOperator {
+    match operator {
+        UnaryOp::Not => ResolvedProfileUnaryOperator::Not,
+        UnaryOp::Negate => ResolvedProfileUnaryOperator::Negate,
     }
 }
 
@@ -1470,6 +1880,766 @@ fn main() -> int {
             }
         };
         program.shapes.get(id.0)
+    }
+
+    #[test]
+    fn surface_projection_covers_every_statement_category() {
+        let location = crate::errors::SourceLocation::new(1, 1);
+        let int_type = Type::Named("int".to_string());
+        let expression = Expression::IntegerLiteral(1);
+        let block = Block {
+            statements: Vec::new(),
+            expression: None,
+        };
+        let cases = vec![
+            (
+                Statement::Const {
+                    name: "value".to_string(),
+                    type_annotation: int_type.clone(),
+                    value: expression.clone(),
+                    location: location.clone(),
+                },
+                true,
+                ResolvedProfileStatementKind::Const,
+            ),
+            (
+                Statement::Let {
+                    name: "value".to_string(),
+                    mutable: true,
+                    type_annotation: Some(int_type.clone()),
+                    value: None,
+                },
+                false,
+                ResolvedProfileStatementKind::Let {
+                    mutable: true,
+                    annotated: true,
+                    initialized: false,
+                },
+            ),
+            (
+                Statement::Assignment {
+                    target: Expression::Identifier("value".to_string()),
+                    value: expression.clone(),
+                },
+                false,
+                ResolvedProfileStatementKind::Assignment {
+                    target: ResolvedProfileAssignmentTarget {
+                        root: ResolvedProfileAssignmentRoot::Identifier,
+                        projections: Vec::new(),
+                    },
+                },
+            ),
+            (
+                Statement::Return(None),
+                false,
+                ResolvedProfileStatementKind::Return { has_value: false },
+            ),
+            (
+                Statement::Expression(expression.clone()),
+                false,
+                ResolvedProfileStatementKind::Expression,
+            ),
+            (
+                Statement::Block(block.clone()),
+                false,
+                ResolvedProfileStatementKind::Block,
+            ),
+            (
+                Statement::Function {
+                    name: "function".to_string(),
+                    parameters: Vec::new(),
+                    return_type: Some(int_type.clone()),
+                    body: block.clone(),
+                    type_params: vec!["T".to_string()],
+                    trait_bounds: vec![("T".to_string(), vec!["Copy".to_string()])],
+                },
+                false,
+                ResolvedProfileStatementKind::Function {
+                    top_level: false,
+                    generic: true,
+                    trait_bounded: true,
+                    explicit_result: true,
+                },
+            ),
+            (
+                Statement::If {
+                    condition: expression.clone(),
+                    then_block: block.clone(),
+                    else_block: Some(Box::new(Statement::Break)),
+                },
+                false,
+                ResolvedProfileStatementKind::If { has_else: true },
+            ),
+            (
+                Statement::While {
+                    condition: expression.clone(),
+                    body: block.clone(),
+                },
+                false,
+                ResolvedProfileStatementKind::While,
+            ),
+            (
+                Statement::For {
+                    variable: "item".to_string(),
+                    iterable: expression.clone(),
+                    body: block.clone(),
+                },
+                false,
+                ResolvedProfileStatementKind::For,
+            ),
+            (
+                Statement::Loop {
+                    body: block.clone(),
+                },
+                false,
+                ResolvedProfileStatementKind::Loop,
+            ),
+            (Statement::Break, false, ResolvedProfileStatementKind::Break),
+            (
+                Statement::Continue,
+                false,
+                ResolvedProfileStatementKind::Continue,
+            ),
+            (
+                Statement::StructDef {
+                    name: "Box".to_string(),
+                    fields: Vec::new(),
+                    type_params: vec!["T".to_string()],
+                },
+                true,
+                ResolvedProfileStatementKind::StructDefinition { generic: true },
+            ),
+            (
+                Statement::EnumDef {
+                    name: "Choice".to_string(),
+                    variants: Vec::new(),
+                    type_params: vec!["T".to_string()],
+                    trait_bounds: vec![("T".to_string(), vec!["Copy".to_string()])],
+                },
+                true,
+                ResolvedProfileStatementKind::EnumDefinition {
+                    generic: true,
+                    trait_bounded: true,
+                },
+            ),
+            (
+                Statement::ImplBlock {
+                    type_name: "Box".to_string(),
+                    methods: Vec::new(),
+                    type_params: vec!["T".to_string()],
+                    trait_name: Some("Copy".to_string()),
+                },
+                true,
+                ResolvedProfileStatementKind::ImplBlock {
+                    generic: true,
+                    trait_impl: true,
+                },
+            ),
+            (
+                Statement::TraitDef {
+                    name: "Contract".to_string(),
+                    type_params: vec!["T".to_string()],
+                    methods: Vec::new(),
+                },
+                true,
+                ResolvedProfileStatementKind::TraitDefinition { generic: true },
+            ),
+            (
+                Statement::ModDecl {
+                    name: "helper".to_string(),
+                    is_public: true,
+                },
+                true,
+                ResolvedProfileStatementKind::ModuleDeclaration { public: true },
+            ),
+            (
+                Statement::UseImport {
+                    syntax: ImportSyntax::FoundingDottedImport,
+                    path: vec!["helper".to_string(), "value".to_string()],
+                    alias: Some("imported".to_string()),
+                    location,
+                },
+                true,
+                ResolvedProfileStatementKind::UseImport {
+                    founding_syntax: true,
+                    aliased: true,
+                },
+            ),
+        ];
+
+        for (statement, top_level, expected) in cases {
+            assert_eq!(statement_kind(&statement, top_level), expected);
+        }
+    }
+
+    #[test]
+    fn surface_projection_covers_every_expression_operator_and_pattern_category() {
+        let integer = || Expression::IntegerLiteral(1);
+        for (operator, expected) in [
+            (BinaryOp::Add, ResolvedProfileBinaryOperator::Add),
+            (BinaryOp::Subtract, ResolvedProfileBinaryOperator::Subtract),
+            (BinaryOp::Multiply, ResolvedProfileBinaryOperator::Multiply),
+            (BinaryOp::Divide, ResolvedProfileBinaryOperator::Divide),
+            (BinaryOp::Modulo, ResolvedProfileBinaryOperator::Modulo),
+        ] {
+            assert_eq!(
+                expression_kind(&Expression::Binary {
+                    op: operator,
+                    left: Box::new(integer()),
+                    right: Box::new(integer()),
+                    ty: None,
+                }),
+                ResolvedProfileExpressionKind::Binary(expected)
+            );
+        }
+        for (operator, expected) in [
+            (
+                ComparisonOp::Equal,
+                ResolvedProfileComparisonOperator::Equal,
+            ),
+            (
+                ComparisonOp::NotEqual,
+                ResolvedProfileComparisonOperator::NotEqual,
+            ),
+            (
+                ComparisonOp::LessThan,
+                ResolvedProfileComparisonOperator::LessThan,
+            ),
+            (
+                ComparisonOp::GreaterThan,
+                ResolvedProfileComparisonOperator::GreaterThan,
+            ),
+            (
+                ComparisonOp::LessEqual,
+                ResolvedProfileComparisonOperator::LessEqual,
+            ),
+            (
+                ComparisonOp::GreaterEqual,
+                ResolvedProfileComparisonOperator::GreaterEqual,
+            ),
+        ] {
+            assert_eq!(
+                expression_kind(&Expression::Comparison {
+                    op: operator,
+                    left: Box::new(integer()),
+                    right: Box::new(integer()),
+                }),
+                ResolvedProfileExpressionKind::Comparison(expected)
+            );
+        }
+        for (operator, expected) in [
+            (LogicalOp::And, ResolvedProfileLogicalOperator::And),
+            (LogicalOp::Or, ResolvedProfileLogicalOperator::Or),
+        ] {
+            assert_eq!(
+                expression_kind(&Expression::Logical {
+                    op: operator,
+                    left: Box::new(integer()),
+                    right: Box::new(integer()),
+                }),
+                ResolvedProfileExpressionKind::Logical(expected)
+            );
+        }
+        for (operator, expected) in [
+            (UnaryOp::Not, ResolvedProfileUnaryOperator::Not),
+            (UnaryOp::Negate, ResolvedProfileUnaryOperator::Negate),
+        ] {
+            assert_eq!(
+                expression_kind(&Expression::Unary {
+                    op: operator,
+                    operand: Box::new(integer()),
+                }),
+                ResolvedProfileExpressionKind::Unary(expected)
+            );
+        }
+
+        let expressions = vec![
+            (integer(), ResolvedProfileExpressionKind::IntegerLiteral),
+            (
+                Expression::FloatLiteral(1.5),
+                ResolvedProfileExpressionKind::FloatLiteral,
+            ),
+            (
+                Expression::CharacterLiteral('a'),
+                ResolvedProfileExpressionKind::CharacterLiteral,
+            ),
+            (
+                Expression::StringLiteral("text".to_string()),
+                ResolvedProfileExpressionKind::StringLiteral,
+            ),
+            (
+                Expression::Identifier("value".to_string()),
+                ResolvedProfileExpressionKind::Identifier,
+            ),
+            (
+                Expression::FunctionCall {
+                    name: "function".to_string(),
+                    arguments: vec![integer()],
+                },
+                ResolvedProfileExpressionKind::FunctionCall,
+            ),
+            (
+                Expression::MethodCall {
+                    object: Box::new(integer()),
+                    method: "method".to_string(),
+                    arguments: vec![integer()],
+                },
+                ResolvedProfileExpressionKind::MethodCall,
+            ),
+            (
+                Expression::Print {
+                    format_string: "{}".to_string(),
+                    arguments: vec![integer()],
+                },
+                ResolvedProfileExpressionKind::Print,
+            ),
+            (
+                Expression::Println {
+                    format_string: "{}".to_string(),
+                    arguments: vec![integer()],
+                },
+                ResolvedProfileExpressionKind::Println,
+            ),
+            (
+                Expression::ArrayLiteral(vec![integer()]),
+                ResolvedProfileExpressionKind::ArrayLiteral,
+            ),
+            (
+                Expression::ArrayRepeat {
+                    value: Box::new(integer()),
+                    count: 2,
+                },
+                ResolvedProfileExpressionKind::ArrayRepeat,
+            ),
+            (
+                Expression::IndexAccess {
+                    object: Box::new(integer()),
+                    index: Box::new(integer()),
+                },
+                ResolvedProfileExpressionKind::IndexAccess,
+            ),
+            (
+                Expression::FieldAccess {
+                    object: Box::new(integer()),
+                    field: "field".to_string(),
+                },
+                ResolvedProfileExpressionKind::FieldAccess,
+            ),
+            (
+                Expression::TupleLiteral(vec![integer(), integer()]),
+                ResolvedProfileExpressionKind::TupleLiteral,
+            ),
+            (
+                Expression::TupleIndex {
+                    object: Box::new(integer()),
+                    index: 1,
+                },
+                ResolvedProfileExpressionKind::TupleIndex,
+            ),
+            (
+                Expression::StructLiteral {
+                    name: "Record".to_string(),
+                    fields: vec![("field".to_string(), integer())],
+                },
+                ResolvedProfileExpressionKind::StructLiteral,
+            ),
+            (
+                Expression::EnumVariant {
+                    enum_name: "Choice".to_string(),
+                    variant: "Some".to_string(),
+                    data: Some(Vec::new()),
+                },
+                ResolvedProfileExpressionKind::EnumVariant {
+                    parenthesized: true,
+                },
+            ),
+            (
+                Expression::Match {
+                    expr: Box::new(integer()),
+                    arms: Vec::new(),
+                },
+                ResolvedProfileExpressionKind::Match,
+            ),
+            (
+                Expression::Borrow {
+                    expr: Box::new(integer()),
+                    mutable: false,
+                },
+                ResolvedProfileExpressionKind::Borrow { mutable: false },
+            ),
+            (
+                Expression::Deref(Box::new(integer())),
+                ResolvedProfileExpressionKind::Dereference,
+            ),
+            (
+                Expression::Closure {
+                    params: vec![crate::ast::Parameter {
+                        name: "value".to_string(),
+                        param_type: Type::Named("int".to_string()),
+                    }],
+                    body: Box::new(integer()),
+                    location: crate::errors::SourceLocation::new(1, 1),
+                },
+                ResolvedProfileExpressionKind::Closure,
+            ),
+        ];
+        for (expression, expected) in expressions {
+            assert_eq!(expression_kind(&expression), expected);
+        }
+
+        let patterns = vec![
+            (Pattern::Wildcard, ResolvedProfilePatternKind::Wildcard),
+            (
+                Pattern::Literal(integer()),
+                ResolvedProfilePatternKind::Literal,
+            ),
+            (
+                Pattern::Identifier("value".to_string()),
+                ResolvedProfilePatternKind::Identifier,
+            ),
+            (
+                Pattern::Tuple(Vec::new()),
+                ResolvedProfilePatternKind::Tuple,
+            ),
+            (
+                Pattern::Struct {
+                    name: "Record".to_string(),
+                    fields: Vec::new(),
+                },
+                ResolvedProfilePatternKind::Struct,
+            ),
+            (
+                Pattern::Enum {
+                    enum_name: "Choice".to_string(),
+                    variant: "Some".to_string(),
+                    data: Some(Vec::new()),
+                },
+                ResolvedProfilePatternKind::Enum {
+                    parenthesized: true,
+                },
+            ),
+            (
+                Pattern::Enum {
+                    enum_name: "Choice".to_string(),
+                    variant: "Empty".to_string(),
+                    data: None,
+                },
+                ResolvedProfilePatternKind::Enum {
+                    parenthesized: false,
+                },
+            ),
+        ];
+        for (pattern, expected) in patterns {
+            assert_eq!(pattern_kind(&pattern), expected);
+        }
+
+        let empty_ast = Vec::new();
+        let structs = StructRegistry::from_top_level_ast(&empty_ast);
+        let enums = EnumRegistry::from_top_level_ast(&empty_ast, &structs);
+        let admitted_function = |_name: &str| None;
+        let mut builder = Builder::new(&structs, &enums, &admitted_function);
+        builder.walk_pattern(&Pattern::Tuple(vec![
+            Pattern::Literal(integer()),
+            Pattern::Struct {
+                name: "Record".to_string(),
+                fields: vec![("field".to_string(), Pattern::Literal(integer()))],
+            },
+        ]));
+        assert_eq!(
+            builder.surface,
+            vec![
+                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Tuple,),
+                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Literal,),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::IntegerLiteral,
+                ),
+                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Struct,),
+                ResolvedProfileSurfaceObservation::Pattern(ResolvedProfilePatternKind::Literal,),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::IntegerLiteral,
+                ),
+            ]
+        );
+
+        let target = Expression::IndexAccess {
+            object: Box::new(Expression::FieldAccess {
+                object: Box::new(Expression::FunctionCall {
+                    name: "make".to_string(),
+                    arguments: Vec::new(),
+                }),
+                field: "values".to_string(),
+            }),
+            index: Box::new(integer()),
+        };
+        assert_eq!(
+            assignment_target(&target),
+            ResolvedProfileAssignmentTarget {
+                root: ResolvedProfileAssignmentRoot::Other,
+                projections: vec![
+                    ResolvedProfileAssignmentProjection::Field,
+                    ResolvedProfileAssignmentProjection::Index,
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn surface_witness_records_hidden_syntax_in_exact_preorder() {
+        let source = r#"
+fn main() -> int {
+    let hidden = 1.0;
+    print!("{}", hidden);
+    println!("{}", hidden);
+    return 0;
+}
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+        assert_eq!(
+            program.surface,
+            vec![
+                ResolvedProfileSurfaceObservation::Statement(
+                    ResolvedProfileStatementKind::Function {
+                        top_level: true,
+                        generic: false,
+                        trait_bounded: false,
+                        explicit_result: true,
+                    },
+                ),
+                ResolvedProfileSurfaceObservation::Statement(ResolvedProfileStatementKind::Let {
+                    mutable: false,
+                    annotated: false,
+                    initialized: true,
+                },),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::FloatLiteral,
+                ),
+                ResolvedProfileSurfaceObservation::Statement(
+                    ResolvedProfileStatementKind::Expression,
+                ),
+                ResolvedProfileSurfaceObservation::Expression(ResolvedProfileExpressionKind::Print,),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::Identifier,
+                ),
+                ResolvedProfileSurfaceObservation::Statement(
+                    ResolvedProfileStatementKind::Expression,
+                ),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::Println,
+                ),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::Identifier,
+                ),
+                ResolvedProfileSurfaceObservation::Statement(
+                    ResolvedProfileStatementKind::Return { has_value: true },
+                ),
+                ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::IntegerLiteral,
+                ),
+            ],
+            "the single total walk must retain exact normalized preorder"
+        );
+        assert!(
+            program
+                .uses
+                .iter()
+                .all(|usage| usage.name.as_deref() != Some("hidden")),
+            "surface observation must not infer an unannotated binding type"
+        );
+    }
+
+    #[test]
+    fn surface_witness_retains_operators_patterns_and_assignment_topology() {
+        let source = r#"
+struct Frame {
+    lanes: [int; 2],
+}
+
+fn main() -> int {
+    let mut direct: [int; 2] = [1, 2];
+    direct[0] = 8 / 2;
+    direct[1] = 5 * 2 - 1;
+    let mut frame: Frame = Frame { lanes: [4, 5] };
+    frame.lanes[1] = direct[0] + 6;
+    let mut scalar: int = 1;
+    {
+        let alias = &mut scalar;
+        *alias = 2;
+    }
+    if !(direct[0] == 1) || (direct[1] < 3 && scalar > 0) {
+        return frame.lanes[1];
+    }
+    return scalar;
+}
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+        let assignments = program
+            .surface
+            .iter()
+            .filter_map(|observation| match observation {
+                ResolvedProfileSurfaceObservation::Statement(
+                    ResolvedProfileStatementKind::Assignment { target },
+                ) => Some(target),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(assignments.contains(&&ResolvedProfileAssignmentTarget {
+            root: ResolvedProfileAssignmentRoot::Identifier,
+            projections: vec![ResolvedProfileAssignmentProjection::Index],
+        }));
+        assert!(assignments.contains(&&ResolvedProfileAssignmentTarget {
+            root: ResolvedProfileAssignmentRoot::Identifier,
+            projections: vec![
+                ResolvedProfileAssignmentProjection::Field,
+                ResolvedProfileAssignmentProjection::Index,
+            ],
+        }));
+        assert!(assignments.contains(&&ResolvedProfileAssignmentTarget {
+            root: ResolvedProfileAssignmentRoot::Identifier,
+            projections: vec![ResolvedProfileAssignmentProjection::Dereference],
+        }));
+
+        for operator in [
+            ResolvedProfileExpressionKind::Binary(ResolvedProfileBinaryOperator::Add),
+            ResolvedProfileExpressionKind::Binary(ResolvedProfileBinaryOperator::Subtract),
+            ResolvedProfileExpressionKind::Binary(ResolvedProfileBinaryOperator::Multiply),
+            ResolvedProfileExpressionKind::Binary(ResolvedProfileBinaryOperator::Divide),
+            ResolvedProfileExpressionKind::Comparison(ResolvedProfileComparisonOperator::Equal),
+            ResolvedProfileExpressionKind::Comparison(ResolvedProfileComparisonOperator::LessThan),
+            ResolvedProfileExpressionKind::Comparison(
+                ResolvedProfileComparisonOperator::GreaterThan,
+            ),
+            ResolvedProfileExpressionKind::Logical(ResolvedProfileLogicalOperator::And),
+            ResolvedProfileExpressionKind::Logical(ResolvedProfileLogicalOperator::Or),
+            ResolvedProfileExpressionKind::Unary(ResolvedProfileUnaryOperator::Not),
+        ] {
+            assert!(
+                program
+                    .surface
+                    .contains(&ResolvedProfileSurfaceObservation::Expression(
+                        operator.clone()
+                    ),),
+                "missing operator {operator:?}"
+            );
+        }
+        assert!(
+            program
+                .surface
+                .contains(&ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::Borrow { mutable: true },
+                ),)
+        );
+        assert!(
+            program
+                .surface
+                .contains(&ResolvedProfileSurfaceObservation::Expression(
+                    ResolvedProfileExpressionKind::Dereference,
+                ),)
+        );
+
+        let (_, _, descriptor) = rich(&mut SemanticAnalyzer::new(), DESCRIPTOR_FIXTURE);
+        let pattern_preorder = descriptor
+            .surface
+            .iter()
+            .filter_map(|observation| match observation {
+                ResolvedProfileSurfaceObservation::Pattern(pattern) => Some(pattern),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            pattern_preorder.windows(2).any(|window| matches!(
+                window,
+                [
+                    ResolvedProfilePatternKind::Enum {
+                        parenthesized: true,
+                    },
+                    ResolvedProfilePatternKind::Identifier,
+                ]
+            )),
+            "enum payload patterns must be recorded before their identifier child"
+        );
+        for pattern in [
+            ResolvedProfilePatternKind::Wildcard,
+            ResolvedProfilePatternKind::Identifier,
+            ResolvedProfilePatternKind::Enum {
+                parenthesized: true,
+            },
+        ] {
+            assert!(
+                descriptor
+                    .surface
+                    .contains(&ResolvedProfileSurfaceObservation::Pattern(pattern.clone())),
+                "missing pattern witness {pattern:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn surface_witness_retains_module_import_and_preserved_function_categories() {
+        let source = r#"
+struct Pair {
+    left: int,
+    right: int,
+}
+
+impl Pair {
+    fn probe(value: Pair) -> Pair {
+        return value;
+    }
+}
+
+trait Contract {
+    fn required(value: Pair) -> Pair;
+}
+
+fn main() -> int {
+    return 0;
+}
+"#;
+        let (_, _, program) = rich(&mut SemanticAnalyzer::new(), source);
+        assert_eq!(
+            program
+                .surface
+                .iter()
+                .filter(|observation| matches!(
+                    observation,
+                    ResolvedProfileSurfaceObservation::Statement(
+                        ResolvedProfileStatementKind::Function {
+                            top_level: false,
+                            generic: false,
+                            trait_bounded: false,
+                            explicit_result: true,
+                        }
+                    )
+                ))
+                .count(),
+            2,
+            "impl and required trait methods must each retain a function category"
+        );
+        assert_eq!(
+            statement_kind(
+                &Statement::ModDecl {
+                    name: "helper".to_string(),
+                    is_public: true,
+                },
+                true,
+            ),
+            ResolvedProfileStatementKind::ModuleDeclaration { public: true }
+        );
+        assert_eq!(
+            statement_kind(
+                &Statement::UseImport {
+                    syntax: ImportSyntax::FoundingDottedImport,
+                    path: vec!["helper".to_string(), "value".to_string()],
+                    alias: None,
+                    location: crate::errors::SourceLocation::new(1, 1),
+                },
+                true,
+            ),
+            ResolvedProfileStatementKind::UseImport {
+                founding_syntax: true,
+                aliased: false,
+            }
+        );
     }
 
     #[test]
@@ -1919,6 +3089,8 @@ fn main() -> int {
         assert_eq!(first_message, second_message);
         assert_eq!(format!("{first_ast:?}"), format!("{second_ast:?}"));
         assert_eq!(first_program, second_program);
+        assert_eq!(first_program.surface, second_program.surface);
+        assert!(!first_program.surface.is_empty());
         assert_eq!(
             first_program.operations.len(),
             second_program.operations.len(),
