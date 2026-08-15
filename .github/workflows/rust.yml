@@ -1268,7 +1268,7 @@ jobs:
         set -euo pipefail
         export PATH="/usr/lib/llvm-22/bin:${PATH}"
 
-        for specimen in kernel:main.aero:91:yes wrapping:wrapping_edges.aero:93:no matvec:flat_matvec.aero:91:yes scorer:tensor_record_scoring.aero:91:yes inference:relu_argmax_inference.aero:91:yes; do
+        for specimen in kernel:main.aero:91:yes wrapping:wrapping_edges.aero:93:no matvec:flat_matvec.aero:91:yes scorer:tensor_record_scoring.aero:91:yes inference:relu_argmax_inference.aero:91:yes tokenizer:bootstrap_ascii_tokenizer.aero:91:yes; do
           IFS=: read -r name file expected dynamic_bounds <<< "${specimen}"
           source="examples/fixed_int_array_v0/${file}"
           llvm="${RUNNER_TEMP}/exact_i32_array_${name}.linux.ll"
@@ -1310,6 +1310,9 @@ jobs:
               test "${guard_count}" -eq "$((11 * 2))"
             elif [ "${name}" = inference ]; then
               test "${guard_count}" -eq "$((14 * 2))"
+            elif [ "${name}" = tokenizer ]; then
+              tokenizer_guard_count="${guard_count}"
+              test "${tokenizer_guard_count}" -eq 53
             else
               test "${guard_count}" -eq 4
             fi
@@ -1318,6 +1321,16 @@ jobs:
               echo "exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
               exit 1
             fi
+          fi
+          if [ "${name}" = tokenizer ]; then
+            tokenizer_second_llvm="${RUNNER_TEMP}/exact_i32_array_tokenizer.linux.second.ll"
+            cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+              build "${source}" -o "${tokenizer_second_llvm}" --require-llvm-verifier \
+              --language-profile exact-i32-array-v0
+            cmp -s "${llvm}" "${tokenizer_second_llvm}"
+            llvm-as-22 "${llvm}" -o /dev/null
+            grep -Fq 'define [75 x i32] @tokenize_ascii_64([64 x i32] %aero.arg.source, i32 %aero.arg.source_len)' "${llvm}"
+            test "$(grep -Fc 'call [75 x i32] @tokenize_ascii_64([64 x i32]' "${llvm}")" -eq 8
           fi
           if [ "${name}" = matvec ]; then
             grep -Fq 'define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)' "${llvm}"
@@ -2502,7 +2515,8 @@ jobs:
           [pscustomobject]@{ Name = "wrapping"; File = "wrapping_edges.aero"; Expected = 93; Dynamic = $false },
           [pscustomobject]@{ Name = "matvec"; File = "flat_matvec.aero"; Expected = 91; Dynamic = $true },
           [pscustomobject]@{ Name = "scorer"; File = "tensor_record_scoring.aero"; Expected = 91; Dynamic = $true },
-          [pscustomobject]@{ Name = "inference"; File = "relu_argmax_inference.aero"; Expected = 91; Dynamic = $true }
+          [pscustomobject]@{ Name = "inference"; File = "relu_argmax_inference.aero"; Expected = 91; Dynamic = $true },
+          [pscustomobject]@{ Name = "tokenizer"; File = "bootstrap_ascii_tokenizer.aero"; Expected = 91; Dynamic = $true }
         )
         foreach ($specimen in $specimens) {
           $source = "examples/fixed_int_array_v0/$($specimen.File)"
@@ -2560,11 +2574,39 @@ jobs:
               if ($guardMatches.Count -ne (14 * 2)) {
                 throw "Windows exact-i32-array-v0 inference expected twenty-eight identity-linked dynamic guard/address blocks"
               }
+            } elseif ($specimen.Name -ceq "tokenizer") {
+              $tokenizerGuardMatches = $guardMatches
+              if ($tokenizerGuardMatches.Count -ne 53) {
+                throw "Windows exact-i32-array-v0 tokenizer expected fifty-three identity-linked dynamic guard/address blocks"
+              }
             } elseif ($guardMatches.Count -ne 4) {
               throw "Windows exact-i32-array-v0 kernel expected four identity-linked dynamic guard/address blocks"
             }
           } elseif ($llvmText -match 'icmp sge i32|call void @llvm\.trap\(\)|sext i32') {
             throw "Windows exact-i32-array-v0 wrapping specimen unexpectedly gained dynamic bounds IR"
+          }
+          if ($specimen.Name -ceq "tokenizer") {
+            $tokenizerSecondLlvm = Join-Path $env:RUNNER_TEMP "exact_i32_array_tokenizer.windows.second.ll"
+            cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- build $source -o $tokenizerSecondLlvm --require-llvm-verifier --language-profile exact-i32-array-v0
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tokenizerSecondLlvm -PathType Leaf)) {
+              throw "Windows exact-i32-array-v0 tokenizer deterministic verifier build failed"
+            }
+            if (-not [System.Linq.Enumerable]::SequenceEqual([IO.File]::ReadAllBytes($llvm), [IO.File]::ReadAllBytes($tokenizerSecondLlvm))) {
+              throw "Windows exact-i32-array-v0 tokenizer emitted nondeterministic LLVM"
+            }
+            $tokenizerBitcode = Join-Path $env:RUNNER_TEMP "exact_i32_array_tokenizer.windows.bc"
+            & "$llvmBin\llvm-as.exe" $llvm -o $tokenizerBitcode
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $tokenizerBitcode -PathType Leaf) -or (Get-Item -LiteralPath $tokenizerBitcode).Length -le 0) {
+              throw "Windows exact-i32-array-v0 tokenizer llvm-as verification failed"
+            }
+            $tokenizerSignature = "define [75 x i32] @tokenize_ascii_64([64 x i32] %aero.arg.source, i32 %aero.arg.source_len)"
+            if (-not $llvmText.Contains($tokenizerSignature)) {
+              throw "Windows exact-i32-array-v0 tokenizer omitted its exact entry signature"
+            }
+            $tokenizerCallCount = [regex]::Matches($llvmText, [regex]::Escape("call [75 x i32] @tokenize_ascii_64([64 x i32]")).Count
+            if ($tokenizerCallCount -ne 8) {
+              throw "Windows exact-i32-array-v0 tokenizer expected eight tracked self-test calls"
+            }
           }
           if ($specimen.Name -ceq "matvec") {
             if (-not $llvmText.Contains("define [2 x i32] @matvec_2x3([6 x i32] %aero.arg.matrix, [3 x i32] %aero.arg.vector)") -or @([regex]::Matches($llvmText, [regex]::Escape("call [2 x i32] @matvec_2x3([6 x i32]"))).Count -ne 2) {
