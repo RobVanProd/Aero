@@ -97,6 +97,15 @@ fn main() -> int {
 }
 "#;
 
+const SEMANTIC_ERROR_SOURCE: &str = r#"
+fn main() -> int {
+    return missing;
+}
+"#;
+
+const SEMANTIC_ERROR: &str =
+    "Semantic Analysis Error: Error: Use of undeclared variable `missing`.";
+
 fn options(language_profile: LanguageProfile) -> CompilerOptions {
     CompilerOptions {
         language_profile,
@@ -188,6 +197,64 @@ fn accepted_behavior_is_frozen_before_resolved_profile_authority() {
     );
 
     let workspace = TempWorkspace::new();
+    for (name, source, profile, expected) in [
+        (
+            "experimental.aero",
+            EXPERIMENTAL_RECURSIVE_SOURCE,
+            LanguageProfile::Experimental,
+            &experimental,
+        ),
+        (
+            "stable.aero",
+            STABLE_SCALAR_SOURCE,
+            LanguageProfile::StableScalarV0,
+            &stable,
+        ),
+        (
+            "exact.aero",
+            EXACT_CAP023_SOURCE,
+            LanguageProfile::ExactI32ArrayV0,
+            &exact,
+        ),
+    ] {
+        let path = workspace.source(name, source);
+        let file = compile_file(&path, options(profile))
+            .unwrap_or_else(|error| panic!("{profile:?} file route failed: {error}"));
+        assert_eq!(
+            file, *expected,
+            "{profile:?} source/file LLVM bytes drifted"
+        );
+        assert_eq!(
+            md5_hex(file.as_bytes()),
+            md5_hex(expected.as_bytes()),
+            "{profile:?} source/file LLVM digest drifted"
+        );
+    }
+
+    let semantic_error_path = workspace.source("semantic_error.aero", SEMANTIC_ERROR_SOURCE);
+    for profile in [
+        LanguageProfile::Experimental,
+        LanguageProfile::StableScalarV0,
+        LanguageProfile::ExactI32ArrayV0,
+    ] {
+        let diagnostics = [
+            compile_program(SEMANTIC_ERROR_SOURCE, options(profile))
+                .expect_err("semantic-error source compile must fail"),
+            compile_file(&semantic_error_path, options(profile))
+                .expect_err("semantic-error file compile must fail"),
+            check_program(SEMANTIC_ERROR_SOURCE, options(profile))
+                .expect_err("semantic-error source check must fail"),
+            check_file(&semantic_error_path, options(profile))
+                .expect_err("semantic-error file check must fail"),
+        ];
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic == SEMANTIC_ERROR),
+            "{profile:?} semantic diagnostic route drifted: {diagnostics:?}"
+        );
+    }
+
     let path = workspace.source("excluded_struct.aero", EXCLUDED_STRUCT_SOURCE);
     for profile in [
         LanguageProfile::StableScalarV0,
@@ -214,6 +281,16 @@ fn accepted_behavior_is_frozen_before_resolved_profile_authority() {
             source_compile, source_check,
             "{profile:?} compile/check diagnostic precedence drifted"
         );
+        let expected = match profile {
+            LanguageProfile::StableScalarV0 => {
+                "Language Profile Error: stable-scalar-v0 rejects struct definitions"
+            }
+            LanguageProfile::ExactI32ArrayV0 => {
+                "Language Profile Error: exact-i32-array-v0 rejects struct definitions"
+            }
+            LanguageProfile::Experimental => unreachable!("loop excludes Experimental"),
+        };
+        assert_eq!(source_compile, expected, "{profile:?} profile text drifted");
     }
 }
 

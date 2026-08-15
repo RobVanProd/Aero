@@ -113,9 +113,12 @@
   record/enum/typed-Result/Match specimen,
   `cbb7a6446d27119d50f70868bc2b6a96` for the stable-scalar control, and
   `54bbfe8dc403ba00ff0587fd3b99e14a` for the accepted CAP-023 exact-array
-  control. Each repeated source compilation is byte-identical. Stable and exact
-  excluded-struct diagnostics are identical across source/file and
-  compile/check routes, freezing the current pre-semantic rejection boundary.
+  control. Each repeated source compilation is byte-identical, and each
+  source/file route emits the same bytes and digest. The exact undeclared-name
+  semantic diagnostic is identical across source/file, compile/check, and all
+  three profiles. Stable and exact excluded-struct diagnostics are identical
+  across source/file and compile/check routes and match their exact frozen
+  strings, preserving the current pre-semantic rejection boundary.
 - With one Cargo build job, one Rust test thread, and pinned LLVM 22, the exact
   behavior characterization passes `1/1`. The exact structural test then fails
   `0/1` only at `CAP-028 intentional structural red:
