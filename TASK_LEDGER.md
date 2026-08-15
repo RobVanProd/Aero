@@ -130,6 +130,50 @@
   required red-first rollback boundary; the structural red must become green
   without changing any frozen digest or anchor.
 
+### CAP-026 implementation and review-correction checkpoint
+
+- Implementation commit
+  `1e79a5c89991f36288dbb1f0bb542c258834a98e` introduces the crate-private
+  `CopyDataLayout`/`CopyDataLayoutPolicy` and `EnumStorageLayout` authority,
+  delegates verifier physical array hints and backend recursive type/zero/
+  schema rendering, preserves the raw `AllocaArray`/GEP paths, and selects exact
+  policy only for the already-admitted direct integer or flat exact-array root.
+  The production diff remains exactly the verifier and backend plus shared
+  module wiring; it changes no source/profile/semantic/IR schema or public
+  surface.
+- The first commit-pinned independent review found no LLVM, diagnostic,
+  generic-name, raw-array, enum-zero, or recursive-exact regression, but found
+  three incomplete authority delegations: checked enum emitters still owned tag
+  and compact/payload lane positions, checked place allocation/load/store paths
+  still repeated primitive type/alignment pairs, and the verifier computed then
+  discarded the enum physical layout. Correction commit
+  `fd29b9524bc704a042c7ee354a63e1a8c89d3097` resolves all three without widening
+  scope: every checked enum emitter queries descriptor-owned tag/compact/payload
+  roles; one profile-root-gated checked-place helper supplies type and primitive
+  alignment while retaining explicit aggregate alignment 8 and raw legacy
+  storage; and the verifier registers `(logical variants, legacy physical
+  layout)` and compares both at every repeated checked enum occurrence before
+  LLVM, returning the exact prior conflicting-schema diagnostic.
+- The focused target is green `2/2`; all three frozen LLVM MD5 values and text
+  anchors remain exact, default equals experimental, and repeated stable/exact
+  generation is deterministic. Shared module controls are green `7/7`, covering
+  recursive legacy/exact type/zero/alignment, zero-count nested arrays, generic
+  struct spelling, invalid types, unit/compact/general/Result lanes, and the
+  unreachable alternate enum integer policy. The existing changed recursive
+  enum-schema mutation still rejects before LLVM with exact
+  `conflicting checked enum schemas for \`Payload\`` identity.
+- Post-correction focused integration coverage passes `16/16` across scalar,
+  unit, recursive, and multi-field enums; payload transport; CopyData Match
+  results; recursive aggregates; generic structs; and projected CopyData call
+  loans. The complete library suite passes `270/270`; correctness-denying Clippy
+  (`--all-targets --all-features -- -D clippy::correctness`), Rust formatting,
+  and diff hygiene pass. The characterization source's direct reference is
+  intentionally scalar `&int`; recursive/generic reference and projected-loan
+  coverage comes from the existing focused targets rather than an inaccurate
+  characterization claim. Repository-root `./tools/test.sh`, exact final scope
+  review, and accepted-candidate publication checks remain pending at this
+  checkpoint.
+
 ## CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS - exact CPU plus bounded CopyData application map and red probe
 
 - Date/task/status: 2026-08-15,
