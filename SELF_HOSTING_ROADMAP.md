@@ -78,8 +78,9 @@ runtime ABI, R1B checked resource/verifier/backend, then R1C source/profile.
 embedded into the compiler, compiled inside the isolated CPU run directory,
 and explicitly linked on both native driver paths. A separately linked test
 runtime supplies deterministic fail-after behavior and exact call/live/size
-counters. Focused native harnesses, the 35 binary tests, and correctness Clippy
-pass. Protected candidate and accepted-head Linux/Windows evidence remain
+counters. Focused native harnesses, all 292 library tests, the 35 binary tests,
+every integration/native/system target, doc tests, and correctness Clippy pass.
+Protected candidate and accepted-head Linux/Windows evidence remain
 required, so this is not yet an accepted checkpoint and exposes no source
 `ByteBuffer`.
 

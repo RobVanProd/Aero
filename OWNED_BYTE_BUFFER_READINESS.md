@@ -151,6 +151,9 @@ prefix preservation, exact-size enforcement, failed-reallocation preservation,
 and deallocation. The accepted Vec diagnostics, all four profile LLVM bytes,
 native exit, and run-directory hygiene remain unchanged in the focused gate.
 
+The complete local root gate is also green: correctness Clippy, 292 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
+
 This remains a local candidate until protected Linux and Windows acceptance. It
 does not declare allocator calls in emitted application LLVM and therefore does
 not create source-visible storage.

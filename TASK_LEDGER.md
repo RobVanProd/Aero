@@ -145,6 +145,57 @@
   and its explicit chronological-scope note. No claim test or historical record
   is widened.
 
+### CAP-036 locally green R1A candidate
+
+- Identity and history: ledger-first commit
+  `b92541cab659436b714e1fb19b3a706751905c20`; original focused red
+  `5024a1b12abc94dcef2d2a80238245a3ab732639` at one passing compatibility
+  control and one absent-runtime failure; initial runtime implementation
+  `3c4e1468dae4e6956f5d8b51af78aca5c7f3a203`; canonical-driver correction red
+  `b78ac5e14538f8a9189af1230595349329a62675`; inline-driver fix
+  `6f8fd360688169014366fac4db60f8c4fb40f003`; historical Clang diagnostic fix
+  `b3379cfd5dae8b790fc97830c5b3f2054c65b873`; and claim-fixture preservation
+  `99bcaf760696aa0024c8b49992f4cd288fd6103c`. All derive from accepted CAP-035
+  merge/tree exactly; no history was rewritten.
+- Implementation result: the canonical CLI driver embeds the production C11
+  runtime, writes and compiles it only inside the unique CPU run directory after
+  verified LLVM exists, requires a regular object, and links it on both native
+  paths. The separate test runtime supplies the same three-symbol ABI,
+  deterministic fail-after, exact attempted/live/mismatch counters, aligned
+  header storage, exact-size checks, and failed-reallocation preservation. No
+  application LLVM gains an allocator declaration or call.
+- Focused evidence: `allocator_runtime_abi_tests` passes `2/2`, including all
+  four frozen profile LLVM hashes, both exact Vec diagnostics, native exit 91,
+  run-directory hygiene, production success/reallocation/deallocation, test
+  runtime success, size mismatch rejection, blocked reset with a live owner,
+  deterministic failed reallocation, old-byte preservation, and exact counters.
+  `canonical_compiler_graph_tests` passes `1/1`, `cli_status_contract_tests`
+  passes `11/11`, `version_claim_contract_tests` passes `8/8`, the binary target
+  passes `35/35`, formatting and `git diff --check` pass, and correctness Clippy
+  reports no correctness failure.
+- Complete local gate: root `./tools/test.sh` at exact clean commit
+  `99bcaf760696aa0024c8b49992f4cd288fd6103c` passes correctness Clippy,
+  `292/292` library tests, `35/35` binary tests, every integration/native/system
+  target including R1A `2/2` and the Windows workflow contract, and doc tests.
+  The cumulative diff is exactly eight authorized files:
+  `TASK_LEDGER.md`, `SELF_HOSTING_ROADMAP.md`,
+  `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`,
+  `src/compiler/src/main.rs`, both runtime C sources, and the focused test. The
+  temporary `runtime_link.rs` is absent from the final diff; no workflow,
+  dependency, lockfile, language, IR, verifier, or backend file changed.
+- Commands and storage: exact `cargo test --test` runs for the R1A, canonical
+  graph, CLI status, and claim targets; `cargo test --bin aero`; all-target
+  correctness Clippy; formatting; diff/scope checks; independent C11 Clang
+  harness compilation/execution; and the root gate. All worktree, target, temp,
+  logs, C sources, objects, executables, and probes are under the frozen D:
+  paths with one Cargo job and one Rust test thread. Installed Cargo, Git Bash,
+  and GitHub tools on C: are read-only dependencies.
+- Remaining boundary: protected candidate Linux/Windows execution, exact merge
+  tree identity, and accepted-head workflow replay remain required. R1A is not
+  accepted until those pass and does not authorize R1B production mutation.
+  Even accepted R1A will expose no source owner, allocation call, drop, input,
+  or self-hosting claim.
+
 ## CAP-035-OWNED-BYTE-BUFFER-READINESS - freeze the R1 ownership/runtime route
 
 - Date/task/status: 2026-08-15,

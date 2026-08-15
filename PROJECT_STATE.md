@@ -25,9 +25,10 @@ A separate test runtime implements the same ABI plus deterministic fail-after,
 attempt/live/size-mismatch counters, and exact allocation-size validation.
 Independent C harnesses pass successful allocation/reallocation/deallocation,
 prefix preservation, mismatch rejection, failed-reallocation preservation, and
-counter checks. The focused R1A target passes 2/2, all 35 binary tests pass, and
-correctness Clippy is green. The full root gate and protected Linux/Windows
-candidate/merge evidence remain pending.
+counter checks. The focused R1A target passes 2/2, all 292 library and 35 binary
+tests pass, every integration/native/system target and doc test passes, and
+correctness Clippy is green. Protected Linux/Windows candidate/merge evidence
+remains pending.
 
 R1A changes only CPU native runtime linking. It does not emit allocator calls,
 admit `ByteBuffer`, change Vec rejection, add ownership/drop semantics, change
