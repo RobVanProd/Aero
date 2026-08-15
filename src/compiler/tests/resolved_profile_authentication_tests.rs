@@ -342,6 +342,10 @@ fn resolved_profile_authentication_binds_once_before_checked_program_and_cache()
         ".operations",
         "SemanticAnalyzer",
         "AstNode",
+        "crate::ast",
+        "Expression",
+        "Statement",
+        "Pattern",
         "LanguageProfile",
         "CopyDataLayout",
         "CodeGenerator",
@@ -403,6 +407,24 @@ fn resolved_profile_authentication_binds_once_before_checked_program_and_cache()
         !checked_debug.contains("_resolved_profile"),
         "CheckedProgram Debug leaked the authenticated product"
     );
+    assert_eq!(
+        checked_debug.matches(".field(").count(),
+        5,
+        "CheckedProgram Debug must retain exactly its five accepted fields"
+    );
+    let mut field_cursor = 0;
+    for field in [
+        "checked_ir",
+        "language_profile",
+        "semantic_message",
+        "direct_module_cache_material",
+        "timings",
+    ] {
+        let offset = checked_debug[field_cursor..]
+            .find(&format!("\"{field}\""))
+            .unwrap_or_else(|| panic!("CheckedProgram Debug omitted `{field}`"));
+        field_cursor += offset + field.len() + 2;
+    }
 
     let cli_cache_route = cli
         .split("fn compile_to_llvm_ir_with_optimizer")

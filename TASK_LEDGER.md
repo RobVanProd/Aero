@@ -151,6 +151,56 @@
   pass. This stub-and-tests commit is the final red rollback point before the
   metadata-only implementation.
 
+### CAP-029 metadata-only implementation and focused-green checkpoint
+
+- The canonical checked route now calls one crate-private authenticator after
+  `IrGenerator::try_generate_ir` returns verifier-accepted `CheckedIr` and before
+  constructing `CheckedProgram`; the stored descriptor is replaced by an opaque
+  authenticated token. `CheckedProgram`'s five-field Debug representation, cache
+  key/material, public checked/raw APIs, checked IR, verifier, backend, language
+  profiles, and emitted LLVM remain unchanged. The authority calls
+  `CheckedIr::metadata()` exactly once and does not inspect raw instructions,
+  rerun verification, normalize source, construct registries, infer expressions,
+  or depend on source/profile/layout/backend policy.
+- Exact authentication covers normalized nominal identities and recursively
+  ordered schemas from every signature/result/place metadata root; exact Source,
+  concrete generic-function, and opaque trait-helper function identities with
+  ordered parameter names/types and explicit result types; and the narrow local
+  place class that CAP-028 can correlate without an event ID. That local class is
+  one explicit `MutableBinding` in one exact normalized function, one same-name
+  verifier place, no same-name parameter or second explicit binding, a present
+  descriptor shape, and exact logical equality. Immutable aggregate bindings,
+  inferred bindings, unavailable shapes, mismatches, duplicates, shadows,
+  parameter collisions, absent places, and every metadata result stay uncovered.
+  Excluded facts can be observed only as explicit-unavailable and are never
+  promoted. Constructor/Match operation counts remain deliberately unused.
+- Descriptor-only unused declarations remain accepted. Repeated unresolved
+  nominal identities and the accepted unused concrete-struct/unresolved-enum
+  same-name collision are retained as ambiguous and cannot authenticate a
+  metadata nominal by name. Two concrete same-name descriptor schemas still fail
+  deterministically, preserving the corruption control. Exact private symbols,
+  not decoded display names, remain identity authority.
+- Focused evidence is green with one Cargo build job and one Rust test thread:
+  authentication units `10/10`; public characterization/structural/native target
+  `3/3` with all native exits 91 and the frozen Experimental/stable/exact LLVM
+  digests; generic struct/enum/function, typed Result, trait dispatch, owned
+  Match, enum-loop fixed point, descriptor, stable-scalar, and exact-array
+  compatibility targets `60/60`; and cache identity/reverification controls
+  `8/8`. Correct-manifest formatting, `git diff --check`, and all-target,
+  all-feature Clippy with `-D clippy::correctness` pass. The final exact-content
+  repository-root `./tools/test.sh` gate exits 0 with 284/284 library tests,
+  35/35 CLI tests, every integration target (including CAP-024 at 6/6 and this
+  authentication target at 3/3), the Windows native system target, and doc tests
+  green. The final unavailable-local mutation assertion is included in that run.
+- The cumulative diff from accepted CAP-028 remains exactly the four authorized
+  files: this ledger, `src/compiler/src/lib.rs`, the new
+  `src/compiler/src/resolved_profile_authentication.rs`, and the new focused
+  `src/compiler/tests/resolved_profile_authentication_tests.rs`. User/app-owned
+  `.codex-remote-attachments/`, `tmp/`, and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched. No capability,
+  semantic, stability, performance, accelerator, package, or release claim is
+  made by this behavior-neutral prerequisite.
+
 ## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
 
 - Date/task/status: 2026-08-15,
