@@ -209,6 +209,17 @@
   All-target/all-feature `clippy::correctness` denial exits zero; formatting and
   `git diff --check` remain green. The repository-root gate is still required
   before this checkpoint can be accepted or published.
+- On implementation checkpoint
+  `032306ffd55a2b7b61ef5b993d5fcb12e6e1d215`, the repository-root
+  `./tools/test.sh` gate exits zero with one Cargo build job, one Rust test
+  thread, the task-isolated external target, and pinned LLVM 22. It includes
+  `289/289` library tests, `35/35` binary tests, every integration and native
+  system target, CAP-024 claim verification `6/6`, CORE-092 logical stack safety
+  `3/3`, CAP-030 `3/3`, version-claim verification `8/8`, and doc tests. No
+  file outside the three-file authorization differs from accepted base
+  `70ac37fad8f7a0bbef2f4958429f4f77b2f9ed87`; both independent read-only
+  audits report no remaining concrete blocker. CAP-030 is therefore a locally
+  green publication candidate, not yet an accepted public capability.
 
 ## CAP-029-RESOLVED-PROFILE-AUTHENTICATION - behavior-neutral semantic-to-checked binding
 
