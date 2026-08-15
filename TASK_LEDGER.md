@@ -81,6 +81,218 @@
   accelerator, or application semantic decision. A positive readiness result is
   not implementation authorization and must be separately reranked.
 
+### CAP-027 readiness result - narrow descriptor contract is possible
+
+- Decision: `YES IMPLEMENTATION CONTRACT POSSIBLE`, narrowly. This completed
+  ledger-only proof does not add a descriptor, selector, source behavior,
+  physical policy, compiler capability, or claim, and it does not authorize the
+  CAP-025 application profile. One total logical descriptor can be finalized by
+  the same `SemanticAnalyzer` instance after its normalized-AST registries and
+  all semantic/ownership checks succeed, then consumed before checked IR. The
+  result becomes `NO IMPLEMENTATION` if a later profile requires inferred
+  aggregate roots that were not captured by semantics, moves either current
+  selected-profile gate, rebuilds a registry, changes checked IR, or combines
+  descriptor work with recursive physical selection.
+- Exact canonical route and diagnostic precedence:
+
+  | Order | Existing authority | Exact evidence and frozen behavior |
+  |---:|---|---|
+  | 0 | option/CLI validation and file read | Library option checks are `src/compiler/src/lib.rs:94-100,320-392`; CLI profile/target checks and reads are `src/compiler/src/main.rs:371-443,1441-1612`. These errors remain before compiler work. |
+  | 1 | root lex and fatal parse | `lib.rs:204-211`; located root diagnostics remain first compiler failures. |
+  | 2 | current raw-AST profile gate | `lib.rs:213` delegates to `language_profile.rs:161-185,237-250`. Stable and exact diagnostics remain byte-for-byte before modules and semantics; Experimental remains a no-op. |
+  | 3 | direct modules | `lib.rs:215-220,287-313` and `module_resolver.rs:111-169` read, lex, parse, reject nested modules, and const-normalize in declaration order. |
+  | 4 | semantic normalization | `semantic_analyzer.rs:1209-1212` runs primitive constants, CopyData specializations, then builtin carriers. Failures keep the `Semantic Analysis Error:` wrapper from `lib.rs:223-226`. |
+  | 5 | semantic registries and validation | `semantic_analyzer.rs:1213-1378` resets state, constructs the final `StructRegistry` then `EnumRegistry`, predeclares functions, and validates statements/expressions/ownership in source order. |
+  | 5.5 | permitted descriptor finalization | The analyzer is still alive at `lib.rs:223-230`. Finalization must be total for every semantic success, use that same analyzer's normalized AST and registries, and precede `IrGenerator`. A future selector may reject here only under its newly frozen semantic-first diagnostic contract. |
+  | 6 | checked admission and verification | `ir_generator.rs:247-280` repeats shared normalization, validates the checked AST, rebuilds checked registries, lowers, and verifies. Existing `IR Generation Error:` / `IR Verification Error:` precedence remains unchanged. |
+  | 7 | check stop or checked backend | Check routes stop at `lib.rs:330-340,373-392`. Compile/build/run reach `code_generator.rs:1269-1299`, which re-verifies checked IR, applies selected-profile corruption defense, checks backend support, and only then emits LLVM. |
+  | 8 | CLI external boundary | `main.rs:1790-2035` applies target transforms, requires LLVM verification where configured, writes/builds/runs, and cleans temporary run artifacts. |
+
+  `compile_program`, `check_program`, `compile_file`, `check_file`, CLI
+  check/build/run, compiler-service preparation, and the profiler all converge
+  on the library-owned preparation route. CLI test and profiler retain their
+  Experimental wrappers. Public `SemanticAnalyzer`, direct `IrGenerator`, and
+  default direct `CodeGenerator` remain semantic/profile-independent
+  compatibility routes; a future source-profile claim must not be made through
+  those bypasses without a separately authenticated descriptor contract.
+- Normalization and registry ownership map:
+
+  | Authority/instance | Current work and lifetime | Descriptor rule |
+  |---|---|---|
+  | `normalize_copydata_specializations` | `specialization_contract.rs:228-237` sequences generic struct, enum, and function specialization and deterministic private output. Its component normalizers build temporary registries while validating concrete schemas. | Consume only normalized output and the existing private-name decoders; never recreate a specialization catalog. |
+  | builtin carrier normalizer | `builtin_carrier_contract.rs:173-207,793-946` builds a temporary struct registry, resolves contextual Option/Result, validates existing private definitions, and emits concrete private enums. | Run after specialization as today; retain opaque identity plus decoded `Result<T, E>` display. Never infer a carrier context. |
+  | semantic `StructRegistry` | `struct_contract.rs:205,315-411,541,802` owns unique nonempty nongeneric recursive CopyData records. Its visiting set fails closed on self/mutual cycles; supported contracts carry both `Ty` and recursively expanded `LogicalType`. | Query this exact instance. A missing contract stays unresolved/excluded; do not rediscover whether it was unknown, ambiguous, empty, cyclic, or unsupported. |
+  | semantic `EnumRegistry` | `enum_match_contract.rs:141-144,377-490` owns unique concrete enum schemas, constructors, transport, and exhaustive Match. Payload fields delegate to the semantic struct registry. | Query this exact instance. Current enum payloads cannot recursively contain enums, so enum cycles are already excluded. |
+  | semantic success product | `semantic_analyzer.rs:1378` currently returns only message plus normalized AST, while the useful registries remain private on the still-live analyzer. | Preserve public `analyze`'s exact signature; add only a crate-private rich success/finalizer for the canonical pipeline. |
+  | checked admission/generation | `ir_generator.rs:247-256,613-745` repeats the normalizers and creates a validation registry pair plus a generator registry pair. | Leave unchanged. They are existing semantic-independent checked admission, not descriptor source authority. Removing or rethreading them is a separate task and would exceed this contract. |
+  | checked verifier/backend | `ir_verifier.rs:380-438,5320-5420` independently validates recursive logical schemas; `code_generator.rs:998-1110,1276-1278` independently checks selected-profile IR before LLVM. | Remain corruption defense. They may compare verifier-authenticated observations with an out-of-band descriptor, but may not admit source or rebuild source registries. |
+
+  Idempotent repeated normalization is still real duplicate work: generic
+  struct/enum/function and carrier passes create several temporary registries;
+  semantic analysis owns one final pair; checked validation and generation own
+  two more pairs. CAP-027 does not bless that duplication or try to remove it.
+  The critical prohibition is adding another profile-owned normalizer, type
+  inference engine, or registry instance.
+- Minimum immutable descriptor contract: inputs are the post-normalization
+  `&[AstNode]`, the same analyzer-owned `&StructRegistry` and `&EnumRegistry`,
+  and existing admitted function contracts where a function root is required.
+  One total finalization walk may record syntax and query contracts; it may not
+  recursively reinterpret raw annotations, repeat expression inference, emit a
+  user diagnostic, or fail a currently successful program. The minimum output
+  is an arena-shaped `ResolvedProfileProgram` with:
+  (1) canonical shape nodes for `Int`, `Bool`, flat integer arrays, ordered
+  records, and ordered enum variants/payload products;
+  (2) opaque concrete identity plus decoded source identity for nongeneric,
+  private generic specialization, and builtin carrier origins;
+  (3) resolved transport roots that reuse the existing `ProfileTypeUse` roles
+  for parameter, result, binding, mutable binding, value, and owned assignment,
+  plus separate declaration/constructor/exhaustive-Match operation observations
+  rather than a second use-role enum; and
+  (4) a fail-closed unresolved/excluded category. Existing `LogicalType` remains
+  the recursive logical grammar where it is sufficient; the descriptor adds
+  origin, ordered field names, use role, and exclusion state rather than a
+  second type system.
+- Fixed-point and occurrence boundary: semantic while/for/loop bodies are
+  revisited during ownership convergence at `semantic_analyzer.rs:3307-3535`.
+  The prerequisite therefore finalizes once from the successful normalized AST
+  instead of appending observations during provisional iterations. If a later
+  requirement cannot be expressed by that total walk, semantic-side capture
+  must buffer/deduplicate by deterministic normalized-AST identity and commit
+  only converged facts. Stop rather than add an append-only event log, a second
+  inference pass, or AST/IR occurrence IDs.
+- Identity, cycle, depth, and inference rules: generic struct/enum and carrier
+  private decoders must preserve both the opaque canonical symbol used for
+  equality and the decoded public spelling used for diagnostics. A normalized
+  private generic specialization remains source-facing generic and is excluded
+  by the frozen CAP-025 boundary; only a valid normalized builtin Result is the
+  required enum exception. Registry success is the acyclicity proof. Descriptor
+  construction memoizes nominal nodes and treats a defensive `Visiting` revisit
+  as excluded; it introduces no new semantic depth limit. Local inferred types
+  are not persisted today and scopes have unwound at semantic success, so a
+  later profile must conservatively reject unannotated aggregate roots (or all
+  unannotated bindings in its first version) instead of re-inferring them.
+- Bounded shape matrix for the later, separately authorized profile:
+
+  | Resolved shape/origin | Descriptor result | Frozen candidate disposition |
+  |---|---|---|
+  | `int`/`i32` | `Int` | Candidate admit; exact `i32` physical selection remains later backend work. |
+  | `bool` | `Bool` | Candidate admit; physical `i1` remains CAP-026 policy. |
+  | `[int; N]`, `1 <= N <= i32::MAX` | flat integer-array node | Candidate admit as a leaf, including a field of a finite record. |
+  | zero/oversized array, nested array, bool array, array of tuple/record | resolved or excluded registry shape | Reject by profile policy; registry support alone is not profile admission. |
+  | unique nonempty nongeneric record whose ordered fields recurse only through admitted leaves/records | nominal record node | Candidate admit when finite and acyclic. |
+  | empty, ambiguous, cyclic, generic, unresolved, or unsupported record | unresolved/excluded, or private generic origin | Reject without reclassification. |
+  | concrete builtin `Result<T, E>` with both payloads admitted | private enum plus decoded carrier origin and exact Ok/Err schema | Candidate admit; Option, nested, or context-free carriers remain rejected. |
+  | nongeneric user enum over CopyData | representable enum node | Keep excluded for the minimal CAP-025 product unless a later semantic freeze explicitly admits it; Result is the only required enum. |
+  | concrete user generic specialization | resolved private nominal node plus generic origin | Reject as source-facing generic even though normalization makes it concrete. |
+  | float, char, string, tuple roots/fields, reference, dynamic collection, closure, trait/type parameter, enum nested in record/array/payload | resolved or excluded category | Reject. No convenient fallback type is permitted. |
+
+- Bounded use-context matrix: a later profile may admit only explicit internal
+  parameters/results, explicitly typed local record/array/Result bindings,
+  context-checked record/Result construction, by-value CopyData copy/call/return,
+  record-field and flat-array-element reads, the already-guarded flat-array
+  element writes, whole owned Result movement, and explicit exhaustive Match
+  returning an admitted CopyData value or Void. Keep aggregate entry ABI,
+  unannotated aggregate roots, references/borrows, context-free carriers,
+  incomplete/duplicate/nonexact Match, carrier comparison/printing/methods,
+  aggregate mutation beyond the specifically frozen operations, implicit error
+  conversion/propagation, modules, public ABI, dynamic storage, and accelerator
+  behavior excluded. This is a feasibility boundary, not newly accepted source
+  semantics.
+- Corruption and mutation boundary: source admission must consume the semantic
+  descriptor before calling `IrGenerator`. `CheckedIr` remains byte- and schema-
+  identical. `CheckedProgram` may carry the immutable descriptor beside checked
+  IR and the selected profile. At backend entry, existing checked-IR verification
+  remains first; a later guard must compare every profile-relevant verified
+  reachable signature and nominal schema against the descriptor, while every
+  verified result/place/instruction is independently required to satisfy the
+  same shared profile policy, before CAP-026 selects physical lanes. Checked IR
+  has no source-event identity (`ir.rs:547-577`), so this is deliberately
+  fail-closed shape/origin/policy conformance, not an event-count or source-node
+  bijection. Requiring such a bijection would need IR-generation/schema work and
+  changes the result to `NO IMPLEMENTATION`. The exact
+  schema comparison is required for builtin Result because
+  `valid_carrier_aware_enum_symbol` validates the private carrier spelling but
+  does not by itself bind decoded `Result<T, E>` to the observed Ok/Err schema.
+  No descriptor field may choose LLVM types, zeros, alignment, ABI, or enable
+  recursive exact layout. Default direct IR/codegen stays Experimental-only.
+  The current CLI cache key includes source, target, GPU, nonexperimental
+  profile, and resolved-module material (`main.rs:1676-1717`), and canonical
+  checking precedes lookup (`main.rs:1722-1761`); production currently creates a
+  fresh optimizer per invocation. A later profile must nevertheless disable a
+  cache hit or execute its descriptor/verified-IR guard before the lookup at
+  `main.rs:1752-1761`; external LLVM verification alone does not authenticate
+  logical or physical profile identity. Any future reusable/persistent cache
+  must additionally authenticate descriptor and compiler/layout version.
+- Exact two-phase accounting for a later application-profile slice:
+  (1) semantic finalization plus logical profile admission produces/consumes the
+  descriptor; adding selector parsing and library plumbing is not a new compiler
+  phase; (2) checked backend compares verifier-authenticated IR observations and
+  selects the already-centralized CAP-026 physical policy. `ir.rs`,
+  `ir_generator.rs`, and `ir_verifier.rs` require no schema or production change.
+  Existing checked verification remains an independent service, not a new source
+  admission consumer. Stop if implementation needs any of those files for new
+  logical facts or if cached output can bypass the new profile guard.
+- Concrete next prerequisite implementation budget, not yet authorized: only
+  `TASK_LEDGER.md`; one new
+  `src/compiler/src/resolved_profile_shape.rs`; module/rich-success plumbing in
+  `src/compiler/src/lib.rs`; descriptor finalization in
+  `src/compiler/src/semantic_analyzer.rs`; and one focused
+  `src/compiler/tests/resolved_profile_shape_authority_tests.rs`. It must add no
+  `LanguageProfile` variant, source rejection, backend/layout selection,
+  checked-IR/verifier/generator mutation, capability document, example,
+  workflow, dependency, evidence bundle, or claim. The public
+  `SemanticAnalyzer::analyze` signature and all current diagnostics and LLVM
+  bytes stay exact. A structural red must prove the descriptor authority is
+  absent, then require one total builder, forbid registry construction and
+  normalization calls in the new module, and freeze private/source identity,
+  field/variant order, explicit use roles, unresolved/cyclic fail-closed state,
+  deterministic analyzer reuse, stable/exact/experimental diagnostic parity,
+  and pre/post representative LLVM digests. Focused semantic/registry tests,
+  current stable/exact profile targets, generic specialization/carrier/Match/
+  ownership targets, formatting, correctness-denying Clippy, diff hygiene, and
+  the root gate are mandatory. After acceptance, rerank; do not automatically
+  add the application selector.
+- Evidence executed at authorization commit
+  `fd635964e79128bce2753091b5abf784302e24b1`: the phase auditor ran the focused
+  canonical-pipeline diagnostic/artifact boundary control, stable source/file
+  route parity, stable excluded-family precedence, and exact source/file route
+  parity with one Cargo job and one Rust test thread; all four passed, and the
+  lead independently reran the same four controls green. The independent
+  registry audit and a separate adversarial route/cache/fixed-point challenge
+  both retained the narrow yes and changed no files. With Cargo and Rust tests
+  limited to one worker and pinned LLVM 22 restored, repository-root
+  `./tools/test.sh` exits 0: 270 library tests, 35 binary tests, every integration
+  target, and doc tests pass; named contract controls include CAP-024 6/6,
+  current fixed-array profile 20/20, stable profile 10/10, CAP-026 layout 2/2,
+  and version/claim truth 8/8. The only tracked delta remains this ledger;
+  `.codex-remote-attachments/`, `tmp/`, and stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched.
+- Remaining uncertainty and inherited risks: no persisted expression type/use
+  map exists, source locations are absent from most AST nodes, and external
+  consumers of doc-hidden/public compatibility APIs cannot be enumerated from
+  the repository. Registry failure reasons intentionally collapse to `None`,
+  existing recursive graph resolution has no explicit depth ceiling, carrier
+  schema validation is asymmetric, and a reusable cache could bypass backend
+  comparison. The narrow contract addresses these by explicit-root-only
+  admission, coarse fail-closed exclusions, no invented location, exact
+  descriptor-to-verified-schema comparison, API preservation, and cache stop
+  controls. Any need for general inference, source locations, a registry API
+  redesign, a checked-IR schema field, or a third production phase changes the
+  result to `NO IMPLEMENTATION`.
+- Fresh post-CAP-027 ranking, with higher scores more favorable:
+
+  | Rank | Candidate | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Behavior-neutral semantic resolved-profile descriptor authority | 2 | 5 | 5 | 5 | 3 | 3 | 23 |
+  | 2 | Owned dynamic collection/streaming readiness only | 5 | 4 | 5 | 5 | 1 | 1 | 21 |
+  | 3 | Quantized-kernel representation/readiness only | 5 | 4 | 3 | 5 | 1 | 1 | 19 |
+
+  The CAP-025 application profile remains ineligible until rank 1 is accepted;
+  CAP-026 solved its physical prerequisite, while CAP-027 now proves only the
+  remaining logical prerequisite's bounded placement. **Exactly one recommended
+  next action:** authorize the rank-1 behavior-neutral semantic descriptor task
+  under the exact five-file, structural-red-first contract above, then rerank.
+
 ## CAP-026-COPYDATA-PHYSICAL-AUTHORITY - behavior-neutral recursive layout consolidation
 
 - Date/task/status: 2026-08-15, `CAP-026-COPYDATA-PHYSICAL-AUTHORITY`,
