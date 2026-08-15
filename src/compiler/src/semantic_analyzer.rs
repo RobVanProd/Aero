@@ -6,7 +6,12 @@ use crate::binding_annotation::{
     is_statically_empty_fixed_array, typed_empty_numeric_array_contract,
 };
 use crate::builtin_carrier_contract::{
-    normalize_builtin_carriers, unnormalized_carrier_diagnostic,
+    normalize_builtin_carriers, private_result_int_int_name, unnormalized_carrier_diagnostic,
+};
+use crate::byte_buffer_source_contract::{
+    BYTES_NEW, ByteBufferIntrinsic, byte_buffer_type_declaration_diagnostic,
+    classify_byte_buffer_intrinsic_call, contains_byte_buffer_annotation,
+    is_byte_buffer_annotation, is_reserved_byte_buffer_intrinsic, result_context_diagnostic,
 };
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
@@ -815,6 +820,7 @@ pub struct SemanticAnalyzer {
     trait_impls: HashMap<String, Vec<String>>,
     /// Function trait bounds: function name -> [(type_param, [trait_name])]
     function_bounds: HashMap<String, Vec<(String, Vec<String>)>>,
+    byte_buffer_source_enabled: bool,
 }
 
 impl SemanticAnalyzer {
@@ -844,7 +850,14 @@ impl SemanticAnalyzer {
             trait_registry,
             trait_impls: HashMap::new(),
             function_bounds: HashMap::new(),
+            byte_buffer_source_enabled: false,
         }
+    }
+
+    pub(crate) fn new_with_byte_buffer_source() -> Self {
+        let mut analyzer = Self::new();
+        analyzer.byte_buffer_source_enabled = true;
+        analyzer
     }
 
     /// Check if a name is an in-scope type parameter.
@@ -933,6 +946,149 @@ impl SemanticAnalyzer {
                     .get(name)
                     .map(|binding| binding.ty.clone())
             })
+    }
+
+    fn validate_byte_buffer_owner(&self, name: &str, mutable: bool) -> Result<(), String> {
+        if !self.scope_manager.is_in_function()
+            || !self.type_param_scopes.is_empty()
+            || self.inside_impl
+        {
+            return Err(
+                "byte-buffer intrinsics require a nongeneric source function body".to_string(),
+            );
+        }
+        let owner = self
+            .scope_manager
+            .get_variable(name)
+            .ok_or_else(|| format!("byte-buffer owner `{name}` is not a local binding"))?;
+        if owner.var_type != Ty::ByteBuffer {
+            return Err(format!(
+                "byte-buffer intrinsic owner `{name}` has type {}, expected ByteBuffer",
+                owner.var_type
+            ));
+        }
+        if !owner.initialized {
+            return Err(format!("byte-buffer owner `{name}` is uninitialized"));
+        }
+        if owner.ownership != OwnershipState::Owned {
+            return Err(format!("byte-buffer owner `{name}` is not live"));
+        }
+        if mutable && !owner.mutable {
+            return Err(format!(
+                "byte-buffer intrinsic `bytes_push` requires mutable owner `{name}`"
+            ));
+        }
+        Ok(())
+    }
+
+    fn infer_byte_buffer_intrinsic(
+        &self,
+        name: &str,
+        arguments: &[Expression],
+        array_types: &mut ArrayInferenceCache,
+    ) -> Result<Option<Ty>, String> {
+        if !self.byte_buffer_source_enabled {
+            return Ok(None);
+        }
+        let Some(call) = classify_byte_buffer_intrinsic_call(name, arguments)? else {
+            return Ok(None);
+        };
+        if call.intrinsic == ByteBufferIntrinsic::New {
+            return Err(
+                "byte-buffer intrinsic `bytes_new` must directly initialize an explicit ByteBuffer binding"
+                    .to_string(),
+            );
+        }
+        let owner = call
+            .owner
+            .expect("non-constructor byte-buffer intrinsic retains an owner");
+        self.validate_byte_buffer_owner(owner, call.intrinsic == ByteBufferIntrinsic::Push)?;
+        if let Some(scalar) = call.scalar {
+            let actual =
+                self.infer_and_validate_expression_immutable_with_cache(scalar, array_types)?;
+            if actual != Ty::Int {
+                return Err(format!(
+                    "byte-buffer intrinsic `{name}` scalar argument has type {actual}, expected int"
+                ));
+            }
+        }
+        Ok(Some(match call.intrinsic {
+            ByteBufferIntrinsic::Push | ByteBufferIntrinsic::Get => {
+                let result = private_result_int_int_name();
+                self.enum_registry
+                    .owned_place_logical_type(&result)
+                    .map_err(|_| result_context_diagnostic(name))?;
+                Ty::Enum(result)
+            }
+            ByteBufferIntrinsic::Length | ByteBufferIntrinsic::Capacity => Ty::Int,
+            ByteBufferIntrinsic::New => unreachable!("constructor handled above"),
+        }))
+    }
+
+    fn analyze_byte_buffer_binding(
+        &mut self,
+        name: &str,
+        mutable: bool,
+        type_annotation: Option<&crate::ast::Type>,
+        value: Option<&Expression>,
+    ) -> Result<(), String> {
+        if !self.scope_manager.is_in_function()
+            || self.scope_manager.get_scope_level() != 1
+            || self.scope_manager.get_loop_depth() != 0
+            || !self.type_param_scopes.is_empty()
+            || self.inside_impl
+        {
+            return Err(
+                "ByteBuffer owners may be declared or moved only in a direct nongeneric function body outside control-flow topology"
+                    .to_string(),
+            );
+        }
+        if !type_annotation.is_some_and(is_byte_buffer_annotation) {
+            return Err(format!(
+                "byte-buffer owner `{name}` requires the explicit `ByteBuffer` annotation"
+            ));
+        }
+        let value = value.ok_or_else(|| {
+            format!("byte-buffer owner `{name}` must be initialized at declaration")
+        })?;
+        match value {
+            Expression::FunctionCall {
+                name: intrinsic,
+                arguments,
+            } => {
+                let Some(call) = classify_byte_buffer_intrinsic_call(intrinsic, arguments)? else {
+                    return Err(format!(
+                        "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                    ));
+                };
+                if call.intrinsic != ByteBufferIntrinsic::New {
+                    return Err(format!(
+                        "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                    ));
+                }
+            }
+            Expression::Identifier(source) => {
+                self.validate_byte_buffer_owner(source, false)?;
+                self.scope_manager.mark_moved(source)?;
+            }
+            _ => {
+                return Err(format!(
+                    "byte-buffer owner `{name}` requires `bytes_new()` or a direct live owner move"
+                ));
+            }
+        }
+        self.scope_manager
+            .define_variable(name.to_string(), Ty::ByteBuffer, mutable, true)?;
+        self.symbol_table.insert(
+            name.to_string(),
+            VariableInfo {
+                name: name.to_string(),
+                ty: Ty::ByteBuffer,
+                mutable,
+                initialized: true,
+            },
+        );
+        Ok(())
     }
 
     fn direct_owned_enum_result_type(&self, name: &str) -> Option<Ty> {
@@ -1211,6 +1367,15 @@ impl SemanticAnalyzer {
         let ast = normalize_primitive_consts(ast)?;
         let ast = normalize_copydata_specializations(ast)?;
         let ast = normalize_builtin_carriers(ast)?;
+        if self.byte_buffer_source_enabled {
+            for node in &ast {
+                if let AstNode::Statement(statement) = node
+                    && let Some(diagnostic) = byte_buffer_type_declaration_diagnostic(statement)
+                {
+                    return Err(diagnostic);
+                }
+            }
+        }
         self.function_table.clear();
         self.compatibility_scope_snapshots.clear();
         self.return_contract_stack.clear();
@@ -1238,6 +1403,24 @@ impl SemanticAnalyzer {
                 ..
             }) = node
             {
+                if self.byte_buffer_source_enabled {
+                    if is_reserved_byte_buffer_intrinsic(name) {
+                        return Err(format!(
+                            "byte-buffer intrinsic name `{name}` is reserved by exact-i32-byte-buffer-v0"
+                        ));
+                    }
+                    if parameters
+                        .iter()
+                        .any(|parameter| contains_byte_buffer_annotation(&parameter.param_type))
+                        || return_type
+                            .as_ref()
+                            .is_some_and(contains_byte_buffer_annotation)
+                    {
+                        return Err(format!(
+                            "function `{name}` cannot transport ByteBuffer in a parameter or result"
+                        ));
+                    }
+                }
                 let reference_transport = match classify_reference_function_with_enums(
                     name,
                     parameters,
@@ -1393,6 +1576,7 @@ impl SemanticAnalyzer {
                     .get_admitted_contract(name)
                     .map(|contract| (contract.parameters.clone(), contract.return_type.clone()))
             },
+            self.byte_buffer_source_enabled,
         );
         Ok((message, ast, resolved_profile))
     }
@@ -1528,6 +1712,20 @@ impl SemanticAnalyzer {
                 self.check_expression_initialization(right)?;
             }
             Expression::FunctionCall { name, arguments } => {
+                if self.byte_buffer_source_enabled && is_reserved_byte_buffer_intrinsic(name) {
+                    let call = classify_byte_buffer_intrinsic_call(name, arguments)?
+                        .expect("reserved byte-buffer intrinsic is classified");
+                    if let Some(owner) = call.owner {
+                        self.validate_byte_buffer_owner(
+                            owner,
+                            call.intrinsic == ByteBufferIntrinsic::Push,
+                        )?;
+                    }
+                    if let Some(scalar) = call.scalar {
+                        self.check_expression_initialization(scalar)?;
+                    }
+                    return Ok(());
+                }
                 match self.reference_call_disposition(name, arguments) {
                     ReferenceCallDisposition::Supported(contract) => {
                         for (index, argument) in arguments.iter().enumerate() {
@@ -1627,6 +1825,13 @@ impl SemanticAnalyzer {
                 infer_binary_type(op.as_str(), &lhs_type, &rhs_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                if let Some(result) = self.infer_byte_buffer_intrinsic(
+                    name,
+                    arguments,
+                    &mut ArrayInferenceCache::new(),
+                )? {
+                    return Ok(result);
+                }
                 match self.reference_call_disposition(name, arguments) {
                     ReferenceCallDisposition::Supported(contract) => {
                         let mut argument_types = Vec::with_capacity(arguments.len());
@@ -1945,6 +2150,19 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FunctionCall { name, arguments } => {
+                if self.byte_buffer_source_enabled && is_reserved_byte_buffer_intrinsic(name) {
+                    let call = classify_byte_buffer_intrinsic_call(name, arguments)?
+                        .expect("reserved byte-buffer intrinsic is classified");
+                    if let Some(scalar) = call.scalar {
+                        self.preflight_expression_with_array_mode(
+                            scalar,
+                            interleave_array_inference,
+                            array_types,
+                            struct_context,
+                        )?;
+                    }
+                    return Ok(());
+                }
                 if let Some(contract) = self.function_table.get_admitted_contract(name) {
                     match classify_function_call(FunctionCallFacts {
                         name: name.clone(),
@@ -2340,6 +2558,9 @@ impl SemanticAnalyzer {
         array_types: &mut ArrayInferenceCache,
         use_context: FunctionCallUse,
     ) -> Result<Ty, String> {
+        if let Some(result) = self.infer_byte_buffer_intrinsic(name, arguments, array_types)? {
+            return Ok(result);
+        }
         let direct_mutable_call = match self.reference_call_disposition(name, arguments) {
             ReferenceCallDisposition::Supported(contract) => Some(contract),
             ReferenceCallDisposition::ExplicitlyRejected(message) => {
@@ -2833,6 +3054,28 @@ impl SemanticAnalyzer {
                     ));
                 }
 
+                if self.byte_buffer_source_enabled {
+                    let byte_buffer_initializer = value.as_ref().is_some_and(|value| match value {
+                        Expression::FunctionCall { name, .. } => name == BYTES_NEW,
+                        Expression::Identifier(source) => {
+                            self.local_binding_type(source) == Some(Ty::ByteBuffer)
+                        }
+                        _ => false,
+                    });
+                    if type_annotation
+                        .as_ref()
+                        .is_some_and(is_byte_buffer_annotation)
+                        || byte_buffer_initializer
+                    {
+                        return self.analyze_byte_buffer_binding(
+                            name,
+                            *mutable,
+                            type_annotation.as_ref(),
+                            value.as_ref(),
+                        );
+                    }
+                }
+
                 let disposition = type_annotation.as_ref().map_or(
                     BindingAnnotationDisposition::PreservedQuarantinedTopology,
                     |annotation| classify_binding_annotation(annotation, value.is_some()),
@@ -3031,6 +3274,14 @@ impl SemanticAnalyzer {
                 Ok(())
             }
             Statement::Assignment { target, value } => {
+                if self.byte_buffer_source_enabled
+                    && matches!(target, Expression::Identifier(name) if self.local_binding_type(name) == Some(Ty::ByteBuffer))
+                {
+                    return Err(
+                        "ByteBuffer owners cannot be reassigned; use an explicit local move binding"
+                            .to_string(),
+                    );
+                }
                 let mut array_selector_types = Vec::new();
                 if let Some(selectors) = projected_copydata_assignment_array_selectors(target)? {
                     for selector in selectors {
@@ -3175,10 +3426,28 @@ impl SemanticAnalyzer {
                 name,
                 parameters,
                 body,
-                return_type: _,
+                return_type,
                 type_params,
                 trait_bounds,
             } => {
+                if self.byte_buffer_source_enabled {
+                    if is_reserved_byte_buffer_intrinsic(name) {
+                        return Err(format!(
+                            "byte-buffer intrinsic name `{name}` is reserved by exact-i32-byte-buffer-v0"
+                        ));
+                    }
+                    if parameters
+                        .iter()
+                        .any(|parameter| contains_byte_buffer_annotation(&parameter.param_type))
+                        || return_type
+                            .as_ref()
+                            .is_some_and(contains_byte_buffer_annotation)
+                    {
+                        return Err(format!(
+                            "function `{name}` cannot transport ByteBuffer in a parameter or result"
+                        ));
+                    }
+                }
                 // Phase 5: Register generic type parameters in scope
                 if !type_params.is_empty() {
                     self.type_param_scopes.push(type_params.clone());
@@ -3684,6 +3953,7 @@ impl SemanticAnalyzer {
                 .map(PrimitiveKind::ty)
                 .unwrap_or_else(|| match name.as_str() {
                     "String" => Ty::String,
+                    "ByteBuffer" if self.byte_buffer_source_enabled => Ty::ByteBuffer,
                     other => {
                         // Phase 5: Check if this is a generic type parameter
                         if self.is_type_param(other) {

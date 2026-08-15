@@ -2011,6 +2011,7 @@ fn ty_to_type(ty: &Ty) -> Option<Type> {
             .map(Type::Tuple),
         Ty::Struct(name) => Some(Type::Named(name.clone())),
         Ty::String
+        | Ty::ByteBuffer
         | Ty::Enum(_)
         | Ty::Void
         | Ty::Reference(_, _)

@@ -956,6 +956,10 @@ fn private_name_for(canonical: &str) -> String {
     format!("{PRIVATE_CARRIER_PREFIX}{encoded}")
 }
 
+pub(crate) fn private_result_int_int_name() -> String {
+    private_name_for("Result<int, int>")
+}
+
 fn private_carrier_name(annotation: &Type) -> Option<&str> {
     match annotation {
         Type::Named(name) if name.starts_with(PRIVATE_CARRIER_PREFIX) => Some(name),

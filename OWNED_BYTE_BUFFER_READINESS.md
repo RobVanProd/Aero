@@ -1,7 +1,7 @@
 # Owned Byte Buffer Readiness Contract
 
-Status: CAP-035 readiness contract and R1A accepted; R1B local candidate,
-2026-08-15.
+Status: CAP-035 readiness contract plus R1A/R1B accepted; R1C locally green
+candidate, 2026-08-15.
 
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
@@ -19,9 +19,16 @@ Accepted runtime checkpoint: R1A candidate
 `dbac56574f079b357c3459e6fbde3ad328a78acf`, and all candidate plus
 accepted-head workflows passed.
 
+Accepted checked-resource checkpoint: R1B candidate
+`7ab0a7889f4ccb3011fb189e8112b692dc4b2142` merged as
+`a9bd2e389d7baed28d6abefebd5267f2a37a4a49`; both have tree
+`d12957a22b0e776ba61dab3904dfc481369ddc69`, and all candidate plus
+accepted-head workflows passed.
+
 This document freezes the route from the accepted fixed-buffer compiler kernels
-to R1's first owned runtime storage. It is a design and evidence contract, not an
-implementation or allocation claim.
+to R1's first owned runtime storage and records the resulting checkpoint
+evidence. It is not a general collection, input, memory-safety, or self-hosting
+claim.
 
 ## Decision
 
@@ -207,7 +214,7 @@ owner or loan. The verifier rejects:
 Backend lowering begins only after successful verification and consumes the
 verified metadata. It may not reconstruct ownership from instruction spelling.
 
-### R1B local candidate
+### R1B accepted checkpoint
 
 The R1B branch implements exactly that private substrate. `ByteBufferId` values
 are assigned deterministically from dedicated owner creation; move destinations
@@ -229,11 +236,48 @@ descriptor after at most one deallocation.
 The focused contract is green 7/7 and the public structural/compatibility target
 is green 2/2. Native LLVM 22 fixtures prove success, allocation failure, failed
 reallocation with readable prefix preservation, invalid-byte prevalidation,
-out-of-bounds get, exact counters/sizes, and zero leaks. The complete root gate
-passes 299 library tests, 35 binary tests, every integration/native/system
-target, the Windows LLVM 22 system gate, and doc tests. Correctness Clippy is
-green. This remains a local candidate until protected candidate/merge and
-accepted-head workflows complete; it still exposes no source `ByteBuffer`.
+out-of-bounds get, exact counters/sizes, and zero leaks. The complete candidate
+gate passed 299 library tests, 35 binary tests, every integration/native/system
+target, the Windows LLVM 22 system gate, and doc tests. Correctness Clippy was
+green. Candidate `7ab0a7889f4ccb3011fb189e8112b692dc4b2142` merged as
+`a9bd2e389d7baed28d6abefebd5267f2a37a4a49` with identical tree
+`d12957a22b0e776ba61dab3904dfc481369ddc69`; its protected and accepted-head
+workflows passed. R1B itself still exposes no source `ByteBuffer`.
+
+## Source/profile model implemented for R1C
+
+### R1C locally green candidate
+
+R1C adds exactly the `exact-i32-byte-buffer-v0` selector, dedicated non-Copy
+source type `ByteBuffer`, and the five frozen free functions. The canonical
+source path admits only explicitly typed initialized direct function-local
+owners, moves between direct locals outside conditional/loop topology, one
+outer owner used by admitted loops, immediate `&owner`/`&mut owner` arguments,
+typed `Result<int, int>` consumption, and compiler-inserted reverse-order drops
+at every reachable return and fallthrough. It rejects inference, uninitialized
+owners, reassignment, stored aliases, escaping transport, nesting, owner
+creation/moves under control flow, ordinary-call transport, and accelerator
+routes before checked IR or artifacts.
+
+The semantic/profile authority and the checked-IR generator independently
+consume one shared intrinsic syntax contract. Checked generation emits only the
+accepted R1B resource instructions, ends each temporary loan before Result
+construction, and leaves lifecycle/resource identity to the accepted R1B
+verifier. The accepted R1A runtime, accepted R1B checked schema/verifier/backend,
+parser, AST, and historical Vec surface remain unchanged.
+
+The focused contract has seven green crate-private authority tests and six green
+public source/product tests. The public specimen is deterministic, verifies with
+LLVM 22, runs silently with exit 91 at O0 and O2 and through `aero run`, and is
+rejected on ROCm/CUDA before artifact creation. A deterministic mock runtime
+proves invalid-byte `Err(1)`, allocation/reallocation `Err(2)` with preserved
+prefix, out-of-bounds `Err(4)`, exact allocation/reallocation/deallocation
+counters, early-return cleanup, and zero leaks. The complete root gate passes
+306 library tests, 35 binary tests, every integration/native/system target, and
+doc tests; formatting, correctness Clippy, and LLVM verification are green.
+Every earlier profile and both accepted byte-buffer substrates remain frozen.
+R1C remains local until its exact candidate, protected merge, and accepted-head
+Linux/Windows workflows pass.
 
 ## Checkpoint boundaries
 
@@ -265,20 +309,20 @@ candidate identity, merge identity, and accepted-head workflow replay.
 
 ## Explicit non-claims
 
-CAP-035 itself adds no runtime, allocator, source type, IR, verifier rule,
-backend behavior, input, or owned storage. Accepted R1A and the R1B local
-candidate individually still do not make `ByteBuffer` source-valid. Even
-accepted R1 will not provide stdin/file
+CAP-035 itself added no runtime, allocator, source type, IR, verifier rule,
+backend behavior, input, or owned storage. Accepted R1A and R1B individually do
+not make `ByteBuffer` source-valid; the R1C local candidate adds only the frozen
+bounded owner. Even accepted R1 will not provide stdin/file
 input (R2), general collections or a flat AST arena (D1), owned UTF-8 text,
 modules, a production Aero frontend, self-hosting, general memory safety,
 performance, release readiness, or CPU/GPU parity.
 
 ## Exact next action
 
-Protect the exact R1B candidate with Linux and Windows verifier/backend/native
-evidence, exact merge-tree identity, and accepted-head replay. Only after those
-workflows are green, authorize R1C ledger-first and source-red-first: consume the
-accepted R1A runtime and R1B checked substrate through the bounded source API,
-semantic ownership/cleanup, checked-IR generation, and new fail-closed profile.
-Do not change the R1A runtime or reconstruct resource authority outside the R1B
-verifier metadata.
+Protect the exact R1C candidate with its source-red history, deterministic LLVM,
+mock-runtime failure/cleanup evidence, Linux and Windows O0/O2 native product,
+exact merge-tree identity, and accepted-head replay. Do not change the accepted
+R1A runtime, accepted R1B schema/verifier/backend, or reconstruct resource
+authority outside R1B verifier metadata. Once that replay is green, close R1
+and proceed separately to R2 whole-stream input and D1 owned compiler
+collections/flat arenas; neither capability is implied by R1C.

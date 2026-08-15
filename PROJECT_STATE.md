@@ -4,46 +4,54 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### R1B local candidate: verifier-owned byte storage substrate
+### R1C local candidate: bounded source-owned byte storage
 
-The current accepted public master is R1A merge
-`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
-`dbac56574f079b357c3459e6fbde3ad328a78acf`. R1A candidate
-`9a422eed653a9e0a80fdf264a50cc68d9d42c16a` has the identical tree; all 12
-candidate checks and every accepted-head CI, stable/nightly Rust, Windows LLVM
-22 native, CodeQL, and evidence workflow passed. The accepted runtime exports
-only `aero_alloc`, `aero_realloc`, and `aero_dealloc`, embeds its source in the
-compiler, and links it through both isolated CPU native paths.
+The current accepted public master is R1B merge
+`a9bd2e389d7baed28d6abefebd5267f2a37a4a49`, tree
+`d12957a22b0e776ba61dab3904dfc481369ddc69`. R1B candidate
+`7ab0a7889f4ccb3011fb189e8112b692dc4b2142` has the identical tree; every
+candidate check and accepted-head CI, stable/nightly Rust, Windows LLVM 22
+native, CodeQL, and evidence workflow passed. Accepted R1A owns the three-symbol
+allocator ABI; accepted R1B owns the dedicated checked resource schema,
+resource-state verifier, and byte-buffer backend lowering. Historical Vec
+instructions remain rejected.
 
-CAP-037/R1B is now a locally green candidate based exactly on that accepted
-head. It adds a private `LogicalType::ByteBuffer`, eleven dedicated checked
-instructions, deterministic `ByteBufferId`/owner/loan metadata, and an exact
-forward resource-state verifier. Current-owner moves, shared and exclusive loan
-liveness, exact ends, drop-once, join/backedge equality, and closed reachable
-returns are independently checked. Generic load/store/borrow, function
-transport, forged checked metadata, and every historical Vec instruction remain
-rejected.
+CAP-038/R1C is now a locally green candidate based exactly on that accepted
+head. It adds the separate fail-closed `exact-i32-byte-buffer-v0` profile,
+dedicated non-Copy `ByteBuffer` source type, and only `bytes_new`, `bytes_push`,
+`bytes_len`, `bytes_capacity`, and `bytes_get`. The admitted surface is limited
+to explicitly typed initialized direct function-local owners, direct local
+moves outside conditional/loop topology, immediate nonescaping shared/exclusive
+loans, one outer owner used by admitted loops, concrete `Result<int, int>`
+errors, and compiler-inserted reverse-order cleanup on every return and
+fallthrough.
 
-The backend re-verifies before lowering, consumes only that derived metadata,
-and emits `%aero.byte_buffer = type { ptr, i32, i32 }` plus the accepted R1A ABI
-only for verified resource modules. Push validates `0..=255`, grows 0 to 8 then
-doubles within `i32::MAX`, preserves state on allocation failure, writes one
-`i8`, and updates length only on success. Get bounds-checks initialized length
-and zero-extends one byte. Move clears the old descriptor; drop skips null,
-passes exact capacity once, and clears the owner.
+The source/semantic-profile authority rejects uninitialized or inferred owners,
+reassignment, stored aliases, use after move, wrong mutability/arity/topology,
+ordinary-call or function-ABI transport, nested owner types, conditional/loop
+creation or moves, discarded/untyped Result calls, reserved-name collisions,
+and accelerator routes before checked IR or artifacts. Checked-IR generation
+independently revalidates that contract, emits only accepted R1B instructions,
+ends temporary loans before typed Result construction, and leaves resource
+identity/lifecycle enforcement to the accepted R1B verifier. Parser, AST,
+checked-IR schema, verifier, runtime C, allocator ABI, and physical byte-buffer
+lowering remain unchanged; every earlier profile remains frozen.
 
-The focused contract passes 7/7, the public compatibility/structure target
-passes 2/2, all 299 library and 35 binary tests pass, and every
-integration/native/system target, the pinned Windows LLVM 22 system gate, and
-doc tests pass in the full root gate. Native deterministic-runtime fixtures
-prove allocation/growth/read/drop, allocation failure, failed-reallocation
-prefix preservation, invalid-byte prevalidation, bounds failure, exact sizes and
-counters, and zero leaks. Correctness Clippy is green.
+Seven focused crate-private authority tests and six public source/product tests
+pass. The product is deterministic, verifies with LLVM 22, runs silently with
+exit 91 at O0/O2 and through the public CLI, and is rejected for ROCm/CUDA
+before artifact creation. Deterministic runtime controls prove invalid-byte
+`Err(1)`, allocation/reallocation `Err(2)` with state/prefix preservation,
+out-of-bounds `Err(4)`, exact allocation/reallocation/deallocation counts,
+early-return cleanup, and zero leaks. The full root gate passes 306 library
+tests, 35 binary tests, every integration/native/system target, and doc tests;
+formatting and correctness Clippy are green.
 
-R1B does not modify parser, AST, source types, semantic analysis, IR generation,
-selected-profile admission, CLI/cache behavior, runtime C, or CPU driver. It
-does not make `ByteBuffer` source-valid, provide input, or close R1. R1 remains
-blocked on protected R1B followed by independently protected R1C.
+R1C does not add stdin/file input, strings, general collections, a flat AST
+arena, modules, a production front end, accelerator execution, or self-hosting.
+R1 remains blocked only on protected R1C candidate/merge and accepted-head
+Linux/Windows replay. After acceptance, the next dependency gates are R2
+whole-stream byte input and D1 owned compiler storage/flat integer-ID arenas.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3379,6 +3387,24 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
   only those eligibility statements and review chronology.
 
 ## Exact next action
+
+Finish and protect CAP-038/R1C from the accepted R1B head. Preserve its
+ledger-first and source-red-first history, exact allowed-file scope, full root
+gate, deterministic LLVM, O0/O2 and public-CLI exit-91 product, mock-runtime
+failure/cleanup counters, accelerator pre-artifact rejection, exact merge tree,
+and post-merge Linux/Windows workflow replay. Do not change the accepted R1A runtime
+ABI, accepted R1B checked schema/verifier/backend, parser/AST, historical Vec
+surface, or earlier profiles. R1 becomes accepted only after that evidence is
+terminal-green.
+
+Then authorize R2 whole-stream byte input and D1 deterministic owned compiler
+storage/flat AST arenas as separate ledger-first, red-first gates. R2 owns host
+read/EOF/I/O failure without path/module semantics; D1 owns token/name storage
+and cycle-free integer-ID arenas without hidden Rust collections. Neither gate
+may be inferred from R1C, and self-hosting is not claimed before the later F1,
+M1, B1, and H1/H2 gates close.
+
+## Historical post-CAP-024 ranking
 
 The post-CAP-024 order keeps every successor at readiness and task-local red-probe scope.
 CAP-022 remains a mandatory `NO IMPLEMENTATION` runtime-acquisition stop, and CAP-016's
