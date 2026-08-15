@@ -3,8 +3,9 @@
 ## CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE - verifier-owned byte storage substrate
 
 - Date/task/status: 2026-08-15,
-  `CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE`, ledger-first and
-  corruption-red-first from exact accepted R1A merge
+  `CAP-037-R1B-CHECKED-OWNED-BYTE-RESOURCE`, locally green implementation
+  candidate with preserved ledger-first and corruption-red-first history from
+  exact accepted R1A merge
   `d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
   `dbac56574f079b357c3459e6fbde3ad328a78acf`, on
   `agent/r1b-owned-byte-resource` in the D:-resident worktree
@@ -138,6 +139,33 @@
   source syntax to make the tests convenient. R1B is a substrate checkpoint, not
   owned input, collection support, memory-safety, self-hosting, release,
   performance, or accelerator execution.
+- Checkpoint history and implementation summary: ledger-only commit
+  `7bff34a` froze this contract. Red-test commit `426399f` ran the public focused
+  target 2 tests with 1 pass and exactly one intended failure: absent
+  `ByteBuffer,` in the checked schema. The current implementation adds all
+  eleven dedicated instructions, deterministic identity/role metadata, exact
+  resource-flow verification, backend lowering through the accepted R1A ABI,
+  and crate-private corruption plus native evidence. Generic access and
+  transport remain rejected, checked wrappers are reverified, and runtime
+  symbols are reserved only in programs that contain the private resource.
+- Local evidence: `cargo test --lib owned_byte_buffer_contract_test` passes 7/7;
+  `cargo test --test owned_byte_buffer_checked_resource_tests` passes 2/2;
+  the full library target passes 299/299; and
+  `cargo clippy --all-targets -- -D clippy::correctness` exits zero. The root
+  `./tools/test.sh` gate passes all 299 library tests, 35 binary tests, every
+  integration/native/system target, the pinned Windows LLVM 22 system gate, and
+  doc tests. LLVM 22 verifies deterministic resource modules. Native C/LLVM
+  fixtures prove allocate/grow/read/drop, injected allocation failure, failed
+  reallocation with preserved prefix, invalid-byte prevalidation, empty bounds
+  failure, exact allocator call/size counters, and zero live allocations.
+- Files changed by the implementation candidate: the three behavioral files
+  `src/compiler/src/ir.rs`, `src/compiler/src/ir_verifier.rs`, and
+  `src/compiler/src/code_generator.rs`; test-only wiring and the new
+  `src/compiler/src/owned_byte_buffer_contract_test.rs`; the focused committed
+  integration test; the five enumerated fail-closed shared-enum arms; and the
+  four truth/ledger documents. No unlisted file changed. Remaining uncertainty
+  is protected Linux/Windows candidate, merge-tree, and accepted-head replay;
+  those are required before R1B becomes accepted or R1C may start.
 - Storage rule: all task-created worktrees, Cargo targets, temp workspaces,
   probes, logs, generated LLVM, C mocks, objects, executables, and PR files stay
   on D:, respectively `D:\Aero-worktrees\r1b-owned-byte-resource`,

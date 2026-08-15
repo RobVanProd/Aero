@@ -4,36 +4,46 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### R1A local candidate: replaceable allocator runtime and CPU link boundary
+### R1B local candidate: verifier-owned byte storage substrate
 
-The current accepted public master is CAP-035 merge
-`da2ad95d4a1db3a991128a63223c82639d24ff2a`, tree
-`fb4739291690efa5c940d929f69435b063ea67f6`. CAP-035 candidate
-`c50ae7c8ef92f910244f383363b811d8a37622f9` has the identical tree; all 12
-candidate checks and every accepted-head CI, Rust CI, CodeQL, and evidence
-workflow passed. It freezes the dependency-ordered R1A/R1B/R1C owned-byte route
-without adding behavior.
+The current accepted public master is R1A merge
+`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`, tree
+`dbac56574f079b357c3459e6fbde3ad328a78acf`. R1A candidate
+`9a422eed653a9e0a80fdf264a50cc68d9d42c16a` has the identical tree; all 12
+candidate checks and every accepted-head CI, stable/nightly Rust, Windows LLVM
+22 native, CodeQL, and evidence workflow passed. The accepted runtime exports
+only `aero_alloc`, `aero_realloc`, and `aero_dealloc`, embeds its source in the
+compiler, and links it through both isolated CPU native paths.
 
-CAP-036/R1A is currently a local candidate based exactly on that accepted head.
-Its production C11 runtime exports only `aero_alloc`, `aero_realloc`, and
-`aero_dealloc`. The source is embedded in the compiler binary, materialized
-after checked compilation succeeds, compiled in the unique CPU run directory,
-and explicitly linked on both `llc` and direct-Clang native paths. Runtime
-selection does not inspect the working directory or accept an ambient override.
+CAP-037/R1B is now a locally green candidate based exactly on that accepted
+head. It adds a private `LogicalType::ByteBuffer`, eleven dedicated checked
+instructions, deterministic `ByteBufferId`/owner/loan metadata, and an exact
+forward resource-state verifier. Current-owner moves, shared and exclusive loan
+liveness, exact ends, drop-once, join/backedge equality, and closed reachable
+returns are independently checked. Generic load/store/borrow, function
+transport, forged checked metadata, and every historical Vec instruction remain
+rejected.
 
-A separate test runtime implements the same ABI plus deterministic fail-after,
-attempt/live/size-mismatch counters, and exact allocation-size validation.
-Independent C harnesses pass successful allocation/reallocation/deallocation,
-prefix preservation, mismatch rejection, failed-reallocation preservation, and
-counter checks. The focused R1A target passes 2/2, all 292 library and 35 binary
-tests pass, every integration/native/system target and doc test passes, and
-correctness Clippy is green. Protected Linux/Windows candidate/merge evidence
-remains pending.
+The backend re-verifies before lowering, consumes only that derived metadata,
+and emits `%aero.byte_buffer = type { ptr, i32, i32 }` plus the accepted R1A ABI
+only for verified resource modules. Push validates `0..=255`, grows 0 to 8 then
+doubles within `i32::MAX`, preserves state on allocation failure, writes one
+`i8`, and updates length only on success. Get bounds-checks initialized length
+and zero-extends one byte. Move clears the old descriptor; drop skips null,
+passes exact capacity once, and clears the owner.
 
-R1A changes only CPU native runtime linking. It does not emit allocator calls,
-admit `ByteBuffer`, change Vec rejection, add ownership/drop semantics, change
-checked IR or LLVM bytes, provide input, or close R1. R1 remains blocked on
-accepted R1A followed by independently protected R1B and R1C.
+The focused contract passes 7/7, the public compatibility/structure target
+passes 2/2, all 299 library and 35 binary tests pass, and every
+integration/native/system target, the pinned Windows LLVM 22 system gate, and
+doc tests pass in the full root gate. Native deterministic-runtime fixtures
+prove allocation/growth/read/drop, allocation failure, failed-reallocation
+prefix preservation, invalid-byte prevalidation, bounds failure, exact sizes and
+counters, and zero leaks. Correctness Clippy is green.
+
+R1B does not modify parser, AST, source types, semantic analysis, IR generation,
+selected-profile admission, CLI/cache behavior, runtime C, or CPU driver. It
+does not make `ByteBuffer` source-valid, provide input, or close R1. R1 remains
+blocked on protected R1B followed by independently protected R1C.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped

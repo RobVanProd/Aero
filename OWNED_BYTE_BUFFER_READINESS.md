@@ -1,6 +1,7 @@
 # Owned Byte Buffer Readiness Contract
 
-Status: CAP-035 accepted readiness contract; R1A local candidate, 2026-08-15.
+Status: CAP-035 readiness contract and R1A accepted; R1B local candidate,
+2026-08-15.
 
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
@@ -10,6 +11,12 @@ Protected readiness checkpoint: CAP-035 candidate
 `c50ae7c8ef92f910244f383363b811d8a37622f9` merged as
 `da2ad95d4a1db3a991128a63223c82639d24ff2a`; both have tree
 `fb4739291690efa5c940d929f69435b063ea67f6`, and all candidate plus
+accepted-head workflows passed.
+
+Accepted runtime checkpoint: R1A candidate
+`9a422eed653a9e0a80fdf264a50cc68d9d42c16a` merged as
+`d3ec5a5c460a307a95f986b40ce3da1924c52cf0`; both have tree
+`dbac56574f079b357c3459e6fbde3ad328a78acf`, and all candidate plus
 accepted-head workflows passed.
 
 This document freezes the route from the accepted fixed-buffer compiler kernels
@@ -136,7 +143,7 @@ Windows without silently using a host-language collection. The runtime,
 LLVM/Clang, linker, and operating-system allocation service remain declared in
 the bootstrap trust base.
 
-### R1A local candidate
+### R1A accepted checkpoint
 
 The R1A branch now implements this boundary without changing application LLVM
 or source admission. `aero_runtime.c` is embedded into the compiler binary,
@@ -151,12 +158,13 @@ prefix preservation, exact-size enforcement, failed-reallocation preservation,
 and deallocation. The accepted Vec diagnostics, all four profile LLVM bytes,
 native exit, and run-directory hygiene remain unchanged in the focused gate.
 
-The complete local root gate is also green: correctness Clippy, 292 library
-tests, 35 binary tests, every integration/native/system target, and doc tests.
+The complete candidate gate was green: correctness Clippy, 292 library tests,
+35 binary tests, every integration/native/system target, and doc tests. All 12
+candidate checks and the protected merge's CI, stable/nightly Rust, Windows LLVM
+22 native, CodeQL, and accepted-head evidence workflows passed.
 
-This remains a local candidate until protected Linux and Windows acceptance. It
-does not declare allocator calls in emitted application LLVM and therefore does
-not create source-visible storage.
+R1A does not declare allocator calls in emitted application LLVM and therefore
+does not create source-visible storage.
 
 ## Checked resource model frozen for R1B
 
@@ -199,6 +207,34 @@ owner or loan. The verifier rejects:
 Backend lowering begins only after successful verification and consumes the
 verified metadata. It may not reconstruct ownership from instruction spelling.
 
+### R1B local candidate
+
+The R1B branch implements exactly that private substrate. `ByteBufferId` values
+are assigned deterministically from dedicated owner creation; move destinations
+retain the identity and exact source-owner provenance; immutable and mutable
+loan places retain their source owner and role. A forward verifier worklist
+requires the complete resource state to match at joins and loop backedges and
+requires every reachable return to have ended all loans and dropped every
+resource. Generic load/store/borrow, function transport, forged metadata, and
+all historical Vec instructions remain fail-closed.
+
+After re-verifying the checked wrapper, the exact-i32 backend emits the private
+three-lane descriptor and the accepted R1A allocator calls. Push validates the
+byte before allocation, grows 0 to 8 and then doubles with an `i32::MAX` guard,
+preserves the descriptor on allocation failure, writes one `i8`, and updates
+length only on success. Get bounds-checks initialized length and zero-extends
+one byte. Move clears its source; drop supplies exact capacity and clears the
+descriptor after at most one deallocation.
+
+The focused contract is green 7/7 and the public structural/compatibility target
+is green 2/2. Native LLVM 22 fixtures prove success, allocation failure, failed
+reallocation with readable prefix preservation, invalid-byte prevalidation,
+out-of-bounds get, exact counters/sizes, and zero leaks. The complete root gate
+passes 299 library tests, 35 binary tests, every integration/native/system
+target, the Windows LLVM 22 system gate, and doc tests. Correctness Clippy is
+green. This remains a local candidate until protected candidate/merge and
+accepted-head workflows complete; it still exposes no source `ByteBuffer`.
+
 ## Checkpoint boundaries
 
 | Checkpoint | Compiler/runtime boundary | Required executable proof | Mandatory stop |
@@ -230,16 +266,19 @@ candidate identity, merge identity, and accepted-head workflow replay.
 ## Explicit non-claims
 
 CAP-035 itself adds no runtime, allocator, source type, IR, verifier rule,
-backend behavior, input, or owned storage. R1A and R1B individually will still
-not make `ByteBuffer` source-valid. Even accepted R1 will not provide stdin/file
+backend behavior, input, or owned storage. Accepted R1A and the R1B local
+candidate individually still do not make `ByteBuffer` source-valid. Even
+accepted R1 will not provide stdin/file
 input (R2), general collections or a flat AST arena (D1), owned UTF-8 text,
 modules, a production Aero frontend, self-hosting, general memory safety,
 performance, release readiness, or CPU/GPU parity.
 
 ## Exact next action
 
-Complete the R1A full root gate and protect its exact candidate with Linux and
-Windows allocator/link evidence. Only after its merge tree and accepted-head
-workflows are green, authorize R1B ledger-first and corruption-red-first: add
-the dedicated checked owned-byte resource, lifecycle/loan verification, and
-backend lowering without admitting source syntax or changing the R1A runtime.
+Protect the exact R1B candidate with Linux and Windows verifier/backend/native
+evidence, exact merge-tree identity, and accepted-head replay. Only after those
+workflows are green, authorize R1C ledger-first and source-red-first: consume the
+accepted R1A runtime and R1B checked substrate through the bounded source API,
+semantic ownership/cleanup, checked-IR generation, and new fail-closed profile.
+Do not change the R1A runtime or reconstruct resource authority outside the R1B
+verifier metadata.

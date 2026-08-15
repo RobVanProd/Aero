@@ -153,6 +153,65 @@ pub enum Inst {
         pointee: LogicalType,
         mutable: bool,
     },
+    /// Verified creation of one allocation-free local byte-buffer owner.
+    CheckedByteBufferNew {
+        result: Value,
+        name: String,
+    },
+    /// Verified transfer of one byte-buffer resource to a new local owner place.
+    CheckedByteBufferMove {
+        result: Value,
+        source: Value,
+        name: String,
+    },
+    /// Verified non-escaping shared loan of one live byte-buffer owner.
+    CheckedByteBufferImmutableBorrow {
+        result: Value,
+        source: Value,
+    },
+    /// Verified exact end of one shared byte-buffer loan.
+    CheckedByteBufferImmutableBorrowEnd {
+        reference: Value,
+        source: Value,
+    },
+    /// Verified non-escaping exclusive loan of one live byte-buffer owner.
+    CheckedByteBufferMutableBorrow {
+        result: Value,
+        source: Value,
+    },
+    /// Verified exact end of one exclusive byte-buffer loan.
+    CheckedByteBufferMutableBorrowEnd {
+        reference: Value,
+        source: Value,
+    },
+    /// Push one checked i32 byte through an active exclusive loan. The result is
+    /// the new positive length or the private R1B failure sentinel -1, -2, or -3.
+    CheckedByteBufferPush {
+        result: Value,
+        reference: Value,
+        byte: Value,
+    },
+    /// Read the nonnegative exact length through an active shared loan.
+    CheckedByteBufferLength {
+        result: Value,
+        reference: Value,
+    },
+    /// Read the nonnegative exact capacity through an active shared loan.
+    CheckedByteBufferCapacity {
+        result: Value,
+        reference: Value,
+    },
+    /// Read one initialized byte through an active shared loan. The result is
+    /// 0..=255 or the private R1B out-of-bounds sentinel -4.
+    CheckedByteBufferGet {
+        result: Value,
+        reference: Value,
+        index: Value,
+    },
+    /// Destroy one live byte-buffer owner exactly once.
+    CheckedByteBufferDrop {
+        owner: Value,
+    },
     /// Verified read-only place binding for an immutable Copy-data-reference parameter.
     CheckedImmutableReferenceParameter {
         result: Value,
@@ -437,6 +496,9 @@ pub enum LogicalType {
     Char,
     Void,
     String,
+    /// Private checked resource used by the R1 byte-storage substrate. It is not
+    /// CopyData and is unavailable to source syntax until a later R1C checkpoint.
+    ByteBuffer,
     ImmutableReference {
         pointee: Box<LogicalType>,
     },
@@ -481,6 +543,7 @@ impl fmt::Display for LogicalType {
             Self::Char => write!(f, "Char"),
             Self::Void => write!(f, "Void"),
             Self::String => write!(f, "String"),
+            Self::ByteBuffer => write!(f, "ByteBuffer"),
             Self::ImmutableReference { pointee } => write!(f, "&{pointee}"),
             Self::MutableReference { pointee } => write!(f, "&mut {pointee}"),
             Self::Array { element, count } => write!(f, "Array<{element}; {count}>"),
@@ -543,6 +606,23 @@ pub struct ResultId(pub u32);
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub struct PlaceId(pub u32);
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub struct ByteBufferId(pub u32);
+
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub enum ByteBufferPlaceRole {
+    Owner { moved_from: Option<PlaceId> },
+    ImmutableLoan { owner: PlaceId },
+    MutableLoan { owner: PlaceId },
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct ByteBufferPlaceMetadata {
+    pub place: PlaceId,
+    pub identity: ByteBufferId,
+    pub role: ByteBufferPlaceRole,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FunctionSignature {
     pub parameters: Vec<(String, LogicalType)>,
@@ -563,12 +643,28 @@ pub struct BlockMetadata {
     pub successors: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct FunctionMetadata {
     pub signature: FunctionSignature,
     pub results: BTreeMap<ResultId, LogicalType>,
     pub places: BTreeMap<PlaceId, PlaceMetadata>,
     pub blocks: Vec<BlockMetadata>,
+    pub byte_buffers: BTreeMap<PlaceId, ByteBufferPlaceMetadata>,
+}
+
+impl fmt::Debug for FunctionMetadata {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut debug = formatter.debug_struct("FunctionMetadata");
+        debug
+            .field("signature", &self.signature)
+            .field("results", &self.results)
+            .field("places", &self.places)
+            .field("blocks", &self.blocks);
+        if !self.byte_buffers.is_empty() {
+            debug.field("byte_buffers", &self.byte_buffers);
+        }
+        debug.finish()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]

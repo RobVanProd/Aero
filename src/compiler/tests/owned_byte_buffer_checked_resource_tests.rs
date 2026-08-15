@@ -1,6 +1,4 @@
-use compiler::{
-    CompilerOptions, LanguageProfile, check_program, compile_program,
-};
+use compiler::{CompilerOptions, LanguageProfile, check_program, compile_program};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -132,7 +130,10 @@ fn r1b_checked_resource_verifier_and_backend_authorities_are_required() {
         "CheckedByteBufferGet",
         "CheckedByteBufferDrop",
     ] {
-        assert!(ir.contains(anchor), "R1B red: checked IR omitted `{anchor}`");
+        assert!(
+            ir.contains(anchor),
+            "R1B red: checked IR omitted `{anchor}`"
+        );
     }
 
     for anchor in [

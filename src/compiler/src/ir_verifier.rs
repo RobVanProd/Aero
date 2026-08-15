@@ -1,7 +1,8 @@
 use crate::copy_data_layout::{CopyDataLayout, EnumStorageLayout};
 use crate::ir::{
-    BlockMetadata, CheckedIr, EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature,
-    Inst, IrMetadata, LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
+    BlockMetadata, ByteBufferId, ByteBufferPlaceMetadata, ByteBufferPlaceRole, CheckedIr,
+    EnumSchema, EnumVariantSchema, FunctionMetadata, FunctionSignature, Inst, IrMetadata,
+    LogicalType, PlaceId, PlaceMetadata, RawIr, ResultId, Value,
 };
 use crate::local_reference::admitted_reference_parameter_topology;
 use crate::primitive_contract::PrimitiveKind;
@@ -305,6 +306,18 @@ enum EnumOwner {
     Place(PlaceId),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ByteBufferLifecycle {
+    Live {
+        owner: PlaceId,
+        shared: BTreeSet<PlaceId>,
+        exclusive: Option<PlaceId>,
+    },
+    Dropped {
+        owner: PlaceId,
+    },
+}
+
 impl fmt::Display for EnumOwner {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -415,6 +428,7 @@ fn valid_copy_data_type(logical_type: &LogicalType) -> bool {
         | LogicalType::Char
         | LogicalType::Void
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::EnumFields { .. }
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. }
@@ -441,6 +455,7 @@ fn valid_checked_transport_type(logical_type: &LogicalType) -> bool {
         | LogicalType::EnumFields { .. }
         | LogicalType::Void
         | LogicalType::String
+        | LogicalType::ByteBuffer
         | LogicalType::ImmutableReference { .. }
         | LogicalType::MutableReference { .. } => false,
     }
@@ -709,6 +724,30 @@ fn checked_signature(
     })
 }
 
+fn contains_checked_byte_buffer(instructions: &[Inst]) -> bool {
+    instructions.iter().any(|instruction| match instruction {
+        Inst::CheckedByteBufferNew { .. }
+        | Inst::CheckedByteBufferMove { .. }
+        | Inst::CheckedByteBufferImmutableBorrow { .. }
+        | Inst::CheckedByteBufferImmutableBorrowEnd { .. }
+        | Inst::CheckedByteBufferMutableBorrow { .. }
+        | Inst::CheckedByteBufferMutableBorrowEnd { .. }
+        | Inst::CheckedByteBufferPush { .. }
+        | Inst::CheckedByteBufferLength { .. }
+        | Inst::CheckedByteBufferCapacity { .. }
+        | Inst::CheckedByteBufferGet { .. }
+        | Inst::CheckedByteBufferDrop { .. } => true,
+        Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+            contains_checked_byte_buffer(body)
+        }
+        _ => false,
+    })
+}
+
+fn checked_byte_buffer_runtime_symbol(name: &str) -> bool {
+    matches!(name, "aero_alloc" | "aero_realloc" | "aero_dealloc")
+}
+
 fn collect_bodies<'a>(
     ir: &'a RawIr,
 ) -> Result<(Vec<Body<'a>>, BTreeMap<String, FunctionSignature>), IrVerificationError> {
@@ -716,6 +755,9 @@ fn collect_bodies<'a>(
     let mut definitions: BTreeMap<String, (&'a Vec<Inst>, FunctionSignature)> = BTreeMap::new();
     let mut functions = ir.iter().collect::<Vec<_>>();
     functions.sort_by(|(left, _), (right, _)| left.cmp(right));
+    let reserves_byte_buffer_runtime = functions
+        .iter()
+        .any(|(_, function)| contains_checked_byte_buffer(&function.body));
 
     for (map_key, function) in &functions {
         if map_key.as_str() != function.name {
@@ -747,6 +789,16 @@ fn collect_bodies<'a>(
                 ),
             ));
         }
+        if reserves_byte_buffer_runtime && checked_byte_buffer_runtime_symbol(&function.name) {
+            return Err(IrVerificationError::new(
+                &function.name,
+                None,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "`{}` is reserved by the checked byte-buffer runtime ABI",
+                    function.name
+                )),
+            ));
+        }
         for instruction in &function.body {
             let definition = match instruction {
                 Inst::FunctionDef {
@@ -764,6 +816,15 @@ fn collect_bodies<'a>(
                 _ => None,
             };
             if let Some((name, body, sig)) = definition {
+                if reserves_byte_buffer_runtime && checked_byte_buffer_runtime_symbol(name) {
+                    return Err(IrVerificationError::new(
+                        name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(format!(
+                            "`{name}` is reserved by the checked byte-buffer runtime ABI"
+                        )),
+                    ));
+                }
                 if definitions
                     .insert(name.clone(), (body, sig.clone()))
                     .is_some()
@@ -1033,7 +1094,11 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedEnumPayload { result, .. }
         | Inst::CheckedEnumField { result, .. }
         | Inst::CheckedImmutableEnumMatchRead { result, .. }
-        | Inst::CheckedMutableEnumMatchRead { result, .. } => Some(result),
+        | Inst::CheckedMutableEnumMatchRead { result, .. }
+        | Inst::CheckedByteBufferPush { result, .. }
+        | Inst::CheckedByteBufferLength { result, .. }
+        | Inst::CheckedByteBufferCapacity { result, .. }
+        | Inst::CheckedByteBufferGet { result, .. } => Some(result),
         Inst::Call { result, .. } => result.as_ref(),
         Inst::ICmp { result, .. }
         | Inst::FCmp { result, .. }
@@ -1062,6 +1127,10 @@ fn place_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedImmutableBorrow { result, .. }
         | Inst::CheckedMutableBorrow { result, .. }
         | Inst::CheckedProjectedBorrow { result, .. }
+        | Inst::CheckedByteBufferNew { result, .. }
+        | Inst::CheckedByteBufferMove { result, .. }
+        | Inst::CheckedByteBufferImmutableBorrow { result, .. }
+        | Inst::CheckedByteBufferMutableBorrow { result, .. }
         | Inst::CheckedImmutableReferenceParameter { result, .. }
         | Inst::CheckedMutableReferenceParameter { result, .. } => Some(result),
         _ => None,
@@ -1075,9 +1144,15 @@ fn definition_type(
     results: &BTreeMap<ResultId, LogicalType>,
 ) -> Option<LogicalType> {
     match instruction {
-        Inst::Add(..) | Inst::Sub(..) | Inst::Mul(..) | Inst::Div(..) | Inst::FPToSI(..) => {
-            Some(LogicalType::Int)
-        }
+        Inst::Add(..)
+        | Inst::Sub(..)
+        | Inst::Mul(..)
+        | Inst::Div(..)
+        | Inst::FPToSI(..)
+        | Inst::CheckedByteBufferPush { .. }
+        | Inst::CheckedByteBufferLength { .. }
+        | Inst::CheckedByteBufferCapacity { .. }
+        | Inst::CheckedByteBufferGet { .. } => Some(LogicalType::Int),
         Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) | Inst::SIToFP(..) => {
             Some(LogicalType::Float)
         }
@@ -1209,6 +1284,7 @@ struct FunctionVerifier<'a> {
     mutable_reference_origins: BTreeMap<PlaceId, PlaceId>,
     projected_reference_roots: BTreeMap<PlaceId, (PlaceId, PlaceId, bool)>,
     mutable_reference_parameters: BTreeSet<PlaceId>,
+    byte_buffers: BTreeMap<PlaceId, ByteBufferPlaceMetadata>,
     dominators: Vec<BTreeSet<usize>>,
     infer_bool_places: bool,
 }
@@ -1243,6 +1319,7 @@ impl<'a> FunctionVerifier<'a> {
             mutable_reference_origins: BTreeMap::new(),
             projected_reference_roots: BTreeMap::new(),
             mutable_reference_parameters: BTreeSet::new(),
+            byte_buffers: BTreeMap::new(),
             dominators,
             infer_bool_places,
         };
@@ -1263,11 +1340,245 @@ impl<'a> FunctionVerifier<'a> {
         }
         verifier.collect_definitions(seed.is_some(), place_hints)?;
         verifier.resolve_order_independent_types()?;
+        verifier.build_byte_buffer_metadata()?;
         Ok(verifier)
     }
 
     fn error(&self, block: usize, kind: IrVerificationErrorKind) -> IrVerificationError {
         IrVerificationError::new(&self.body.name, Some(&self.blocks[block].label), kind)
+    }
+
+    fn build_byte_buffer_metadata(&mut self) -> Result<(), IrVerificationError> {
+        let mut next_identity = 0_u32;
+        for instruction in &self.body.instructions {
+            let Inst::CheckedByteBufferNew { result, .. } = instruction else {
+                continue;
+            };
+            let Some(place) = reg(result).map(PlaceId) else {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                        "checked byte-buffer new result",
+                    ),
+                ));
+            };
+            if self.places.get(&place).and_then(PlaceType::logical) != Some(LogicalType::ByteBuffer)
+            {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer owner place {} lacks ByteBuffer metadata",
+                        place.0
+                    )),
+                ));
+            }
+            let metadata = ByteBufferPlaceMetadata {
+                place,
+                identity: ByteBufferId(next_identity),
+                role: ByteBufferPlaceRole::Owner { moved_from: None },
+            };
+            next_identity = next_identity.checked_add(1).ok_or_else(|| {
+                IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(
+                        "checked byte-buffer resource identity space is exhausted".to_string(),
+                    ),
+                )
+            })?;
+            if self.byte_buffers.insert(place, metadata).is_some() {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer place {} has duplicate resource metadata",
+                        place.0
+                    )),
+                ));
+            }
+        }
+
+        let mut unresolved_moves = self
+            .body
+            .instructions
+            .iter()
+            .filter_map(|instruction| {
+                let Inst::CheckedByteBufferMove { result, source, .. } = instruction else {
+                    return None;
+                };
+                Some((reg(result).map(PlaceId), reg(source).map(PlaceId)))
+            })
+            .collect::<Vec<_>>();
+        while !unresolved_moves.is_empty() {
+            let before = unresolved_moves.len();
+            let mut remaining = Vec::new();
+            for (destination, source) in unresolved_moves {
+                let (Some(destination), Some(source)) = (destination, source) else {
+                    return Err(IrVerificationError::new(
+                        &self.body.name,
+                        None,
+                        IrVerificationErrorKind::ExpectedPlaceIdentifier(
+                            "checked byte-buffer move",
+                        ),
+                    ));
+                };
+                let Some(source_metadata) = self.byte_buffers.get(&source).cloned() else {
+                    remaining.push((Some(destination), Some(source)));
+                    continue;
+                };
+                if !matches!(source_metadata.role, ByteBufferPlaceRole::Owner { .. }) {
+                    return Err(IrVerificationError::new(
+                        &self.body.name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(format!(
+                            "checked byte-buffer move source place {} is not an owner",
+                            source.0
+                        )),
+                    ));
+                }
+                if self.places.get(&destination).and_then(PlaceType::logical)
+                    != Some(LogicalType::ByteBuffer)
+                {
+                    return Err(IrVerificationError::new(
+                        &self.body.name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(format!(
+                            "checked byte-buffer move destination place {} lacks ByteBuffer metadata",
+                            destination.0
+                        )),
+                    ));
+                }
+                let metadata = ByteBufferPlaceMetadata {
+                    place: destination,
+                    identity: source_metadata.identity,
+                    role: ByteBufferPlaceRole::Owner {
+                        moved_from: Some(source),
+                    },
+                };
+                if self.byte_buffers.insert(destination, metadata).is_some() {
+                    return Err(IrVerificationError::new(
+                        &self.body.name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(format!(
+                            "checked byte-buffer move destination place {} has duplicate resource metadata",
+                            destination.0
+                        )),
+                    ));
+                }
+            }
+            if remaining.len() == before {
+                let (_, source) = remaining[0];
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer move source place {} has no resolvable owner identity",
+                        source.expect("unresolved move source was parsed").0
+                    )),
+                ));
+            }
+            unresolved_moves = remaining;
+        }
+
+        for instruction in &self.body.instructions {
+            let (result, source, mutable) = match instruction {
+                Inst::CheckedByteBufferImmutableBorrow { result, source } => {
+                    (result, source, false)
+                }
+                Inst::CheckedByteBufferMutableBorrow { result, source } => (result, source, true),
+                _ => continue,
+            };
+            let (Some(reference), Some(source)) =
+                (reg(result).map(PlaceId), reg(source).map(PlaceId))
+            else {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::ExpectedPlaceIdentifier("checked byte-buffer borrow"),
+                ));
+            };
+            let Some(source_metadata) = self.byte_buffers.get(&source) else {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer borrow source place {} has no owner identity",
+                        source.0
+                    )),
+                ));
+            };
+            if !matches!(source_metadata.role, ByteBufferPlaceRole::Owner { .. }) {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer borrow source place {} is not an owner",
+                        source.0
+                    )),
+                ));
+            }
+            let role = if mutable {
+                ByteBufferPlaceRole::MutableLoan { owner: source }
+            } else {
+                ByteBufferPlaceRole::ImmutableLoan { owner: source }
+            };
+            let metadata = ByteBufferPlaceMetadata {
+                place: reference,
+                identity: source_metadata.identity,
+                role,
+            };
+            if self.byte_buffers.insert(reference, metadata).is_some() {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "checked byte-buffer reference place {} has duplicate resource metadata",
+                        reference.0
+                    )),
+                ));
+            }
+        }
+
+        for (place, ty) in &self.places {
+            if ty.logical() == Some(LogicalType::ByteBuffer)
+                && !self.byte_buffers.contains_key(place)
+            {
+                return Err(IrVerificationError::new(
+                    &self.body.name,
+                    None,
+                    IrVerificationErrorKind::MetadataMismatch(format!(
+                        "ByteBuffer place {} was not created by a dedicated checked resource instruction",
+                        place.0
+                    )),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn byte_buffer_metadata_for(
+        &self,
+        value: &Value,
+        operation: &'static str,
+        block: usize,
+    ) -> Result<&ByteBufferPlaceMetadata, IrVerificationError> {
+        let Some(place) = reg(value).map(PlaceId) else {
+            return Err(self.error(
+                block,
+                IrVerificationErrorKind::ExpectedPlaceIdentifier(operation),
+            ));
+        };
+        self.byte_buffers.get(&place).ok_or_else(|| {
+            self.error(
+                block,
+                IrVerificationErrorKind::MetadataMismatch(format!(
+                    "{operation} place {} has no verified byte-buffer identity",
+                    place.0
+                )),
+            )
+        })
     }
 
     fn enum_place(&self, value: &Value) -> Option<PlaceId> {
@@ -2028,6 +2339,481 @@ impl<'a> FunctionVerifier<'a> {
         Ok(())
     }
 
+    fn verify_byte_buffer_resource_flow(&self) -> Result<(), IrVerificationError> {
+        if self.byte_buffers.is_empty() {
+            return Ok(());
+        }
+
+        let labels = self
+            .blocks
+            .iter()
+            .enumerate()
+            .map(|(index, block)| (block.label.as_str(), index))
+            .collect::<HashMap<_, _>>();
+        let mut incoming =
+            vec![None::<BTreeMap<ByteBufferId, ByteBufferLifecycle>>; self.blocks.len()];
+        incoming[0] = Some(BTreeMap::new());
+        let mut worklist = VecDeque::from([0_usize]);
+
+        while let Some(block_index) = worklist.pop_front() {
+            if !self.blocks[block_index].reachable {
+                continue;
+            }
+            let mut state = incoming[block_index]
+                .clone()
+                .expect("queued byte-buffer block has an incoming state");
+            for (_, instruction) in &self.blocks[block_index].instructions {
+                match instruction {
+                    Inst::CheckedByteBufferNew { result, .. } => {
+                        let metadata = self
+                            .byte_buffer_metadata_for(
+                                result,
+                                "checked byte-buffer new",
+                                block_index,
+                            )?
+                            .clone();
+                        if !matches!(
+                            metadata.role,
+                            ByteBufferPlaceRole::Owner { moved_from: None }
+                        ) || state
+                            .insert(
+                                metadata.identity,
+                                ByteBufferLifecycle::Live {
+                                    owner: metadata.place,
+                                    shared: BTreeSet::new(),
+                                    exclusive: None,
+                                },
+                            )
+                            .is_some()
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked byte-buffer resource {} is created more than once on one reachable path",
+                                    metadata.identity.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferMove { result, source, .. } => {
+                        let destination = self
+                            .byte_buffer_metadata_for(
+                                result,
+                                "checked byte-buffer move destination",
+                                block_index,
+                            )?
+                            .clone();
+                        let source = self
+                            .byte_buffer_metadata_for(
+                                source,
+                                "checked byte-buffer move source",
+                                block_index,
+                            )?
+                            .clone();
+                        if destination.identity != source.identity
+                            || !matches!(
+                                destination.role,
+                                ByteBufferPlaceRole::Owner {
+                                    moved_from: Some(origin)
+                                } if origin == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer move does not preserve the exact resource identity and owner provenance"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        match state.get_mut(&source.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner,
+                                shared,
+                                exclusive,
+                            }) if *owner == source.place
+                                && shared.is_empty()
+                                && exclusive.is_none() =>
+                            {
+                                *owner = destination.place;
+                            }
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer move uses non-current, moved, dropped, or loaned owner place {}",
+                                        source.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferImmutableBorrow { result, source } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                result,
+                                "checked byte-buffer immutable borrow result",
+                                block_index,
+                            )?
+                            .clone();
+                        let owner = self
+                            .byte_buffer_metadata_for(
+                                source,
+                                "checked byte-buffer immutable borrow source",
+                                block_index,
+                            )?
+                            .clone();
+                        if reference.identity != owner.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::ImmutableLoan { owner: source }
+                                    if source == owner.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer immutable loan metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        match state.get_mut(&owner.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner: active_owner,
+                                shared,
+                                exclusive,
+                            }) if *active_owner == owner.place && exclusive.is_none() => {
+                                if !shared.insert(reference.place) {
+                                    return Err(self.error(
+                                        block_index,
+                                        IrVerificationErrorKind::MetadataMismatch(format!(
+                                            "checked byte-buffer immutable loan place {} is started twice",
+                                            reference.place.0
+                                        )),
+                                    ));
+                                }
+                            }
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer immutable loan requires current live owner place {} without an exclusive loan",
+                                        owner.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferImmutableBorrowEnd { reference, source } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer immutable borrow end reference",
+                                block_index,
+                            )?
+                            .clone();
+                        let source = self
+                            .byte_buffer_metadata_for(
+                                source,
+                                "checked byte-buffer immutable borrow end source",
+                                block_index,
+                            )?
+                            .clone();
+                        if reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::ImmutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer immutable loan end has mismatched identity or source"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        let ended = match state.get_mut(&source.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner,
+                                shared,
+                                exclusive,
+                            }) if *owner == source.place && exclusive.is_none() => {
+                                shared.remove(&reference.place)
+                            }
+                            _ => false,
+                        };
+                        if !ended {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked byte-buffer immutable loan end for place {} is not active",
+                                    reference.place.0
+                                )),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferMutableBorrow { result, source } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                result,
+                                "checked byte-buffer mutable borrow result",
+                                block_index,
+                            )?
+                            .clone();
+                        let owner = self
+                            .byte_buffer_metadata_for(
+                                source,
+                                "checked byte-buffer mutable borrow source",
+                                block_index,
+                            )?
+                            .clone();
+                        if reference.identity != owner.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::MutableLoan { owner: source }
+                                    if source == owner.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer mutable loan metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        match state.get_mut(&owner.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner: active_owner,
+                                shared,
+                                exclusive,
+                            }) if *active_owner == owner.place
+                                && shared.is_empty()
+                                && exclusive.is_none() =>
+                            {
+                                *exclusive = Some(reference.place);
+                            }
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer mutable loan requires exclusive current owner place {}",
+                                        owner.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferMutableBorrowEnd { reference, source } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer mutable borrow end reference",
+                                block_index,
+                            )?
+                            .clone();
+                        let source = self
+                            .byte_buffer_metadata_for(
+                                source,
+                                "checked byte-buffer mutable borrow end source",
+                                block_index,
+                            )?
+                            .clone();
+                        if reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::MutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer mutable loan end has mismatched identity or source"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        match state.get_mut(&source.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner,
+                                shared,
+                                exclusive,
+                            }) if *owner == source.place
+                                && shared.is_empty()
+                                && *exclusive == Some(reference.place) =>
+                            {
+                                *exclusive = None;
+                            }
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer mutable loan end for place {} is not active",
+                                        reference.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferPush { reference, .. } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer push reference",
+                                block_index,
+                            )?
+                            .clone();
+                        let ByteBufferPlaceRole::MutableLoan { owner } = reference.role else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer push requires a mutable loan identity"
+                                        .to_string(),
+                                ),
+                            ));
+                        };
+                        match state.get(&reference.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner: active_owner,
+                                shared,
+                                exclusive: Some(active_reference),
+                            }) if *active_owner == owner
+                                && shared.is_empty()
+                                && *active_reference == reference.place => {}
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer push is outside active exclusive loan place {}",
+                                        reference.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferLength { reference, .. }
+                    | Inst::CheckedByteBufferCapacity { reference, .. }
+                    | Inst::CheckedByteBufferGet { reference, .. } => {
+                        let reference = self
+                            .byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer shared access reference",
+                                block_index,
+                            )?
+                            .clone();
+                        let ByteBufferPlaceRole::ImmutableLoan { owner } = reference.role else {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer shared access requires an immutable loan identity"
+                                        .to_string(),
+                                ),
+                            ));
+                        };
+                        match state.get(&reference.identity) {
+                            Some(ByteBufferLifecycle::Live {
+                                owner: active_owner,
+                                shared,
+                                exclusive,
+                            }) if *active_owner == owner
+                                && shared.contains(&reference.place)
+                                && exclusive.is_none() => {}
+                            _ => {
+                                return Err(self.error(
+                                    block_index,
+                                    IrVerificationErrorKind::MetadataMismatch(format!(
+                                        "checked byte-buffer shared access is outside active immutable loan place {}",
+                                        reference.place.0
+                                    )),
+                                ));
+                            }
+                        }
+                    }
+                    Inst::CheckedByteBufferDrop { owner } => {
+                        let owner = self
+                            .byte_buffer_metadata_for(
+                                owner,
+                                "checked byte-buffer drop owner",
+                                block_index,
+                            )?
+                            .clone();
+                        if !matches!(owner.role, ByteBufferPlaceRole::Owner { .. }) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer drop requires an owner identity"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        let droppable = matches!(
+                            state.get(&owner.identity),
+                            Some(ByteBufferLifecycle::Live {
+                                owner: active_owner,
+                                shared,
+                                exclusive,
+                            }) if *active_owner == owner.place
+                                && shared.is_empty()
+                                && exclusive.is_none()
+                        );
+                        if !droppable {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "checked byte-buffer drop uses non-current, moved, dropped, or loaned owner place {}",
+                                    owner.place.0
+                                )),
+                            ));
+                        }
+                        state.insert(
+                            owner.identity,
+                            ByteBufferLifecycle::Dropped { owner: owner.place },
+                        );
+                    }
+                    Inst::Return(_) => {
+                        if state.values().any(|lifecycle| {
+                            !matches!(lifecycle, ByteBufferLifecycle::Dropped { .. })
+                        }) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "byte-buffer resources and loans must be closed before every reachable return"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            for successor in &self.blocks[block_index].successors {
+                let successor = labels[successor.as_str()];
+                match &incoming[successor] {
+                    Some(existing) if existing != &state => {
+                        return Err(self.error(
+                            block_index,
+                            IrVerificationErrorKind::MetadataMismatch(
+                                "byte-buffer resource state differs across a control-flow join or loop backedge"
+                                    .to_string(),
+                            ),
+                        ));
+                    }
+                    Some(_) => {}
+                    None => {
+                        incoming[successor] = Some(state.clone());
+                        worklist.push_back(successor);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn collect_definitions(
         &mut self,
         seeded: bool,
@@ -2201,6 +2987,14 @@ impl<'a> FunctionVerifier<'a> {
                                 Inst::CheckedTupleFieldPtr { .. } => "checked tuple field pointer",
                                 Inst::CheckedImmutableBorrow { .. } => "checked immutable borrow",
                                 Inst::CheckedMutableBorrow { .. } => "checked mutable borrow",
+                                Inst::CheckedByteBufferNew { .. } => "checked byte-buffer new",
+                                Inst::CheckedByteBufferMove { .. } => "checked byte-buffer move",
+                                Inst::CheckedByteBufferImmutableBorrow { .. } => {
+                                    "checked byte-buffer immutable borrow"
+                                }
+                                Inst::CheckedByteBufferMutableBorrow { .. } => {
+                                    "checked byte-buffer mutable borrow"
+                                }
                                 Inst::CheckedImmutableReferenceParameter { .. } => {
                                     "checked immutable reference parameter"
                                 }
@@ -2245,6 +3039,27 @@ impl<'a> FunctionVerifier<'a> {
                         ));
                     }
                     let (place_type, name) = match instruction {
+                        Inst::CheckedByteBufferNew { name, .. }
+                        | Inst::CheckedByteBufferMove { name, .. } => {
+                            if !valid_symbol(name) {
+                                return Err(IrVerificationError::new(
+                                    &self.body.name,
+                                    Some(&block.label),
+                                    IrVerificationErrorKind::InvalidSymbol {
+                                        role: "byte-buffer owner",
+                                        name: name.clone(),
+                                    },
+                                ));
+                            }
+                            (
+                                PlaceType::Known(LogicalType::ByteBuffer),
+                                Some(name.clone()),
+                            )
+                        }
+                        Inst::CheckedByteBufferImmutableBorrow { .. }
+                        | Inst::CheckedByteBufferMutableBorrow { .. } => {
+                            (PlaceType::Known(LogicalType::ByteBuffer), None)
+                        }
                         Inst::CheckedMutableOwnedPlaceAlloca { name, ty, .. } => {
                             if !valid_symbol(name) || !valid_owned_place_type(ty) {
                                 return Err(IrVerificationError::new(
@@ -3416,6 +4231,17 @@ impl<'a> FunctionVerifier<'a> {
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;
+                        if self.places.get(&id).and_then(PlaceType::logical)
+                            == Some(LogicalType::ByteBuffer)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic store cannot access checked ByteBuffer place {}",
+                                    id.0
+                                )),
+                            ));
+                        }
                         if self.immutable_enum_reference_place(id) {
                             return Err(self.error(
                                 block_index,
@@ -3638,6 +4464,17 @@ impl<'a> FunctionVerifier<'a> {
                     }
                     Inst::Load(_, place) => {
                         let place = self.require_place(place, "load", block_index, position)?;
+                        if self.places.get(&place).and_then(PlaceType::logical)
+                            == Some(LogicalType::ByteBuffer)
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(format!(
+                                    "generic load cannot access checked ByteBuffer place {}",
+                                    place.0
+                                )),
+                            ));
+                        }
                         if self.immutable_enum_reference_place(place) {
                             return Err(self.error(
                                 block_index,
@@ -4242,6 +5079,330 @@ impl<'a> FunctionVerifier<'a> {
                             block_index,
                             position,
                         )?;
+                    }
+                    Inst::CheckedByteBufferNew { result, .. } => {
+                        let metadata = self.byte_buffer_metadata_for(
+                            result,
+                            "checked byte-buffer new result",
+                            block_index,
+                        )?;
+                        if !matches!(
+                            metadata.role,
+                            ByteBufferPlaceRole::Owner { moved_from: None }
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer new result lacks original-owner metadata"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferMove { result, source, .. } => {
+                        let source_place = self.require_place(
+                            source,
+                            "checked byte-buffer move source",
+                            block_index,
+                            position,
+                        )?;
+                        let destination = self.byte_buffer_metadata_for(
+                            result,
+                            "checked byte-buffer move destination",
+                            block_index,
+                        )?;
+                        let source = self.byte_buffer_metadata_for(
+                            source,
+                            "checked byte-buffer move source",
+                            block_index,
+                        )?;
+                        if source_place != source.place
+                            || destination.identity != source.identity
+                            || !matches!(
+                                destination.role,
+                                ByteBufferPlaceRole::Owner {
+                                    moved_from: Some(origin)
+                                } if origin == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer move metadata does not bind its exact source and destination identities"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferImmutableBorrow { result, source } => {
+                        let source_place = self.require_place(
+                            source,
+                            "checked byte-buffer immutable borrow source",
+                            block_index,
+                            position,
+                        )?;
+                        let reference = self.byte_buffer_metadata_for(
+                            result,
+                            "checked byte-buffer immutable borrow result",
+                            block_index,
+                        )?;
+                        let source = self.byte_buffer_metadata_for(
+                            source,
+                            "checked byte-buffer immutable borrow source",
+                            block_index,
+                        )?;
+                        if source_place != source.place
+                            || reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::ImmutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer immutable borrow metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferImmutableBorrowEnd { reference, source } => {
+                        let reference_place = self.require_place(
+                            reference,
+                            "checked byte-buffer immutable borrow end reference",
+                            block_index,
+                            position,
+                        )?;
+                        let source_place = self.require_place(
+                            source,
+                            "checked byte-buffer immutable borrow end source",
+                            block_index,
+                            position,
+                        )?;
+                        let reference = self.byte_buffer_metadata_for(
+                            reference,
+                            "checked byte-buffer immutable borrow end reference",
+                            block_index,
+                        )?;
+                        let source = self.byte_buffer_metadata_for(
+                            source,
+                            "checked byte-buffer immutable borrow end source",
+                            block_index,
+                        )?;
+                        if reference_place != reference.place
+                            || source_place != source.place
+                            || reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::ImmutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer immutable borrow end metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferMutableBorrow { result, source } => {
+                        let source_place = self.require_place(
+                            source,
+                            "checked byte-buffer mutable borrow source",
+                            block_index,
+                            position,
+                        )?;
+                        let reference = self.byte_buffer_metadata_for(
+                            result,
+                            "checked byte-buffer mutable borrow result",
+                            block_index,
+                        )?;
+                        let source = self.byte_buffer_metadata_for(
+                            source,
+                            "checked byte-buffer mutable borrow source",
+                            block_index,
+                        )?;
+                        if source_place != source.place
+                            || reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::MutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer mutable borrow metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferMutableBorrowEnd { reference, source } => {
+                        let reference_place = self.require_place(
+                            reference,
+                            "checked byte-buffer mutable borrow end reference",
+                            block_index,
+                            position,
+                        )?;
+                        let source_place = self.require_place(
+                            source,
+                            "checked byte-buffer mutable borrow end source",
+                            block_index,
+                            position,
+                        )?;
+                        let reference = self.byte_buffer_metadata_for(
+                            reference,
+                            "checked byte-buffer mutable borrow end reference",
+                            block_index,
+                        )?;
+                        let source = self.byte_buffer_metadata_for(
+                            source,
+                            "checked byte-buffer mutable borrow end source",
+                            block_index,
+                        )?;
+                        if reference_place != reference.place
+                            || source_place != source.place
+                            || reference.identity != source.identity
+                            || !matches!(
+                                reference.role,
+                                ByteBufferPlaceRole::MutableLoan { owner }
+                                    if owner == source.place
+                            )
+                        {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer mutable borrow end metadata is inconsistent"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferPush {
+                        reference, byte, ..
+                    } => {
+                        self.require_place(
+                            reference,
+                            "checked byte-buffer push reference",
+                            block_index,
+                            position,
+                        )?;
+                        let reference_metadata = self.byte_buffer_metadata_for(
+                            reference,
+                            "checked byte-buffer push reference",
+                            block_index,
+                        )?;
+                        if !matches!(
+                            reference_metadata.role,
+                            ByteBufferPlaceRole::MutableLoan { .. }
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer push requires mutable-loan metadata"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        self.require_type(
+                            byte,
+                            &LogicalType::Int,
+                            "checked byte-buffer push",
+                            "byte",
+                            block_index,
+                            position,
+                        )?;
+                    }
+                    Inst::CheckedByteBufferLength { reference, .. }
+                    | Inst::CheckedByteBufferCapacity { reference, .. } => {
+                        self.require_place(
+                            reference,
+                            "checked byte-buffer shared access reference",
+                            block_index,
+                            position,
+                        )?;
+                        if !matches!(
+                            self.byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer shared access reference",
+                                block_index,
+                            )?
+                            .role,
+                            ByteBufferPlaceRole::ImmutableLoan { .. }
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer shared access requires immutable-loan metadata"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    }
+                    Inst::CheckedByteBufferGet {
+                        reference, index, ..
+                    } => {
+                        self.require_place(
+                            reference,
+                            "checked byte-buffer get reference",
+                            block_index,
+                            position,
+                        )?;
+                        if !matches!(
+                            self.byte_buffer_metadata_for(
+                                reference,
+                                "checked byte-buffer get reference",
+                                block_index,
+                            )?
+                            .role,
+                            ByteBufferPlaceRole::ImmutableLoan { .. }
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer get requires immutable-loan metadata"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                        self.require_type(
+                            index,
+                            &LogicalType::Int,
+                            "checked byte-buffer get",
+                            "index",
+                            block_index,
+                            position,
+                        )?;
+                    }
+                    Inst::CheckedByteBufferDrop { owner } => {
+                        self.require_place(
+                            owner,
+                            "checked byte-buffer drop owner",
+                            block_index,
+                            position,
+                        )?;
+                        if !matches!(
+                            self.byte_buffer_metadata_for(
+                                owner,
+                                "checked byte-buffer drop owner",
+                                block_index,
+                            )?
+                            .role,
+                            ByteBufferPlaceRole::Owner { .. }
+                        ) {
+                            return Err(self.error(
+                                block_index,
+                                IrVerificationErrorKind::MetadataMismatch(
+                                    "checked byte-buffer drop requires owner metadata".to_string(),
+                                ),
+                            ));
+                        }
                     }
                     Inst::CheckedImmutableBorrow {
                         result,
@@ -5095,6 +6256,7 @@ impl<'a> FunctionVerifier<'a> {
         self.verify_match_result_flow()?;
         self.verify_enum_ownership_flow()?;
         self.verify_mutable_owner_immutable_enum_loan_flow()?;
+        self.verify_byte_buffer_resource_flow()?;
 
         if !active_mutable_owner_immutable_enum_references.is_empty()
             || !active_mutable_owner_immutable_enum_sources.is_empty()
@@ -5270,6 +6432,7 @@ impl<'a> FunctionVerifier<'a> {
             results: self.result_types,
             places,
             blocks,
+            byte_buffers: self.byte_buffers,
         })
     }
 }
