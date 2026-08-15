@@ -1,5 +1,91 @@
 # Aero Task Ledger
 
+## CORE-092-ITERATIVE-LOGICAL-STACK-SAFETY - behavior-neutral checked-IR prerequisite
+
+- Date/task/status: 2026-08-15,
+  `CORE-092-ITERATIVE-LOGICAL-STACK-SAFETY`, authorized ledger-first and
+  behavior/structural-red-first on `agent/core-092-logical-stack-safety` from
+  exact accepted CAP-028 merge `5a5eccec5d2d6bf9d94e2be76c1f6442dbc73537`,
+  tree `026f23582ef29cc962fd3572d29a173fe837c30a`. CAP-028 is accepted
+  through protected PR #68. CAP-029 remains isolated on its published draft PR
+  #69 because its Windows LLVM 22 native gate exposed this prerequisite; no
+  CAP-029 file or unpublished claim is part of this task. User/app-owned
+  `.codex-remote-attachments/` and `tmp/` and quarantined stash
+  `7db10ed3173b1479f7ebff679a8fbca29e516bb6` remain untouched.
+- Observed behavior and evidence: protected PR #69 Actions run `31876324945`,
+  job `94992501185`, exits `-1073741571` (`0xC00000FD`, Windows stack
+  overflow) while running `examples/representative_telemetry/main.aero`, after
+  module resolution and before checked preparation returns, instead of the
+  frozen native sentinel `91`. PDB/GDB low-water and frame evidence localizes
+  the active failure to recursive checked admission in
+  `IrGenerator::validate_expression`: the representative source parses its
+  sixteen boolean terms as fifteen left-associated `Expression::Logical`
+  nodes, and each recursive validation frame retains about 43 KiB. The accepted
+  CAP-028 base reproduces the latent failure intermittently (`2/20` identical
+  local `run` children); CAP-029 adds no recursive traversal but loses exactly
+  1 KiB of caller headroom and reproduces it more often. A generated twenty-term
+  left-associated source overflows deterministically in isolated child
+  processes on the default 1 MiB Windows stack. The later logical IR emitter is
+  recursive over the same shape and retains about 32 KiB per level.
+- Hypothesis and bounded correction: replace only recursive traversal of
+  `Expression::Logical` in checked validation and logical lowering with explicit
+  worklists. Validation expands logical nodes left before right and delegates
+  every non-logical leaf to the existing validator. Lowering evaluates logical
+  leaves left before right and combines them in the same postorder as the
+  current recursion, allocating the same result registers and emitting the same
+  `Inst::And`/`Inst::Or` sequence. This removes input-depth-proportional native
+  call-stack use without changing any source, semantic, ownership, checked-IR,
+  verifier, backend, ABI, profile, cache, or execution contract.
+- Frozen semantics and compatibility: `&&` and `||` remain the currently
+  accepted eager logical operations, not short-circuit operations. Operand
+  evaluation and first-error precedence remain left-to-right. Parser precedence
+  and associativity, semantic diagnostics, ownership effects, logical result
+  type `Bool`, checked admission diagnostics, register numbering, instruction
+  order, checked metadata/schema, emitted LLVM bytes, native output/exit,
+  source/file parity, public APIs, and existing Experimental/stable/exact
+  profile behavior remain byte-for-byte unchanged. No arbitrary expression
+  depth limit, fallback type, panic conversion, new diagnostic, language
+  feature, correctness/stability/performance claim, or accelerator capability is
+  authorized.
+- Exact allowed files and phase boundary: only this `TASK_LEDGER.md`;
+  `src/compiler/src/ir_generator.rs`, restricted to logical-expression
+  validation/lowering worklists and module-local tests if needed; and one new
+  `src/compiler/tests/logical_expression_stack_safety_tests.rs`. No parser,
+  semantic analyzer, AST/IR schema, verifier, backend, CLI/main, example,
+  existing test, workflow, dependency, linker setting, capability/state/roadmap
+  document, evidence bundle, benchmark, release, package, or external artifact
+  may change. This is one compiler phase. Concurrent writers are forbidden;
+  delegated auditors remain read-only.
+- Red-first checkpoint and acceptance tests: first add a parent-process
+  integration regression that launches `CARGO_BIN_EXE_aero` against a generated
+  left-associated logical source deep enough to overflow the accepted Windows
+  child while keeping the Rust test harness alive and producing a normal
+  assertion failure. Pair it with a production-only structural red requiring an
+  explicit logical worklist and forbidding direct recursive logical-child calls
+  in the affected helpers. Freeze a shallow heterogeneous `&&`/`||` source's
+  checked IR and LLVM digest before implementation; freeze left-before-right
+  invalid-leaf diagnostic precedence; and retain the representative telemetry
+  LLVM/native sentinel. Final tests must prove deep valid `check` and native
+  `run`, mixed/nested logical shape, exact shallow checked-IR/LLVM bytes,
+  unchanged diagnostic order, deterministic repeated compilation, and no fixed
+  depth ceiling. Run focused parser/semantic/checked-admission/control-flow/
+  representative/profile/cache targets, Rust formatting, correctness-denying
+  all-target/all-feature Clippy, diff hygiene, and repository-root
+  `./tools/test.sh` with one Cargo build job, one Rust test thread, and pinned
+  LLVM 22.
+- Risks and mandatory stops: risks are reversing diagnostics, accidentally
+  introducing short-circuiting, reordering side effects or registers,
+  traversing a logical subtree twice, holding references across mutable IR
+  generation, changing legacy unchecked generation, masking the bug with a
+  larger stack, or writing an unstable OS-specific test. Stop and report without
+  implementation if exact current evaluation order is ambiguous; if a parser,
+  semantic, IR schema, verifier, backend, CLI, linker, workflow, example, or
+  second compiler phase must change; if any existing diagnostic, checked-IR or
+  LLVM byte, native result, cache identity, or accepted source behavior changes;
+  if the three-file budget is insufficient; or if the regression cannot isolate
+  a child overflow without endangering the test harness. Authorization and the
+  test-only red are explicit rollback points.
+
 ## CAP-028-RESOLVED-PROFILE-SHAPE-AUTHORITY - behavior-neutral semantic descriptor prerequisite
 
 - Date/task/status: 2026-08-15,
