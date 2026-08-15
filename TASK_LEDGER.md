@@ -105,6 +105,26 @@
   stability, correctness, or performance claim is needed. Authorization,
   characterization, and structural-red commits are explicit rollback points.
 
+### CAP-028 accepted-head characterization and structural-red checkpoint
+
+- The focused target freezes accepted CAP-027 behavior before any production
+  mutation. Exact MD5 digests are
+  `724bac62708812d4302224fec1047be6` for the Experimental recursive
+  record/enum/typed-Result/Match specimen,
+  `cbb7a6446d27119d50f70868bc2b6a96` for the stable-scalar control, and
+  `54bbfe8dc403ba00ff0587fd3b99e14a` for the accepted CAP-023 exact-array
+  control. Each repeated source compilation is byte-identical. Stable and exact
+  excluded-struct diagnostics are identical across source/file and
+  compile/check routes, freezing the current pre-semantic rejection boundary.
+- With one Cargo build job, one Rust test thread, and pinned LLVM 22, the exact
+  behavior characterization passes `1/1`. The exact structural test then fails
+  `0/1` only at `CAP-028 intentional structural red:
+  resolved_profile_shape.rs is absent`, before inspecting later authority and
+  plumbing assertions. No production source has changed. The authorization and
+  this characterization/structural-red checkpoint are the clean rollback
+  boundaries; implementation must turn the structural control green without
+  changing any frozen digest or diagnostic.
+
 ## CAP-027-RESOLVED-PROFILE-SHAPE-READINESS - post-normalization descriptor placement proof
 
 - Date/task/status: 2026-08-15,
