@@ -172,6 +172,69 @@
   ingestion, a production frontend, self-hosting, stability, safety,
   performance, or accelerator execution.
 
+### CAP-032 locally green candidate checkpoint
+
+- Identity and scope: re-entry ledger commit
+  `31f5fa1fad560b12325bc80c72b4903a5dcd7286`, selector-red commit
+  `7b2e1ff1434a60e38c5e68bf571ed0941b420d51`, strengthened test/workflow
+  commit `2a99397bc29f949e99718ec6518f4a036e130647`, accepted-prerequisite merge
+  `946af127387a01f8a7f85e09516fadfb6cecfed9`, and implementation commit
+  `1df7379240efd62a017a3f4d3bf7333e635e9f64`, tree
+  `9670b480c80a0cf92c2b14c1054b0f39098a387b`, descend from accepted CAP-034
+  merge `20095b0a2714c5894ed00dbc79af542acab81eee`. The cumulative candidate
+  changes exactly the ten authorized files. No semantic analyzer, descriptor
+  producer/authenticator, checked IR/generator/verifier, existing integration
+  test, dependency/lockfile, evidence bundle, claim-verification, package, or
+  release file changed.
+- Red-first history and prerequisite stop: before production was committed, the
+  public focused target preserved all three accepted profiles and failed only
+  with `CAP-032 intentional selector red: exact-i32-record-result-v0 is absent`.
+  The first all-target compile exposed the frozen eleventh-file boundary in one
+  existing exhaustive test; CAP-032 stopped, CAP-034 independently changed and
+  protected that test, and implementation resumed only after CAP-034 merge and
+  accepted-head workflows were green.
+- Implementation result: `exact-i32-record-result-v0` is a fourth explicit,
+  CPU-only selected profile. Its one post-semantic policy consumes the accepted
+  resolved shape/surface/context descriptor and rejects outside the frozen
+  record, flat-array, exact `Result`, and exhaustive `Match` surface before
+  checked IR. Canonical backend entry re-verifies first, requires CAP-029's
+  authenticated token, compares every observed recursive shape to its exact
+  descriptor shape, and selects CAP-026 `ExactI32` layout without changing IR
+  schema or existing profile layout. Cache lookup remains after admission and
+  authentication. Direct compatibility APIs cannot claim the selector.
+- Executable product: tracked
+  `examples/fixed_int_array_v0/exact_record_result_application.aero` composes a
+  nested request record, fixed-array transform, `Result<Success, int>`, exact
+  exhaustive Match, and source reuse. Its deterministic LLVM contains exact
+  recursive `i32`/`i1` record and Result lanes and no `double`, conversion, or
+  signed/unsigned overflow promise. Independent valid/error vectors agree with
+  the Rust oracle, and both public and native execution are silent and return
+  91.
+- Focused evidence: the public profile/product target passes 6/6; private
+  verifier-first, token-required, and authenticated-shape corruption controls
+  pass 2/2; accepted Experimental/stable/exact-array diagnostics and LLVM
+  digests remain frozen; source/file compilation, deterministic LLVM, negative
+  surface/context/shape/origin/operation cases, cache/artifact hygiene, and CPU
+  target rejection pass. The Linux/Windows workflow text proves repeated LLVM,
+  bitcode, `opt`, `llc`, Clang O0/O2, exit-91, and empty-output lanes.
+- Full local evidence: formatting and `git diff --check` pass;
+  all-target/all-feature Clippy with `-D clippy::correctness` passes; and exact
+  repository-root `./tools/test.sh` passes 292 library tests, every integration
+  target, the Windows LLVM workflow contract, and doc tests. The first full run
+  correctly caught an extra historical `LASTEXITCODE` reset in the new Windows
+  block; the new block now uses the already-established terminal `exit 0`
+  pattern, the protected count remains 15, the existing test was not edited,
+  and the complete gate then passed. Every build used one Cargo job, one Rust
+  test thread, pinned LLVM 22, `D:\\Aero-temp\\cap-032-v2`, and
+  `D:\\Aero-build-targets\\cap-032-v2`; no C-drive temp or build output was
+  created.
+- Remaining gate: publish this exact candidate through protected stable,
+  nightly, Windows LLVM 22, Linux/Windows O0/O2 product, compiler-suite, CodeQL,
+  and evidence-capture checks; merge only the exact protected head; then verify
+  accepted-head workflows and synchronize the cumulative PR/docs. Until that
+  completes, this is locally green unpublished work, not an accepted public
+  capability.
+
 ## CAP-034-LANGUAGE-PROFILE-TEST-EXTENSIBILITY - preserve selector-growth characterization
 
 - Date/task/status: 2026-08-15,
