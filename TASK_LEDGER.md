@@ -170,9 +170,49 @@
   and diff hygiene pass. The characterization source's direct reference is
   intentionally scalar `&int`; recursive/generic reference and projected-loan
   coverage comes from the existing focused targets rather than an inaccurate
-  characterization claim. Repository-root `./tools/test.sh`, exact final scope
-  review, and accepted-candidate publication checks remain pending at this
-  checkpoint.
+  characterization claim.
+- Repository-root `./tools/test.sh` passes end to end with the pinned LLVM
+  22.1.8 `opt`/`llvm-as` verifier required, one Cargo build job, and one Rust
+  test thread. Formatting, correctness-denying Clippy, all library, binary,
+  integration, native-system, claim-contract, and documentation tests pass;
+  no test was skipped, weakened, or removed. This also proves that the earlier
+  fixed-array native failures were only the reset host's missing LLVM toolchain,
+  not candidate behavior.
+- Final read-only review finds no actionable defect or commit blocker. It traces
+  enum tag, compact, and payload lanes; checked place type/alignment; reference,
+  struct, Result, and Match consumers; verifier physical comparisons; raw-array
+  preservation; and exact-policy selection. The cumulative diff from accepted
+  master is exactly the six authorized files (ledger, shared module and wiring,
+  verifier, backend, and focused test), and no recursive exact-policy route is
+  reachable. User/app-owned untracked directories and the quarantined stash
+  remain untouched.
+- Fresh post-CAP-026 ranking, with higher scores more favorable:
+
+  | Rank | Candidate | Real-program usefulness | Roadmap criticality | Architectural leverage | Correctness/safety | Favorable risk | Favorable evidence cost | Total |
+  |---:|---|---:|---:|---:|---:|---:|---:|---:|
+  | 1 | Post-normalization resolved profile-shape authority prerequisite | 2 | 5 | 5 | 5 | 2 | 3 | 22 |
+  | 2 | Owned dynamic collection/streaming readiness only | 5 | 4 | 5 | 5 | 1 | 1 | 21 |
+  | 3 | Small quantized-kernel readiness only | 5 | 4 | 3 | 5 | 1 | 1 | 19 |
+
+  Rank 1 remains first after fresh inspection, not by inheritance: CAP-026
+  removes the physical-layout conflict, but profile validation still runs on
+  raw AST before semantic normalization while semantic analysis and checked-IR
+  generation separately rebuild normalized registries. Collections remain
+  rejected by checked verification/backend, and quantization still lacks frozen
+  representation and arithmetic contracts.
+- Status and exact next action: CAP-026 is a complete local candidate but is not
+  accepted public state until immutable publication, protected checks, a normal
+  merge, and exact merge-head verification pass. After that acceptance only,
+  open ledger-only/read-only `CAP-027-RESOLVED-PROFILE-SHAPE-READINESS` to prove
+  whether one descriptor can be derived from the semantic analyzer's existing
+  normalized AST and struct/enum registries between semantic completion and
+  checked-IR generation. Freeze its inputs, recursive shapes, use contexts,
+  phase owner, diagnostic precedence, and backend corruption defense before
+  reranking any behavior-neutral implementation. Do not combine CAP-027 with a
+  new application profile. Stop if it reorders diagnostics, duplicates
+  normalization or registries, needs checked-IR schema/post-IR admission or
+  more than two compiler phases, makes recursive exact layout reachable, changes
+  LLVM/native behavior, or requires new language semantics.
 
 ## CAP-025-APPLICATION-PROFILE-COMPOSITION-READINESS - exact CPU plus bounded CopyData application map and red probe
 
