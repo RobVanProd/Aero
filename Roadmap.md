@@ -8,6 +8,11 @@ milestone title or implemented interface does not certify a feature. Current
 capability is defined only by `SPEC_IMPLEMENTATION_MATRIX.md`,
 `BACKEND_STATUS.md`, tests, and retained artifacts.
 
+The focused dependency graph, definition, current blockers, and stage-convergence
+criteria for the Self-Host transition live in
+[`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md). This file remains the broad
+capability roadmap.
+
 The project is currently in **Minimal Prototype / correctness recovery**.
 Historical completed-phase and `v1.0.0` labels do not mean that Aero is stable,
 self-hosted, or release-ready.
