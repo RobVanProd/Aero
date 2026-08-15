@@ -300,7 +300,7 @@ fn accepted_behavior_is_frozen_before_resolved_profile_authority() {
             LanguageProfile::ExactI32ArrayV0 => {
                 "Language Profile Error: exact-i32-array-v0 rejects struct definitions"
             }
-            LanguageProfile::Experimental => unreachable!("loop excludes Experimental"),
+            _ => unreachable!("loop excludes every other language profile"),
         };
         assert_eq!(source_compile, expected, "{profile:?} profile text drifted");
     }
