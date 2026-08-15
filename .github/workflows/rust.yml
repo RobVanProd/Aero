@@ -3097,7 +3097,7 @@ jobs:
         if (@($publicOutput | Where-Object { $_.ToString() -match '^(Output|Error output):' }).Count -ne 0) {
           throw "Windows exact-i32-record-result-v0 application emitted output"
         }
-        $global:LASTEXITCODE = 0
+        exit 0
 
     - name: Test representative telemetry application on Windows at O0 and O2
       shell: pwsh

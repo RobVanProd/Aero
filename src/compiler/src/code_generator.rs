@@ -6,9 +6,14 @@ use crate::ir::{
 use crate::ir_verifier::{IrVerificationError, verify_checked_ir};
 use crate::language_profile::{
     LanguageProfile, ProfileTypeShape, ProfileTypeUse, classify_profile_logical_type,
-    profile_type_shape_is_admitted,
+    exact_record_result_logical_type_is_admitted, profile_type_shape_is_admitted,
+    validate_resolved_language_profile,
 };
 use crate::primitive_contract::PrimitiveKind;
+use crate::resolved_profile_authentication::{
+    AuthenticatedResolvedProfileProgram, ResolvedProfileAuthenticationCoverage,
+    ResolvedProfileAuthenticationObservation, ResolvedProfileAuthenticationSubject,
+};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 
@@ -150,18 +155,32 @@ impl CodeGenerator {
     /// program's source profile. The topology decision comes from language-profile
     /// authority; this backend owns only its physical rendering.
     fn profile_copy_data_type_to_llvm(&self, logical_type: &LogicalType) -> String {
-        let policy = match classify_profile_logical_type(logical_type) {
-            ProfileTypeShape::Int if self.language_profile == LanguageProfile::ExactI32ArrayV0 => {
-                CopyDataLayoutPolicy::ExactI32
+        let policy = if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+            CopyDataLayoutPolicy::ExactI32
+        } else {
+            match classify_profile_logical_type(logical_type) {
+                ProfileTypeShape::Int
+                    if self.language_profile == LanguageProfile::ExactI32ArrayV0 =>
+                {
+                    CopyDataLayoutPolicy::ExactI32
+                }
+                ProfileTypeShape::ExactI32Array { .. }
+                    if self.language_profile.admits_exact_i32_array(logical_type) =>
+                {
+                    CopyDataLayoutPolicy::ExactI32
+                }
+                _ => CopyDataLayoutPolicy::Legacy,
             }
-            ProfileTypeShape::ExactI32Array { .. }
-                if self.language_profile.admits_exact_i32_array(logical_type) =>
-            {
-                CopyDataLayoutPolicy::ExactI32
-            }
-            _ => CopyDataLayoutPolicy::Legacy,
         };
         CopyDataLayout::with_policy(logical_type, policy).llvm_type_with(&Self::struct_type_to_llvm)
+    }
+
+    fn profile_enum_storage_layout<'a>(&self, schema: &'a EnumSchema) -> EnumStorageLayout<'a> {
+        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+            EnumStorageLayout::with_policy(schema, CopyDataLayoutPolicy::ExactI32)
+        } else {
+            EnumStorageLayout::legacy(schema)
+        }
     }
 
     /// Select the accepted physical storage for a verifier-authenticated
@@ -171,7 +190,8 @@ impl CodeGenerator {
         &self,
         logical_type: &'a LogicalType,
     ) -> CopyDataLayout<'a> {
-        let exact_root = self.language_profile.admits_exact_i32_array(logical_type)
+        let exact_root = self.language_profile == LanguageProfile::ExactI32RecordResultV0
+            || self.language_profile.admits_exact_i32_array(logical_type)
             || self.uses_exact_i32_lane() && matches!(logical_type, LogicalType::Int);
         let policy = if exact_root {
             CopyDataLayoutPolicy::ExactI32
@@ -188,7 +208,8 @@ impl CodeGenerator {
                 variants: variants.clone(),
             };
             return (
-                EnumStorageLayout::legacy(&schema).enum_llvm_type_with(&Self::struct_type_to_llvm),
+                self.profile_enum_storage_layout(&schema)
+                    .enum_llvm_type_with(&Self::struct_type_to_llvm),
                 8,
             );
         }
@@ -207,11 +228,25 @@ impl CodeGenerator {
     }
 
     fn profile_logical_type_to_llvm(&self, logical_type: &LogicalType) -> String {
-        if self.language_profile.admits_exact_i32_array(logical_type) {
-            self.profile_copy_data_type_to_llvm(logical_type)
-        } else {
-            Self::logical_type_to_llvm(logical_type)
+        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+            return match logical_type {
+                LogicalType::Enum { name, variants } => self
+                    .profile_enum_storage_layout(&EnumSchema {
+                        name: name.clone(),
+                        variants: variants.clone(),
+                    })
+                    .enum_llvm_type_with(&Self::struct_type_to_llvm),
+                LogicalType::Int
+                | LogicalType::Bool
+                | LogicalType::Array { .. }
+                | LogicalType::Struct { .. } => self.profile_copy_data_type_to_llvm(logical_type),
+                _ => Self::logical_type_to_llvm(logical_type),
+            };
         }
+        if self.language_profile.admits_exact_i32_array(logical_type) {
+            return self.profile_copy_data_type_to_llvm(logical_type);
+        }
+        Self::logical_type_to_llvm(logical_type)
     }
 
     fn render_enum_storage_layout(schema: &EnumSchema) -> String {
@@ -800,8 +835,10 @@ impl CodeGenerator {
         count: usize,
         element_place: u32,
     ) -> String {
-        let exact_i32_index = self.language_profile == LanguageProfile::ExactI32ArrayV0
-            && self.is_checked_int_result(index);
+        let exact_i32_index = matches!(
+            self.language_profile,
+            LanguageProfile::ExactI32ArrayV0 | LanguageProfile::ExactI32RecordResultV0
+        ) && self.is_checked_int_result(index);
         match index {
             Value::ImmInt(index) => index.to_string(),
             Value::Reg(index) if exact_i32_index => {
@@ -948,6 +985,11 @@ impl CodeGenerator {
     }
 
     fn copy_data_value_to_string(&self, ty: &LogicalType, value: &Value) -> String {
+        if self.language_profile == LanguageProfile::ExactI32RecordResultV0
+            && matches!(ty, LogicalType::Int)
+        {
+            return self.stable_int_value_to_string(value);
+        }
         match PrimitiveKind::from_logical_type(ty) {
             Some(PrimitiveKind::Bool) => self.bool_value_to_string(value),
             Some(PrimitiveKind::Char) => self.char_value_to_string(value),
@@ -995,11 +1037,294 @@ impl CodeGenerator {
         )
     }
 
+    fn collect_authenticated_nominals(
+        logical: &LogicalType,
+        nominals: &mut BTreeMap<ResolvedProfileAuthenticationSubject, LogicalType>,
+    ) -> Result<(), String> {
+        match logical {
+            LogicalType::Struct { name, fields } => {
+                let subject = ResolvedProfileAuthenticationSubject::Nominal {
+                    normalized: name.clone(),
+                };
+                if let Some(existing) = nominals.insert(subject, logical.clone())
+                    && existing != *logical
+                {
+                    return Err(format!(
+                        "nominal `{name}` has conflicting verified logical schemas"
+                    ));
+                }
+                for field in fields {
+                    Self::collect_authenticated_nominals(field, nominals)?;
+                }
+            }
+            LogicalType::Enum { name, variants } => {
+                let subject = ResolvedProfileAuthenticationSubject::Nominal {
+                    normalized: name.clone(),
+                };
+                if let Some(existing) = nominals.insert(subject, logical.clone())
+                    && existing != *logical
+                {
+                    return Err(format!(
+                        "nominal `{name}` has conflicting verified logical schemas"
+                    ));
+                }
+                for payload in variants
+                    .iter()
+                    .filter_map(|variant| variant.payload.as_ref())
+                {
+                    Self::collect_authenticated_nominals(payload, nominals)?;
+                }
+            }
+            LogicalType::Array { element, .. }
+            | LogicalType::ImmutableReference { pointee: element }
+            | LogicalType::MutableReference { pointee: element } => {
+                Self::collect_authenticated_nominals(element, nominals)?;
+            }
+            LogicalType::Tuple { elements } => {
+                for element in elements {
+                    Self::collect_authenticated_nominals(element, nominals)?;
+                }
+            }
+            LogicalType::EnumFields { fields } => {
+                for field in fields {
+                    Self::collect_authenticated_nominals(field, nominals)?;
+                }
+            }
+            LogicalType::Int
+            | LogicalType::Float
+            | LogicalType::Bool
+            | LogicalType::Char
+            | LogicalType::Void
+            | LogicalType::String => {}
+        }
+        Ok(())
+    }
+
+    fn authenticated_metadata_subjects(
+        metadata: &IrMetadata,
+    ) -> Result<BTreeMap<ResolvedProfileAuthenticationSubject, LogicalType>, String> {
+        let mut subjects = BTreeMap::new();
+        let mut nominals = BTreeMap::new();
+        for (function_name, function) in &metadata.functions {
+            for (index, (name, logical)) in function.signature.parameters.iter().enumerate() {
+                subjects.insert(
+                    ResolvedProfileAuthenticationSubject::FunctionParameter {
+                        function: function_name.clone(),
+                        index,
+                        name: name.clone(),
+                    },
+                    logical.clone(),
+                );
+                Self::collect_authenticated_nominals(logical, &mut nominals)?;
+            }
+            subjects.insert(
+                ResolvedProfileAuthenticationSubject::FunctionResult {
+                    function: function_name.clone(),
+                },
+                function.signature.result.clone(),
+            );
+            Self::collect_authenticated_nominals(&function.signature.result, &mut nominals)?;
+            for (result, logical) in &function.results {
+                subjects.insert(
+                    ResolvedProfileAuthenticationSubject::MetadataResult {
+                        function: function_name.clone(),
+                        result: *result,
+                    },
+                    logical.clone(),
+                );
+                Self::collect_authenticated_nominals(logical, &mut nominals)?;
+            }
+            for (place, metadata) in &function.places {
+                subjects.insert(
+                    ResolvedProfileAuthenticationSubject::MetadataPlace {
+                        function: function_name.clone(),
+                        place: *place,
+                        name: metadata.name.clone(),
+                    },
+                    metadata.pointee.clone(),
+                );
+                Self::collect_authenticated_nominals(&metadata.pointee, &mut nominals)?;
+            }
+        }
+        for (subject, logical) in nominals {
+            subjects.insert(subject, logical);
+        }
+        Ok(subjects)
+    }
+
+    fn authentication_coverage_is_usable(
+        observation: &ResolvedProfileAuthenticationObservation,
+        authenticated: &AuthenticatedResolvedProfileProgram,
+    ) -> bool {
+        match &observation.coverage {
+            ResolvedProfileAuthenticationCoverage::Authenticated(shape) => authenticated
+                .program
+                .shapes
+                .get(shape.0)
+                .is_some_and(|logical| logical == &observation.observed),
+            ResolvedProfileAuthenticationCoverage::ExplicitUnavailable(_) => false,
+            ResolvedProfileAuthenticationCoverage::Uncovered => {
+                match (&observation.subject, &observation.observed) {
+                    (
+                        ResolvedProfileAuthenticationSubject::MetadataResult { .. }
+                        | ResolvedProfileAuthenticationSubject::MetadataPlace { .. },
+                        _,
+                    ) => true,
+                    (
+                        ResolvedProfileAuthenticationSubject::FunctionResult { .. },
+                        LogicalType::Void,
+                    ) => true,
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn ensure_exact_record_result_authentication(
+        &self,
+        metadata: &IrMetadata,
+        authenticated: &AuthenticatedResolvedProfileProgram,
+    ) -> Result<(), String> {
+        validate_resolved_language_profile(
+            &authenticated.program,
+            LanguageProfile::ExactI32RecordResultV0,
+        )
+        .map_err(|error| format!("authenticated descriptor no longer admits: {error}"))?;
+
+        let expected = Self::authenticated_metadata_subjects(metadata)?;
+        let mut observed = BTreeMap::new();
+        for observation in &authenticated.coverage {
+            if observed
+                .insert(
+                    observation.subject.clone(),
+                    (observation.observed.clone(), observation),
+                )
+                .is_some()
+            {
+                return Err(format!(
+                    "authenticated coverage duplicates subject `{:?}`",
+                    observation.subject
+                ));
+            }
+        }
+        if expected.len() != observed.len() {
+            return Err(format!(
+                "authenticated coverage count {} does not match re-verified metadata count {}",
+                observed.len(),
+                expected.len()
+            ));
+        }
+        for (subject, expected_logical) in expected {
+            let Some((observed_logical, observation)) = observed.get(&subject) else {
+                return Err(format!(
+                    "authenticated coverage omits re-verified subject `{subject:?}`"
+                ));
+            };
+            if observed_logical != &expected_logical
+                || !Self::authentication_coverage_is_usable(observation, authenticated)
+            {
+                return Err(format!(
+                    "authenticated coverage does not authorize re-verified subject `{subject:?}`"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn ensure_exact_record_result_metadata(metadata: &IrMetadata) -> Result<(), String> {
+        for (function_name, function) in &metadata.functions {
+            for (parameter_name, logical) in &function.signature.parameters {
+                if !exact_record_result_logical_type_is_admitted(logical) {
+                    return Err(format!(
+                        "function `{function_name}` parameter `{parameter_name}` has unsupported logical type `{logical}`"
+                    ));
+                }
+            }
+            if function.signature.result != LogicalType::Void
+                && !exact_record_result_logical_type_is_admitted(&function.signature.result)
+            {
+                return Err(format!(
+                    "function `{function_name}` has unsupported result type `{}`",
+                    function.signature.result
+                ));
+            }
+            for (result, logical) in &function.results {
+                if !exact_record_result_logical_type_is_admitted(logical) {
+                    return Err(format!(
+                        "function `{function_name}` result {} has unsupported logical type `{logical}`",
+                        result.0
+                    ));
+                }
+            }
+            for (place, metadata) in &function.places {
+                if !exact_record_result_logical_type_is_admitted(&metadata.pointee) {
+                    return Err(format!(
+                        "function `{function_name}` place {} has unsupported logical type `{}`",
+                        place.0, metadata.pointee
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn unsupported_exact_record_result_instruction(instructions: &[Inst]) -> Option<&'static str> {
+        instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                    Self::unsupported_exact_record_result_instruction(body)
+                }
+                Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) => {
+                    Some("profile-excluded floating-point instruction")
+                }
+                Inst::Div(..) => Some("profile-excluded division instruction"),
+                Inst::Print { .. } | Inst::Println { .. } => {
+                    Some("profile-excluded output instruction")
+                }
+                Inst::AllocaArray { .. } => Some("legacy `alloca array` instruction"),
+                Inst::GetElementPtr { .. } => Some("legacy `get element pointer` instruction"),
+                Inst::VecAlloca { .. }
+                | Inst::VecPush { .. }
+                | Inst::VecPop { .. }
+                | Inst::VecLength { .. }
+                | Inst::VecCapacity { .. } => {
+                    Some("profile-excluded dynamic collection instruction")
+                }
+                _ => None,
+            })
+    }
+
     fn ensure_language_profile_codegen_support(
         &self,
         metadata: &IrMetadata,
         ir_functions: &HashMap<String, Function>,
+        authenticated: Option<&AuthenticatedResolvedProfileProgram>,
     ) -> Result<(), CodeGenerationError> {
+        if self.language_profile == LanguageProfile::ExactI32RecordResultV0 {
+            let reject = |detail: String| CodeGenerationError::LanguageProfileContract {
+                profile: self.language_profile,
+                detail,
+            };
+            let authenticated = authenticated.ok_or_else(|| {
+                reject("missing verifier-authenticated resolved profile token".to_string())
+            })?;
+            Self::ensure_exact_record_result_metadata(metadata).map_err(&reject)?;
+            self.ensure_exact_record_result_authentication(metadata, authenticated)
+                .map_err(&reject)?;
+            let mut function_names = ir_functions.keys().collect::<Vec<_>>();
+            function_names.sort();
+            for function_name in function_names {
+                if let Some(instruction) = Self::unsupported_exact_record_result_instruction(
+                    &ir_functions[function_name].body,
+                ) {
+                    return Err(reject(format!(
+                        "function `{function_name}` contains {instruction}"
+                    )));
+                }
+            }
+            return Ok(());
+        }
         if self.language_profile != LanguageProfile::ExactI32ArrayV0 {
             return Ok(());
         }
@@ -1271,10 +1596,21 @@ impl CodeGenerator {
     where
         I: Into<CheckedIr>,
     {
+        self.try_generate_code_with_authentication(ir, None)
+    }
+
+    fn try_generate_code_with_authentication<I>(
+        &mut self,
+        ir: I,
+        authenticated: Option<&AuthenticatedResolvedProfileProgram>,
+    ) -> Result<String, CodeGenerationError>
+    where
+        I: Into<CheckedIr>,
+    {
         let checked_ir = ir.into();
         let metadata =
             verify_checked_ir(&checked_ir).map_err(CodeGenerationError::IrVerification)?;
-        self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw())?;
+        self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw(), authenticated)?;
         Self::ensure_checked_codegen_support(checked_ir.raw())?;
 
         self.checked_metadata = Some(metadata);
@@ -1294,6 +1630,21 @@ impl CodeGenerator {
     {
         self.language_profile = language_profile;
         let result = self.try_generate_code(ir);
+        self.language_profile = LanguageProfile::Experimental;
+        result
+    }
+
+    pub(crate) fn try_generate_code_with_authenticated_profile<I>(
+        &mut self,
+        ir: I,
+        language_profile: LanguageProfile,
+        authenticated: &AuthenticatedResolvedProfileProgram,
+    ) -> Result<String, CodeGenerationError>
+    where
+        I: Into<CheckedIr>,
+    {
+        self.language_profile = language_profile;
+        let result = self.try_generate_code_with_authentication(ir, Some(authenticated));
         self.language_profile = LanguageProfile::Experimental;
         result
     }
@@ -1329,7 +1680,7 @@ impl CodeGenerator {
         for (name, fields) in struct_schemas {
             let fields = fields
                 .iter()
-                .map(Self::render_copy_data_layout)
+                .map(|field| self.profile_copy_data_type_to_llvm(field))
                 .collect::<Vec<_>>()
                 .join(", ");
             let struct_type = Self::struct_type_to_llvm(&name);
@@ -1578,7 +1929,9 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked immutable enum owner alloca")
                     };
-                    let enum_type = Self::render_enum_storage_layout(schema);
+                    let enum_type = self
+                        .profile_enum_storage_layout(schema)
+                        .enum_llvm_type_with(&Self::struct_type_to_llvm);
                     llvm_ir.push_str(&format!("  %ptr{ptr_id} = alloca {enum_type}, align 8\n"));
                 }
                 Inst::CheckedMatchResultPlaceAlloca {
@@ -1589,24 +1942,7 @@ impl CodeGenerator {
                     let Value::Reg(ptr_id) = result else {
                         panic!("Expected register for checked Match result-place alloca")
                     };
-                    let llvm_type = if matches!(result_type, LogicalType::Enum { .. }) {
-                        Self::logical_type_to_llvm(result_type)
-                    } else {
-                        Self::render_copy_data_layout(result_type)
-                    };
-                    let align = if matches!(
-                        result_type,
-                        LogicalType::Int
-                            | LogicalType::Float
-                            | LogicalType::Bool
-                            | LogicalType::Char
-                    ) {
-                        CopyDataLayout::legacy(result_type)
-                            .alignment()
-                            .expect("primitive CopyData has a physical alignment")
-                    } else {
-                        8
-                    };
+                    let (llvm_type, align) = self.checked_place_storage(result_type);
                     llvm_ir.push_str(&format!(
                         "  %ptr{ptr_id} = alloca {llvm_type}, align {align}\n"
                     ));
@@ -2238,7 +2574,7 @@ impl CodeGenerator {
                         panic!("Expected register for checked enum parameter")
                     };
                     let parameter = Self::llvm_parameter_name(parameter);
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let tag_lane = layout.tag_lane();
                     let tag_type = layout
                         .lane_llvm_type(tag_lane, &Self::struct_type_to_llvm)
@@ -2308,7 +2644,7 @@ impl CodeGenerator {
                     let Value::Reg(result) = result else {
                         panic!("Expected register for checked enum variant")
                     };
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let tag_lane = layout.tag_lane();
                     let tag_type = layout
                         .lane_llvm_type(tag_lane, &Self::struct_type_to_llvm)
@@ -2417,7 +2753,7 @@ impl CodeGenerator {
                     else {
                         unreachable!("verified multi-field enum variant has a product schema")
                     };
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let tag_lane = layout.tag_lane();
                     let tag_type = layout
                         .lane_llvm_type(tag_lane, &Self::struct_type_to_llvm)
@@ -2433,7 +2769,7 @@ impl CodeGenerator {
                         fields.iter().zip(field_types).enumerate()
                     {
                         let output = self.fresh_reg();
-                        let field_llvm = Self::render_copy_data_layout(field_type);
+                        let field_llvm = self.profile_copy_data_type_to_llvm(field_type);
                         let field_value = self.copy_data_value_to_string(field_type, field);
                         llvm_ir.push_str(&format!(
                             "  %{output} = insertvalue {payload_type} {payload_value}, {field_llvm} {field_value}, {field_index}\n"
@@ -2484,7 +2820,7 @@ impl CodeGenerator {
                     let Value::Reg(value) = value else {
                         panic!("Expected register for checked enum payload source")
                     };
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
                     let lane = layout
                         .payload_lane(*variant_index)
@@ -2516,7 +2852,7 @@ impl CodeGenerator {
                     fields
                         .get(*field_index)
                         .expect("verified checked enum field index is in bounds");
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let enum_type = layout.enum_llvm_type_with(&Self::struct_type_to_llvm);
                     let lane = layout
                         .payload_lane(*variant_index)
@@ -2543,7 +2879,7 @@ impl CodeGenerator {
                     let first = targets
                         .first()
                         .expect("verified enum dispatch has a target");
-                    let layout = EnumStorageLayout::legacy(schema);
+                    let layout = self.profile_enum_storage_layout(schema);
                     let tag_lane = layout.tag_lane();
                     let tag_type = layout
                         .lane_llvm_type(tag_lane, &Self::struct_type_to_llvm)
@@ -3217,6 +3553,23 @@ where
     CodeGenerator::new().try_generate_code_with_profile(ir, language_profile)
 }
 
+/// Crate-owned canonical bridge for the profile whose backend lane is available
+/// only after descriptor admission and verifier-backed authentication.
+pub(crate) fn try_generate_code_with_authenticated_profile<I>(
+    ir: I,
+    language_profile: LanguageProfile,
+    authenticated: AuthenticatedResolvedProfileProgram,
+) -> Result<String, CodeGenerationError>
+where
+    I: Into<CheckedIr>,
+{
+    CodeGenerator::new().try_generate_code_with_authenticated_profile(
+        ir,
+        language_profile,
+        &authenticated,
+    )
+}
+
 /// Legacy unchecked function retained for backward compatibility.
 #[deprecated(note = "unchecked compatibility API; use try_generate_code")]
 #[allow(deprecated)]
@@ -3231,6 +3584,8 @@ mod tests {
 
     use super::*;
     use crate::ir::{BlockMetadata, Function, FunctionMetadata, FunctionSignature, Inst, Value};
+    use crate::resolved_profile_shape::ResolvedProfileShapeId;
+    use crate::semantic_analyzer::SemanticAnalyzer;
     use crate::{IrGenerator, parse_with_locations, try_tokenize_with_locations};
     use std::collections::{BTreeMap, HashMap};
 
@@ -3240,6 +3595,118 @@ mod tests {
         IrGenerator::new()
             .try_generate_ir(ast)
             .expect("test source should enter verified checked IR")
+    }
+
+    fn authenticated_checked_ir_from_source(
+        source: &str,
+    ) -> (CheckedIr, AuthenticatedResolvedProfileProgram) {
+        let tokens = try_tokenize_with_locations(source, None).expect("test source should lex");
+        let ast = parse_with_locations(tokens).expect("test source should parse");
+        let (_, analyzed, resolved) = SemanticAnalyzer::new()
+            .analyze_with_resolved_profile(ast)
+            .expect("test source should pass semantic finalization");
+        validate_resolved_language_profile(&resolved, LanguageProfile::ExactI32RecordResultV0)
+            .expect("test source should satisfy the resolved profile");
+        let checked = IrGenerator::new()
+            .try_generate_ir(analyzed)
+            .expect("test source should enter verified checked IR");
+        let authenticated = crate::resolved_profile_authentication::authenticate_resolved_profile(
+            resolved, &checked,
+        )
+        .expect("test descriptor should authenticate against checked IR");
+        (checked, authenticated)
+    }
+
+    #[test]
+    fn exact_record_result_profile_requires_authentication_after_reverification() {
+        let checked = checked_ir_from_source("fn main() -> int { return 91; }");
+        let error = CodeGenerator::new()
+            .try_generate_code_with_profile(checked, LanguageProfile::ExactI32RecordResultV0)
+            .expect_err("direct checked codegen may not claim the authenticated profile");
+        assert!(matches!(
+            &error,
+            CodeGenerationError::LanguageProfileContract {
+                profile: LanguageProfile::ExactI32RecordResultV0,
+                ..
+            }
+        ));
+        assert!(
+            error
+                .to_string()
+                .contains("missing verifier-authenticated resolved profile token")
+        );
+
+        let corrupt = HashMap::from([(
+            "main".to_string(),
+            Function {
+                name: "main".to_string(),
+                body: vec![Inst::Return(Value::Reg(99))],
+                next_reg: 0,
+                next_ptr: 0,
+            },
+        )]);
+        let error = CodeGenerator::new()
+            .try_generate_code_with_profile(corrupt, LanguageProfile::ExactI32RecordResultV0)
+            .expect_err("corrupt IR must fail before the token guard");
+        assert!(matches!(error, CodeGenerationError::IrVerification(_)));
+    }
+
+    #[test]
+    fn exact_record_result_profile_rejects_authenticated_shape_identity_corruption() {
+        let source = "fn identity(value: int) -> int { return value; } fn main() -> int { return identity(91); }";
+        let (checked, authenticated) = authenticated_checked_ir_from_source(source);
+        let llvm = CodeGenerator::new()
+            .try_generate_code_with_authenticated_profile(
+                checked.clone(),
+                LanguageProfile::ExactI32RecordResultV0,
+                &authenticated,
+            )
+            .expect("canonical authenticated scalar program should lower");
+        assert!(llvm.contains("define i32 @identity(i32 %aero.arg.value)"));
+        assert!(!llvm.contains("double"));
+
+        let mut corrupt = authenticated;
+        let coverage = corrupt
+            .coverage
+            .iter_mut()
+            .find(|observation| {
+                matches!(
+                    observation.coverage,
+                    ResolvedProfileAuthenticationCoverage::Authenticated(_)
+                )
+            })
+            .expect("fixture should contain authenticated coverage");
+        coverage.coverage = ResolvedProfileAuthenticationCoverage::Authenticated(
+            ResolvedProfileShapeId(usize::MAX),
+        );
+        let first = CodeGenerator::new()
+            .try_generate_code_with_authenticated_profile(
+                checked.clone(),
+                LanguageProfile::ExactI32RecordResultV0,
+                &corrupt,
+            )
+            .expect_err("corrupt authenticated shape identity must fail");
+        let second = CodeGenerator::new()
+            .try_generate_code_with_authenticated_profile(
+                checked,
+                LanguageProfile::ExactI32RecordResultV0,
+                &corrupt,
+            )
+            .expect_err("corrupt authenticated shape identity must fail deterministically");
+        assert_eq!(first.to_string(), second.to_string());
+        assert_eq!(format!("{first:?}"), format!("{second:?}"));
+        assert!(matches!(
+            &first,
+            CodeGenerationError::LanguageProfileContract {
+                profile: LanguageProfile::ExactI32RecordResultV0,
+                ..
+            }
+        ));
+        assert!(
+            first
+                .to_string()
+                .contains("authenticated coverage does not authorize re-verified subject")
+        );
     }
 
     #[test]

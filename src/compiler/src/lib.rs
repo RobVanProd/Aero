@@ -173,7 +173,11 @@ impl CheckedProgram {
     /// profile's backend representation.
     #[doc(hidden)]
     pub fn try_generate_llvm(self) -> Result<String, CodeGenerationError> {
-        code_generator::try_generate_code_with_profile(self.checked_ir, self.language_profile)
+        code_generator::try_generate_code_with_authenticated_profile(
+            self.checked_ir,
+            self.language_profile,
+            self._resolved_profile,
+        )
     }
 }
 
@@ -209,8 +213,10 @@ pub fn prepare_checked_program_with_module_observer(
 
 /// Canonical compiler-service authority with a typed language-profile selection.
 ///
-/// Profile classification occurs after fatal parsing and before module resolution,
-/// semantic analysis, checked IR, cache lookup, or backend work.
+/// Existing selected-profile classification occurs after fatal parsing. The
+/// compiler-application profile performs its closed resolved-shape/surface gate
+/// after semantic finalization. Every profile gate still completes before checked
+/// IR, cache lookup, or backend work.
 #[doc(hidden)]
 pub fn prepare_checked_program_with_module_observer_and_profile(
     source: &str,
@@ -242,6 +248,7 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let (semantic_message, analyzed_ast, resolved_profile) = semantic_analyzer
         .analyze_with_resolved_profile(ast)
         .map_err(|err| format!("Semantic Analysis Error: {}", err))?;
+    language_profile::validate_resolved_language_profile(&resolved_profile, language_profile)?;
     let semantics = semantics_start.elapsed();
 
     let checked_ir_start = Instant::now();

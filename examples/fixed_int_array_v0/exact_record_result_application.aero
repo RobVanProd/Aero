@@ -1,0 +1,100 @@
+struct Buffer {
+    values: [int; 8],
+    length: int,
+}
+
+struct Request {
+    input: Buffer,
+    bias: int,
+}
+
+struct Success {
+    output: [int; 8],
+    count: int,
+    checksum: int,
+    valid: bool,
+}
+
+fn transform(request: Request) -> Result<Success, int> {
+    if request.input.length < 0 {
+        return Err(101);
+    }
+    if request.input.length > 8 {
+        return Err(102);
+    }
+
+    let mut output: [int; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    let mut index: int = 0;
+    let mut checksum: int = request.bias;
+    while index < request.input.length {
+        let value: int = request.input.values[index];
+        let transformed: int = value * 3 + request.bias + index;
+        output[index] = transformed;
+        checksum = checksum + transformed;
+        index = index + 1;
+    }
+
+    let success: Success = Success {
+        output: output,
+        count: request.input.length,
+        checksum: checksum,
+        valid: index == request.input.length,
+    };
+    return Ok(success);
+}
+
+fn score(result: Result<Success, int>) -> int {
+    return match result {
+        Ok(success) => verify_success(success),
+        Err(code) => code,
+    };
+}
+
+fn verify_success(success: Success) -> int {
+    if success.valid
+        && success.count == 4
+        && success.checksum == 81
+        && success.output[0] == 9
+        && success.output[1] == 16
+        && success.output[2] == 23
+        && success.output[3] == 30 {
+        return 91;
+    }
+    return 1;
+}
+
+// CAP-032 GENERATED MAIN MARKER
+fn main() -> int {
+    let request: Request = Request {
+        input: Buffer {
+            values: [2, 4, 6, 8, 0, 0, 0, 0],
+            length: 4,
+        },
+        bias: 3,
+    };
+    let success: Result<Success, int> = transform(request);
+    let preserved_bias: int = request.bias;
+
+    let negative: Result<Success, int> = transform(Request {
+        input: Buffer {
+            values: [0, 0, 0, 0, 0, 0, 0, 0],
+            length: -1,
+        },
+        bias: 0,
+    });
+    let oversized: Result<Success, int> = transform(Request {
+        input: Buffer {
+            values: [0, 0, 0, 0, 0, 0, 0, 0],
+            length: 9,
+        },
+        bias: 0,
+    });
+
+    if score(success) == 91
+        && score(negative) == 101
+        && score(oversized) == 102
+        && preserved_bias == 3 {
+        return 91;
+    }
+    return 1;
+}
