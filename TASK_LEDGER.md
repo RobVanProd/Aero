@@ -188,6 +188,28 @@
   unchanged; the authorization commit and this test-only red checkpoint are
   explicit rollback points.
 
+### CAP-030 implementation and focused-green checkpoint
+
+- The accepted semantic-success builder now appends one ordered crate-private
+  `surface` stream during its existing single normalized-AST walk. Closed
+  statement, expression, operator, pattern, and assignment-topology
+  vocabularies retain only the frozen neutral syntax facts. Statements,
+  expressions, and patterns are emitted before their children; literal patterns
+  retain their ordinary expression observation; assignment projections remain
+  root-to-leaf; and impl/trait methods retain a Function witness without adding
+  another pass. Existing shape, nominal, use, and operation construction is
+  unchanged.
+- The internal descriptor target passes `9/9`, including exhaustive AST-category
+  and operator projection matrices, exact hidden-surface and recursive-pattern
+  preorder, assignment topology, preserved method contexts, repeated rich
+  semantic determinism, and checked-IR equality. The public CAP-030 target passes
+  `3/3`, including all accepted LLVM/diagnostic/Debug controls and three pinned
+  LLVM-22 native exit-91 sentinels. Nine adjacent resolved-profile, generic
+  CopyData, carrier/Match, stable-scalar, and exact-array targets pass `57/57`.
+  All-target/all-feature `clippy::correctness` denial exits zero; formatting and
+  `git diff --check` remain green. The repository-root gate is still required
+  before this checkpoint can be accepted or published.
+
 ## CAP-029-RESOLVED-PROFILE-AUTHENTICATION - behavior-neutral semantic-to-checked binding
 
 - Date/task/status: 2026-08-15,
