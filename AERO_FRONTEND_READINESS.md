@@ -19,12 +19,19 @@ append-only D1 `(kind, payload, left_id, right_id)` records. All candidate and
 accepted-head workflows are terminal-green. No compiler production or runtime
 file changed.
 
-CAP-043/M1A is the current product-only candidate on that exact accepted head.
-It copies the accepted F1B product, records one source/token origin for every
-flat node at the parser's existing append decision, and then performs a bounded
-two-pass name/type/ownership classification. It changes no Rust compiler,
-runtime, profile, grammar, checked-IR, verifier, backend, or driver file. M1A is
-not M1B: the product emits semantic facts but does not construct checked IR.
+CAP-043/M1A is accepted through protected PR #85. Reviewed candidate
+`1cfa7acc09c741d219c57ebe04f1e6c26949838e` merged as
+`2eaa3bdd9de886453d8556d457d49dbb937770ae`; their tree is identically
+`35129ad5194354acafe082f3fcd55629ed767f27`, and candidate plus accepted-head
+workflows are terminal-green.
+
+CAP-044/M1B is the current product-only candidate on that exact accepted head.
+It copies accepted M1A, authenticates the retained origin/symbol/fact graph,
+evaluates the admitted integer-expression nodes with explicit signed-i32
+overflow and zero-divisor rejection, and serializes one bounded flat checked-IR
+module. It changes no Rust compiler, runtime, profile, grammar, checked-IR,
+verifier, backend, or driver production file. M1B constructs data for the next
+bootstrap stage; it does not independently verify or emit that data.
 
 ## Frozen F1A product
 
@@ -101,6 +108,27 @@ not M1B: the product emits semantic facts but does not construct checked IR.
   11 origins, 11 facts, semantic root type Int, semantic checksum 827574, and
   silent native exit 91.
 
+## Frozen M1B product
+
+- M1B runs only after complete F1/M1A success and consumes the retained node,
+  origin, symbol, and fact owners. It does not rescan, reparse, or infer a type.
+- The admitted numeric subset is the M1A-successful integer expression family
+  whose every intermediate fits signed i32 and whose divisors are nonzero.
+  Overflow status is 1 and zero-divisor status is 2; earlier frontend or
+  semantic failure skips M1B with no serialized module.
+- Six-word value records use immediate or one-based SSA-result operands and a
+  base-32768 signed magnitude, including the exact i32-min representation.
+  Opcodes are Add, Sub, Mul, Div, Neg, and Return.
+- The serialized little-endian module contains one header, one function, one
+  reachable entry block, contiguous eleven-word instructions, and contiguous
+  six-word result definitions. Results are defined before use and Return is the
+  final instruction.
+- Three new direct ByteBuffer owners hold value scratch, instruction scratch,
+  and serialized checked IR. Together with M1A there are exactly twelve direct
+  owners, all destroyed exactly once in reverse declaration order.
+- The canonical source yields 9 values, 5 instructions, 4 results, 104 words,
+  root `Result(4): Int`, checked checksum 355067, and silent native exit 91.
+
 ## Evidence
 
 CAP-041 and CAP-042 preserve their exact red-first histories and are protected
@@ -150,19 +178,44 @@ F1A is 3/3, and D1 is 3/3 green. LLVM 22, O0/O2 native, public CPU,
 accelerator-artifact hygiene, nine-owner cleanup, and Linux/Windows replay are
 green locally. The complete D:-redirected root gate passes formatting,
 correctness Clippy, 309 library tests, 35 binary tests, every integration/native/
-system target, and doc tests. Protected publication remains pending.
+system target, and doc tests. Protected publication and accepted-head replay
+are complete.
+
+Reviewed CAP-043 candidate `1cfa7acc09c741d219c57ebe04f1e6c26949838e`
+merged through PR #85 as `2eaa3bdd9de886453d8556d457d49dbb937770ae`
+with identical tree `35129ad5194354acafe082f3fcd55629ed767f27`.
+Candidate and accepted-head CI, stable/nightly Rust, Windows LLVM 22 native,
+CodeQL, and evidence workflows are terminal-green; CAP-043 is accepted.
+
+CAP-044 preserves separate ledger commit `1a09eb7` and red commit `a498efd`;
+its first test failure was only
+`CAP-044 intentional product red: tracked runtime ASCII checked IR is absent`.
+The focused M1B target is 10/10 green. Its independent M1A-compatible model
+constructs and validates the complete value/instruction/result/module state and
+checksum without using the Aero product as expected state. Accepted Rust
+checked-IR overlap supplies only projected result/signature/block behavior.
+Coverage includes every frozen opcode, exact i32 edges, overflow, direct and
+derived zero divisors, every earlier phase failure with zero IR, source and
+record mutations, malformed SSA/module cases, deterministic failure at every
+allocation/reallocation boundary, exact twelve-owner cleanup, source/file LLVM
+equality, LLVM 22, O0/O2, public CPU, accelerator artifact hygiene, and Linux/
+Windows replay. Accepted M1A is 7/7, F1B 4/4, F1A 3/3, and D1 3/3 green.
+The complete D:-redirected root gate passes formatting, correctness Clippy,
+309 library tests, 35 binary tests, every integration/native/system target, and
+doc tests. Protected-publication evidence remains pending.
 
 ## Remaining gaps
 
-CAP-043 analyzes only the frozen F1B bootstrap grammar. It does not implement the
-complete experimental Rust token/grammar surface, declarations beyond one
-function, multiple statements, calls, arrays, records, `Match`, Unicode/UTF-8,
+CAP-044 analyzes and lowers only the frozen F1B/M1A bootstrap grammar. It does
+not implement the complete experimental Rust token/grammar surface,
+declarations beyond one function, multiple statements, calls, arrays, records,
+`Match`, Unicode/UTF-8,
 strings, characters, floats, macros, modules/imports, path/file input, error
-recovery, general scopes or symbols, general types or ownership, constant
-evaluation, checked-IR construction, verification, LLVM emission, or a compiler
-driver. The F1A/F1B/M1A surface is a selected bootstrap subset, not a claim that
-unsupported stage-0 syntax disappeared from Aero or that the Rust front end has
-been replaced.
+recovery, general scopes or symbols, general types or ownership, dynamic
+arithmetic, independent Aero checked-IR verification, LLVM emission, or a
+compiler driver. The F1A/F1B/M1A/M1B surface is a selected bootstrap subset,
+not a claim that unsupported stage-0 syntax disappeared from Aero or that the
+Rust front end has been replaced.
 
 The token record intentionally stores spans into the still-live input owner.
 It is not an owned String and may not outlive or escape that owner. The
@@ -171,10 +224,10 @@ stable ABI.
 
 ## Exact next dependency
 
-Finish CAP-043/M1A validation from exact accepted CAP-042 head, then protect it
+Finish CAP-044/M1B validation from exact accepted CAP-043 head, then protect it
 through candidate, merge, and accepted-head replay without changing compiler
-production, runtime, profile, or accepted F1B/F1A/D1 behavior. After M1A
-acceptance, freeze M1B separately and red-first: consume authenticated origins,
-symbol, and semantic facts to construct the first bounded checked-IR product.
+production, runtime, profile, or accepted M1A/F1B/F1A/D1 behavior. After M1B
+acceptance, freeze B1 separately and red-first: independently parse and verify
+the serialized module before any Aero-authored LLVM emission or driver step.
 Do not infer additional semantics, call the Rust front end replaced, or call the
-project self-hosted before M1B, B1, and H1/H2 independently close.
+project self-hosted before B1 and H1/H2 independently close.
