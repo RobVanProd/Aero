@@ -2,8 +2,8 @@
 
 ## CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS - node provenance and bounded semantics
 
-- Date/task/status: 2026-08-16, `CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS`,
-  ledger-first authorization from accepted CAP-042/F1B merge
+- Date/task/status: 2026-08-16, `CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS`, local
+  root-green candidate from accepted CAP-042/F1B merge
   `35020e9d14ae58cd8a2bbd34d81f7930aa537be5`, tree
   `baab4ce63fc48a4fc55b6fa56b2cc1416a447c8e`, on
   `agent/m1-flat-ast-semantics` in D:-resident worktree
@@ -133,6 +133,17 @@
   91; ROCm/CUDA rejection before requested artifacts; Linux and Windows workflow
   replay; formatting; correctness Clippy; `git diff --check`; exact-scope audit;
   and `./tools/test.sh` from repository root.
+- Local implementation evidence: ledger commit `b6bba12` and red commit
+  `669d2ba` preserve the required order; the red failed only with the frozen
+  absent-product message. The final focused target passes 7/7. Accepted F1B,
+  F1A, and D1 neighboring targets pass 4/4, 3/3, and 3/3. The direct product,
+  source/file equality, LLVM 22 verification, O0/O2 and public CPU execution,
+  accelerator hygiene, all semantic statuses, nine-owner failure/cleanup, and
+  mutation controls are green. Formatting, correctness Clippy,
+  `git diff --check`, and the exact eight-file scope are clean. The complete
+  D:-redirected `./tools/test.sh` gate passes 309 library tests, 35 binary tests,
+  every integration/native/system target, and doc tests. Protected candidate,
+  merge, and accepted-head workflow evidence remain pending.
 - Allowed files, exactly: `TASK_LEDGER.md`;
   `AERO_FRONTEND_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
   `COMPILER_STORAGE_READINESS.md`; new

@@ -1,9 +1,14 @@
 use compiler::{
-    CompilerOptions, LanguageProfile, SemanticAnalyzer, check_program, compile_program,
-    parse_with_locations, try_tokenize_with_locations,
+    CompilerOptions, LanguageProfile, LlvmVerificationMode, SemanticAnalyzer, check_file,
+    check_program, compile_file, compile_program, parse_with_locations,
+    try_tokenize_with_locations, verify_llvm_module,
 };
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_INPUT_BYTES: usize = 8_192;
 const MAX_REAL_TOKENS: usize = 1_024;
@@ -13,9 +18,14 @@ const MAX_NODES: usize = 512;
 const PROFILE_NAME: &str = "exact-i32-byte-input-v0";
 const PARSER_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_parser.aero";
 const PRODUCT_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_semantics.aero";
+const RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_runtime.c";
+const TEST_RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_test_runtime.c";
+const WORKFLOW_RELATIVE_PATH: &str = "../../.github/workflows/rust.yml";
 const SELF_TEST_MARKER: &str = "// CAP-043 TRACKED SELF-TEST";
 const INTENTIONAL_PRODUCT_RED: &str =
     "CAP-043 intentional product red: tracked runtime ASCII semantic facts are absent";
+
+static NEXT_WORKSPACE_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct NameRecord {
@@ -146,6 +156,109 @@ fn options() -> CompilerOptions {
         language_profile: LanguageProfile::ExactI32ByteInputV0,
         ..CompilerOptions::default()
     }
+}
+
+#[derive(Debug)]
+struct TestWorkspace {
+    root: PathBuf,
+}
+
+impl TestWorkspace {
+    fn new(label: &str) -> Self {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let serial = NEXT_WORKSPACE_ID.fetch_add(1, Ordering::Relaxed);
+        let parent = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| repository_path("../../target"))
+            .join("cap043-runtime-semantics-tests");
+        let root = parent.join(format!(
+            "cap043-{label}-{}-{nonce}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("create CAP-043 test workspace");
+        Self { root }
+    }
+
+    fn write(&self, name: &str, contents: impl AsRef<[u8]>) -> PathBuf {
+        let path = self.root.join(name);
+        fs::write(&path, contents).expect("write CAP-043 artifact");
+        path
+    }
+}
+
+impl Drop for TestWorkspace {
+    fn drop(&mut self) {
+        let valid = self
+            .root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("cap043-"));
+        if valid {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+}
+
+fn run_command_with_stdin(command: &mut Command, input: &[u8]) -> Output {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn CAP-043 child");
+    child
+        .stdin
+        .take()
+        .expect("CAP-043 child stdin")
+        .write_all(input)
+        .expect("write CAP-043 child stdin");
+    child.wait_with_output().expect("wait for CAP-043 child")
+}
+
+fn clang_link(
+    label: &str,
+    workspace: &TestWorkspace,
+    inputs: &[&Path],
+    optimization: &str,
+) -> PathBuf {
+    let executable = workspace.root.join(if cfg!(windows) {
+        format!("{label}-{optimization}.exe")
+    } else {
+        format!("{label}-{optimization}")
+    });
+    let mut command = Command::new("clang");
+    command.args([
+        "-std=c11",
+        optimization,
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-override-module",
+    ]);
+    command.args(inputs).arg("-o").arg(&executable);
+    let output = command.output().expect("execute Clang for CAP-043");
+    assert!(
+        output.status.success(),
+        "link {label} {optimization} (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    executable
+}
+
+fn assert_silent_exit_91(output: &Output, label: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "{label} failed (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "{label} emitted stdout");
+    assert!(output.stderr.is_empty(), "{label} emitted stderr");
 }
 
 fn is_identifier_start(byte: u8) -> bool {
@@ -886,6 +999,287 @@ fn reference_semantics(frontend: &FrontendModel) -> SemanticModel {
     model
 }
 
+fn generated_program(
+    kernel_prefix: &str,
+    frontend: &FrontendModel,
+    semantic: &SemanticModel,
+    frontend_checksum_delta: i32,
+    semantic_checksum_delta: i32,
+) -> String {
+    format!(
+        "{}\n\nfn main() -> int {{\n    return run_runtime_ascii_semantics({}, {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {});\n}}\n",
+        kernel_prefix.trim_end(),
+        frontend.diagnostic.status,
+        frontend.diagnostic.offset,
+        frontend.diagnostic.line,
+        frontend.diagnostic.column,
+        frontend.diagnostic.expected_code,
+        frontend.diagnostic.actual_kind,
+        frontend.names.len(),
+        frontend.tokens.len(),
+        frontend.nodes.len(),
+        frontend.root,
+        frontend.checksum + frontend_checksum_delta,
+        semantic.diagnostic.status,
+        semantic.diagnostic.node_id,
+        semantic.diagnostic.offset,
+        semantic.diagnostic.line,
+        semantic.diagnostic.column,
+        semantic.diagnostic.code,
+        semantic.diagnostic.expected_type,
+        semantic.diagnostic.actual_type,
+        semantic.origins.len(),
+        semantic.symbols.len(),
+        semantic.facts.len(),
+        semantic.root_type,
+        semantic.checksum + semantic_checksum_delta,
+    )
+}
+
+fn compile_generated(program: &str) -> String {
+    check_program(program, options()).expect("generated CAP-043 program checks");
+    let llvm = compile_program(program, options()).expect("generated CAP-043 program compiles");
+    verify_llvm_module(&llvm, LlvmVerificationMode::Required)
+        .expect("generated CAP-043 LLVM verifies");
+    llvm
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct BufferState {
+    length: usize,
+    capacity: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AllocationExpectation {
+    success: bool,
+    allocations: u64,
+    reallocations: u64,
+    deallocations: u64,
+}
+
+fn simulate_pushes(
+    state: &mut BufferState,
+    count: usize,
+    fail_after: u64,
+    successful_events: &mut u64,
+    allocations: &mut u64,
+    reallocations: &mut u64,
+) -> bool {
+    for _ in 0..count {
+        if state.length == state.capacity {
+            if state.capacity == 0 {
+                *allocations += 1;
+            } else {
+                *reallocations += 1;
+            }
+            if *successful_events >= fail_after {
+                return false;
+            }
+            *successful_events += 1;
+            state.capacity = if state.capacity == 0 {
+                8
+            } else {
+                state.capacity * 2
+            };
+        }
+        state.length += 1;
+    }
+    true
+}
+
+fn allocation_expectation(
+    input: &[u8],
+    frontend: &FrontendModel,
+    fail_after: u64,
+) -> AllocationExpectation {
+    let mut buffers = [BufferState::default(); 9];
+    let mut successful_events = 0;
+    let mut allocations = 0;
+    let mut reallocations = 0;
+    let mut completed = simulate_pushes(
+        &mut buffers[0],
+        input.len(),
+        fail_after,
+        &mut successful_events,
+        &mut allocations,
+        &mut reallocations,
+    );
+    let mut seen_names = vec![false; frontend.names.len() + 1];
+    if completed {
+        for token in &frontend.tokens {
+            if token.name_id != 0 && !seen_names[token.name_id] {
+                completed = simulate_pushes(
+                    &mut buffers[1],
+                    8,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+                seen_names[token.name_id] = completed;
+            }
+            if completed {
+                completed = simulate_pushes(
+                    &mut buffers[2],
+                    24,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+            }
+            if !completed {
+                break;
+            }
+        }
+    }
+
+    // Exact parser event order for the allocation fixture `return 1+2;`.
+    let parser_events = [
+        (6usize, 20usize),
+        (3, 16),
+        (4, 8),
+        (5, 20),
+        (6, 20),
+        (3, 16),
+        (4, 8),
+        (6, 20),
+        (3, 16),
+        (4, 8),
+        (6, 20),
+        (3, 16),
+        (6, 20),
+        (3, 16),
+    ];
+    if completed {
+        for (buffer, bytes) in parser_events {
+            completed = simulate_pushes(
+                &mut buffers[buffer],
+                bytes,
+                fail_after,
+                &mut successful_events,
+                &mut allocations,
+                &mut reallocations,
+            );
+            if !completed {
+                break;
+            }
+        }
+    }
+    if completed {
+        completed = simulate_pushes(
+            &mut buffers[7],
+            16,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
+    if completed {
+        completed = simulate_pushes(
+            &mut buffers[8],
+            frontend.nodes.len() * 12,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
+    AllocationExpectation {
+        success: completed,
+        allocations,
+        reallocations,
+        deallocations: buffers.iter().filter(|buffer| buffer.capacity != 0).count() as u64,
+    }
+}
+
+fn allocation_harness(input: &[u8], frontend: &FrontendModel) -> String {
+    let mut cases = String::new();
+    for threshold in 0_u64..=48 {
+        let expected = allocation_expectation(input, frontend, threshold);
+        use std::fmt::Write as _;
+        writeln!(
+            cases,
+            "    {{ UINT64_C({threshold}), {}, UINT64_C({}), UINT64_C({}), UINT64_C({}) }},",
+            i32::from(expected.success),
+            expected.allocations,
+            expected.reallocations,
+            expected.deallocations,
+        )
+        .expect("write CAP-043 allocation case");
+    }
+    let input_bytes = input
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"
+#include <stddef.h>
+#include <stdint.h>
+
+extern int aero_program_main(void);
+extern int32_t aero_test_reset(uint64_t fail_after_successes);
+extern uint64_t aero_test_alloc_calls(void);
+extern uint64_t aero_test_realloc_calls(void);
+extern uint64_t aero_test_dealloc_calls(void);
+extern uint64_t aero_test_live_allocations(void);
+extern uint64_t aero_test_size_mismatch_calls(void);
+
+static const uint8_t input_bytes[] = {{ {input_bytes} }};
+static size_t input_index;
+static int32_t sticky_status;
+
+static void reset_input(void) {{ input_index = 0; sticky_status = 0; }}
+
+int32_t aero_stdin_read_byte(void) {{
+    if (sticky_status != 0) return sticky_status;
+    if (input_index < sizeof(input_bytes)) return input_bytes[input_index++];
+    sticky_status = -1;
+    return sticky_status;
+}}
+
+struct Case {{
+    uint64_t fail_after;
+    int32_t success;
+    uint64_t allocations;
+    uint64_t reallocations;
+    uint64_t deallocations;
+}};
+
+int main(void) {{
+    const struct Case cases[] = {{
+{cases}    }};
+    for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {{
+        const struct Case *test = &cases[index];
+        if (aero_test_reset(test->fail_after) != 1) return 70;
+        reset_input();
+        int32_t result = aero_program_main();
+        if ((result == 91) != test->success) return 71;
+        if (aero_test_alloc_calls() != test->allocations) return 72;
+        if (aero_test_realloc_calls() != test->reallocations) return 73;
+        if (aero_test_dealloc_calls() != test->deallocations) return 74;
+        if (aero_test_live_allocations() != 0) return 75;
+        if (aero_test_size_mismatch_calls() != 0) return 76;
+    }}
+    return 91;
+}}
+"#,
+    )
+}
+
+fn workflow_step<'a>(workflow: &'a str, name: &str) -> &'a str {
+    let marker = format!("    - name: {name}\n");
+    let start = workflow
+        .find(&marker)
+        .unwrap_or_else(|| panic!("workflow step `{name}` is absent"));
+    let remainder = &workflow[start + marker.len()..];
+    let end = remainder.find("\n    - name: ").unwrap_or(remainder.len());
+    &remainder[..end]
+}
+
 fn model_source(expression: &str) -> String {
     format!("fn score()->int{{return {expression};}}")
 }
@@ -1038,6 +1432,9 @@ fn accepted_f1b_product_remains_deterministic_and_byte_identical_to_its_oracle()
 fn tracked_runtime_ascii_semantics_is_the_only_intentional_red() {
     let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
         .unwrap_or_else(|_| panic!("{INTENTIONAL_PRODUCT_RED}"));
+    let (kernel_prefix, tracked_main) = product
+        .split_once(SELF_TEST_MARKER)
+        .expect("tracked product retains one semantic/self-test boundary");
     assert_eq!(product.matches(SELF_TEST_MARKER).count(), 1);
     assert_eq!(
         product.matches("fn run_runtime_ascii_semantics(").count(),
@@ -1059,5 +1456,353 @@ fn tracked_runtime_ascii_semantics_is_the_only_intentional_red() {
             "tracked CAP-043 product omitted `{owner}`"
         );
     }
+    assert!(tracked_main.contains("2, 20, 11, 11, 586661"));
+    assert!(tracked_main.contains("11, 1, 11, 1, 827574"));
+    for anchor in [
+        "parser_append_target = 4",
+        "origin_count = origin_count + 1",
+        "semantic_status = 17",
+        "semantic_status = 18",
+        "semantic_status = 19",
+        "semantic_status = 20",
+        "semantic_status = 21",
+        "semantic_status = 22",
+        "semantic_status = 23",
+        "semantic_status = 24",
+        "semantic_status = 25",
+        "semantic_status = 26",
+        "semantic_status = 27",
+        "bytes_len(&origins) != origin_count * 20",
+        "bytes_len(&symbols) != 16",
+        "bytes_len(&facts) != fact_count * 12",
+    ] {
+        assert!(
+            product.contains(anchor),
+            "tracked CAP-043 product omitted `{anchor}`"
+        );
+    }
+    for forbidden in [
+        "String",
+        "Vec",
+        "HashMap",
+        "unsafe",
+        "fn run_runtime_ascii_parser(",
+    ] {
+        assert!(
+            !product.contains(forbidden),
+            "tracked CAP-043 product contains `{forbidden}`"
+        );
+    }
+
     check_program(&product, options()).expect("tracked CAP-043 product checks");
+    let first = compile_program(&product, options()).expect("tracked CAP-043 product compiles");
+    let second = compile_program(&product, options()).expect("tracked CAP-043 product recompiles");
+    assert_eq!(first, second, "tracked CAP-043 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("tracked CAP-043 LLVM verifies");
+    for anchor in [
+        "%aero.byte_buffer = type { ptr, i32, i32 }",
+        "declare ptr @aero_alloc(i64)",
+        "declare ptr @aero_realloc(ptr, i64, i64)",
+        "declare void @aero_dealloc(ptr, i64)",
+        "declare i32 @aero_stdin_read_byte()",
+    ] {
+        assert!(first.contains(anchor), "tracked LLVM omitted `{anchor}`");
+    }
+    for forbidden in [
+        "double", "fptosi", "sitofp", " nsw ", " nuw ", "@malloc", "@free",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "tracked LLVM leaked `{forbidden}`"
+        );
+    }
+
+    let workspace = TestWorkspace::new("tracked");
+    let source_path = workspace.write("runtime_ascii_semantics.aero", &product);
+    check_file(&source_path, options()).expect("tracked CAP-043 file checks");
+    assert_eq!(
+        compile_file(&source_path, options()).expect("tracked CAP-043 file compiles"),
+        first,
+        "tracked CAP-043 source/file LLVM diverged"
+    );
+    let canonical = b"fn score()->int{return 1+2*3-4/2;}";
+    let frontend = reference_frontend(canonical);
+    let semantic = reference_semantics(&frontend);
+    assert_eq!(frontend.checksum, 586_661);
+    assert_eq!(semantic.checksum, 827_574);
+    let llvm_path = workspace.write("tracked.ll", &first);
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "tracked",
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), canonical),
+            &format!("tracked CAP-043 {optimization}"),
+        );
+    }
+
+    let mut public = Command::new(env!("CARGO_BIN_EXE_aero"));
+    public
+        .args([
+            "run",
+            source_path.to_str().expect("public source path is UTF-8"),
+            "--language-profile",
+            PROFILE_NAME,
+        ])
+        .current_dir(&workspace.root);
+    let public_output = run_command_with_stdin(&mut public, canonical);
+    assert_eq!(public_output.status.code(), Some(91));
+    let public_stdout = String::from_utf8_lossy(&public_output.stdout);
+    assert_eq!(
+        public_stdout
+            .lines()
+            .filter(|line| *line == "Exit code: 91")
+            .count(),
+        1
+    );
+    assert!(
+        !public_stdout
+            .lines()
+            .any(|line| line.starts_with("Output:") || line.starts_with("Error output:"))
+    );
+    assert!(public_output.stderr.is_empty());
+
+    for target in ["rocm", "cuda"] {
+        let output_path = workspace.root.join(format!("{target}.ll"));
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .args([
+                "build",
+                source_path
+                    .to_str()
+                    .expect("accelerator source path is UTF-8"),
+                "-o",
+                output_path
+                    .to_str()
+                    .expect("accelerator output path is UTF-8"),
+                "--target",
+                target,
+                "--language-profile",
+                PROFILE_NAME,
+            ])
+            .current_dir(&workspace.root)
+            .output()
+            .expect("execute CAP-043 accelerator rejection");
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            !output_path.exists(),
+            "{target} rejection created an artifact"
+        );
+    }
+
+    assert_eq!(
+        kernel_prefix.matches("let mut origins: ByteBuffer").count(),
+        1
+    );
+}
+
+#[test]
+fn tracked_product_executes_every_semantic_status_from_independent_expectations() {
+    let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
+        .expect("read tracked CAP-043 product");
+    let (kernel_prefix, _) = product
+        .split_once(SELF_TEST_MARKER)
+        .expect("tracked CAP-043 self-test boundary");
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    let cases = [
+        ("success", "1+2*3-4/2"),
+        ("undeclared", "1+(2<3)+missing"),
+        ("modulo", "1%2"),
+        ("arithmetic", "1+(2<3)"),
+        ("comparison", "1<(2<3)"),
+        ("logical-left", "1&&2"),
+        ("logical-right", "(1<2)&&3"),
+        ("logical-not", "!1"),
+        ("negation", "-(1<2)"),
+        ("return", "(1<2)<(3<4)"),
+    ];
+    for (label, expression) in cases {
+        let input = model_source(expression).into_bytes();
+        let frontend = reference_frontend(&input);
+        let semantic = reference_semantics(&frontend);
+        let program = generated_program(kernel_prefix, &frontend, &semantic, 0, 0);
+        let llvm = compile_generated(&program);
+        let workspace = TestWorkspace::new(label);
+        let llvm_path = workspace.write("case.ll", llvm);
+        let executable = clang_link(
+            label,
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            "-O0",
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), &input),
+            &format!("CAP-043 semantic case {label}"),
+        );
+    }
+}
+
+#[test]
+fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
+    let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
+        .expect("read tracked CAP-043 product");
+    let (kernel_prefix, _) = product
+        .split_once(SELF_TEST_MARKER)
+        .expect("tracked CAP-043 self-test boundary");
+    let input = model_source("1+2").into_bytes();
+    let frontend = reference_frontend(&input);
+    let semantic = reference_semantics(&frontend);
+    assert_eq!(
+        frontend.nodes.len(),
+        5,
+        "allocation fixture topology changed"
+    );
+    assert_eq!(semantic.facts.len(), 5, "allocation fixture facts changed");
+    let program = generated_program(kernel_prefix, &frontend, &semantic, 0, 0);
+    let llvm = compile_generated(&program);
+    let renamed = llvm.replacen("define i32 @main()", "define i32 @aero_program_main()", 1);
+    assert_ne!(renamed, llvm, "allocation product omitted main");
+    let workspace = TestWorkspace::new("allocation");
+    let llvm_path = workspace.write("program.ll", renamed);
+    let harness_path = workspace.write("harness.c", allocation_harness(&input, &frontend));
+    let test_runtime = repository_path(TEST_RUNTIME_RELATIVE_PATH);
+    let executable = clang_link(
+        "allocation",
+        &workspace,
+        &[
+            llvm_path.as_path(),
+            harness_path.as_path(),
+            test_runtime.as_path(),
+        ],
+        "-O2",
+    );
+    assert_silent_exit_91(
+        &Command::new(executable)
+            .output()
+            .expect("run CAP-043 allocation harness"),
+        "CAP-043 nine-owner allocation harness",
+    );
+
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    let canonical = b"fn score()->int{return 1+2*3-4/2;}".to_vec();
+    let canonical_frontend = reference_frontend(&canonical);
+    let canonical_semantic = reference_semantics(&canonical_frontend);
+    let wrong_checksum = generated_program(
+        kernel_prefix,
+        &canonical_frontend,
+        &canonical_semantic,
+        0,
+        1,
+    );
+    let mutations = [
+        ("semantic-checksum", wrong_checksum),
+        (
+            "origin",
+            generated_program(
+                &kernel_prefix.replace(
+                    "parser_append_0 = node_count + 1;",
+                    "parser_append_0 = node_count + 2;",
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                0,
+                0,
+            ),
+        ),
+        (
+            "symbol",
+            generated_program(
+                &kernel_prefix.replacen(
+                    "semantic_append_word = function_payload;",
+                    "semantic_append_word = function_payload + 1;",
+                    1,
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                0,
+                0,
+            ),
+        ),
+        (
+            "fact",
+            generated_program(
+                &kernel_prefix.replacen(
+                    "semantic_append_word = semantic_complete_type;",
+                    "semantic_append_word = semantic_complete_type + 1;",
+                    1,
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                0,
+                0,
+            ),
+        ),
+    ];
+    for (label, mutated) in mutations {
+        let llvm = compile_generated(&mutated);
+        let mutation = TestWorkspace::new(label);
+        let llvm_path = mutation.write("mutation.ll", llvm);
+        let executable = clang_link(
+            label,
+            &mutation,
+            &[llvm_path.as_path(), runtime.as_path()],
+            "-O2",
+        );
+        assert_ne!(
+            run_command_with_stdin(&mut Command::new(executable), &canonical)
+                .status
+                .code(),
+            Some(91),
+            "CAP-043 {label} mutation returned success"
+        );
+    }
+}
+
+#[test]
+fn protected_linux_and_windows_semantic_replays_are_frozen() {
+    let workflow =
+        fs::read_to_string(repository_path(WORKFLOW_RELATIVE_PATH)).expect("read Rust workflow");
+    let linux = workflow_step(&workflow, "Test runtime ASCII semantics at O0 and O2");
+    for anchor in [
+        "runtime_ascii_semantics.aero",
+        "fn score()->int{return 1+2*3-4/2;}",
+        "runtime_ascii_semantics.linux.repeat.ll",
+        "cmp -s",
+        "llvm-as-22",
+        "opt-22",
+        "llc-22",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            linux.contains(anchor),
+            "Linux CAP-043 step omitted `{anchor}`"
+        );
+    }
+    let windows = workflow_step(
+        &workflow,
+        "Test runtime ASCII semantics on Windows at O0 and O2",
+    );
+    for anchor in [
+        "runtime_ascii_semantics.aero",
+        "fn score()->int{return 1+2*3-4/2;}",
+        "runtime_ascii_semantics.windows.repeat.ll",
+        "SequenceEqual",
+        "llvm-as.exe",
+        "opt.exe",
+        "llc.exe",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            windows.contains(anchor),
+            "Windows CAP-043 step omitted `{anchor}`"
+        );
+    }
 }

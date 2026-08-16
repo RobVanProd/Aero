@@ -121,12 +121,19 @@ self-hosting.
 
 ## Next dependency
 
-CAP-041/F1A is accepted as protected merge
-`4bdfcb206f541356aa83987084a9d2feffbe511c`. It consumes accepted R2 bytes and
-emits canonical name spans plus located D1-style token records. CAP-042/F1B is
-the current local product-only candidate: it preserves that scanner, consumes
-the retained records without re-lexing, and emits one-based lower-child D1
-nodes for the frozen single-function expression grammar; see
+CAP-041/F1A and CAP-042/F1B are accepted as protected merges
+`4bdfcb206f541356aa83987084a9d2feffbe511c` and
+`35020e9d14ae58cd8a2bbd34d81f7930aa537be5`. F1A consumes accepted R2 bytes and
+emits canonical name spans plus located D1-style token records; F1B preserves
+that scanner, consumes the retained records without re-lexing, and emits
+one-based lower-child D1 nodes for the frozen single-function expression
+grammar.
+
+CAP-043/M1A is the current local product-only candidate. It copies accepted F1B,
+adds parallel five-word node-origin records, then uses a name prepass and
+iterative node-ID pass to emit one function symbol plus closed Int/Bool/Copy
+facts. Nine direct ByteBuffer owners preserve D1's flat serialized model and
+exact cleanup. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing remains
-evidence scaffolding, not source syntax, and the candidate does not add a
-general AST collection or replace the Rust front end.
+evidence scaffolding rather than a general AST collection; M1A does not replace
+the Rust front end or construct checked IR.

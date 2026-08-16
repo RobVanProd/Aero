@@ -1,0 +1,2918 @@
+fn result_value(result: Result<int, int>) -> int {
+    return match result {
+        Ok(value) => value,
+        Err(code) => 0 - code,
+    };
+}
+
+fn is_identifier_start(value: int) -> int {
+    if value == 95 || (value >= 65 && value <= 90) || (value >= 97 && value <= 122) {
+        return 1;
+    }
+    return 0;
+}
+
+fn is_identifier_continue(value: int) -> int {
+    if is_identifier_start(value) == 1 || (value >= 48 && value <= 57) {
+        return 1;
+    }
+    return 0;
+}
+
+fn is_digit(value: int) -> int {
+    if value >= 48 && value <= 57 {
+        return 1;
+    }
+    return 0;
+}
+
+fn keyword_token_kind(length: int, b0: int, b1: int, b2: int,
+        b3: int, b4: int, b5: int) -> int {
+    if length == 2 {
+        if b0 == 102 && b1 == 110 {
+            return 3;
+        }
+        if b0 == 105 && b1 == 102 {
+            return 7;
+        }
+    } else if length == 3 {
+        if b0 == 108 && b1 == 101 && b2 == 116 {
+            return 4;
+        }
+        if b0 == 109 && b1 == 117 && b2 == 116 {
+            return 5;
+        }
+    } else if length == 4 {
+        if b0 == 101 && b1 == 108 && b2 == 115 && b3 == 101 {
+            return 8;
+        }
+    } else if length == 5 {
+        if b0 == 119 && b1 == 104 && b2 == 105 && b3 == 108 && b4 == 101 {
+            return 9;
+        }
+    } else if length == 6 {
+        if b0 == 114 && b1 == 101 && b2 == 116 && b3 == 117
+            && b4 == 114 && b5 == 110 {
+            return 6;
+        }
+    }
+    return 1;
+}
+
+fn pair_token_kind(first: int, second: int) -> int {
+    if first == 61 && second == 61 {
+        return 26;
+    }
+    if first == 33 && second == 61 {
+        return 28;
+    }
+    if first == 60 && second == 61 {
+        return 30;
+    }
+    if first == 62 && second == 61 {
+        return 32;
+    }
+    if first == 38 && second == 38 {
+        return 33;
+    }
+    if first == 124 && second == 124 {
+        return 34;
+    }
+    if first == 45 && second == 62 {
+        return 35;
+    }
+    if first == 61 && second == 62 {
+        return 36;
+    }
+    return 0;
+}
+
+fn single_token_kind(value: int) -> int {
+    if value == 40 {
+        return 10;
+    }
+    if value == 41 {
+        return 11;
+    }
+    if value == 123 {
+        return 12;
+    }
+    if value == 125 {
+        return 13;
+    }
+    if value == 91 {
+        return 14;
+    }
+    if value == 93 {
+        return 15;
+    }
+    if value == 44 {
+        return 16;
+    }
+    if value == 58 {
+        return 17;
+    }
+    if value == 59 {
+        return 18;
+    }
+    if value == 46 {
+        return 19;
+    }
+    if value == 43 {
+        return 20;
+    }
+    if value == 45 {
+        return 21;
+    }
+    if value == 42 {
+        return 22;
+    }
+    if value == 47 {
+        return 23;
+    }
+    if value == 37 {
+        return 24;
+    }
+    if value == 61 {
+        return 25;
+    }
+    if value == 33 {
+        return 27;
+    }
+    if value == 60 {
+        return 29;
+    }
+    if value == 62 {
+        return 31;
+    }
+    return 0;
+}
+
+fn quotient_256(value: int) -> int {
+    let mut remaining: int = value;
+    let mut quotient: int = 0;
+    while remaining >= 256 {
+        remaining = remaining - 256;
+        quotient = quotient + 1;
+    }
+    return quotient;
+}
+
+fn word_byte_0(value: int) -> int {
+    let mut remaining: int = value;
+    while remaining >= 256 {
+        remaining = remaining - 256;
+    }
+    return remaining;
+}
+
+fn word_byte_1(value: int) -> int {
+    return word_byte_0(quotient_256(value));
+}
+
+fn word_byte_2(value: int) -> int {
+    return word_byte_0(quotient_256(quotient_256(value)));
+}
+
+fn word_byte_3(value: int) -> int {
+    return quotient_256(quotient_256(quotient_256(value)));
+}
+
+fn checksum_step(checksum: int, word: int) -> int {
+    let mut reduced_word: int = word;
+    while reduced_word >= 1000003 {
+        reduced_word = reduced_word - 1000003;
+    }
+    let mut combined: int = checksum * 31 + reduced_word;
+    while combined >= 1000003 {
+        combined = combined - 1000003;
+    }
+    return combined;
+}
+
+fn read_input_value() -> int {
+    let read: Result<int, int> = stdin_read_byte();
+    return result_value(read);
+}
+
+fn binary_precedence(kind: int) -> int {
+    if kind == 34 {
+        return 1;
+    }
+    if kind == 33 {
+        return 2;
+    }
+    if kind == 26 || kind == 28 {
+        return 3;
+    }
+    if kind == 29 || kind == 30 || kind == 31 || kind == 32 {
+        return 4;
+    }
+    if kind == 20 || kind == 21 {
+        return 5;
+    }
+    if kind == 22 || kind == 23 || kind == 24 {
+        return 6;
+    }
+    return 0;
+}
+
+fn binary_node_kind(kind: int) -> int {
+    if kind == 22 {
+        return 5;
+    }
+    if kind == 23 {
+        return 6;
+    }
+    if kind == 24 {
+        return 7;
+    }
+    if kind == 20 {
+        return 8;
+    }
+    if kind == 21 {
+        return 9;
+    }
+    if kind == 29 {
+        return 10;
+    }
+    if kind == 30 {
+        return 11;
+    }
+    if kind == 31 {
+        return 12;
+    }
+    if kind == 32 {
+        return 13;
+    }
+    if kind == 26 {
+        return 14;
+    }
+    if kind == 28 {
+        return 15;
+    }
+    if kind == 33 {
+        return 16;
+    }
+    if kind == 34 {
+        return 17;
+    }
+    return 0;
+}
+
+fn run_runtime_ascii_semantics(expected_status: int, expected_offset: int,
+        expected_line: int, expected_column: int, expected_code: int,
+        expected_actual: int, expected_names: int, expected_tokens: int,
+        expected_nodes: int, expected_root: int, expected_checksum: int,
+        expected_semantic_status: int, expected_semantic_node: int,
+        expected_semantic_offset: int, expected_semantic_line: int,
+        expected_semantic_column: int, expected_semantic_code: int,
+        expected_semantic_expected: int, expected_semantic_actual: int,
+        expected_origins: int, expected_symbols: int, expected_facts: int,
+        expected_semantic_root: int, expected_semantic_checksum: int) -> int {
+    let mut source: ByteBuffer = bytes_new();
+    let mut names: ByteBuffer = bytes_new();
+    let mut tokens: ByteBuffer = bytes_new();
+    let mut nodes: ByteBuffer = bytes_new();
+    let mut values: ByteBuffer = bytes_new();
+    let mut operators: ByteBuffer = bytes_new();
+    let mut origins: ByteBuffer = bytes_new();
+    let mut symbols: ByteBuffer = bytes_new();
+    let mut facts: ByteBuffer = bytes_new();
+
+    if expected_status < 0 || expected_offset < -1 || expected_line < 0
+        || expected_column < 0 || expected_code < 0 || expected_actual < 0
+        || expected_names < 0 || expected_tokens < 0 || expected_nodes < 0
+        || expected_root < 0 || expected_checksum < 0
+        || expected_semantic_status < 0 || expected_semantic_node < 0
+        || expected_semantic_offset < -1 || expected_semantic_line < 0
+        || expected_semantic_column < 0 || expected_semantic_code < 0
+        || expected_semantic_expected < 0 || expected_semantic_actual < 0
+        || expected_origins < 0 || expected_symbols < 0 || expected_facts < 0
+        || expected_semantic_root < 0 || expected_semantic_checksum < 0 {
+        return 40;
+    }
+
+    let mut status: int = 0;
+    let mut error_offset: int = -1;
+    let mut error_line: int = 0;
+    let mut error_column: int = 0;
+    let mut diagnostic_code: int = 0;
+    let mut diagnostic_actual: int = 0;
+    let mut semantic_status: int = 0;
+    let mut semantic_node: int = 0;
+    let mut semantic_offset: int = -1;
+    let mut semantic_line: int = 0;
+    let mut semantic_column: int = 0;
+    let mut semantic_code: int = 0;
+    let mut semantic_expected: int = 0;
+    let mut semantic_actual: int = 0;
+    let mut input_line: int = 1;
+    let mut input_column: int = 1;
+    let mut reading: int = 1;
+    let mut input_value: int = 0;
+    let mut push_result: int = 0;
+    while reading == 1 {
+        input_value = read_input_value();
+        if input_value >= 0 {
+            if bytes_len(&source) >= 8192 {
+                status = 2;
+                error_offset = 8192;
+                error_line = input_line;
+                error_column = input_column;
+                reading = 0;
+            } else {
+                push_result = result_value(bytes_push(&mut source, input_value));
+                if push_result < 0 {
+                    status = 8;
+                    error_offset = bytes_len(&source);
+                    error_line = input_line;
+                    error_column = input_column;
+                    reading = 0;
+                } else if input_value == 10 {
+                    input_line = input_line + 1;
+                    input_column = 1;
+                } else {
+                    input_column = input_column + 1;
+                }
+            }
+        } else if input_value == -1 {
+            reading = 0;
+        } else {
+            status = 1;
+            error_offset = bytes_len(&source);
+            error_line = input_line;
+            error_column = input_column;
+            reading = 0;
+        }
+    }
+
+    let source_length: int = bytes_len(&source);
+    let mut name_count: int = 0;
+    let mut token_count: int = 0;
+    let mut offset: int = 0;
+    let mut line: int = 1;
+    let mut column: int = 1;
+    let mut lexing: int = 0;
+    let mut lex_complete: int = 0;
+    if status == 0 {
+        lexing = 1;
+    }
+
+    let mut byte: int = 0;
+    let mut next_byte: int = 0;
+    let mut token_start: int = 0;
+    let mut token_end: int = 0;
+    let mut token_length: int = 0;
+    let mut token_line: int = 0;
+    let mut token_column: int = 0;
+    let mut kind: int = 0;
+    let mut name_id: int = 0;
+    let mut pair_kind: int = 0;
+    let mut single_kind: int = 0;
+    let mut comment_open: int = 0;
+    let mut comment_line: int = 0;
+    let mut comment_column: int = 0;
+    let mut comment_closed: int = 0;
+    let mut b0: int = 0;
+    let mut b1: int = 0;
+    let mut b2: int = 0;
+    let mut b3: int = 0;
+    let mut b4: int = 0;
+    let mut b5: int = 0;
+    let mut found_name_id: int = 0;
+    let mut candidate_name: int = 0;
+    let mut stored_start: int = 0;
+    let mut stored_length: int = 0;
+    let mut name_field: int = 0;
+    let mut word_offset: int = 0;
+    let mut byte_0: int = 0;
+    let mut byte_1: int = 0;
+    let mut byte_2: int = 0;
+    let mut byte_3: int = 0;
+    let mut word: int = 0;
+    let mut same: int = 0;
+    let mut compare_index: int = 0;
+    let mut canonical_byte: int = 0;
+    let mut current_byte: int = 0;
+    let mut append_failed: int = 0;
+    let mut append_field: int = 0;
+    let mut scanning_token: int = 0;
+
+    while offset < source_length && lexing == 1 {
+        byte = result_value(bytes_get(&source, offset));
+        if byte < 0 {
+            status = 9;
+            lexing = 0;
+        } else if byte > 127 {
+            status = 3;
+            error_offset = offset;
+            error_line = line;
+            error_column = column;
+            lexing = 0;
+        } else if byte == 32 || byte == 9 || byte == 13 || byte == 10 {
+            if byte == 10 {
+                line = line + 1;
+                column = 1;
+            } else {
+                column = column + 1;
+            }
+            offset = offset + 1;
+        } else {
+            next_byte = -1;
+            if offset + 1 < source_length {
+                next_byte = result_value(bytes_get(&source, offset + 1));
+                if next_byte < 0 {
+                    status = 9;
+                    lexing = 0;
+                }
+            }
+
+            if lexing == 1 && byte == 47 && next_byte == 47 {
+                offset = offset + 2;
+                column = column + 2;
+                while offset < source_length && lexing == 1 {
+                    byte = result_value(bytes_get(&source, offset));
+                    if byte < 0 {
+                        status = 9;
+                        lexing = 0;
+                    } else if byte > 127 {
+                        status = 3;
+                        error_offset = offset;
+                        error_line = line;
+                        error_column = column;
+                        lexing = 0;
+                    } else if byte == 13 || byte == 10 {
+                        lexing = 2;
+                    } else {
+                        offset = offset + 1;
+                        column = column + 1;
+                    }
+                }
+                if lexing == 2 {
+                    lexing = 1;
+                }
+            } else if lexing == 1 && byte == 47 && next_byte == 42 {
+                comment_open = offset;
+                comment_line = line;
+                comment_column = column;
+                comment_closed = 0;
+                offset = offset + 2;
+                column = column + 2;
+                while offset < source_length && comment_closed == 0 && lexing == 1 {
+                    byte = result_value(bytes_get(&source, offset));
+                    if byte < 0 {
+                        status = 9;
+                        lexing = 0;
+                    } else if byte > 127 {
+                        status = 3;
+                        error_offset = offset;
+                        error_line = line;
+                        error_column = column;
+                        lexing = 0;
+                    } else {
+                        next_byte = -1;
+                        if offset + 1 < source_length {
+                            next_byte = result_value(bytes_get(&source, offset + 1));
+                            if next_byte < 0 {
+                                status = 9;
+                                lexing = 0;
+                            }
+                        }
+                        if lexing == 1 && byte == 42 && next_byte == 47 {
+                            offset = offset + 2;
+                            column = column + 2;
+                            comment_closed = 1;
+                        } else if lexing == 1 {
+                            if byte == 10 {
+                                line = line + 1;
+                                column = 1;
+                            } else {
+                                column = column + 1;
+                            }
+                            offset = offset + 1;
+                        }
+                    }
+                }
+                if lexing == 1 && comment_closed == 0 {
+                    status = 4;
+                    error_offset = comment_open;
+                    error_line = comment_line;
+                    error_column = comment_column;
+                    lexing = 0;
+                }
+            } else if lexing == 1 {
+                token_start = offset;
+                token_line = line;
+                token_column = column;
+                token_end = offset + 1;
+                kind = 0;
+                name_id = 0;
+
+                if is_identifier_start(byte) == 1 {
+                    scanning_token = 1;
+                    while token_end < source_length && scanning_token == 1 {
+                        next_byte = result_value(bytes_get(&source, token_end));
+                        if next_byte < 0 {
+                            status = 9;
+                            lexing = 0;
+                            scanning_token = 0;
+                        } else if is_identifier_continue(next_byte) == 1 {
+                            token_end = token_end + 1;
+                        } else {
+                            scanning_token = 0;
+                        }
+                    }
+                    token_length = token_end - token_start;
+                    if lexing == 1 && token_length > 63 {
+                        status = 5;
+                        error_offset = token_start;
+                        error_line = token_line;
+                        error_column = token_column;
+                        lexing = 0;
+                    }
+
+                    if lexing == 1 {
+                        b0 = byte;
+                        b1 = 0;
+                        b2 = 0;
+                        b3 = 0;
+                        b4 = 0;
+                        b5 = 0;
+                        if token_length > 1 {
+                            b1 = result_value(bytes_get(&source, token_start + 1));
+                        }
+                        if token_length > 2 {
+                            b2 = result_value(bytes_get(&source, token_start + 2));
+                        }
+                        if token_length > 3 {
+                            b3 = result_value(bytes_get(&source, token_start + 3));
+                        }
+                        if token_length > 4 {
+                            b4 = result_value(bytes_get(&source, token_start + 4));
+                        }
+                        if token_length > 5 {
+                            b5 = result_value(bytes_get(&source, token_start + 5));
+                        }
+                        if b0 < 0 || b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0 || b5 < 0 {
+                            status = 9;
+                            lexing = 0;
+                        } else {
+                            kind = keyword_token_kind(token_length, b0, b1, b2, b3, b4, b5);
+                        }
+                    }
+
+                    if lexing == 1 && kind == 1 {
+                        found_name_id = 0;
+                        candidate_name = 0;
+                        while candidate_name < name_count && found_name_id == 0
+                            && lexing == 1 {
+                            stored_start = 0;
+                            stored_length = 0;
+                            name_field = 0;
+                            while name_field < 2 && lexing == 1 {
+                                word_offset = candidate_name * 8 + name_field * 4;
+                                byte_0 = result_value(bytes_get(&names, word_offset));
+                                byte_1 = result_value(bytes_get(&names, word_offset + 1));
+                                byte_2 = result_value(bytes_get(&names, word_offset + 2));
+                                byte_3 = result_value(bytes_get(&names, word_offset + 3));
+                                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                                    || byte_3 > 127 {
+                                    status = 9;
+                                    lexing = 0;
+                                } else {
+                                    word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                                        + byte_3 * 16777216;
+                                    if name_field == 0 {
+                                        stored_start = word;
+                                    } else {
+                                        stored_length = word;
+                                    }
+                                    name_field = name_field + 1;
+                                }
+                            }
+                            if lexing == 1 && stored_length == token_length {
+                                same = 1;
+                                compare_index = 0;
+                                while compare_index < token_length && same == 1 {
+                                    canonical_byte = result_value(bytes_get(
+                                        &source, stored_start + compare_index));
+                                    current_byte = result_value(bytes_get(
+                                        &source, token_start + compare_index));
+                                    if canonical_byte < 0 || current_byte < 0 {
+                                        status = 9;
+                                        lexing = 0;
+                                        same = 0;
+                                    } else if canonical_byte != current_byte {
+                                        same = 0;
+                                    }
+                                    compare_index = compare_index + 1;
+                                }
+                                if lexing == 1 && same == 1 {
+                                    found_name_id = candidate_name + 1;
+                                }
+                            }
+                            candidate_name = candidate_name + 1;
+                        }
+
+                        if lexing == 1 && found_name_id == 0 && name_count >= 1024 {
+                            status = 7;
+                            error_offset = token_start;
+                            error_line = token_line;
+                            error_column = token_column;
+                            lexing = 0;
+                        }
+                        if lexing == 1 && token_count >= 1024 {
+                            status = 6;
+                            error_offset = token_start;
+                            error_line = token_line;
+                            error_column = token_column;
+                            lexing = 0;
+                        }
+
+                        if lexing == 1 && found_name_id == 0 {
+                            append_failed = 0;
+                            append_field = 0;
+                            while append_field < 2 && append_failed == 0 {
+                                word = token_start;
+                                if append_field == 1 {
+                                    word = token_length;
+                                }
+                                push_result = result_value(bytes_push(&mut names, word_byte_0(word)));
+                                if push_result < 0 {
+                                    append_failed = 1;
+                                }
+                                if append_failed == 0 {
+                                    push_result = result_value(bytes_push(&mut names, word_byte_1(word)));
+                                    if push_result < 0 {
+                                        append_failed = 1;
+                                    }
+                                }
+                                if append_failed == 0 {
+                                    push_result = result_value(bytes_push(&mut names, word_byte_2(word)));
+                                    if push_result < 0 {
+                                        append_failed = 1;
+                                    }
+                                }
+                                if append_failed == 0 {
+                                    push_result = result_value(bytes_push(&mut names, word_byte_3(word)));
+                                    if push_result < 0 {
+                                        append_failed = 1;
+                                    }
+                                }
+                                append_field = append_field + 1;
+                            }
+                            if append_failed == 1 {
+                                status = 8;
+                                error_offset = token_start;
+                                error_line = token_line;
+                                error_column = token_column;
+                                lexing = 0;
+                            } else {
+                                name_count = name_count + 1;
+                                found_name_id = name_count;
+                            }
+                        }
+                        name_id = found_name_id;
+                    } else if lexing == 1 && token_count >= 1024 {
+                        status = 6;
+                        error_offset = token_start;
+                        error_line = token_line;
+                        error_column = token_column;
+                        lexing = 0;
+                    }
+                } else if is_digit(byte) == 1 {
+                    scanning_token = 1;
+                    while token_end < source_length && scanning_token == 1 {
+                        next_byte = result_value(bytes_get(&source, token_end));
+                        if next_byte < 0 {
+                            status = 9;
+                            lexing = 0;
+                            scanning_token = 0;
+                        } else if is_digit(next_byte) == 1 {
+                            token_end = token_end + 1;
+                        } else {
+                            scanning_token = 0;
+                        }
+                    }
+                    kind = 2;
+                    if lexing == 1 && token_count >= 1024 {
+                        status = 6;
+                        error_offset = token_start;
+                        error_line = token_line;
+                        error_column = token_column;
+                        lexing = 0;
+                    }
+                } else {
+                    pair_kind = 0;
+                    if next_byte >= 0 {
+                        pair_kind = pair_token_kind(byte, next_byte);
+                    }
+                    if pair_kind > 0 {
+                        kind = pair_kind;
+                        token_end = token_start + 2;
+                    } else {
+                        single_kind = single_token_kind(byte);
+                        if single_kind > 0 {
+                            kind = single_kind;
+                            token_end = token_start + 1;
+                        } else {
+                            status = 4;
+                            error_offset = token_start;
+                            error_line = token_line;
+                            error_column = token_column;
+                            lexing = 0;
+                        }
+                    }
+                    if lexing == 1 && token_count >= 1024 {
+                        status = 6;
+                        error_offset = token_start;
+                        error_line = token_line;
+                        error_column = token_column;
+                        lexing = 0;
+                    }
+                }
+
+                if lexing == 1 {
+                    token_length = token_end - token_start;
+                    append_failed = 0;
+                    append_field = 0;
+                    while append_field < 6 && append_failed == 0 {
+                        word = kind;
+                        if append_field == 1 {
+                            word = token_start;
+                        } else if append_field == 2 {
+                            word = token_length;
+                        } else if append_field == 3 {
+                            word = token_line;
+                        } else if append_field == 4 {
+                            word = token_column;
+                        } else if append_field == 5 {
+                            word = name_id;
+                        }
+                        push_result = result_value(bytes_push(&mut tokens, word_byte_0(word)));
+                        if push_result < 0 {
+                            append_failed = 1;
+                        }
+                        if append_failed == 0 {
+                            push_result = result_value(bytes_push(&mut tokens, word_byte_1(word)));
+                            if push_result < 0 {
+                                append_failed = 1;
+                            }
+                        }
+                        if append_failed == 0 {
+                            push_result = result_value(bytes_push(&mut tokens, word_byte_2(word)));
+                            if push_result < 0 {
+                                append_failed = 1;
+                            }
+                        }
+                        if append_failed == 0 {
+                            push_result = result_value(bytes_push(&mut tokens, word_byte_3(word)));
+                            if push_result < 0 {
+                                append_failed = 1;
+                            }
+                        }
+                        append_field = append_field + 1;
+                    }
+                    if append_failed == 1 {
+                        status = 8;
+                        error_offset = token_start;
+                        error_line = token_line;
+                        error_column = token_column;
+                        lexing = 0;
+                    } else {
+                        token_count = token_count + 1;
+                        offset = token_end;
+                        column = column + token_length;
+                    }
+                }
+            }
+        }
+    }
+
+    if status == 0 {
+        kind = 0;
+        token_start = source_length;
+        token_length = 0;
+        token_line = line;
+        token_column = column;
+        name_id = 0;
+        append_failed = 0;
+        append_field = 0;
+        while append_field < 6 && append_failed == 0 {
+            word = kind;
+            if append_field == 1 {
+                word = token_start;
+            } else if append_field == 2 {
+                word = token_length;
+            } else if append_field == 3 {
+                word = token_line;
+            } else if append_field == 4 {
+                word = token_column;
+            } else if append_field == 5 {
+                word = name_id;
+            }
+            push_result = result_value(bytes_push(&mut tokens, word_byte_0(word)));
+            if push_result < 0 {
+                append_failed = 1;
+            }
+            if append_failed == 0 {
+                push_result = result_value(bytes_push(&mut tokens, word_byte_1(word)));
+                if push_result < 0 {
+                    append_failed = 1;
+                }
+            }
+            if append_failed == 0 {
+                push_result = result_value(bytes_push(&mut tokens, word_byte_2(word)));
+                if push_result < 0 {
+                    append_failed = 1;
+                }
+            }
+            if append_failed == 0 {
+                push_result = result_value(bytes_push(&mut tokens, word_byte_3(word)));
+                if push_result < 0 {
+                    append_failed = 1;
+                }
+            }
+            append_field = append_field + 1;
+        }
+        if append_failed == 1 {
+            status = 8;
+            error_offset = source_length;
+            error_line = line;
+            error_column = column;
+        } else {
+            token_count = token_count + 1;
+            lex_complete = 1;
+        }
+    }
+
+    // CAP-043 preserves CAP-042's one flat parser driver. Each D1 append
+    // decision first emits its parallel origin and then the frozen node.
+    let mut node_count: int = 0;
+    let mut origin_count: int = 0;
+    let mut root: int = 0;
+    let mut node_id: int = 0;
+    let mut parse_index: int = 0;
+    let mut parser_running: int = 0;
+    let mut parser_state: int = 0;
+    let mut parser_cycle_state: int = 0;
+    if status == 0 {
+        parser_running = 1;
+        parser_state = 1;
+    }
+
+    let mut current_kind: int = 0;
+    let mut current_start: int = 0;
+    let mut current_length: int = 0;
+    let mut current_line: int = 0;
+    let mut current_column: int = 0;
+    let mut current_name_id: int = 0;
+    let mut expected_kind: int = 0;
+    let mut skeleton_step: int = 0;
+    let mut function_start: int = 0;
+    let mut function_line: int = 0;
+    let mut function_column: int = 0;
+    let mut function_name_id: int = 0;
+    let mut return_start: int = 0;
+    let mut return_line: int = 0;
+    let mut return_column: int = 0;
+    let mut closing_step: int = 0;
+    let mut int_matches: int = 0;
+
+    let mut value_top: int = 0;
+    let mut value_depth: int = 0;
+    let mut value_records: int = 0;
+    let mut operator_top: int = 0;
+    let mut operator_depth: int = 0;
+    let mut operator_records: int = 0;
+    let mut paren_depth: int = 0;
+    let mut expecting_operand: int = 1;
+    let mut expression_root: int = 0;
+    let mut literal_value: int = 0;
+    let mut decimal_index: int = 0;
+    let mut decimal_digit: int = 0;
+    let mut current_precedence: int = 0;
+    let mut reduction_mode: int = 0;
+    let mut top_kind: int = 0;
+    let mut top_start: int = 0;
+    let mut top_line: int = 0;
+    let mut top_column: int = 0;
+    let mut top_previous: int = 0;
+    let mut top_precedence: int = 0;
+    let mut right_id: int = 0;
+    let mut left_id: int = 0;
+    let mut value_previous: int = 0;
+    let mut reduced_kind: int = 0;
+    let mut reduction_actual: int = 0;
+
+    let mut parser_token_after: int = 0;
+    let mut parser_token_field: int = 0;
+    let mut parser_token_byte: int = 0;
+    let mut parser_token_word: int = 0;
+    let mut parser_read_offset: int = 0;
+    let mut parser_read_byte_value: int = 0;
+    let mut parser_step_byte: int = 0;
+
+    let mut parser_record_target: int = 0;
+    let mut parser_record_width: int = 0;
+    let mut parser_record_index: int = 0;
+    let mut parser_record_field: int = 0;
+    let mut parser_record_byte: int = 0;
+    let mut parser_record_word: int = 0;
+    let mut parser_record_after: int = 0;
+    let mut parser_record_0: int = 0;
+    let mut parser_record_1: int = 0;
+    let mut parser_record_2: int = 0;
+    let mut parser_record_3: int = 0;
+    let mut parser_record_4: int = 0;
+
+    let mut parser_append_target: int = 0;
+    let mut parser_append_width: int = 0;
+    let mut parser_append_field: int = 0;
+    let mut parser_append_byte: int = 0;
+    let mut parser_append_word: int = 0;
+    let mut parser_append_after: int = 0;
+    let mut parser_append_0: int = 0;
+    let mut parser_append_1: int = 0;
+    let mut parser_append_2: int = 0;
+    let mut parser_append_3: int = 0;
+    let mut parser_append_4: int = 0;
+    let mut parser_append_offset: int = 0;
+    let mut parser_append_line: int = 0;
+    let mut parser_append_column: int = 0;
+    let mut pending_node_kind: int = 0;
+    let mut pending_node_payload: int = 0;
+    let mut pending_node_left: int = 0;
+    let mut pending_node_right: int = 0;
+    let mut pending_node_after: int = 0;
+    let mut pending_node_offset: int = 0;
+    let mut pending_node_line: int = 0;
+    let mut pending_node_column: int = 0;
+
+    while parser_running == 1 {
+        parser_cycle_state = parser_state;
+
+        // Request one complete located token record.
+        if parser_cycle_state == 1 {
+            parser_token_after = 2;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 3 {
+            parser_token_after = 4;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 20 {
+            parser_token_after = 21;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+
+        // Decode one token byte per iteration.
+        if parser_cycle_state == 30 {
+            parser_step_byte = parser_token_byte;
+            if parse_index < 0 || parse_index >= token_count {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_read_offset = parse_index * 24;
+                parser_read_offset = parser_read_offset + parser_token_field * 4;
+                parser_read_offset = parser_read_offset + parser_token_byte;
+                parser_read_byte_value = result_value(bytes_get(&tokens,
+                    parser_read_offset));
+                if parser_read_byte_value < 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 && parser_step_byte == 0 {
+                parser_token_word = parser_read_byte_value;
+            }
+            if parser_running == 1 && parser_step_byte == 1 {
+                parser_token_word = parser_token_word + parser_read_byte_value * 256;
+            }
+            if parser_running == 1 && parser_step_byte == 2 {
+                parser_token_word = parser_token_word + parser_read_byte_value * 65536;
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                if parser_read_byte_value > 127 {
+                    status = 16;
+                    parser_running = 0;
+                } else {
+                    parser_token_word = parser_token_word
+                        + parser_read_byte_value * 16777216;
+                }
+            }
+            if parser_running == 1 && parser_step_byte < 3 {
+                parser_token_byte = parser_step_byte + 1;
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                if parser_token_field == 0 {
+                    current_kind = parser_token_word;
+                }
+                if parser_token_field == 1 {
+                    current_start = parser_token_word;
+                }
+                if parser_token_field == 2 {
+                    current_length = parser_token_word;
+                }
+                if parser_token_field == 3 {
+                    current_line = parser_token_word;
+                }
+                if parser_token_field == 4 {
+                    current_column = parser_token_word;
+                }
+                if parser_token_field == 5 {
+                    current_name_id = parser_token_word;
+                }
+                parser_token_field = parser_token_field + 1;
+                parser_token_byte = 0;
+                parser_token_word = 0;
+                if parser_token_field == 6 {
+                    parser_state = parser_token_after;
+                }
+            }
+        }
+
+        // Fixed function/return skeleton.
+        if parser_cycle_state == 2 {
+            expected_kind = 3;
+            if skeleton_step == 1 || skeleton_step == 5 {
+                expected_kind = 1;
+            }
+            if skeleton_step == 2 {
+                expected_kind = 10;
+            }
+            if skeleton_step == 3 {
+                expected_kind = 11;
+            }
+            if skeleton_step == 4 {
+                expected_kind = 35;
+            }
+            if skeleton_step == 6 {
+                expected_kind = 12;
+            }
+            if skeleton_step == 7 {
+                expected_kind = 6;
+            }
+            if current_kind < 0 || current_start < 0 || current_length < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (current_line <= 0 || current_column <= 0
+                || current_name_id < 0) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != expected_kind {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            int_matches = 1;
+            if skeleton_step == 5 && current_length != 3 {
+                int_matches = 0;
+            }
+            if parser_running == 1 && skeleton_step == 5 && int_matches == 1 {
+                byte_0 = result_value(bytes_get(&source, current_start));
+                byte_1 = result_value(bytes_get(&source, current_start + 1));
+                byte_2 = result_value(bytes_get(&source, current_start + 2));
+                if byte_0 != 105 || byte_1 != 110 || byte_2 != 116 {
+                    int_matches = 0;
+                }
+            }
+            if parser_running == 1 && skeleton_step == 5 && int_matches == 0 {
+                status = 12;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 102;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && skeleton_step == 0 {
+                function_start = current_start;
+                function_line = current_line;
+                function_column = current_column;
+            }
+            if parser_running == 1 && skeleton_step == 1 {
+                function_name_id = current_name_id;
+                if function_name_id <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 && skeleton_step == 7 {
+                return_start = current_start;
+                return_line = current_line;
+                return_column = current_column;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                skeleton_step = skeleton_step + 1;
+                parser_state = 1;
+                if skeleton_step == 8 {
+                    parser_state = 3;
+                }
+            }
+        }
+
+        // Classify one expression token after its F1A record has been decoded.
+        if parser_cycle_state == 4 {
+            if current_kind < 0 || current_start < 0 || current_length < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (current_line <= 0 || current_column <= 0
+                || current_name_id < 0) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && expecting_operand == 1
+                && (current_kind == 1 || current_kind == 2) {
+                if current_kind == 1 {
+                    literal_value = current_name_id;
+                    reduced_kind = 2;
+                    if literal_value <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 && node_count >= 512 {
+                        status = 14;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = 512;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        pending_node_kind = reduced_kind;
+                        pending_node_payload = literal_value;
+                        pending_node_left = 0;
+                        pending_node_right = 0;
+                        pending_node_after = 12;
+                        pending_node_offset = current_start;
+                        pending_node_line = current_line;
+                        pending_node_column = current_column;
+                        parser_append_target = 4;
+                        parser_append_width = 5;
+                        parser_append_0 = node_count + 1;
+                        parser_append_1 = current_start;
+                        parser_append_2 = current_line;
+                        parser_append_3 = current_column;
+                        parser_append_4 = current_kind;
+                        parser_append_field = 0;
+                        parser_append_byte = 0;
+                        parser_append_after = 33;
+                        parser_append_offset = current_start;
+                        parser_append_line = current_line;
+                        parser_append_column = current_column;
+                        parser_state = 32;
+                    }
+                }
+                if current_kind == 2 {
+                    literal_value = 0;
+                    decimal_index = 0;
+                    reduced_kind = 1;
+                    parser_state = 11;
+                }
+            }
+            if parser_running == 1 && expecting_operand == 1
+                && (current_kind == 21 || current_kind == 27 || current_kind == 10) {
+                if operator_records >= 512 {
+                    status = 15;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    top_kind = current_kind;
+                    if current_kind == 21 {
+                        top_kind = 103;
+                    }
+                    if current_kind == 27 {
+                        top_kind = 104;
+                    }
+                    parser_append_target = 3;
+                    parser_append_width = 5;
+                    parser_append_0 = top_kind;
+                    parser_append_1 = current_start;
+                    parser_append_2 = current_line;
+                    parser_append_3 = current_column;
+                    parser_append_4 = operator_top;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 13;
+                    parser_append_offset = current_start;
+                    parser_append_line = current_line;
+                    parser_append_column = current_column;
+                    parser_state = 32;
+                }
+            }
+            if parser_running == 1 && expecting_operand == 1
+                && current_kind != 1 && current_kind != 2 && current_kind != 21
+                && current_kind != 27 && current_kind != 10 {
+                status = 11;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 100;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && expecting_operand == 0 {
+                current_precedence = binary_precedence(current_kind);
+                reduction_mode = 0;
+                if current_precedence > 0 {
+                    reduction_mode = 1;
+                }
+                if current_kind == 11 && paren_depth > 0 {
+                    reduction_mode = 2;
+                }
+                if current_precedence == 0 && current_kind != 11 && paren_depth > 0 {
+                    status = 10;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 11;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 && reduction_mode == 0 {
+                    reduction_mode = 3;
+                }
+                if parser_running == 1 {
+                    parser_state = 5;
+                }
+            }
+        }
+
+        // Decode one decimal byte per iteration.
+        if parser_cycle_state == 11 {
+            if current_length <= 0 || decimal_index < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && decimal_index < current_length {
+                parser_read_offset = current_start + decimal_index;
+                decimal_digit = result_value(bytes_get(&source, parser_read_offset));
+                if decimal_digit < 48 || decimal_digit > 57 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    decimal_digit = decimal_digit - 48;
+                    if literal_value > 214748364 {
+                        status = 13;
+                    }
+                    if literal_value == 214748364 && decimal_digit > 7 {
+                        status = 13;
+                    }
+                    if status == 13 {
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = 103;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                }
+                if parser_running == 1 {
+                    literal_value = literal_value * 10 + decimal_digit;
+                    decimal_index = decimal_index + 1;
+                }
+            }
+            if parser_running == 1 && decimal_index == current_length {
+                if node_count >= 512 {
+                    status = 14;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    pending_node_kind = 1;
+                    pending_node_payload = literal_value;
+                    pending_node_left = 0;
+                    pending_node_right = 0;
+                    pending_node_after = 12;
+                    pending_node_offset = current_start;
+                    pending_node_line = current_line;
+                    pending_node_column = current_column;
+                    parser_append_target = 4;
+                    parser_append_width = 5;
+                    parser_append_0 = node_count + 1;
+                    parser_append_1 = current_start;
+                    parser_append_2 = current_line;
+                    parser_append_3 = current_column;
+                    parser_append_4 = current_kind;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 33;
+                    parser_append_offset = current_start;
+                    parser_append_line = current_line;
+                    parser_append_column = current_column;
+                    parser_state = 32;
+                }
+            }
+        }
+
+        // A leaf node is complete; append its linked value-stack record.
+        if parser_cycle_state == 12 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if value_records >= 512 {
+                status = 15;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 512;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 14;
+                parser_append_offset = current_start;
+                parser_append_line = current_line;
+                parser_append_column = current_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 14 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            parse_index = parse_index + 1;
+            expecting_operand = 0;
+            parser_state = 3;
+        }
+
+        // A prefix/parenthesis operator record is complete.
+        if parser_cycle_state == 13 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            if current_kind == 10 {
+                paren_depth = paren_depth + 1;
+            }
+            parse_index = parse_index + 1;
+            parser_state = 3;
+        }
+
+        // Begin or continue precedence reduction.
+        if parser_cycle_state == 5 {
+            if operator_top == 0 {
+                parser_state = 6;
+            }
+            if operator_top > 0 {
+                parser_record_target = 2;
+                parser_record_width = 5;
+                parser_record_index = operator_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_0 = 0;
+                parser_record_1 = 0;
+                parser_record_2 = 0;
+                parser_record_3 = 0;
+                parser_record_4 = 0;
+                parser_record_after = 7;
+                parser_state = 31;
+            }
+        }
+        if parser_cycle_state == 7 {
+            top_kind = parser_record_0;
+            top_start = parser_record_1;
+            top_line = parser_record_2;
+            top_column = parser_record_3;
+            top_previous = parser_record_4;
+            if top_kind < 0 || top_start < 0 || top_line <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (top_column <= 0 || top_previous < 0) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && top_kind == 10 {
+                parser_state = 6;
+            }
+            if parser_running == 1 && top_kind != 10 {
+                top_precedence = binary_precedence(top_kind);
+                if top_kind == 103 || top_kind == 104 {
+                    top_precedence = 7;
+                }
+                if top_precedence <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 && reduction_mode == 1
+                    && top_precedence < current_precedence {
+                    parser_state = 6;
+                }
+                if parser_running == 1 && parser_state != 6 {
+                    operator_top = top_previous;
+                    operator_depth = operator_depth - 1;
+                    if value_top <= 0 || value_depth <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        parser_record_target = 1;
+                        parser_record_width = 2;
+                        parser_record_index = value_top;
+                        parser_record_field = 0;
+                        parser_record_byte = 0;
+                        parser_record_word = 0;
+                        parser_record_0 = 0;
+                        parser_record_1 = 0;
+                        parser_record_2 = 0;
+                        parser_record_3 = 0;
+                        parser_record_4 = 0;
+                        parser_record_after = 8;
+                        parser_state = 31;
+                    }
+                }
+            }
+        }
+        if parser_cycle_state == 8 {
+            right_id = parser_record_0;
+            value_previous = parser_record_1;
+            if right_id <= 0 || value_previous < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                value_top = value_previous;
+                value_depth = value_depth - 1;
+                if top_kind == 103 || top_kind == 104 {
+                    left_id = right_id;
+                    right_id = 0;
+                    reduced_kind = 3;
+                    if top_kind == 104 {
+                        reduced_kind = 4;
+                    }
+                    parser_state = 9;
+                }
+                if top_kind != 103 && top_kind != 104 {
+                    if value_top <= 0 || value_depth <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        parser_record_target = 1;
+                        parser_record_width = 2;
+                        parser_record_index = value_top;
+                        parser_record_field = 0;
+                        parser_record_byte = 0;
+                        parser_record_word = 0;
+                        parser_record_0 = 0;
+                        parser_record_1 = 0;
+                        parser_record_2 = 0;
+                        parser_record_3 = 0;
+                        parser_record_4 = 0;
+                        parser_record_after = 10;
+                        parser_state = 31;
+                    }
+                }
+            }
+        }
+        if parser_cycle_state == 10 {
+            left_id = parser_record_0;
+            value_previous = parser_record_1;
+            if left_id <= 0 || value_previous < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                value_top = value_previous;
+                value_depth = value_depth - 1;
+                reduced_kind = binary_node_kind(top_kind);
+                if reduced_kind <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parser_state = 9;
+                }
+            }
+        }
+
+        // Append one reduced unary/binary node.
+        if parser_cycle_state == 9 {
+            reduction_actual = top_kind;
+            if top_kind == 103 {
+                reduction_actual = 21;
+            }
+            if top_kind == 104 {
+                reduction_actual = 27;
+            }
+            if node_count >= 512 {
+                status = 14;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = reduction_actual;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                pending_node_kind = reduced_kind;
+                pending_node_payload = 0;
+                pending_node_left = left_id;
+                pending_node_right = right_id;
+                pending_node_after = 15;
+                pending_node_offset = top_start;
+                pending_node_line = top_line;
+                pending_node_column = top_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = top_start;
+                parser_append_2 = top_line;
+                parser_append_3 = top_column;
+                parser_append_4 = reduction_actual;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 15 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            reduction_actual = top_kind;
+            if top_kind == 103 {
+                reduction_actual = 21;
+            }
+            if top_kind == 104 {
+                reduction_actual = 27;
+            }
+            if value_records >= 512 {
+                status = 15;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = reduction_actual;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 16;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 16 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            parser_state = 5;
+        }
+
+        // Consume the lookahead after all required reductions.
+        if parser_cycle_state == 6 {
+            if reduction_mode == 1 {
+                if operator_records >= 512 {
+                    status = 15;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parser_append_target = 3;
+                    parser_append_width = 5;
+                    parser_append_0 = current_kind;
+                    parser_append_1 = current_start;
+                    parser_append_2 = current_line;
+                    parser_append_3 = current_column;
+                    parser_append_4 = operator_top;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 17;
+                    parser_append_offset = current_start;
+                    parser_append_line = current_line;
+                    parser_append_column = current_column;
+                    parser_state = 32;
+                }
+            }
+            if parser_running == 1 && reduction_mode == 2 {
+                if top_kind != 10 || top_previous < 0 || operator_depth <= 0
+                    || paren_depth <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    operator_top = top_previous;
+                    operator_depth = operator_depth - 1;
+                    paren_depth = paren_depth - 1;
+                    parse_index = parse_index + 1;
+                    parser_state = 3;
+                }
+            }
+            if parser_running == 1 && reduction_mode == 3 {
+                if value_depth != 1 || value_top <= 0 || operator_depth != 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parser_record_target = 1;
+                    parser_record_width = 2;
+                    parser_record_index = value_top;
+                    parser_record_field = 0;
+                    parser_record_byte = 0;
+                    parser_record_word = 0;
+                    parser_record_0 = 0;
+                    parser_record_1 = 0;
+                    parser_record_2 = 0;
+                    parser_record_3 = 0;
+                    parser_record_4 = 0;
+                    parser_record_after = 18;
+                    parser_state = 31;
+                }
+            }
+        }
+        if parser_cycle_state == 17 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            parse_index = parse_index + 1;
+            expecting_operand = 1;
+            parser_state = 3;
+        }
+        if parser_cycle_state == 18 {
+            expression_root = parser_record_0;
+            value_previous = parser_record_1;
+            if expression_root <= 0 || value_previous != 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                closing_step = 0;
+                parser_state = 20;
+            }
+        }
+
+        // Exact '; } EOF' suffix.
+        if parser_cycle_state == 21 {
+            expected_kind = 18;
+            if closing_step == 1 {
+                expected_kind = 13;
+            }
+            if closing_step == 2 {
+                expected_kind = 0;
+            }
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != expected_kind {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                closing_step = closing_step + 1;
+                parser_state = 20;
+                if closing_step == 3 {
+                    if node_count >= 512 {
+                        status = 14;
+                        error_offset = return_start;
+                        error_line = return_line;
+                        error_column = return_column;
+                        diagnostic_code = 512;
+                        diagnostic_actual = 6;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        pending_node_kind = 18;
+                        pending_node_payload = 0;
+                        pending_node_left = expression_root;
+                        pending_node_right = 0;
+                        pending_node_after = 22;
+                        pending_node_offset = return_start;
+                        pending_node_line = return_line;
+                        pending_node_column = return_column;
+                        parser_append_target = 4;
+                        parser_append_width = 5;
+                        parser_append_0 = node_count + 1;
+                        parser_append_1 = return_start;
+                        parser_append_2 = return_line;
+                        parser_append_3 = return_column;
+                        parser_append_4 = 6;
+                        parser_append_field = 0;
+                        parser_append_byte = 0;
+                        parser_append_after = 33;
+                        parser_append_offset = return_start;
+                        parser_append_line = return_line;
+                        parser_append_column = return_column;
+                        parser_state = 32;
+                    }
+                }
+            }
+        }
+        if parser_cycle_state == 22 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if node_count >= 512 {
+                status = 14;
+                error_offset = function_start;
+                error_line = function_line;
+                error_column = function_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 3;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                pending_node_kind = 19;
+                pending_node_payload = function_name_id;
+                pending_node_left = node_id;
+                pending_node_right = 0;
+                pending_node_after = 23;
+                pending_node_offset = function_start;
+                pending_node_line = function_line;
+                pending_node_column = function_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = function_start;
+                parser_append_2 = function_line;
+                parser_append_3 = function_column;
+                parser_append_4 = 3;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = function_start;
+                parser_append_line = function_line;
+                parser_append_column = function_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 23 {
+            node_count = node_count + 1;
+            root = node_count;
+            parser_running = 0;
+            parser_state = 0;
+        }
+
+        // The origin is complete; append the frozen four-word node next.
+        if parser_cycle_state == 33 {
+            origin_count = origin_count + 1;
+            parser_append_target = 1;
+            parser_append_width = 4;
+            parser_append_0 = pending_node_kind;
+            parser_append_1 = pending_node_payload;
+            parser_append_2 = pending_node_left;
+            parser_append_3 = pending_node_right;
+            parser_append_4 = 0;
+            parser_append_field = 0;
+            parser_append_byte = 0;
+            parser_append_after = pending_node_after;
+            parser_append_offset = pending_node_offset;
+            parser_append_line = pending_node_line;
+            parser_append_column = pending_node_column;
+            parser_state = 32;
+        }
+
+        // Decode one linked value/operator record byte per iteration.
+        if parser_cycle_state == 31 {
+            parser_step_byte = parser_record_byte;
+            if parser_record_index <= 0 || parser_record_field < 0
+                || parser_record_field >= parser_record_width {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_read_offset = (parser_record_index - 1)
+                    * parser_record_width * 4;
+                parser_read_offset = parser_read_offset + parser_record_field * 4;
+                parser_read_offset = parser_read_offset + parser_record_byte;
+                if parser_record_target == 1 {
+                    parser_read_byte_value = result_value(bytes_get(&values,
+                        parser_read_offset));
+                }
+                if parser_record_target == 2 {
+                    parser_read_byte_value = result_value(bytes_get(&operators,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2 {
+                    status = 16;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 {
+                if parser_read_byte_value < 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 && parser_step_byte == 0 {
+                parser_record_word = parser_read_byte_value;
+            }
+            if parser_running == 1 && parser_step_byte == 1 {
+                parser_record_word = parser_record_word + parser_read_byte_value * 256;
+            }
+            if parser_running == 1 && parser_step_byte == 2 {
+                parser_record_word = parser_record_word + parser_read_byte_value * 65536;
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                if parser_read_byte_value > 127 {
+                    status = 16;
+                    parser_running = 0;
+                } else {
+                    parser_record_word = parser_record_word
+                        + parser_read_byte_value * 16777216;
+                }
+            }
+            if parser_running == 1 && parser_step_byte < 3 {
+                parser_record_byte = parser_step_byte + 1;
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                if parser_record_field == 0 {
+                    parser_record_0 = parser_record_word;
+                }
+                if parser_record_field == 1 {
+                    parser_record_1 = parser_record_word;
+                }
+                if parser_record_field == 2 {
+                    parser_record_2 = parser_record_word;
+                }
+                if parser_record_field == 3 {
+                    parser_record_3 = parser_record_word;
+                }
+                if parser_record_field == 4 {
+                    parser_record_4 = parser_record_word;
+                }
+                parser_record_field = parser_record_field + 1;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                if parser_record_field == parser_record_width {
+                    parser_state = parser_record_after;
+                }
+            }
+        }
+
+        // Append one byte of a node/value/operator record per iteration.
+        if parser_cycle_state == 32 {
+            parser_step_byte = parser_append_byte;
+            parser_append_word = parser_append_0;
+            if parser_append_field == 1 {
+                parser_append_word = parser_append_1;
+            }
+            if parser_append_field == 2 {
+                parser_append_word = parser_append_2;
+            }
+            if parser_append_field == 3 {
+                parser_append_word = parser_append_3;
+            }
+            if parser_append_field == 4 {
+                parser_append_word = parser_append_4;
+            }
+            if parser_append_word < 0 || parser_append_field < 0
+                || parser_append_field >= parser_append_width {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && parser_step_byte == 0 {
+                parser_read_byte_value = word_byte_0(parser_append_word);
+            }
+            if parser_running == 1 && parser_step_byte == 1 {
+                parser_read_byte_value = word_byte_1(parser_append_word);
+            }
+            if parser_running == 1 && parser_step_byte == 2 {
+                parser_read_byte_value = word_byte_2(parser_append_word);
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                parser_read_byte_value = word_byte_3(parser_append_word);
+            }
+            if parser_running == 1 && parser_append_target == 1 {
+                push_result = result_value(bytes_push(&mut nodes,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target == 2 {
+                push_result = result_value(bytes_push(&mut values,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target == 3 {
+                push_result = result_value(bytes_push(&mut operators,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target == 4 {
+                push_result = result_value(bytes_push(&mut origins,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target != 1
+                && parser_append_target != 2 && parser_append_target != 3
+                && parser_append_target != 4 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                if push_result < 0 {
+                    if parser_append_target == 4 {
+                        semantic_status = 26;
+                        semantic_node = node_count + 1;
+                        semantic_offset = parser_append_offset;
+                        semantic_line = parser_append_line;
+                        semantic_column = parser_append_column;
+                        semantic_code = 1;
+                    } else {
+                        status = 8;
+                        error_offset = parser_append_offset;
+                        error_line = parser_append_line;
+                        error_column = parser_append_column;
+                    }
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 && parser_step_byte < 3 {
+                parser_append_byte = parser_step_byte + 1;
+            }
+            if parser_running == 1 && parser_step_byte == 3 {
+                parser_append_byte = 0;
+                parser_append_field = parser_append_field + 1;
+                if parser_append_field == parser_append_width {
+                    parser_state = parser_append_after;
+                }
+            }
+        }
+    }
+
+    if bytes_len(&names) < name_count * 8 || bytes_len(&tokens) < token_count * 24 {
+        return 70;
+    }
+    if status == 0
+        && (bytes_len(&names) != name_count * 8 || bytes_len(&tokens) != token_count * 24) {
+        return 70;
+    }
+    if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
+        || bytes_len(&operators) < operator_records * 20 {
+        return 70;
+    }
+    if status == 0 && (bytes_len(&nodes) != node_count * 16
+        || bytes_len(&values) != value_records * 8
+        || bytes_len(&operators) != operator_records * 20) {
+        return 70;
+    }
+
+    let mut checksum: int = 17;
+    let mut validate_source: int = 0;
+    while validate_source < source_length {
+        byte = result_value(bytes_get(&source, validate_source));
+        if byte < 0 || byte > 255 {
+            return 71;
+        }
+        checksum = checksum_step(checksum, byte);
+        validate_source = validate_source + 1;
+    }
+    checksum = checksum_step(checksum, 990);
+
+    let mut validate_name: int = 0;
+    let mut validate_name_start: int = 0;
+    let mut validate_name_length: int = 0;
+    while validate_name < name_count {
+        name_field = 0;
+        while name_field < 2 {
+            word_offset = validate_name * 8 + name_field * 4;
+            byte_0 = result_value(bytes_get(&names, word_offset));
+            byte_1 = result_value(bytes_get(&names, word_offset + 1));
+            byte_2 = result_value(bytes_get(&names, word_offset + 2));
+            byte_3 = result_value(bytes_get(&names, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 72;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            checksum = checksum_step(checksum, word);
+            if name_field == 0 {
+                validate_name_start = word;
+            } else {
+                validate_name_length = word;
+            }
+            name_field = name_field + 1;
+        }
+        if validate_name_length <= 0 || validate_name_length > 63
+            || validate_name_start < 0 || validate_name_start > source_length
+            || validate_name_length > source_length - validate_name_start {
+            return 73;
+        }
+        compare_index = 0;
+        while compare_index < validate_name_length {
+            byte = result_value(bytes_get(&source, validate_name_start + compare_index));
+            if byte < 0 || (compare_index == 0 && is_identifier_start(byte) == 0)
+                || (compare_index > 0 && is_identifier_continue(byte) == 0) {
+                return 73;
+            }
+            compare_index = compare_index + 1;
+        }
+        validate_name = validate_name + 1;
+    }
+    checksum = checksum_step(checksum, 991);
+
+    let mut validate_token: int = 0;
+    let mut validate_kind: int = 0;
+    let mut validate_start: int = 0;
+    let mut validate_length: int = 0;
+    let mut validate_line: int = 0;
+    let mut validate_column: int = 0;
+    let mut validate_name_id: int = 0;
+    let mut validate_field: int = 0;
+    let mut previous_end: int = 0;
+    let mut location_index: int = 0;
+    let mut location_line: int = 1;
+    let mut location_column: int = 1;
+    while validate_token < token_count {
+        validate_field = 0;
+        while validate_field < 6 {
+            word_offset = validate_token * 24 + validate_field * 4;
+            byte_0 = result_value(bytes_get(&tokens, word_offset));
+            byte_1 = result_value(bytes_get(&tokens, word_offset + 1));
+            byte_2 = result_value(bytes_get(&tokens, word_offset + 2));
+            byte_3 = result_value(bytes_get(&tokens, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 74;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            checksum = checksum_step(checksum, word);
+            if validate_field == 0 {
+                validate_kind = word;
+            } else if validate_field == 1 {
+                validate_start = word;
+            } else if validate_field == 2 {
+                validate_length = word;
+            } else if validate_field == 3 {
+                validate_line = word;
+            } else if validate_field == 4 {
+                validate_column = word;
+            } else {
+                validate_name_id = word;
+            }
+            validate_field = validate_field + 1;
+        }
+        if validate_kind < 0 || validate_kind > 36 || validate_start < previous_end
+            || validate_start > source_length || validate_length < 0
+            || validate_length > source_length - validate_start
+            || validate_line <= 0 || validate_column <= 0 {
+            return 75;
+        }
+        location_index = 0;
+        location_line = 1;
+        location_column = 1;
+        while location_index < validate_start {
+            byte = result_value(bytes_get(&source, location_index));
+            if byte < 0 {
+                return 75;
+            }
+            if byte == 10 {
+                location_line = location_line + 1;
+                location_column = 1;
+            } else {
+                location_column = location_column + 1;
+            }
+            location_index = location_index + 1;
+        }
+        if location_line != validate_line || location_column != validate_column {
+            return 75;
+        }
+        if validate_kind == 0 {
+            if lex_complete != 1 || validate_token != token_count - 1
+                || validate_start != source_length || validate_length != 0
+                || validate_name_id != 0 {
+                return 76;
+            }
+        } else {
+            if validate_length <= 0 {
+                return 76;
+            }
+            if validate_kind == 1 {
+                if validate_name_id <= 0 || validate_name_id > name_count {
+                    return 76;
+                }
+            } else if validate_name_id != 0 {
+                return 76;
+            }
+        }
+        previous_end = validate_start + validate_length;
+        validate_token = validate_token + 1;
+    }
+    checksum = checksum_step(checksum, 992);
+
+    let mut validate_node: int = 0;
+    let mut validate_node_kind: int = 0;
+    let mut validate_payload: int = 0;
+    let mut validate_left: int = 0;
+    let mut validate_right: int = 0;
+    let mut validate_node_field: int = 0;
+    while validate_node < node_count {
+        validate_node_field = 0;
+        while validate_node_field < 4 {
+            word_offset = validate_node * 16 + validate_node_field * 4;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 77;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            checksum = checksum_step(checksum, word);
+            if validate_node_field == 0 {
+                validate_node_kind = word;
+            } else if validate_node_field == 1 {
+                validate_payload = word;
+            } else if validate_node_field == 2 {
+                validate_left = word;
+            } else {
+                validate_right = word;
+            }
+            validate_node_field = validate_node_field + 1;
+        }
+        node_id = validate_node + 1;
+        if validate_node_kind <= 0 || validate_node_kind > 19 {
+            return 78;
+        }
+        if validate_node_kind == 1 {
+            if validate_left != 0 || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind == 2 {
+            if validate_payload <= 0 || validate_payload > name_count
+                || validate_left != 0 || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind == 3 || validate_node_kind == 4
+            || validate_node_kind == 18 {
+            if validate_payload != 0 || validate_left <= 0
+                || validate_left >= node_id || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind >= 5 && validate_node_kind <= 17 {
+            if validate_payload != 0 || validate_left <= 0 || validate_right <= 0
+                || validate_left >= node_id || validate_right >= node_id {
+                return 78;
+            }
+        } else if validate_payload <= 0 || validate_payload > name_count
+            || validate_left <= 0 || validate_left >= node_id || validate_right != 0 {
+            return 78;
+        }
+        validate_node = validate_node + 1;
+    }
+    if status == 0 {
+        word = -1;
+        if root > 0 {
+            word_offset = (root - 1) * 16;
+            word = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        }
+        if root <= 0 || root != node_count
+            || word != 19 {
+            return 79;
+        }
+    } else if root != 0 {
+        return 79;
+    }
+    checksum = checksum_step(checksum, 993);
+
+    checksum = checksum_step(checksum, status);
+    checksum = checksum_step(checksum, error_offset + 1);
+    checksum = checksum_step(checksum, error_line);
+    checksum = checksum_step(checksum, error_column);
+    checksum = checksum_step(checksum, diagnostic_code);
+    checksum = checksum_step(checksum, diagnostic_actual);
+    checksum = checksum_step(checksum, name_count);
+    checksum = checksum_step(checksum, token_count);
+    checksum = checksum_step(checksum, node_count);
+    checksum = checksum_step(checksum, root);
+
+    if status != expected_status || error_offset != expected_offset
+        || error_line != expected_line || error_column != expected_column
+        || diagnostic_code != expected_code || diagnostic_actual != expected_actual
+        || name_count != expected_names || token_count != expected_tokens
+        || node_count != expected_nodes || root != expected_root
+        || checksum != expected_checksum {
+        return 80;
+    }
+
+    // Validate the parallel origin sidecar against source, tokens, and nodes.
+    let mut origin_index: int = 0;
+    let mut origin_field: int = 0;
+    let mut origin_word: int = 0;
+    let mut origin_node_id: int = 0;
+    let mut origin_offset: int = 0;
+    let mut origin_line: int = 0;
+    let mut origin_column: int = 0;
+    let mut origin_token_kind: int = 0;
+    let mut origin_node_kind: int = 0;
+    let mut origin_expected_kind: int = 0;
+    let mut origin_token_index: int = 0;
+    let mut origin_token_field: int = 0;
+    let mut origin_token_word: int = 0;
+    let mut origin_token_record_kind: int = 0;
+    let mut origin_token_start: int = 0;
+    let mut origin_token_line: int = 0;
+    let mut origin_token_column: int = 0;
+    let mut origin_token_found: int = 0;
+    if status == 0 && semantic_status == 0 {
+        if bytes_len(&origins) != origin_count * 20 || origin_count != node_count {
+            semantic_status = 27;
+            semantic_node = origin_count + 1;
+            semantic_code = 1;
+        }
+    }
+    while status == 0 && semantic_status == 0 && origin_index < origin_count {
+        origin_field = 0;
+        origin_node_id = 0;
+        origin_offset = 0;
+        origin_line = 0;
+        origin_column = 0;
+        origin_token_kind = 0;
+        while semantic_status == 0 && origin_field < 5 {
+            word_offset = origin_index * 20 + origin_field * 4;
+            byte_0 = result_value(bytes_get(&origins, word_offset));
+            byte_1 = result_value(bytes_get(&origins, word_offset + 1));
+            byte_2 = result_value(bytes_get(&origins, word_offset + 2));
+            byte_3 = result_value(bytes_get(&origins, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_node = origin_index + 1;
+                semantic_code = 1;
+            } else {
+                origin_word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                if origin_field == 0 {
+                    origin_node_id = origin_word;
+                } else if origin_field == 1 {
+                    origin_offset = origin_word;
+                } else if origin_field == 2 {
+                    origin_line = origin_word;
+                } else if origin_field == 3 {
+                    origin_column = origin_word;
+                } else {
+                    origin_token_kind = origin_word;
+                }
+                origin_field = origin_field + 1;
+            }
+        }
+        if semantic_status == 0 {
+            semantic_node = origin_node_id;
+            semantic_offset = origin_offset;
+            semantic_line = origin_line;
+            semantic_column = origin_column;
+            semantic_code = 1;
+            if origin_node_id != origin_index + 1 || origin_offset < 0
+                || origin_offset > source_length || origin_line <= 0
+                || origin_column <= 0 || origin_token_kind <= 0
+                || origin_token_kind > 36 {
+                semantic_status = 27;
+            }
+        }
+        if semantic_status == 0 {
+            location_index = 0;
+            location_line = 1;
+            location_column = 1;
+            while semantic_status == 0 && location_index < origin_offset {
+                byte = result_value(bytes_get(&source, location_index));
+                if byte < 0 {
+                    semantic_status = 27;
+                } else if byte == 10 {
+                    location_line = location_line + 1;
+                    location_column = 1;
+                } else {
+                    location_column = location_column + 1;
+                }
+                location_index = location_index + 1;
+            }
+            if semantic_status == 0 && (location_line != origin_line
+                || location_column != origin_column) {
+                semantic_status = 27;
+            }
+        }
+        if semantic_status == 0 {
+            word_offset = origin_index * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+            } else {
+                origin_node_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                origin_expected_kind = 0;
+                if origin_node_kind == 1 {
+                    origin_expected_kind = 2;
+                }
+                if origin_node_kind == 2 {
+                    origin_expected_kind = 1;
+                }
+                if origin_node_kind == 3 {
+                    origin_expected_kind = 21;
+                }
+                if origin_node_kind == 4 {
+                    origin_expected_kind = 27;
+                }
+                if origin_node_kind == 5 {
+                    origin_expected_kind = 22;
+                }
+                if origin_node_kind == 6 {
+                    origin_expected_kind = 23;
+                }
+                if origin_node_kind == 7 {
+                    origin_expected_kind = 24;
+                }
+                if origin_node_kind == 8 {
+                    origin_expected_kind = 20;
+                }
+                if origin_node_kind == 9 {
+                    origin_expected_kind = 21;
+                }
+                if origin_node_kind == 10 {
+                    origin_expected_kind = 29;
+                }
+                if origin_node_kind == 11 {
+                    origin_expected_kind = 30;
+                }
+                if origin_node_kind == 12 {
+                    origin_expected_kind = 31;
+                }
+                if origin_node_kind == 13 {
+                    origin_expected_kind = 32;
+                }
+                if origin_node_kind == 14 {
+                    origin_expected_kind = 26;
+                }
+                if origin_node_kind == 15 {
+                    origin_expected_kind = 28;
+                }
+                if origin_node_kind == 16 {
+                    origin_expected_kind = 33;
+                }
+                if origin_node_kind == 17 {
+                    origin_expected_kind = 34;
+                }
+                if origin_node_kind == 18 {
+                    origin_expected_kind = 6;
+                }
+                if origin_node_kind == 19 {
+                    origin_expected_kind = 3;
+                }
+                if origin_expected_kind == 0 || origin_token_kind != origin_expected_kind {
+                    semantic_status = 27;
+                }
+            }
+        }
+        if semantic_status == 0 {
+            origin_token_index = 0;
+            origin_token_found = 0;
+            while origin_token_index < token_count && origin_token_found == 0 {
+                origin_token_field = 0;
+                origin_token_record_kind = 0;
+                origin_token_start = 0;
+                origin_token_line = 0;
+                origin_token_column = 0;
+                while semantic_status == 0 && origin_token_field < 5 {
+                    word_offset = origin_token_index * 24 + origin_token_field * 4;
+                    byte_0 = result_value(bytes_get(&tokens, word_offset));
+                    byte_1 = result_value(bytes_get(&tokens, word_offset + 1));
+                    byte_2 = result_value(bytes_get(&tokens, word_offset + 2));
+                    byte_3 = result_value(bytes_get(&tokens, word_offset + 3));
+                    if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                        || byte_3 > 127 {
+                        semantic_status = 27;
+                    } else {
+                        origin_token_word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                            + byte_3 * 16777216;
+                        if origin_token_field == 0 {
+                            origin_token_record_kind = origin_token_word;
+                        } else if origin_token_field == 1 {
+                            origin_token_start = origin_token_word;
+                        } else if origin_token_field == 3 {
+                            origin_token_line = origin_token_word;
+                        } else if origin_token_field == 4 {
+                            origin_token_column = origin_token_word;
+                        }
+                        origin_token_field = origin_token_field + 1;
+                    }
+                }
+                if semantic_status == 0 && origin_token_record_kind == origin_token_kind
+                    && origin_token_start == origin_offset
+                    && origin_token_line == origin_line
+                    && origin_token_column == origin_column {
+                    origin_token_found = 1;
+                }
+                origin_token_index = origin_token_index + 1;
+            }
+            if semantic_status == 0 && origin_token_found == 0 {
+                semantic_status = 27;
+            }
+        }
+        origin_index = origin_index + 1;
+    }
+
+    // Emit the one bounded function symbol before name/type classification.
+    let mut symbol_count: int = 0;
+    let mut fact_count: int = 0;
+    let mut semantic_append_field: int = 0;
+    let mut semantic_append_byte: int = 0;
+    let mut semantic_append_word: int = 0;
+    let mut semantic_append_value: int = 0;
+    let mut function_payload: int = 0;
+    if status == 0 && semantic_status == 0 {
+        word_offset = (root - 1) * 16 + 4;
+        byte_0 = result_value(bytes_get(&nodes, word_offset));
+        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+            semantic_status = 27;
+            semantic_node = root;
+            semantic_offset = function_start;
+            semantic_line = function_line;
+            semantic_column = function_column;
+            semantic_code = 3;
+        } else {
+            function_payload = byte_0 + byte_1 * 256 + byte_2 * 65536
+                + byte_3 * 16777216;
+        }
+    }
+    if status == 0 && semantic_status == 0 {
+        semantic_append_field = 0;
+        while semantic_status == 0 && semantic_append_field < 4 {
+            semantic_append_word = 1;
+            if semantic_append_field == 1 {
+                semantic_append_word = function_payload;
+            } else if semantic_append_field == 2 {
+                semantic_append_word = root;
+            } else if semantic_append_field == 3 {
+                semantic_append_word = 1;
+            }
+            semantic_append_byte = 0;
+            while semantic_status == 0 && semantic_append_byte < 4 {
+                semantic_append_value = word_byte_0(semantic_append_word);
+                if semantic_append_byte == 1 {
+                    semantic_append_value = word_byte_1(semantic_append_word);
+                } else if semantic_append_byte == 2 {
+                    semantic_append_value = word_byte_2(semantic_append_word);
+                } else if semantic_append_byte == 3 {
+                    semantic_append_value = word_byte_3(semantic_append_word);
+                }
+                push_result = result_value(bytes_push(&mut symbols, semantic_append_value));
+                if push_result < 0 {
+                    semantic_status = 26;
+                    semantic_node = root;
+                    semantic_offset = function_start;
+                    semantic_line = function_line;
+                    semantic_column = function_column;
+                    semantic_code = 2;
+                }
+                semantic_append_byte = semantic_append_byte + 1;
+            }
+            semantic_append_field = semantic_append_field + 1;
+        }
+        if semantic_status == 0 {
+            symbol_count = 1;
+        }
+    }
+
+    // Match the accepted semantic phase order: all identifier uses first.
+    let mut semantic_index: int = 0;
+    let mut semantic_kind: int = 0;
+    let mut semantic_payload: int = 0;
+    let mut semantic_left: int = 0;
+    let mut semantic_right: int = 0;
+    while status == 0 && semantic_status == 0 && semantic_index < node_count {
+        word_offset = semantic_index * 16;
+        byte_0 = result_value(bytes_get(&nodes, word_offset));
+        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+            semantic_status = 27;
+            semantic_node = semantic_index + 1;
+            semantic_code = 2;
+        } else {
+            semantic_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                + byte_3 * 16777216;
+        }
+        if semantic_status == 0 && semantic_kind == 2 {
+            word_offset = semantic_index * 20 + 4;
+            byte_0 = result_value(bytes_get(&origins, word_offset));
+            byte_1 = result_value(bytes_get(&origins, word_offset + 1));
+            byte_2 = result_value(bytes_get(&origins, word_offset + 2));
+            byte_3 = result_value(bytes_get(&origins, word_offset + 3));
+            semantic_status = 17;
+            semantic_node = semantic_index + 1;
+            semantic_offset = byte_0 + byte_1 * 256 + byte_2 * 65536
+                + byte_3 * 16777216;
+            word_offset = semantic_index * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = semantic_index * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            semantic_code = 2;
+        }
+        semantic_index = semantic_index + 1;
+    }
+
+    // Classify one postorder D1 node per iteration and append one fact.
+    semantic_index = 0;
+    let mut semantic_left_type: int = 0;
+    let mut semantic_right_type: int = 0;
+    let mut semantic_complete_type: int = 0;
+    let mut semantic_ownership: int = 0;
+    let mut semantic_rule_found: int = 0;
+    while status == 0 && semantic_status == 0 && semantic_index < node_count {
+        semantic_node = semantic_index + 1;
+        origin_offset = semantic_index * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, origin_offset))
+            + result_value(bytes_get(&origins, origin_offset + 1)) * 256
+            + result_value(bytes_get(&origins, origin_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, origin_offset + 3)) * 16777216;
+        origin_offset = semantic_index * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, origin_offset))
+            + result_value(bytes_get(&origins, origin_offset + 1)) * 256
+            + result_value(bytes_get(&origins, origin_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, origin_offset + 3)) * 16777216;
+        origin_offset = semantic_index * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, origin_offset))
+            + result_value(bytes_get(&origins, origin_offset + 1)) * 256
+            + result_value(bytes_get(&origins, origin_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, origin_offset + 3)) * 16777216;
+
+        semantic_kind = 0;
+        semantic_payload = 0;
+        semantic_left = 0;
+        semantic_right = 0;
+        semantic_append_field = 0;
+        while semantic_status == 0 && semantic_append_field < 4 {
+            word_offset = semantic_index * 16 + semantic_append_field * 4;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_code = 2;
+            } else {
+                word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                if semantic_append_field == 0 {
+                    semantic_kind = word;
+                } else if semantic_append_field == 1 {
+                    semantic_payload = word;
+                } else if semantic_append_field == 2 {
+                    semantic_left = word;
+                } else {
+                    semantic_right = word;
+                }
+                semantic_append_field = semantic_append_field + 1;
+            }
+        }
+        semantic_left_type = 0;
+        semantic_right_type = 0;
+        if semantic_status == 0 && semantic_left > 0 {
+            word_offset = (semantic_left - 1) * 12 + 4;
+            byte_0 = result_value(bytes_get(&facts, word_offset));
+            byte_1 = result_value(bytes_get(&facts, word_offset + 1));
+            byte_2 = result_value(bytes_get(&facts, word_offset + 2));
+            byte_3 = result_value(bytes_get(&facts, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_code = 4;
+            } else {
+                semantic_left_type = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+            }
+        }
+        if semantic_status == 0 && semantic_right > 0 {
+            word_offset = (semantic_right - 1) * 12 + 4;
+            byte_0 = result_value(bytes_get(&facts, word_offset));
+            byte_1 = result_value(bytes_get(&facts, word_offset + 1));
+            byte_2 = result_value(bytes_get(&facts, word_offset + 2));
+            byte_3 = result_value(bytes_get(&facts, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_code = 4;
+            } else {
+                semantic_right_type = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+            }
+        }
+
+        semantic_complete_type = 0;
+        semantic_ownership = 0;
+        semantic_rule_found = 0;
+        if semantic_status == 0 && semantic_kind == 1 {
+            semantic_rule_found = 1;
+            semantic_complete_type = 1;
+            semantic_ownership = 1;
+        }
+        if semantic_status == 0 && (semantic_kind == 3 || semantic_kind == 4) {
+            semantic_rule_found = 1;
+            semantic_expected = 2;
+            semantic_status = 23;
+            if semantic_kind == 3 {
+                semantic_expected = 1;
+                semantic_status = 24;
+            }
+            semantic_actual = semantic_left_type;
+            semantic_code = semantic_kind;
+            if semantic_actual == semantic_expected {
+                semantic_complete_type = semantic_expected;
+                semantic_ownership = 1;
+                semantic_status = 0;
+                semantic_expected = 0;
+                semantic_actual = 0;
+                semantic_code = 0;
+            }
+        }
+        if semantic_status == 0 && (semantic_kind == 5 || semantic_kind == 6
+            || semantic_kind == 8 || semantic_kind == 9) {
+            semantic_rule_found = 1;
+            if semantic_left_type != 1 || semantic_right_type != 1 {
+                semantic_status = 19;
+                semantic_code = semantic_kind;
+                semantic_expected = 1;
+                semantic_actual = semantic_left_type;
+                if semantic_left_type == 1 {
+                    semantic_actual = semantic_right_type;
+                }
+            } else {
+                semantic_complete_type = 1;
+                semantic_ownership = 1;
+            }
+        }
+        if semantic_status == 0 && semantic_kind == 7 {
+            semantic_rule_found = 1;
+            semantic_status = 18;
+            semantic_code = 7;
+        }
+        if semantic_status == 0 && semantic_kind >= 10 && semantic_kind <= 15 {
+            semantic_rule_found = 1;
+            if semantic_left_type <= 0 || semantic_right_type <= 0
+                || semantic_left_type != semantic_right_type {
+                semantic_status = 20;
+                semantic_code = semantic_kind;
+                semantic_expected = semantic_left_type;
+                semantic_actual = semantic_right_type;
+            } else {
+                semantic_complete_type = 2;
+                semantic_ownership = 1;
+            }
+        }
+        if semantic_status == 0 && (semantic_kind == 16 || semantic_kind == 17) {
+            semantic_rule_found = 1;
+            if semantic_left_type != 2 {
+                semantic_status = 21;
+                semantic_code = semantic_kind;
+                semantic_expected = 2;
+                semantic_actual = semantic_left_type;
+            } else if semantic_right_type != 2 {
+                semantic_status = 22;
+                semantic_code = semantic_kind;
+                semantic_expected = 2;
+                semantic_actual = semantic_right_type;
+            } else {
+                semantic_complete_type = 2;
+                semantic_ownership = 1;
+            }
+        }
+        if semantic_status == 0 && semantic_kind == 18 {
+            semantic_rule_found = 1;
+            if semantic_left_type != 1 {
+                semantic_status = 25;
+                semantic_code = 18;
+                semantic_expected = 1;
+                semantic_actual = semantic_left_type;
+            }
+        }
+        if semantic_status == 0 && semantic_kind == 19 {
+            semantic_rule_found = 1;
+            if semantic_node != root || semantic_payload != function_payload
+                || semantic_left != semantic_node - 1 || semantic_right != 0
+                || semantic_left_type != 0 {
+                semantic_status = 27;
+                semantic_code = 3;
+            }
+        }
+        if semantic_status == 0 && semantic_rule_found == 0 {
+            semantic_status = 27;
+            semantic_code = 2;
+        }
+
+        if semantic_status == 0 {
+            semantic_append_field = 0;
+            while semantic_status == 0 && semantic_append_field < 3 {
+                semantic_append_word = semantic_node;
+                if semantic_append_field == 1 {
+                    semantic_append_word = semantic_complete_type;
+                } else if semantic_append_field == 2 {
+                    semantic_append_word = semantic_ownership;
+                }
+                semantic_append_byte = 0;
+                while semantic_status == 0 && semantic_append_byte < 4 {
+                    semantic_append_value = word_byte_0(semantic_append_word);
+                    if semantic_append_byte == 1 {
+                        semantic_append_value = word_byte_1(semantic_append_word);
+                    } else if semantic_append_byte == 2 {
+                        semantic_append_value = word_byte_2(semantic_append_word);
+                    } else if semantic_append_byte == 3 {
+                        semantic_append_value = word_byte_3(semantic_append_word);
+                    }
+                    push_result = result_value(bytes_push(&mut facts, semantic_append_value));
+                    if push_result < 0 {
+                        semantic_status = 26;
+                        semantic_code = 3;
+                        semantic_expected = 0;
+                        semantic_actual = 0;
+                    }
+                    semantic_append_byte = semantic_append_byte + 1;
+                }
+                semantic_append_field = semantic_append_field + 1;
+            }
+            if semantic_status == 0 {
+                fact_count = fact_count + 1;
+            }
+        }
+        semantic_index = semantic_index + 1;
+    }
+
+    let mut semantic_root_type: int = 0;
+    if status == 0 && semantic_status == 0 {
+        if symbol_count != 1 || bytes_len(&symbols) != 16
+            || fact_count != node_count || bytes_len(&facts) != fact_count * 12 {
+            semantic_status = 27;
+            semantic_node = root;
+            semantic_offset = function_start;
+            semantic_line = function_line;
+            semantic_column = function_column;
+            semantic_code = 4;
+        } else {
+            semantic_root_type = 1;
+            semantic_node = 0;
+            semantic_offset = -1;
+            semantic_line = 0;
+            semantic_column = 0;
+            semantic_code = 0;
+            semantic_expected = 0;
+            semantic_actual = 0;
+        }
+    }
+
+    // Independently checksum the complete provenance/symbol/fact result.
+    let mut semantic_checksum: int = 17;
+    origin_index = 0;
+    while origin_index < origin_count {
+        origin_field = 0;
+        while origin_field < 5 {
+            word_offset = origin_index * 20 + origin_field * 4;
+            byte_0 = result_value(bytes_get(&origins, word_offset));
+            byte_1 = result_value(bytes_get(&origins, word_offset + 1));
+            byte_2 = result_value(bytes_get(&origins, word_offset + 2));
+            byte_3 = result_value(bytes_get(&origins, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 81;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            semantic_checksum = checksum_step(semantic_checksum, word);
+            origin_field = origin_field + 1;
+        }
+        origin_index = origin_index + 1;
+    }
+    semantic_checksum = checksum_step(semantic_checksum, 994);
+    semantic_index = 0;
+    while semantic_index < symbol_count {
+        semantic_append_field = 0;
+        while semantic_append_field < 4 {
+            word_offset = semantic_index * 16 + semantic_append_field * 4;
+            byte_0 = result_value(bytes_get(&symbols, word_offset));
+            byte_1 = result_value(bytes_get(&symbols, word_offset + 1));
+            byte_2 = result_value(bytes_get(&symbols, word_offset + 2));
+            byte_3 = result_value(bytes_get(&symbols, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 82;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            semantic_checksum = checksum_step(semantic_checksum, word);
+            semantic_append_field = semantic_append_field + 1;
+        }
+        semantic_index = semantic_index + 1;
+    }
+    semantic_checksum = checksum_step(semantic_checksum, 995);
+    semantic_index = 0;
+    while semantic_index < fact_count {
+        semantic_append_field = 0;
+        while semantic_append_field < 3 {
+            word_offset = semantic_index * 12 + semantic_append_field * 4;
+            byte_0 = result_value(bytes_get(&facts, word_offset));
+            byte_1 = result_value(bytes_get(&facts, word_offset + 1));
+            byte_2 = result_value(bytes_get(&facts, word_offset + 2));
+            byte_3 = result_value(bytes_get(&facts, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 83;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            semantic_checksum = checksum_step(semantic_checksum, word);
+            semantic_append_field = semantic_append_field + 1;
+        }
+        semantic_index = semantic_index + 1;
+    }
+    semantic_checksum = checksum_step(semantic_checksum, 996);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_status);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_node);
+    semantic_append_word = 0;
+    if semantic_offset >= 0 {
+        semantic_append_word = semantic_offset + 1;
+    }
+    semantic_checksum = checksum_step(semantic_checksum, semantic_append_word);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_line);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_column);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_code);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_expected);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_actual);
+    semantic_checksum = checksum_step(semantic_checksum, origin_count);
+    semantic_checksum = checksum_step(semantic_checksum, symbol_count);
+    semantic_checksum = checksum_step(semantic_checksum, fact_count);
+    semantic_checksum = checksum_step(semantic_checksum, semantic_root_type);
+
+    if semantic_status != expected_semantic_status
+        || semantic_node != expected_semantic_node
+        || semantic_offset != expected_semantic_offset
+        || semantic_line != expected_semantic_line
+        || semantic_column != expected_semantic_column
+        || semantic_code != expected_semantic_code
+        || semantic_expected != expected_semantic_expected
+        || semantic_actual != expected_semantic_actual
+        || origin_count != expected_origins || symbol_count != expected_symbols
+        || fact_count != expected_facts || semantic_root_type != expected_semantic_root
+        || semantic_checksum != expected_semantic_checksum {
+        return 90;
+    }
+    return 91;
+}
+
+// CAP-043 TRACKED SELF-TEST
+
+fn main() -> int {
+    return run_runtime_ascii_semantics(0, -1, 0, 0, 0, 0,
+        2, 20, 11, 11, 586661,
+        0, 0, -1, 0, 0, 0, 0, 0,
+        11, 1, 11, 1, 827574);
+}
