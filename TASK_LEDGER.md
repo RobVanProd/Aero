@@ -1,5 +1,191 @@
 # Aero Task Ledger
 
+## CAP-046-B1B-SERIALIZED-CHECKED-IR-LLVM-EMITTER - bounded Aero LLVM text product
+
+- Date/task/status: 2026-08-16,
+  `CAP-046-B1B-SERIALIZED-CHECKED-IR-LLVM-EMITTER`, authorized ledger-first
+  from accepted CAP-045/B1A merge
+  `3054db736cbde2c53ade068e7a8d608b510feb63`, tree
+  `f534988d9264a236c36f8ed9b02e08dad7cceba7`, on
+  `codex/b1b-llvm-emitter`. CAP-045 candidate
+  `5d36aacc0ffadf149eb6b4920ee59cd5d175c113` has that exact tree. Pull
+  request #87, candidate checks, and accepted-head CI `31946571509`, Rust CI
+  `31946571387`, CodeQL `31946571049`, and evidence `31946571478` are
+  terminal-green. The isolated worktree, Cargo target, and temporary root are
+  respectively `D:\Aero-worktrees\b1b-llvm-emitter`,
+  `D:\Aero-build-targets\b1b`, and `D:\Aero-temp\b1b`; no task-created
+  build, test, log, generated-artifact, worktree, or temporary state may be
+  placed on `C:`.
+- Observed behavior and exact first failure: accepted B1A independently
+  verifies the final M1B serialized checked-IR owner and produces a successful
+  seal, but no Aero-authored phase consumes that seal to emit code. LLVM text,
+  file output, tool invocation, object creation, and linking remain Rust-owned.
+  The first intentional red is therefore the absent tracked B1B product and
+  must report exactly `CAP-046 intentional product red: tracked runtime ASCII
+  LLVM emitter is absent`. A Rust backend diagnostic, new source feature,
+  runtime API, file/process operation, or linker failure is the wrong first
+  failure.
+- Hypothesis and phase boundary: one new product-only Aero program copies the
+  exact accepted B1A product and, only after complete B1A success, rereads the
+  immutable serialized `checked_ir` owner into one new local `emitted_llvm`
+  owner. It emits one deterministic, host-neutral LLVM module using the
+  already-verified topology, operands, and opcodes. One independent Rust test
+  owns the oracle, captures the Aero-owned bytes at cleanup, verifies them with
+  pinned LLVM 22, and lowers/executes them at O0 and O2. Protected workflow and
+  truth-document updates are evidence surfaces, not compiler phases. No Rust
+  compiler, runtime, profile, grammar, AST, checked-IR, verifier, backend,
+  cache, CLI, file, process, object, linker, or driver production change is
+  authorized.
+- Frozen predecessor contract: accepted R1/R2/D1/F1A/F1B/M1A/M1B/B1A source
+  bytes, selected profile, grammar, records, owner identities, diagnostics,
+  checksums, limits, O0/O2 LLVM, native behavior, and cleanup order remain
+  byte-for-byte unchanged. The accepted B1A product and test are frozen. B1B
+  begins only when actual B1A state has `verified_attempted=1`,
+  `verified_status=0`, complete instruction/result counts, and the test-only
+  verifier fault selector is exactly disabled as `(-1,0)`. Any earlier phase
+  failure or enabled verifier fault selector leaves `emitted_attempted=0`,
+  keeps `emitted_llvm` empty, produces no B1B diagnostic or seal, and cannot
+  reach B1C. Expected-value parameters are test oracles and never admission
+  authority.
+- Frozen consumption boundary: after the gate, B1B may read only immutable
+  `checked_ir`, the actual B1A attempted/status/count/checksum scalars, and its
+  own emitter scalars/output owner. It may not read source, names, tokens,
+  nodes, operators, origins, symbols, semantic facts, M1B construction
+  scratch, checked-value or checked-instruction scratch, checked checksum/root
+  shortcuts, `verified_results`, expected-value parameters, or a Rust verifier
+  result. It never mutates `checked_ir`. Re-reading authenticated serialized
+  words is emission, not a second verifier.
+- Frozen emitted module and symbol identity: output is raw ASCII with LF
+  newlines and no BOM, CR, source path, timestamp, target triple, data layout,
+  host spelling, debug metadata, or tool version. Because M1B retains only an
+  opaque positive name ID and not source spelling, B1B must not invent or
+  recover `score`. The sole verified function is exposed under the fixed
+  bootstrap-internal symbol `@aero_b1_entry`; this is not a source ABI or a
+  general name-mangling claim. The exact grammar is:
+  `define i32 @aero_b1_entry() {\nentry:\n`, zero or more result lines in
+  serialized instruction order, one Return line, and `}\n`.
+- Frozen instruction mapping: result ID `N` is rendered exactly as `%rN` in
+  unsigned base-10 without leading zeroes. Operand kind `1` is its admitted
+  nonnegative i32 payload in unsigned base-10; kind `2` is `%r<payload>`.
+  Opcode `1` emits `  %rN = add i32 L, R\n`; `2` emits
+  `  %rN = sub i32 L, R\n`; `3` emits `  %rN = mul i32 L, R\n`; `4` emits
+  `  %rN = sdiv i32 L, R\n`; `5` emits
+  `  %rN = sub i32 0, L\n`; and terminal opcode `6` emits
+  `  ret i32 L\n`. No `nsw`, `nuw`, `exact`, fast-math, constant folding,
+  load/store, synthetic zero, extra branch/block/function, wrapper `main`, or
+  unsupported instruction is emitted. B1A has already proved every operand,
+  signed-i32 result, division precondition, root, and Return relation.
+- Frozen bounds and determinism: B1A admits one function, one block, one to 510
+  instructions, zero to 509 results, and i32 immediates. The B1B grammar emits
+  at most 21,438 bytes and therefore requires no output capacity beyond 32,768
+  bytes. Rendering is iterative, serialized-order, and independent of host and
+  optimization level. The same authenticated words and B1A seal must yield
+  identical bytes, length, checksum, LLVM verifier result, and native result on
+  every repetition and claimed host.
+- Frozen B1B diagnostic and seal: `emitted_attempted` is zero or one.
+  `emitted_status=0` is success/skip; status `1` is the only B1B failure and
+  means `bytes_push` allocation/growth failure. `emitted_byte_index` is `-1`
+  on success/skip and otherwise the zero-based byte that could not be appended;
+  `emitted_record_id` is zero for header/trailer or the current instruction ID.
+  A failed emission exposes length zero to later phases and no partial product.
+  On an attempted path the checksum starts at 43, folds each successfully
+  appended byte with `(checksum*31+byte)%1000003`, then folds separator `991`,
+  the actual B1A checksum, status, `byte_index+1`, record ID, attempted, exposed
+  length, verified instruction count, and verified result count in that order.
+  A skipped path has checksum zero. B1C may later accept only attempted one,
+  status zero, exact nonzero length, and a recomputed matching seal while the
+  immutable output owner is still live.
+- Frozen canonical product: input remains exact ASCII
+  `fn score()->int{return 1+2*3-4/2;}`. Accepted B1A remains 104 serialized
+  words, 5 instructions, 4 results, root 5, and verification checksum 592819.
+  B1B must emit exactly 144 bytes:
+
+  ```llvm
+  define i32 @aero_b1_entry() {
+  entry:
+    %r1 = mul i32 2, 3
+    %r2 = add i32 1, %r1
+    %r3 = sdiv i32 4, 2
+    %r4 = sub i32 %r2, %r3
+    ret i32 %r4
+  }
+  ```
+
+  The raw byte fold before finalization is 629434, the final B1B seal is
+  611963, and MD5 is `fd2390d17d448d4539a72bf1991314dc`. Pinned LLVM 22
+  must accept those exact bytes; a C observer calling `aero_b1_entry` must
+  receive 5; the enclosing tracked product remains silent and exits 91.
+- Frozen owner and cleanup contract: B1B adds exactly one fourteenth direct
+  owner, `emitted_llvm`, declared after `verified_results`. It is never moved,
+  returned, stored in another owner, or passed across a user-function boundary.
+  On canonical success its 144 bytes require one initial allocation and five
+  reallocations, so the complete product has exactly 72 successful allocation
+  events: 14 allocation calls, 58 reallocation calls, and 14 deallocation
+  calls. All fourteen owners are destroyed exactly once in reverse declaration
+  order on success, predecessor failure, B1A failure, header/instruction/Return/
+  trailer growth failure, and every early exit. A failed append cannot be
+  retried, observed by a later phase, or accepted as a partial module.
+- Independent evidence and mutation matrix: the Rust oracle constructs the
+  authenticated word format independently and emits without consulting Aero
+  output. It covers literal Return, all five result opcodes, immediate and
+  backward-result operands, negative and i32-boundary evaluated values,
+  chained SSA, deterministic repeat, and the 509-result bound. Each oracle
+  module must verify under LLVM 22. Canonical Aero bytes are captured from the
+  first reverse-order deallocation by a test-only runtime and compared byte for
+  byte at outer-product O0 and O2; the independently generated exact module is
+  separately verified, linked, and executed at O0 and O2. Every B1A corruption
+  family plus same-value/enabled fault-selector controls must prove B1B skip.
+  Allocation failure is injected before every one of the 72 successful events
+  and must leave zero live allocations and zero size mismatches. Source/file
+  LLVM equality, public CPU run, accelerator fail-closed behavior, exact owner
+  counts, and protected Linux/Windows replay remain required.
+- Red-first checkpoint: add only the new focused Rust test after this ledger
+  commit. Independent oracle/LLVM characterization tests must pass; the sole
+  intentional failure must be the exact absent-product message above. Pin the
+  144 bytes, byte fold, final seal, MD5, symbol, grammar, upper bound, verifier,
+  and native result before copying or implementing the Aero product. Do not
+  derive expected bytes or checksums from product output.
+- Allowed files, exactly:
+  `.github/workflows/rust.yml`, `AERO_FRONTEND_READINESS.md`,
+  `COMPILER_STORAGE_READINESS.md`, `PROJECT_STATE.md`,
+  `SELF_HOSTING_ROADMAP.md`, `TASK_LEDGER.md`, new tracked
+  `examples/aero_frontend_v0/runtime_ascii_llvm_emitter.aero`, and new tracked
+  `src/compiler/tests/runtime_ascii_llvm_emitter_tests.rs`.
+- Frozen exclusions: no edit to an accepted predecessor product/test, Rust
+  production, Cargo manifest/lock, runtime C, language profile, parser,
+  semantics, ownership, IR, verifier, backend, cache, CLI, evidence bundle, or
+  claim-verification code. No general AST/IR, parameters, multiple functions or
+  blocks, branches, memory, aggregates, calls, source-name recovery, public ABI,
+  file writing, process spawning, LLVM invocation, object/link output, compiler
+  driver, stage build, convergence, self-hosting, release, stability,
+  memory-safety, performance, or accelerator-execution claim.
+- Acceptance order: commit this ledger alone; commit the independent red test;
+  record the intentional red; implement the smallest product; run focused B1B,
+  accepted B1A/M1B/M1A/F1B/F1A/D1 ring, formatting, correctness Clippy,
+  `git diff --check`, and complete `./tools/test.sh` with LLVM 22, Cargo target,
+  and temporary state redirected to D:. Freeze candidate commit/tree/product
+  SHA, push a draft PR, verify exact metadata and all checks, mark ready and
+  merge only on the pinned head, then require exact accepted-head CI/Rust CI/
+  Windows/CodeQL/evidence success before B1C begins.
+- Risks: accidental dependence on construction or verifier scratch; emission
+  before complete verification; host newlines/metadata; source-name invention;
+  wrong decimal/register rendering; LLVM signed-division mismatch; partial
+  output after allocation failure; owner-order drift; a test that validates its
+  own output instead of captured Aero bytes; or presenting bounded B1B as a
+  compiler backend or self-host.
+- Mandatory stop conditions: stop without widening if any accepted predecessor
+  byte or behavior changes; the product needs a Rust/compiler/runtime/profile/
+  file/process change; B1B must read a forbidden owner or `verified_results`;
+  exact bytes cannot be captured independently; output differs by host/O0/O2;
+  LLVM 22 rejects any admitted oracle form; native result differs; the 32,768
+  capacity bound is exceeded; cleanup or fail-before-B1B breaks; scope exceeds
+  the eight files; a second new owner is needed; or B1C/H1 semantics would have
+  to be invented here. Record the blocker and rerank rather than masking it.
+- Recommended next action: commit this ledger-only authorization, create the
+  independent intentional-red test, then implement only the bounded in-memory
+  B1B emitter. After protected acceptance, freeze B1C separately for file/process
+  orchestration against the declared external LLVM/link trust base.
+
 ## CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER - independent Aero verification seal
 
 - Date/task/status: 2026-08-16, `CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER`,
