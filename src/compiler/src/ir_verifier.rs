@@ -758,6 +758,16 @@ fn contains_checked_stdin_read(instructions: &[Inst]) -> bool {
     })
 }
 
+fn contains_checked_stdout_write(instructions: &[Inst]) -> bool {
+    instructions.iter().any(|instruction| match instruction {
+        Inst::CheckedStdoutWriteByte { .. } => true,
+        Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+            contains_checked_stdout_write(body)
+        }
+        _ => false,
+    })
+}
+
 fn collect_bodies<'a>(
     ir: &'a RawIr,
 ) -> Result<(Vec<Body<'a>>, BTreeMap<String, FunctionSignature>), IrVerificationError> {
@@ -771,6 +781,9 @@ fn collect_bodies<'a>(
     let reserves_byte_input_runtime = functions
         .iter()
         .any(|(_, function)| contains_checked_stdin_read(&function.body));
+    let reserves_byte_output_runtime = functions
+        .iter()
+        .any(|(_, function)| contains_checked_stdout_write(&function.body));
 
     for (map_key, function) in &functions {
         if map_key.as_str() != function.name {
@@ -822,6 +835,16 @@ fn collect_bodies<'a>(
                 ),
             ));
         }
+        if reserves_byte_output_runtime && function.name == "aero_stdout_write_byte" {
+            return Err(IrVerificationError::new(
+                &function.name,
+                None,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "`aero_stdout_write_byte` is reserved by the checked byte-output runtime ABI"
+                        .to_string(),
+                ),
+            ));
+        }
         for instruction in &function.body {
             let definition = match instruction {
                 Inst::FunctionDef {
@@ -854,6 +877,16 @@ fn collect_bodies<'a>(
                         None,
                         IrVerificationErrorKind::MetadataMismatch(
                             "`aero_stdin_read_byte` is reserved by the checked byte-input runtime ABI"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                if reserves_byte_output_runtime && name == "aero_stdout_write_byte" {
+                    return Err(IrVerificationError::new(
+                        name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(
+                            "`aero_stdout_write_byte` is reserved by the checked byte-output runtime ABI"
                                 .to_string(),
                         ),
                     ));
@@ -1129,6 +1162,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedImmutableEnumMatchRead { result, .. }
         | Inst::CheckedMutableEnumMatchRead { result, .. }
         | Inst::CheckedStdinReadByte { result }
+        | Inst::CheckedStdoutWriteByte { result, .. }
         | Inst::CheckedByteBufferPush { result, .. }
         | Inst::CheckedByteBufferLength { result, .. }
         | Inst::CheckedByteBufferCapacity { result, .. }
@@ -1184,6 +1218,7 @@ fn definition_type(
         | Inst::Div(..)
         | Inst::FPToSI(..)
         | Inst::CheckedStdinReadByte { .. }
+        | Inst::CheckedStdoutWriteByte { .. }
         | Inst::CheckedByteBufferPush { .. }
         | Inst::CheckedByteBufferLength { .. }
         | Inst::CheckedByteBufferCapacity { .. }
@@ -4253,6 +4288,15 @@ impl<'a> FunctionVerifier<'a> {
                             right,
                             LogicalType::Float,
                             operation,
+                            block_index,
+                            position,
+                        )?;
+                    }
+                    Inst::CheckedStdoutWriteByte { value, .. } => {
+                        self.require_numeric(
+                            value,
+                            LogicalType::Int,
+                            "checked stdout byte write",
                             block_index,
                             position,
                         )?;

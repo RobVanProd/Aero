@@ -534,6 +534,10 @@ impl CodeGenerator {
                 Inst::CheckedStdinReadByte { result } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
+                Inst::CheckedStdoutWriteByte { result, value } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                    Self::bump_seed_from_value(&mut seed, value);
+                }
                 Inst::CheckedByteBufferMove { result, source, .. }
                 | Inst::CheckedByteBufferImmutableBorrow { result, source }
                 | Inst::CheckedByteBufferMutableBorrow { result, source } => {
@@ -1689,6 +1693,7 @@ impl CodeGenerator {
         instructions: &[Inst],
         allow_byte_buffer: bool,
         allow_byte_input: bool,
+        allow_byte_output: bool,
     ) -> Option<&'static str> {
         instructions
             .iter()
@@ -1698,6 +1703,7 @@ impl CodeGenerator {
                         body,
                         allow_byte_buffer,
                         allow_byte_input,
+                        allow_byte_output,
                     )
                 }
                 Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) => {
@@ -1734,6 +1740,9 @@ impl CodeGenerator {
                 Inst::CheckedStdinReadByte { .. } if !allow_byte_input => {
                     Some("profile-excluded byte-input instruction")
                 }
+                Inst::CheckedStdoutWriteByte { .. } if !allow_byte_output => {
+                    Some("profile-excluded byte-output instruction")
+                }
                 _ => None,
             })
     }
@@ -1754,6 +1763,7 @@ impl CodeGenerator {
             })?;
             let allow_byte_buffer = self.language_profile.enables_byte_buffer_source();
             let allow_byte_input = self.language_profile.enables_byte_input_source();
+            let allow_byte_output = self.language_profile.enables_byte_output_source();
             Self::ensure_exact_record_result_metadata(metadata, allow_byte_buffer)
                 .map_err(&reject)?;
             self.ensure_exact_record_result_authentication(
@@ -1769,6 +1779,7 @@ impl CodeGenerator {
                     &ir_functions[function_name].body,
                     allow_byte_buffer,
                     allow_byte_input,
+                    allow_byte_output,
                 ) {
                     return Err(reject(format!(
                         "function `{function_name}` contains {instruction}"
@@ -1954,6 +1965,7 @@ impl CodeGenerator {
                 | Inst::CheckedEnumField { .. }
                 | Inst::CheckedEnumDispatch { .. }
                 | Inst::CheckedStdinReadByte { .. }
+                | Inst::CheckedStdoutWriteByte { .. }
                 | Inst::CheckedByteBufferNew { .. }
                 | Inst::CheckedByteBufferMove { .. }
                 | Inst::CheckedByteBufferImmutableBorrow { .. }
@@ -2085,6 +2097,16 @@ impl CodeGenerator {
         })
     }
 
+    fn contains_checked_stdout_write(instructions: &[Inst]) -> bool {
+        instructions.iter().any(|instruction| match instruction {
+            Inst::CheckedStdoutWriteByte { .. } => true,
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                Self::contains_checked_stdout_write(body)
+            }
+            _ => false,
+        })
+    }
+
     /// Verifies private IR and emits LLVM only after the complete program is admitted.
     pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
     where
@@ -2123,6 +2145,16 @@ impl CodeGenerator {
             return Err(CodeGenerationError::LanguageProfileContract {
                 profile: self.language_profile,
                 detail: "checked stdin reads require exact-i32-byte-input-v0".to_string(),
+            });
+        }
+        let contains_checked_stdout_write = checked_ir
+            .raw()
+            .values()
+            .any(|function| Self::contains_checked_stdout_write(&function.body));
+        if contains_checked_stdout_write && !self.language_profile.enables_byte_output_source() {
+            return Err(CodeGenerationError::LanguageProfileContract {
+                profile: self.language_profile,
+                detail: "checked stdout byte writes require exact-i32-byte-io-v0".to_string(),
             });
         }
         self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw(), authenticated)?;
@@ -2179,6 +2211,9 @@ impl CodeGenerator {
         let requires_byte_input_runtime = ir_functions
             .values()
             .any(|function| Self::contains_checked_stdin_read(&function.body));
+        let requires_byte_output_runtime = ir_functions
+            .values()
+            .any(|function| Self::contains_checked_stdout_write(&function.body));
         let mut generic_enum_identities = BTreeSet::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_generic_enum_identities(metadata, &mut generic_enum_identities);
@@ -2219,6 +2254,9 @@ impl CodeGenerator {
         }
         if requires_byte_input_runtime {
             llvm_ir.push_str("declare i32 @aero_stdin_read_byte()\n\n");
+        }
+        if requires_byte_output_runtime {
+            llvm_ir.push_str("declare i32 @aero_stdout_write_byte(i32)\n\n");
         }
         if requires_array_bounds_trap {
             llvm_ir.push_str("declare void @llvm.trap()\n\n");
@@ -2452,6 +2490,15 @@ impl CodeGenerator {
                     };
                     llvm_ir.push_str(&format!(
                         "  %reg{result} = call i32 @aero_stdin_read_byte()\n"
+                    ));
+                }
+                Inst::CheckedStdoutWriteByte { result, value } => {
+                    let Value::Reg(result) = result else {
+                        unreachable!("verified stdout write result is a result register")
+                    };
+                    let value = self.value_to_i32_operand(llvm_ir, value);
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = call i32 @aero_stdout_write_byte(i32 {value})\n"
                     ));
                 }
                 Inst::CheckedByteBufferNew { result, .. } => {

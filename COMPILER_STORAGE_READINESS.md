@@ -12,6 +12,14 @@ integration/native/system target, and doc tests. Every candidate check and
 accepted-head CI `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`,
 and evidence `31920949972` are terminal-success.
 
+The accepted F1A/F1B/M1A/M1B/B1A/B1B chain builds on this unchanged storage
+contract. Local CAP-047/B1C has passed its complete D:-redirected gate while
+preserving the exact predecessor owners and emitting the authenticated B1B
+module without adding compiler storage; its host driver owns only external
+stream capture and toolchain artifacts. D1 remains the bounded arena authority,
+not a hidden host collection or a general compiler AST. See
+[`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).
+
 ## Decision
 
 D1 is a bounded Aero-authored compiler-data product built entirely from the
@@ -151,16 +159,20 @@ framing, topology, instructions, backward SSA, signed-i32 evaluation, results,
 and root/Return equality. The canonical verification evaluates root 5 and seals
 to 592819; candidate and accepted-head workflows are terminal-green.
 
-CAP-046/B1B is the current local product-only candidate. It preserves the B1A
+CAP-046/B1B is accepted through protected PR #88 as merge
+`3219d7f08a92f9d18334a37315e10cfde6fba931`, tree
+`055dfe065ada29b62f22864d879a9c3e18e17c93`. It preserves the B1A
 verifier body and adds exactly one fourteenth `emitted_llvm` owner. Only a
 successful B1A seal with the fault selector disabled can emit. The canonical
 authenticated module becomes exactly 144 ASCII/LF LLVM bytes, MD5
 `fd2390d17d448d4539a72bf1991314dc`, seal 611963, and independent native result
 5. The 5/5 focused proof captures exact bytes at cleanup, covers all B1A fault
 families and 72 allocation thresholds, and proves 14/58/14 successful cleanup.
-The accepted B1A/M1B/M1A/F1B/F1A/D1 predecessor ring and complete D:-redirected
-root gate are green; protected publication remains pending.
+Candidate and accepted-head workflows are terminal-green.
 See [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing
 remains evidence scaffolding rather than a general AST collection. B1B does not
 replace the Rust front end/general backend, write a file, drive external tools,
-or establish self-hosting; B1C remains separate.
+or establish self-hosting. Local CAP-047/B1C preserves the same fourteen owners
+while adding a separately checked scalar output and transactional host-driver
+handoff; see
+[`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).

@@ -2166,6 +2166,62 @@ jobs:
         test "$(printf '%s\n' "${public_output}" | grep -Fxc 'Exit code: 91')" -eq 1
         ! printf '%s\n' "${public_output}" | grep -Eq '^(Output|Error output):'
 
+    - name: Test runtime ASCII B1C toolchain driver at O0 and O2
+      if: matrix.rust == 'stable'
+      shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="/usr/lib/llvm-22/bin:${PATH}"
+        source="examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero"
+        runtime="src/compiler/runtime/aero_runtime.c"
+        input="${RUNNER_TEMP}/runtime_ascii_toolchain_driver.source"
+        llvm="${RUNNER_TEMP}/runtime_ascii_toolchain_driver.linux.ll"
+        repeat_llvm="${RUNNER_TEMP}/runtime_ascii_toolchain_driver.linux.repeat.ll"
+        executable_o0="${RUNNER_TEMP}/runtime_ascii_toolchain_driver.o0"
+        executable_o2="${RUNNER_TEMP}/runtime_ascii_toolchain_driver.o2"
+        printf '%s' 'fn score()->int{return 1+2*3-4/2;}' >"${input}"
+
+        cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+          check "${source}" --language-profile exact-i32-byte-io-v0
+        for output in "${llvm}" "${repeat_llvm}"; do
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+            build "${source}" -o "${output}" --require-llvm-verifier \
+            --language-profile exact-i32-byte-io-v0
+        done
+        cmp -s "${llvm}" "${repeat_llvm}"
+        test "$(grep -Fxc 'declare i32 @aero_stdin_read_byte()' "${llvm}")" -eq 1
+        test "$(grep -Fc 'call i32 @aero_stdin_read_byte()' "${llvm}")" -eq 1
+        test "$(grep -Fxc 'declare i32 @aero_stdout_write_byte(i32)' "${llvm}")" -eq 1
+        test "$(grep -Fc 'call i32 @aero_stdout_write_byte(i32' "${llvm}")" -eq 1
+        clang-22 -O0 "${llvm}" "${runtime}" -o "${executable_o0}"
+        clang-22 -O2 "${llvm}" "${runtime}" -o "${executable_o2}"
+        for executable in "${executable_o0}" "${executable_o2}"; do
+          stdout="${executable}.stdout"
+          stderr="${executable}.stderr"
+          set +e
+          "${executable}" <"${input}" >"${stdout}" 2>"${stderr}"
+          native_status=$?
+          set -e
+          test "${native_status}" -eq 91
+          test ! -s "${stderr}"
+          test "$(wc -c <"${stdout}")" -eq 144
+          test "$(md5sum "${stdout}" | awk '{print $1}')" = fd2390d17d448d4539a72bf1991314dc
+        done
+
+        emitter="${executable_o2}"
+        for level in 0 2; do
+          output_dir="${RUNNER_TEMP}/b1c-driver-o${level}"
+          test ! -e "${output_dir}"
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+            bootstrap-drive-b1c "${emitter}" --llvm-bin /usr/lib/llvm-22/bin \
+            --output-dir "${output_dir}" --opt-level "${level}"
+          test "$(wc -c <"${output_dir}/module.ll")" -eq 144
+          test "$(md5sum "${output_dir}/module.ll" | awk '{print $1}')" = fd2390d17d448d4539a72bf1991314dc
+          test -s "${output_dir}/module.bc"
+          test -s "${output_dir}/module.o"
+          test -x "${output_dir}/probe"
+        done
+
     - name: Test representative telemetry application at O0 and O2
       if: matrix.rust == 'stable'
       shell: bash
@@ -4639,6 +4695,96 @@ jobs:
           throw "Windows runtime-LLVM-emitter application emitted output"
         }
         exit 0
+
+    - name: Test runtime ASCII B1C toolchain driver on Windows at O0 and O2
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $PSNativeCommandUseErrorActionPreference = $false
+        $env:AERO_REQUIRE_LLVM_VERIFIER = "true"
+        $llvmBin = Join-Path $env:LLVM_ROOT "bin"
+        $source = "examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero"
+        $runtime = "src/compiler/runtime/aero_runtime.c"
+        $llvm = Join-Path $env:RUNNER_TEMP "runtime_ascii_toolchain_driver.windows.ll"
+        $repeatLlvm = Join-Path $env:RUNNER_TEMP "runtime_ascii_toolchain_driver.windows.repeat.ll"
+        $executableO0 = Join-Path $env:RUNNER_TEMP "runtime_ascii_toolchain_driver.o0.exe"
+        $executableO2 = Join-Path $env:RUNNER_TEMP "runtime_ascii_toolchain_driver.o2.exe"
+        [byte[]] $inputBytes = [Text.Encoding]::ASCII.GetBytes('fn score()->int{return 1+2*3-4/2;}')
+
+        function Invoke-B1cProcess([string] $FileName, [string[]] $Arguments, [byte[]] $InputBytes) {
+          $start = [System.Diagnostics.ProcessStartInfo]::new()
+          $start.FileName = $FileName
+          foreach ($argument in $Arguments) { [void] $start.ArgumentList.Add($argument) }
+          $start.UseShellExecute = $false
+          $start.CreateNoWindow = $true
+          $start.RedirectStandardInput = $true
+          $start.RedirectStandardOutput = $true
+          $start.RedirectStandardError = $true
+          $process = [System.Diagnostics.Process]::new()
+          $process.StartInfo = $start
+          if (-not $process.Start()) { throw "failed to start $FileName" }
+          $stdout = [IO.MemoryStream]::new()
+          $stderr = [IO.MemoryStream]::new()
+          $stdoutCopy = $process.StandardOutput.BaseStream.CopyToAsync($stdout)
+          $stderrCopy = $process.StandardError.BaseStream.CopyToAsync($stderr)
+          if ($InputBytes.Length -gt 0) {
+            $process.StandardInput.BaseStream.Write($InputBytes, 0, $InputBytes.Length)
+          }
+          $process.StandardInput.Close()
+          $process.WaitForExit()
+          $stdoutCopy.GetAwaiter().GetResult()
+          $stderrCopy.GetAwaiter().GetResult()
+          [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Stdout = $stdout.ToArray()
+            Stderr = $stderr.ToArray()
+          }
+        }
+
+        cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- check $source --language-profile exact-i32-byte-io-v0
+        if ($LASTEXITCODE -ne 0) { throw "Windows B1C public check failed" }
+        foreach ($output in @($llvm, $repeatLlvm)) {
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- build $source -o $output --require-llvm-verifier --language-profile exact-i32-byte-io-v0
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $output -PathType Leaf)) {
+            throw "Windows B1C public build failed or omitted LLVM"
+          }
+        }
+        if (-not [Linq.Enumerable]::SequenceEqual([IO.File]::ReadAllBytes($llvm), [IO.File]::ReadAllBytes($repeatLlvm))) {
+          throw "Windows B1C outer LLVM is nondeterministic"
+        }
+        $llvmText = Get-Content -LiteralPath $llvm -Raw
+        if ([regex]::Matches($llvmText, '(?m)^declare i32 @aero_stdout_write_byte\(i32\)$').Count -ne 1 -or
+            [regex]::Matches($llvmText, 'call i32 @aero_stdout_write_byte\(i32').Count -ne 1) {
+          throw "Windows B1C omitted its single output declaration/call"
+        }
+        & "$llvmBin\clang.exe" -O0 $llvm $runtime -o $executableO0
+        if ($LASTEXITCODE -ne 0) { throw "Windows B1C O0 link failed" }
+        & "$llvmBin\clang.exe" -O2 $llvm $runtime -o $executableO2
+        if ($LASTEXITCODE -ne 0) { throw "Windows B1C O2 link failed" }
+        foreach ($executable in @($executableO0, $executableO2)) {
+          $native = Invoke-B1cProcess $executable @() $inputBytes
+          if ($native.ExitCode -ne 91 -or $native.Stdout.Length -ne 144 -or
+              $native.Stderr.Length -ne 0 -or
+              ([BitConverter]::ToString([Security.Cryptography.MD5]::HashData($native.Stdout)).Replace('-', '').ToLowerInvariant()) -cne 'fd2390d17d448d4539a72bf1991314dc') {
+            throw "Windows B1C native behavior diverged"
+          }
+        }
+
+        $emitter = $executableO2
+        foreach ($level in @('0', '2')) {
+          $outputDir = Join-Path $env:RUNNER_TEMP "b1c-driver-o$level"
+          if (Test-Path -LiteralPath $outputDir) { throw "Windows B1C output already exists" }
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- bootstrap-drive-b1c $emitter --llvm-bin $llvmBin --output-dir $outputDir --opt-level $level
+          if ($LASTEXITCODE -ne 0) { throw "Windows B1C driver O$level failed" }
+          $module = Join-Path $outputDir "module.ll"
+          if ((Get-Item -LiteralPath $module).Length -ne 144 -or
+              (Get-FileHash -Algorithm MD5 -LiteralPath $module).Hash.ToLowerInvariant() -cne 'fd2390d17d448d4539a72bf1991314dc' -or
+              -not (Test-Path -LiteralPath (Join-Path $outputDir "module.bc") -PathType Leaf) -or
+              -not (Test-Path -LiteralPath (Join-Path $outputDir "module.obj") -PathType Leaf) -or
+              -not (Test-Path -LiteralPath (Join-Path $outputDir "probe.exe") -PathType Leaf)) {
+            throw "Windows B1C driver O$level artifact set diverged"
+          }
+        }
 
     - name: Test representative telemetry application on Windows at O0 and O2
       shell: pwsh

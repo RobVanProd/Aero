@@ -11,9 +11,13 @@ pointer and does not alter R1 ownership, allocation, initialized-range, growth,
 loan, move, or drop rules. Candidate and accepted-head workflows are green.
 See [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
 
-CAP-040/D1 is the locally green product-only successor. It composes five direct
-accepted owners into input, names, tokens, scope-log, and flat-AST storage
-without changing this contract. See
+CAP-040/D1 and the bounded F1/M1/B1A/B1B chain are accepted downstream users.
+D1 composes five direct accepted owners into input, names, tokens, scope-log,
+and flat-AST storage without changing this contract. Local CAP-047/B1C adds no
+owner: its tracked product retains B1B's exact fourteen owners and 14/58/14
+cleanup while emitting authenticated bytes through a separate scalar runtime
+operation. See [`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md)
+and
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
 Accepted analysis base: CAP-032 merge
@@ -259,7 +263,7 @@ workflows passed. R1B itself still exposes no source `ByteBuffer`.
 
 ## Source/profile model implemented for R1C
 
-### R1C locally green candidate
+### R1C accepted checkpoint
 
 R1C adds exactly the `exact-i32-byte-buffer-v0` selector, dedicated non-Copy
 source type `ByteBuffer`, and the five frozen free functions. The canonical
@@ -331,8 +335,9 @@ CAP-035 itself added no runtime, allocator, source type, IR, verifier rule,
 backend behavior, input, or owned storage. Accepted R1A and R1B individually do
 not make `ByteBuffer` source-valid; accepted R1C adds only the frozen bounded
 owner. Accepted R1 alone does not provide stdin/file input or compiler storage.
-Accepted R2 adds only binary stdin; local D1 demonstrates one bounded flat
-arena product, not general collections. Neither provides owned UTF-8 text,
+Accepted R2 adds only binary stdin; accepted D1 and the bounded F1/M1/B1 chain
+demonstrate one flat compiler-data product, not general collections. Neither
+provides owned UTF-8 text,
 modules, a production Aero frontend, self-hosting, general memory safety,
 performance, release readiness, or CPU/GPU parity.
 
@@ -340,7 +345,9 @@ performance, release readiness, or CPU/GPU parity.
 
 R1 is accepted at merge `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`,
 and R2 is accepted at merge `5c791393be5a251c187274d591174f7667866886`.
-Finish CAP-040/D1 without changing the accepted R1A allocator ABI, R1B
-schema/verifier/backend, R1C owner/profile, or R2 scalar input contract. After
-protected D1, proceed to a separately frozen F1 Aero frontend slice; neither
-input nor the bounded D1 arena implies general compiler collections.
+The downstream D1/F1/M1/B1A/B1B chain is also accepted. Local CAP-047/B1C has
+passed its complete D:-redirected gate without changing the accepted R1A
+allocator ABI, R1B schema/verifier/backend, R1C owner/profile, or R2 scalar
+input contract. Freeze and protect that exact candidate. B1C adds no owner and
+preserves B1B's exact fourteen-owner lifecycle while its separate checked
+scalar output crosses the bounded host-driver handoff.

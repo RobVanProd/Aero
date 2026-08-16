@@ -157,6 +157,11 @@ pub enum Inst {
     CheckedStdinReadByte {
         result: Value,
     },
+    /// Write one verified i32 byte or return a negative sticky runtime sentinel.
+    CheckedStdoutWriteByte {
+        result: Value,
+        value: Value,
+    },
     /// Verified creation of one allocation-free local byte-buffer owner.
     CheckedByteBufferNew {
         result: Value,
