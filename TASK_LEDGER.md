@@ -1,5 +1,323 @@
 # Aero Task Ledger
 
+## CAP-047-B1C-BOUNDED-STDOUT-TOOLCHAIN-DRIVER - authenticated LLVM stream and external driver
+
+- Date/task/status: 2026-08-16,
+  `CAP-047-B1C-BOUNDED-STDOUT-TOOLCHAIN-DRIVER`, authorized ledger-first from
+  accepted CAP-046/B1B merge
+  `3219d7f08a92f9d18334a37315e10cfde6fba931`, tree
+  `055dfe065ada29b62f22864d879a9c3e18e17c93`, on
+  `codex/b1c-driver`. Reviewed B1B candidate
+  `fe9c6bfdf40dfe707ef31955d17292d15ea93252` has that exact tree and merged
+  normally through protected PR #88. All 13 candidate checks passed.
+  Accepted-head CI `31956165245`, Rust CI `31956165384` (stable, nightly, and
+  Windows LLVM 22), CodeQL push `31956164788`, and evidence `31956165210` are
+  terminal-success on the exact merge.
+- D:-only task storage: the worktree, Cargo target, and temporary root are
+  respectively `D:\Aero-worktrees\b1c-driver`,
+  `D:\Aero-build-targets\b1c`, and `D:\Aero-temp\b1c`. Every task-created
+  source copy, native harness, compiler executable, captured stream, LLVM,
+  bitcode, object, linked executable, log, and generated artifact must remain
+  under an explicit D: path. Installed tools on C: may be read or executed but
+  no task cache, temp directory, build tree, or generated artifact may be
+  placed there.
+- Observed behavior and exact first failure: accepted B1B owns and
+  independently authenticates one deterministic LLVM ByteBuffer, but never
+  exposes it outside the Aero process. Production runtime exports allocator
+  and stdin functions only; every selected profile rejects dynamic output;
+  `stdout_write_byte` is an unresolved ordinary function; and no bounded host
+  command captures Aero-emitted LLVM and drives the declared LLVM/link trust
+  base. The red checkpoint must therefore fail exactly
+  `CAP-047 intentional product red: bounded stdout/toolchain driver is absent`.
+  A parser failure, general file API, Aero process-spawn API, new B1B emitter,
+  or general backend failure is the wrong first red.
+- Hypothesis and two-authority boundary: B1C can close the bounded trusted
+  backend path without adding file paths or process semantics to Aero. The
+  first compiler authority is source/profile semantics plus independent
+  checked-IR production for one scalar output intrinsic. The second is checked
+  schema/verifier plus backend lowering for one scalar runtime call. Production
+  C binary stdout and the Rust CLI's nonsemantic external driver are execution
+  plumbing outside those two compiler authorities. The driver may capture
+  bytes, create a new artifact directory, and invoke explicitly supplied
+  LLVM 22 tools; it may not parse Aero, construct checked IR, emit LLVM itself,
+  or make a semantic decision.
+- Frozen predecessor contract: accepted R1/R2/D1/F1A/F1B/M1A/M1B/B1A/B1B
+  source bytes, selected profiles, runtime allocator/stdin behavior, grammar,
+  AST, semantic facts, serialized checked IR, verifier, emitter, diagnostics,
+  checksums, owner identities, allocation counts, O0/O2 LLVM/native results,
+  and cleanup order remain byte-for-byte unchanged. In particular
+  `runtime_ascii_llvm_emitter.aero`, its 144-byte product, B1B seal 611963,
+  MD5 `fd2390d17d448d4539a72bf1991314dc`, silent exit 91, and 14/58/14 owner
+  lifecycle are frozen. B1C is a new product and cannot edit the accepted B1B
+  product or use expected-value parameters as admission authority.
+- Frozen profile and source identity: add exactly
+  `exact-i32-byte-io-v0`, composing but not changing accepted
+  `exact-i32-byte-input-v0`, and reserve exactly
+  `stdout_write_byte(value: int) -> Result<int, int>`. The call is direct,
+  nongeneric, source-function-only, and has exactly one `int` argument. Its
+  Result requires the accepted explicit typed context; inferred, discarded,
+  nested-call, first-class, overloaded, user-defined, argument-count/type, impl,
+  trait, or generic uses fail before checked IR. Earlier profiles continue to
+  treat the name as an ordinary unresolved function and retain exact bytes and
+  diagnostics. Existing `print!`/`println!` do not substitute for binary output.
+- Frozen runtime ABI and failure mapping: production C exports exactly
+  `int32_t aero_stdout_write_byte(int32_t value)`. Values `0..=255` are written
+  as one raw byte and flushed before the call succeeds. Success returns zero.
+  Sticky `-1` means write/flush failure, sticky `-2` means Windows binary-mode
+  setup failure, and sticky `-3` means an out-of-range input; a failed call
+  writes no byte and every later call returns the same failure without output.
+  Windows stdout enters binary mode on first valid use. POSIX converts a broken
+  pipe into the `-1` return path rather than terminating the process. Source
+  maps zero to `Ok(0)` and negative raw status to `Err(0 - raw)`. No failure
+  becomes success, EOF, a byte, fallback output, or a convenient `Int`.
+- Frozen checked/backend contract: add exactly
+  `Inst::CheckedStdoutWriteByte { result, value }`. It consumes one verified
+  logical `Int` and defines one verified logical `Int` raw status. Existing SSA
+  definition/use/type authority proves order and identity. After complete
+  checked verification, only `exact-i32-byte-io-v0` may lower it to exactly
+  `call i32 @aero_stdout_write_byte(i32 VALUE)`; its declaration is conditional
+  on use. Raw calls, `Print`, historical I/O instructions, unchecked IR, or a
+  backend-only symbol cannot substitute for the checked instruction.
+- Frozen Aero product and handoff: add one tracked product by copying the
+  accepted B1B source and retaining its predecessor region byte-for-byte. It
+  adds no ByteBuffer owner. Only after actual B1B attempted/success state,
+  complete nonzero length, and an independent reread/recomputation of the B1B
+  byte fold and seal may B1C iterate immutable `emitted_llvm` and call
+  `stdout_write_byte` once per byte in order. Expected-value parameters are
+  test oracles and never enable output. B1B skip/failure, a seal mismatch, an
+  enabled predecessor fault selector, or any output error cannot reach the
+  remaining bytes or the external driver success path.
+- Frozen B1C diagnostic and seal: `driven_attempted` is zero or one.
+  `driven_status=0` is success/skip, status `1` is pre-output B1B
+  authentication failure, and status `2` is runtime output failure.
+  `driven_runtime_code` is zero or the positive `1..=3` error code,
+  `driven_byte_index` is `-1` unless a write failed, and `driven_length` counts
+  only successfully flushed bytes. On an attempted path the checksum starts at
+  59, folds each successfully flushed byte with
+  `(checksum*31+byte)%1000003`, then folds separator 997, the actual B1B seal,
+  status, runtime code, `byte_index+1` (or zero), attempted, and written length
+  in that order. A skipped path has checksum zero. Canonical success is exactly
+  attempted 1, status/code 0, index `-1`, length 144, raw fold 964575, and final
+  seal 506643. The tracked product emits exactly the accepted 144 bytes to
+  stdout, emits nothing to stderr, and exits 91; a production output failure
+  makes its frozen expected-state check exit 95.
+- Frozen partial-stream boundary: stdout is irreversible. A runtime failure may
+  expose only the exact successfully flushed prefix before the failing byte.
+  The host driver captures stdout in memory and treats any non-91 exit,
+  nonempty stderr, wrong length/digest, or tool failure as an invalid
+  transaction; it must never publish a partial `module.ll`, object, or linked
+  executable. Direct shell redirection is outside the protected B1C artifact
+  guarantee and must not be presented as transactional.
+- Frozen external driver interface: add exactly
+  `aero bootstrap-drive-b1c <emitter-executable> --llvm-bin <directory> --output-dir <new-directory> --opt-level <0|2>`.
+  Both executable and LLVM directory are explicit; no PATH fallback is allowed.
+  The output directory must be an absent absolute path and is created by the
+  driver. The accepted B1B/B1C product consumes the exact 34-byte canonical
+  input `fn score()->int{return 1+2*3-4/2;}` through R2, so the driver writes
+  exactly those frozen ASCII bytes to the emitter's stdin and then closes it.
+  The driver does not parse, normalize, infer from, parameterize, or substitute
+  that input; any broader source/bundle interface belongs to H1. It captures
+  stdout/stderr, requires exit 91, empty stderr, exactly 144 bytes, and the
+  frozen MD5, then writes `module.ll` inside its new directory. It requires exact LLVM/Clang
+  22.1.8 identities, verifies via `llvm-as`, lowers the module to an object with
+  the requested O0/O2 level, compiles one fixed C observer, links, and executes
+  the probe; the probe must observe `aero_b1_entry()==5` and exit 91. Commands
+  use direct argv without a shell. On any failure the driver removes only the
+  directory it created and returns operational failure; it never overwrites a
+  path. Existing `build`, `run`, `check`, caches, and graph/accelerator routes
+  remain unchanged.
+- Red-first and acceptance evidence: after this ledger-only commit, add one
+  focused integration target. Independent runtime/stream and host-driver
+  oracles must pass before the sole intentional absent-product red. Final
+  evidence covers raw NUL/CR/LF/`0x1a`/`0xff` runtime output, Windows binary
+  mode, invalid value, closed pipe/write/flush failure, sticky errors, exact
+  Result mapping, wrong-profile/source contexts, checked-IR corruption,
+  backend bypass, deterministic LLVM, exact 144-byte captured product at O0/O2,
+  every B1A/B1B failure family, output failure at every byte boundary, exact
+  owner cleanup, source/file parity, driver invocation/parser negatives, tool
+  identity drift, malformed/truncated/extra LLVM, emitter exit/stderr failures,
+  transactional artifact hygiene, LLVM 22 verification, O0/O2 object/link/native
+  result, and protected Linux/Windows replay. The accepted B1B/B1A/M1B/M1A/
+  F1B/F1A/D1 ring, formatting, correctness Clippy, `git diff --check`, and full
+  `./tools/test.sh` remain required from D:-redirected state.
+- Allowed production files, exactly: new
+  `src/compiler/src/byte_output_source_contract.rs`;
+  `src/compiler/runtime/aero_runtime.c`; `src/compiler/src/lib.rs`;
+  `src/compiler/src/semantic_analyzer.rs`;
+  `src/compiler/src/language_profile.rs`; `src/compiler/src/ir.rs`;
+  `src/compiler/src/ir_generator.rs`; `src/compiler/src/ir_verifier.rs`;
+  `src/compiler/src/code_generator.rs`; and `src/compiler/src/main.rs`.
+  Any other production file is a mandatory stop unless this ledger is amended
+  before mutation for a strictly observation-neutral exhaustive arm. Parser,
+  lexer, AST, logical types, resolved-profile witness schema, authentication,
+  CopyData layout, allocator/resource authority, test runtime, manifests,
+  lockfile, optimizers, caches, ROCm, and CUDA are frozen.
+- Allowed evidence/truth files, exactly: `TASK_LEDGER.md`; new
+  `BOOTSTRAP_DRIVER_READINESS.md`; `AERO_FRONTEND_READINESS.md`;
+  `BYTE_INPUT_READINESS.md`; `OWNED_BYTE_BUFFER_READINESS.md`;
+  `COMPILER_STORAGE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`;
+  `PROJECT_STATE.md`; one new tracked product beneath
+  `examples/aero_frontend_v0/`; one new focused test
+  `src/compiler/tests/stdout_byte_output_driver_tests.rs`; existing
+  `src/compiler/tests/stdin_byte_input_profile_tests.rs`,
+  `src/compiler/tests/source_byte_buffer_profile_tests.rs`, and
+  `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs` only for
+  exact authority digests/exhaustiveness;
+  `src/compiler/tests/compiler_storage_arena_tests.rs` only for the same exact
+  runtime/IR/verifier authority digests exposed by the cumulative predecessor
+  ring; `src/compiler/tests/version_claim_contract_tests.rs`
+  only if exact selector/help truth requires it; and
+  `.github/workflows/rust.yml` for final Linux/Windows replay; and
+  `.github/workflows/ci.yml` only for the pinned Clang 22 prerequisite required
+  by the unskipped real-driver test. No claim, benchmark, release, package,
+  unrelated example/test, or evidence-bundle file may change.
+- Acceptance order: commit this ledger alone; commit the independent focused
+  red test; record the exact intentional red; implement the smallest complete
+  product; run focused output/driver tests and the accepted predecessor ring;
+  run formatting, correctness Clippy, `git diff --check`, and complete root
+  gate with LLVM, Cargo, temp, and artifacts on D:; freeze candidate/tree and
+  exact product identities; publish one draft protected PR; verify all exact
+  candidate checks; mark ready and merge only on the pinned head; then require
+  accepted-head CI, stable/nightly, Windows LLVM 22, CodeQL, and evidence
+  terminal success before H1 or any broader compiler surface begins.
+- Risks and mandatory stops: stop without widening if an accepted predecessor
+  byte/diagnostic/result changes; output needs a pointer/ByteBuffer ABI, source
+  inference, second AST walk, new syntax/type, general file/path/process API, or
+  third compiler authority; a failure can become success or continue output;
+  POSIX broken pipe terminates instead of returning an error; Windows changes
+  a byte; the driver consults PATH, invokes a shell, overwrites a path, parses
+  Aero, emits LLVM, accepts partial/mixed streams, or publishes artifacts before
+  all checks; exact captured bytes differ by host/O0/O2; LLVM 22.1.8 cannot
+  verify/lower/link the module; cleanup can escape the newly created output
+  directory; the host driver supplies any input other than the exact frozen
+  34-byte canonical source or tests the transaction with a substitute emitter
+  instead of the tracked Aero product; or protected evidence is not
+  reproducible. B1C adds no general
+  stdout/text/file API, compiler process spawning, general driver/backend,
+  source-name ABI, multi-function/block/control-flow/memory lowering, Rust
+  front-end replacement, bootstrap convergence, self-hosting, stability,
+  safety, performance, accelerator execution, release, or package claim.
+
+### CAP-047 red-first checkpoint
+
+- Red commit `8f9d4729a3f25d860c2a6e4b9f2580a0dadf500c` adds only
+  `src/compiler/tests/stdout_byte_output_driver_tests.rs` after ledger-only
+  commit `4c889529aaee2379b2fdda981567ffb7e7a0d475`. No production, product,
+  workflow, or truth-document file changed.
+- With `TEMP`, `TMP`, `TMPDIR`, and `CARGO_TARGET_DIR` redirected to the
+  frozen D: roots; one Cargo job/test thread; and pinned
+  `D:\AeroToolchains\llvm-22.1.8\bin` first on PATH, the focused target
+  completed 2/3. Accepted B1B source length/MD5, checked compilation,
+  deterministic outer LLVM, and required LLVM verification passed. The
+  independent 144-byte stream/seal oracle and LLVM 22 plus Clang O0/O2 linked
+  observer passed with exit 91 and empty streams.
+- The sole failure is exactly
+  `CAP-047 intentional product red: bounded stdout/toolchain driver is absent`.
+  There is no earlier parser, semantic, IR, LLVM, native, toolchain, or
+  environment failure. This authorizes the frozen production slice without
+  widening its semantics or files.
+
+### CAP-047 local implementation and complete-gate checkpoint
+
+- Implementation summary: `exact-i32-byte-io-v0` adds exactly one direct,
+  explicit `stdout_write_byte(int) -> Result<int, int>` source operation. The
+  semantic analyzer and independent checked-IR generator use the shared exact
+  syntax contract; `Inst::CheckedStdoutWriteByte` is independently verified;
+  and the backend emits the conditional `aero_stdout_write_byte` call only
+  after verification. The production runtime implements raw binary output,
+  flush-before-success, sticky range/setup/write failures, Windows binary
+  mode, and POSIX broken-pipe conversion. Earlier profiles and the accepted
+  R1/R2/D1/F1/M1/B1A/B1B contracts remain frozen.
+- Product and handoff: the new tracked Aero B1C product preserves the accepted
+  B1B predecessor region byte-for-byte, independently rereads and authenticates
+  the complete 144-byte LLVM owner, writes each byte exactly once, and adds no
+  ByteBuffer owner. Canonical state is attempted/status/code/index/length
+  `1/0/0/-1/144`, seal 506643, empty stderr, exit 91, and exact 14/58/14 owner
+  cleanup. `bootstrap-drive-b1c` writes the exact frozen 34-byte source to that
+  real Aero emitter, authenticates its complete stream before artifact
+  publication, requires explicit exact LLVM/Clang 22.1.8 tools, and performs
+  transactional O0/O2 verification, lowering, observer linking, and execution.
+- Portability red and correction: an adversarial review found that exact
+  version parsing accepted only banners beginning with `clang version`, while
+  protected Linux can report a vendor prefix such as `Debian clang version
+  22.1.8`. Before correcting production, the new filtered binary-unit control
+  failed 0/1 on that exact banner. The parser now finds the exact
+  `clang version ` field while still requiring version `22.1.8`; the same
+  control passes 1/1 and rejects `22.1.7` and `22.1.9`. The first in-progress
+  root run was deliberately stopped when this portability defect was found;
+  the complete root gate below is a fresh post-correction run.
+- Candidate-CI red and test-harness correction: initial published candidate
+  `025eabb262359107bae5e6de5dba217ec6e523ca`, tree
+  `9ab595f230ce3790fb0a3ed5a6c65cc649af031b`, reached every B1C-specific
+  Linux/Windows/evidence gate green, but push CI run `31967845752` failed only
+  `external_driver_is_explicit_transactional_and_green_at_o0_and_o2`. The
+  runner exported `AERO_LLVM_AS=/usr/bin/llvm-as-22`, while the test-only
+  `llvm_bin()` helper ignored that accepted verifier identity and searched only
+  for an unversioned `llvm-as` directory on PATH. The other seven B1C tests and
+  all predecessor targets in that run were green. The helper now prefers the
+  canonical parent of `AERO_LLVM_AS`, confirms that exact directory also owns
+  Clang and unversioned `llvm-as`, and retains the existing explicit-bin/PATH
+  fallbacks. No production or workflow behavior changed. A CI-equivalent local
+  rerun of the formerly failing real-emitter test passes 1/1 in 65.88 seconds.
+- Candidate-CI second red and narrow workflow reauthorization: corrected
+  candidate `6201580ba66221301dce2edbd22ec7988b1e8f78`, tree
+  `77b3ac00d667639c8bfb0dc18fc2b182265fd404`, reaches the real driver in Rust
+  CI run `31970246596`, but stable and nightly reject the test-created output
+  directory because its fallback spelling retains `../../target` components.
+  The driver is correct to reject that non-normalized spelling. Push and pull
+  compiler-test runs `31970245588` and `31970246817` instead stop at the same
+  test's tool precondition: generic CI installs pinned `llvm-22` but not pinned
+  `clang-22`, so it cannot execute the real external-driver contract. The
+  Windows LLVM 22 native gate, both evidence captures, CodeQL, and the other
+  seven B1C tests are green on this candidate; the complete D:-redirected local
+  root gate is also green. Before further mutation, this record authorizes only
+  two observation-neutral harness corrections: canonicalize the newly created
+  CAP-047 test workspace before deriving child output paths, and extend generic
+  CI's existing pinned LLVM installation/identity check to include Clang 22.
+  Stop if either correction requires production behavior, a skipped test, a
+  non-22 tool, or any workflow change beyond that exact tool prerequisite.
+  The path correction passes the formerly failing real-driver case 1/1 in
+  61.76 seconds with `CARGO_TARGET_DIR` deliberately spelled as
+  `D:\Aero-build-targets\b1c\..\b1c`; the complete focused target passes 8/8
+  in 384.86 seconds under the same spelling. Generic-CI Clang installation
+  remains publication evidence and is not represented as a local result.
+- D:-only evidence environment: worktree
+  `D:\Aero-worktrees\b1c-driver`, Cargo target
+  `D:\Aero-build-targets\b1c`, temporary root `D:\Aero-temp\b1c`, and pinned
+  LLVM tools `D:\AeroToolchains\llvm-22.1.8\bin`, with `TEMP`, `TMP`,
+  `TMPDIR`, and `CARGO_TARGET_DIR` explicitly redirected and Cargo/test
+  concurrency one. Installed Cargo on C: was read/executed only; no task cache,
+  target, temporary directory, native harness, or generated artifact was
+  intentionally created there.
+- Commands and results: source/IR/verifier contract units pass 3/3; the focused
+  B1C target passes 8/8 in 315.37 seconds; the real-emitter external-driver
+  filter passes 1/1 in 48.65 seconds; formatting, all-target/all-feature check,
+  correctness-denying Clippy, and `git diff --check` pass; and the version-claim
+  target passes 8/8. A fresh complete `./tools/test.sh` exits zero after 312
+  library tests, 36 binary tests, every integration/native/system target, and
+  doc tests. Inside that root run, the exact B1C target passes 8/8 in 442.60
+  seconds; the accepted B1B emitter passes 5/5, B1A verifier 5/5, M1B checked
+  product 10/10, M1A semantic product 7/7, F1B parser 4/4, and F1A lexer 3/3.
+- Files changed: only the ten authorized compiler/runtime production files;
+  the new tracked B1C Aero product; the focused B1C test; four authorized
+  cumulative authority-digest tests; the Rust Linux/Windows workflow; this
+  ledger; the new bootstrap-driver readiness record; and the six authorized
+  synchronized truth/readiness documents. No parser, lexer, AST, logical-type,
+  resolved-profile, authentication, layout, allocator-resource, manifest,
+  lockfile, optimizer, cache, accelerator, claim-evidence, benchmark, release,
+  or package file changed.
+- Remaining uncertainty and regression risks: exact candidate identity,
+  protected Linux/Windows tool banners and native replay, stable/nightly,
+  CodeQL, merge identity, and accepted-head evidence remain unpublished. Raw
+  stdout is inherently irreversible outside the capturing driver; LLVM, Clang,
+  the linker, operating-system streams, and the bounded transaction remain
+  declared trust-base components. B1C is one bounded product, not a general
+  compiler driver or a self-hosting result.
+- Recommended next action: complete the exact allowed-scope/index audit, commit
+  this implementation and synchronized evidence, freeze its candidate/tree,
+  publish one draft protected PR, and require all candidate and accepted-head
+  gates before authorizing H1 ledger-first.
+
 ## CAP-046-B1B-SERIALIZED-CHECKED-IR-LLVM-EMITTER - bounded Aero LLVM text product
 
 - Date/task/status: 2026-08-16,

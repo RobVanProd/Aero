@@ -38,12 +38,20 @@ CAP-045/B1A is accepted through protected PR #87. Reviewed candidate
 `f534988d9264a236c36f8ed9b02e08dad7cceba7`. All candidate and accepted-head
 workflows are terminal-green.
 
-CAP-046/B1B is the current product-only local candidate on that exact accepted
-head. It preserves B1A byte-for-byte, then rereads only the authenticated
-serialized `checked_ir` into a fourteenth direct `emitted_llvm` owner. It emits
-one deterministic 144-byte, host-neutral LLVM module for the bounded module and
-does not change Rust compiler/runtime production or invoke a toolchain. B1B is
-not accepted until its complete local and protected gates finish.
+CAP-046/B1B is accepted through protected PR #88. Reviewed candidate
+`fe9c6bfdf40dfe707ef31955d17292d15ea93252` merged as
+`3219d7f08a92f9d18334a37315e10cfde6fba931`; their tree is identically
+`055dfe065ada29b62f22864d879a9c3e18e17c93`. All candidate and accepted-head
+workflows are terminal-green.
+
+CAP-047/B1C is the current local candidate on that exact accepted head. It
+preserves B1B, adds one fail-closed scalar raw-byte output operation, emits the
+authenticated 144-byte module through stdout, and adds a narrow transactional
+host driver for explicit LLVM/Clang 22.1.8 tools. Its focused 8/8 target and the
+complete accepted predecessor ring are green. The D:-redirected root gate is
+green at 312 library tests, 36 binary tests, every integration/native/system
+target, and doc tests. Protected publication remains pending. See
+[`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).
 
 ## Frozen F1A product
 
@@ -187,6 +195,23 @@ not accepted until its complete local and protected gates finish.
 - This is one bounded in-memory LLVM text emitter. It is not file/process
   output, object generation, linking, a general backend, or self-hosting.
 
+## Frozen B1C product and handoff
+
+- B1C begins only after actual B1B success and an independent reread of all 144
+  immutable output bytes reproduces the accepted B1B fold and seal.
+- One direct `stdout_write_byte(int) -> Result<int, int>` call emits each byte
+  under `exact-i32-byte-io-v0`; the product adds no owner and preserves B1B's
+  exact 14/58/14 lifecycle.
+- Canonical success writes the accepted 144 bytes, records B1C seal 506643,
+  emits no stderr, and exits 91. A write failure stops at its exact index,
+  exposes only the flushed prefix, maps the sticky runtime code, and exits 95.
+- The host `bootstrap-drive-b1c` command authenticates the complete captured
+  stream before creating artifacts, then invokes only explicitly supplied
+  LLVM/Clang 22.1.8 tools at O0 or O2 and runs a fixed result-5 observer.
+- This is a bounded toolchain handoff. It does not widen the frozen grammar,
+  semantic facts, serialized checked IR, verifier, or LLVM opcode mapping and
+  does not establish stage convergence or self-hosting.
+
 ## Evidence
 
 CAP-041 and CAP-042 preserve their exact red-first histories and are protected
@@ -300,21 +325,37 @@ public CPU execution, and accelerator artifact hygiene pass.
 The accepted B1A/M1B/M1A/F1B/F1A/D1 predecessor ring is green, and the complete
 D:-redirected root gate exits 0 with formatting, correctness Clippy, 309 library
 tests, 35 binary tests, every integration/native/system target, and doc tests.
-Protected publication remains pending, so CAP-046 is not yet accepted.
+Reviewed candidate `fe9c6bfdf40dfe707ef31955d17292d15ea93252` merged through
+protected PR #88 as `3219d7f08a92f9d18334a37315e10cfde6fba931`
+with identical tree `055dfe065ada29b62f22864d879a9c3e18e17c93`.
+Candidate and accepted-head workflows are terminal-green; CAP-046 is accepted.
+
+CAP-047 preserves ledger-first commit `4c88952`, red-first commit `8f9d472`,
+and red record `6246d87`; the red checkpoint passed independent stream and
+LLVM/toolchain oracles and failed only with
+`CAP-047 intentional product red: bounded stdout/toolchain driver is absent`.
+The local implementation's source/IR/verifier unit tests are 3/3 and its
+focused product boundary is 8/8 green. Evidence covers exact raw bytes, sticky
+runtime failures, every 144-byte failure index, exact cleanup, source/file and
+O0/O2 parity, malformed streams, no PATH fallback, transactional hygiene, and
+the explicit LLVM 22.1.8 driver. The complete accepted predecessor ring and
+the complete D:-redirected root gate are green. Protected publication remains
+pending.
 
 ## Remaining gaps
 
-CAP-044, CAP-045, and CAP-046 process only the frozen F1B/M1A bootstrap
+CAP-044 through CAP-047 process only the frozen F1B/M1A bootstrap
 grammar. They do not implement the complete experimental Rust token/grammar surface,
 declarations beyond one function, multiple statements, calls, arrays, records,
 `Match`, Unicode/UTF-8,
 strings, characters, floats, macros, modules/imports, path/file input, error
 recovery, general scopes or symbols, general types or ownership, dynamic
-arithmetic, general checked-IR verification, file/process output, or a compiler
-driver. B1A is an independent Aero verifier for the one exact M1B format; B1B
-emits LLVM only for that authenticated bounded format. Neither is a verifier
-or backend for the production Rust checked-IR universe. The
-F1A/F1B/M1A/M1B/B1A/B1B surface is a selected bootstrap subset,
+arithmetic, general checked-IR verification, general file/process APIs, or a
+general compiler driver. B1A is an independent Aero verifier for the one exact
+M1B format; B1B emits LLVM only for that authenticated bounded format; B1C only
+transports and drives those exact bytes. None is a verifier or backend for the
+production Rust checked-IR universe. The
+F1A/F1B/M1A/M1B/B1A/B1B/B1C surface is a selected bootstrap subset,
 not a claim that unsupported stage-0 syntax disappeared from Aero or that the
 Rust front end has been replaced.
 
@@ -325,10 +366,10 @@ stable ABI.
 
 ## Exact next dependency
 
-Finish CAP-046/B1B validation from exact accepted CAP-045 merge `3054db7` and
-protect its bounded in-memory LLVM emitter through candidate, merge, and
-accepted-head replay without changing compiler production, runtime, profile,
-or accepted predecessor behavior. After B1B acceptance, freeze B1C separately
-and red-first for the file/process/toolchain driver. Do not infer additional
-semantics, call the Rust front end replaced, or call the project self-hosted
-before B1C and H1/H2 independently close.
+Freeze CAP-047/B1C from exact accepted CAP-046 merge `3219d7f` and protect its
+bounded output/toolchain handoff through candidate, merge, and accepted-head
+replay without widening the frozen frontend, semantics,
+serialized checked IR, verifier, or LLVM emitter. After B1C acceptance, freeze
+H1 separately and ledger-first for stage-0/stage-1/stage-2 convergence. Do not
+infer additional semantics, call the Rust front end replaced, or call the
+project self-hosted before H1 and H2 independently close.

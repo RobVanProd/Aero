@@ -11,6 +11,16 @@ CodeQL `31918179970`, and accepted-head evidence `31918179909` are
 terminal-success. Protected PR #81 records the exact candidate, ordered merge
 parents, merge, and tree identity.
 
+CAP-047/B1C is the current locally gated downstream candidate. Its
+`exact-i32-byte-io-v0` selector composes this accepted input surface unchanged
+and adds only a separately checked scalar stdout operation. The B1C host driver
+writes exactly the frozen 34-byte canonical source to the tracked emitter and
+closes stdin; it does not parse or infer from those bytes. R2 remains the sole
+binary-input authority.
+No input sentinel, byte mapping, loop, ByteBuffer ownership rule, or runtime
+stdin behavior changes. See
+[`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).
+
 ## Decision
 
 R2 reads binary standard input before it introduces file paths, path encoding,
@@ -147,8 +157,11 @@ phase is required; or any failure can silently become EOF, success, or `Int`.
 
 ## Next dependency after R2
 
-R2 is accepted. CAP-040/D1 is now the locally green successor: deterministic
-owned token/name storage and a flat append-only AST arena with integer IDs.
-See [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md). R2
-supplies bytes only; D1 remains separately unaccepted until its full gate and
-protected replay close.
+R2 and its downstream D1/F1/M1/B1A/B1B chain are accepted. Local CAP-047/B1C
+has passed its complete D:-redirected gate while reusing the exact R2
+byte-input contract to feed one frozen 34-byte source into the actual Aero
+emitter, then adding output through a separate checked scalar operation. See
+[`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md) and
+[`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md). R2 still
+supplies bytes only; it does not imply text, files, a general frontend, or
+self-hosting.

@@ -23,6 +23,7 @@ use compiler::{
 };
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio, exit};
 use std::time::Instant;
@@ -366,6 +367,350 @@ fn environment_requires_llvm_verifier() -> bool {
         .unwrap_or(false)
 }
 
+const B1C_LLVM_LENGTH: usize = 144;
+const B1C_LLVM_MD5: &str = "fd2390d17d448d4539a72bf1991314dc";
+const B1C_LLVM_VERSION: &str = "22.1.8";
+const B1C_CANONICAL_INPUT: &[u8] = b"fn score()->int{return 1+2*3-4/2;}";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BootstrapDriveB1c {
+    emitter_executable: PathBuf,
+    llvm_bin: PathBuf,
+    output_dir: PathBuf,
+    opt_level: u8,
+}
+
+fn bootstrap_drive_b1c_usage(program_name: &str) -> String {
+    format!(
+        "Usage: {program_name} bootstrap-drive-b1c <emitter-executable> --llvm-bin <directory> --output-dir <new-directory> --opt-level <0|2>"
+    )
+}
+
+fn parse_bootstrap_drive_b1c_args(args: &[String]) -> Result<BootstrapDriveB1c, String> {
+    let usage = || bootstrap_drive_b1c_usage(args.first().map(String::as_str).unwrap_or("aero"));
+    if args.len() < 3 || args[1] != "bootstrap-drive-b1c" || args[2].starts_with('-') {
+        return Err(usage());
+    }
+    let emitter_executable = PathBuf::from(&args[2]);
+    let mut llvm_bin = None;
+    let mut output_dir = None;
+    let mut opt_level = None;
+    let mut index = 3;
+    while index < args.len() {
+        if index + 1 >= args.len() {
+            return Err(usage());
+        }
+        let value = &args[index + 1];
+        match args[index].as_str() {
+            "--llvm-bin" if llvm_bin.is_none() => llvm_bin = Some(PathBuf::from(value)),
+            "--output-dir" if output_dir.is_none() => output_dir = Some(PathBuf::from(value)),
+            "--opt-level" if opt_level.is_none() => {
+                opt_level = Some(match value.as_str() {
+                    "0" => 0,
+                    "2" => 2,
+                    _ => return Err(usage()),
+                });
+            }
+            _ => return Err(usage()),
+        }
+        index += 2;
+    }
+    Ok(BootstrapDriveB1c {
+        emitter_executable,
+        llvm_bin: llvm_bin.ok_or_else(&usage)?,
+        output_dir: output_dir.ok_or_else(&usage)?,
+        opt_level: opt_level.ok_or_else(usage)?,
+    })
+}
+
+fn b1c_tool_path(directory: &Path, name: &str) -> PathBuf {
+    directory.join(if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    })
+}
+
+fn b1c_exact_tool_version(tool: &Path, family: &str) -> Result<(), String> {
+    if !tool.is_file() {
+        return Err(format!(
+            "CAP-047 required {family} tool is not a regular file: {}",
+            tool.display()
+        ));
+    }
+    let output = Command::new(tool)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| {
+            format!(
+                "CAP-047 could not execute {family} identity probe {}: {error}",
+                tool.display()
+            )
+        })?;
+    if !output.status.success() {
+        return Err(format!(
+            "CAP-047 {family} identity probe failed for {}",
+            tool.display()
+        ));
+    }
+    let banner = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let exact = b1c_banner_reports_exact_version(&banner, family);
+    if !exact {
+        return Err(format!(
+            "CAP-047 {family} identity must be exactly {B1C_LLVM_VERSION}: {}",
+            tool.display()
+        ));
+    }
+    Ok(())
+}
+
+fn b1c_banner_reports_exact_version(banner: &str, family: &str) -> bool {
+    banner.lines().any(|line| {
+        let line = line.trim();
+        match family {
+            "clang" => {
+                line.split_once("clang version ")
+                    .map(|(_, rest)| rest)
+                    .and_then(|rest| rest.split_whitespace().next())
+                    == Some(B1C_LLVM_VERSION)
+            }
+            "llvm-as" => {
+                line.split_once("LLVM version ")
+                    .and_then(|(_, rest)| rest.split_whitespace().next())
+                    == Some(B1C_LLVM_VERSION)
+            }
+            _ => false,
+        }
+    })
+}
+
+fn b1c_run_tool(tool: &Path, arguments: &[&std::ffi::OsStr], stage: &str) -> Result<(), String> {
+    let output = Command::new(tool)
+        .args(arguments)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| format!("CAP-047 could not execute {stage}: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "CAP-047 {stage} failed (stdout={:?}, stderr={:?})",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(())
+}
+
+fn b1c_run_emitter(executable: &Path) -> Result<std::process::Output, String> {
+    let mut child = Command::new(executable)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("CAP-047 could not execute emitter: {error}"))?;
+    let write_result = child
+        .stdin
+        .take()
+        .ok_or_else(|| "CAP-047 emitter stdin pipe was unavailable".to_string())?
+        .write_all(B1C_CANONICAL_INPUT);
+    if let Err(error) = write_result {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Err(format!(
+            "CAP-047 could not write the frozen canonical emitter input: {error}"
+        ));
+    }
+    child
+        .wait_with_output()
+        .map_err(|error| format!("CAP-047 could not collect emitter output: {error}"))
+}
+
+fn run_bootstrap_drive_b1c(config: &BootstrapDriveB1c) -> Result<(), String> {
+    if !config.emitter_executable.is_file() {
+        return Err(format!(
+            "CAP-047 emitter executable is not a regular file: {}",
+            config.emitter_executable.display()
+        ));
+    }
+    if !config.llvm_bin.is_dir() {
+        return Err(format!(
+            "CAP-047 LLVM bin path is not a directory: {}",
+            config.llvm_bin.display()
+        ));
+    }
+    if !config.output_dir.is_absolute() {
+        return Err("CAP-047 output directory must be an absolute path".to_string());
+    }
+    if config.output_dir.exists() {
+        return Err(format!(
+            "CAP-047 output directory already exists: {}",
+            config.output_dir.display()
+        ));
+    }
+    if config.output_dir.file_name().is_none() {
+        return Err("CAP-047 output directory must name one new child directory".to_string());
+    }
+    let output_parent = config
+        .output_dir
+        .parent()
+        .ok_or_else(|| "CAP-047 output directory has no parent".to_string())?;
+    if !output_parent.is_dir()
+        || config.output_dir.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::CurDir | std::path::Component::ParentDir
+            )
+        })
+    {
+        return Err(format!(
+            "CAP-047 output directory must be an absolute normalized child path: {}",
+            config.output_dir.display()
+        ));
+    }
+
+    let llvm_as = b1c_tool_path(&config.llvm_bin, "llvm-as");
+    let clang = b1c_tool_path(&config.llvm_bin, "clang");
+    b1c_exact_tool_version(&llvm_as, "llvm-as")?;
+    b1c_exact_tool_version(&clang, "clang")?;
+
+    let emitter = b1c_run_emitter(&config.emitter_executable)?;
+    if emitter.status.code() != Some(91) {
+        return Err(format!(
+            "CAP-047 emitter exited with {:?}, expected 91",
+            emitter.status.code()
+        ));
+    }
+    if !emitter.stderr.is_empty() {
+        return Err(format!(
+            "CAP-047 emitter wrote stderr: {:?}",
+            String::from_utf8_lossy(&emitter.stderr)
+        ));
+    }
+    if emitter.stdout.len() != B1C_LLVM_LENGTH {
+        return Err(format!(
+            "CAP-047 emitter wrote {} bytes, expected {B1C_LLVM_LENGTH}",
+            emitter.stdout.len()
+        ));
+    }
+    let digest = format!("{:x}", md5::compute(&emitter.stdout));
+    if digest != B1C_LLVM_MD5 {
+        return Err(format!(
+            "CAP-047 emitter MD5 was {digest}, expected {B1C_LLVM_MD5}"
+        ));
+    }
+
+    fs::create_dir(&config.output_dir).map_err(|error| {
+        format!(
+            "CAP-047 could not create output directory {}: {error}",
+            config.output_dir.display()
+        )
+    })?;
+    let transaction = (|| {
+        let module_ll = config.output_dir.join("module.ll");
+        let module_bc = config.output_dir.join("module.bc");
+        let module_obj = config.output_dir.join(if cfg!(windows) {
+            "module.obj"
+        } else {
+            "module.o"
+        });
+        let observer_c = config.output_dir.join("observer.c");
+        let observer_obj = config.output_dir.join(if cfg!(windows) {
+            "observer.obj"
+        } else {
+            "observer.o"
+        });
+        let probe = config
+            .output_dir
+            .join(if cfg!(windows) { "probe.exe" } else { "probe" });
+        fs::write(&module_ll, &emitter.stdout)
+            .map_err(|error| format!("CAP-047 could not publish module.ll: {error}"))?;
+        b1c_run_tool(
+            &llvm_as,
+            &[
+                module_ll.as_os_str(),
+                std::ffi::OsStr::new("-o"),
+                module_bc.as_os_str(),
+            ],
+            "llvm-as verification",
+        )?;
+        let optimization = if config.opt_level == 0 { "-O0" } else { "-O2" };
+        b1c_run_tool(
+            &clang,
+            &[
+                std::ffi::OsStr::new(optimization),
+                std::ffi::OsStr::new("-Wno-error=override-module"),
+                std::ffi::OsStr::new("-c"),
+                module_ll.as_os_str(),
+                std::ffi::OsStr::new("-o"),
+                module_obj.as_os_str(),
+            ],
+            "LLVM object lowering",
+        )?;
+        const OBSERVER: &[u8] = b"#include <stdint.h>\nextern int32_t aero_b1_entry(void);\nint main(void) { return aero_b1_entry() == 5 ? 91 : 1; }\n";
+        fs::write(&observer_c, OBSERVER)
+            .map_err(|error| format!("CAP-047 could not write fixed observer: {error}"))?;
+        b1c_run_tool(
+            &clang,
+            &[
+                std::ffi::OsStr::new("-std=c11"),
+                std::ffi::OsStr::new("-O0"),
+                std::ffi::OsStr::new("-Wall"),
+                std::ffi::OsStr::new("-Wextra"),
+                std::ffi::OsStr::new("-Werror"),
+                std::ffi::OsStr::new("-c"),
+                observer_c.as_os_str(),
+                std::ffi::OsStr::new("-o"),
+                observer_obj.as_os_str(),
+            ],
+            "observer compilation",
+        )?;
+        b1c_run_tool(
+            &clang,
+            &[
+                module_obj.as_os_str(),
+                observer_obj.as_os_str(),
+                std::ffi::OsStr::new("-o"),
+                probe.as_os_str(),
+            ],
+            "observer link",
+        )?;
+        let observed = Command::new(&probe)
+            .stdin(Stdio::null())
+            .output()
+            .map_err(|error| format!("CAP-047 could not execute linked observer: {error}"))?;
+        if observed.status.code() != Some(91)
+            || !observed.stdout.is_empty()
+            || !observed.stderr.is_empty()
+        {
+            return Err(format!(
+                "CAP-047 linked observer failed (exit={:?}, stdout={:?}, stderr={:?})",
+                observed.status.code(),
+                String::from_utf8_lossy(&observed.stdout),
+                String::from_utf8_lossy(&observed.stderr)
+            ));
+        }
+        Ok(())
+    })();
+    if let Err(error) = transaction {
+        if let Err(cleanup) = fs::remove_dir_all(&config.output_dir) {
+            return Err(format!(
+                "{error}; CAP-047 cleanup also failed for {}: {cleanup}",
+                config.output_dir.display()
+            ));
+        }
+        return Err(error);
+    }
+    println!(
+        "CAP-047 B1C toolchain transaction accepted at {}",
+        config.output_dir.display()
+    );
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CliStatus {
     Success,
@@ -415,6 +760,19 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
             } else {
                 CliStatus::InvocationFailure
             };
+        }
+        "bootstrap-drive-b1c" => {
+            let config = match parse_bootstrap_drive_b1c_args(args) {
+                Ok(config) => config,
+                Err(usage) => {
+                    eprintln!("{usage}");
+                    return CliStatus::InvocationFailure;
+                }
+            };
+            if let Err(error) = run_bootstrap_drive_b1c(&config) {
+                eprintln!("error: {error}");
+                return CliStatus::OperationalFailure;
+            }
         }
         "build" => {
             let (input_file, output_file, build_config) = match parse_build_args(&args) {
@@ -1489,7 +1847,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
     let usage = || {
         format!(
-            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]",
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]",
             args.first().map(String::as_str).unwrap_or("aero")
         )
     };
@@ -1532,13 +1890,13 @@ fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String
 
 fn build_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]"
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]"
     )
 }
 
 fn run_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]"
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]"
     )
 }
 
@@ -2002,7 +2360,10 @@ fn run_aero_program_with_artifacts(
 
             let mut run_command = Command::new(&exe_path);
             run_command.stdin(
-                if build_config.language_profile == LanguageProfile::ExactI32ByteInputV0 {
+                if matches!(
+                    build_config.language_profile,
+                    LanguageProfile::ExactI32ByteInputV0 | LanguageProfile::ExactI32ByteIoV0
+                ) {
                     Stdio::inherit()
                 } else {
                     // Preserve the accepted pre-R2 `Command::output` stdin behavior for
@@ -2142,6 +2503,9 @@ fn print_help(program_name: &str) {
     println!();
     println!("COMMANDS:");
     println!(
+        "    bootstrap-drive-b1c <emitter>        Capture and externally verify the bounded B1C LLVM stream [--llvm-bin <dir>] [--output-dir <new-absolute-dir>] [--opt-level <0|2>]"
+    );
+    println!(
         "    build <input.aero> -o <output.ll>    Compile Aero source to LLVM IR [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <name>]"
     );
     println!(
@@ -2174,7 +2538,7 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!(
-        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>  Select the compiler-enforced source profile"
+        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>  Select the compiler-enforced source profile"
     );
     println!();
     println!("EXECUTION BOUNDARIES:");
@@ -2189,6 +2553,10 @@ fn print_help(program_name: &str) {
         program_name
     );
     println!("    {} run hello.aero", program_name);
+    println!(
+        "    {} bootstrap-drive-b1c emitter --llvm-bin /opt/llvm-22.1.8/bin --output-dir /tmp/b1c-output --opt-level 2",
+        program_name
+    );
     println!("    {} check hello.aero", program_name);
     println!("    {} test", program_name);
     println!("    {} fmt hello.aero", program_name);
@@ -2330,6 +2698,26 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn b1c_tool_identity_accepts_exact_prefixed_linux_banners_only() {
+        assert!(b1c_banner_reports_exact_version(
+            "Debian clang version 22.1.8 (++20260701010101+abc123)",
+            "clang"
+        ));
+        assert!(b1c_banner_reports_exact_version(
+            "Debian LLVM version 22.1.8\n  Optimized build.",
+            "llvm-as"
+        ));
+        assert!(!b1c_banner_reports_exact_version(
+            "Debian clang version 22.1.9 (++20260701010101+abc123)",
+            "clang"
+        ));
+        assert!(!b1c_banner_reports_exact_version(
+            "Debian LLVM version 22.1.7",
+            "llvm-as"
+        ));
+    }
+
+    #[test]
     fn parse_build_args_accepts_rocm_target_and_gpu_arch() {
         let args = vec![
             "aero".to_string(),
@@ -2413,6 +2801,7 @@ mod tests {
                 "exact-i32-byte-input-v0",
                 LanguageProfile::ExactI32ByteInputV0,
             ),
+            ("exact-i32-byte-io-v0", LanguageProfile::ExactI32ByteIoV0),
         ] {
             let check = vec![
                 "aero".to_string(),
@@ -2473,6 +2862,10 @@ mod tests {
             language_profile: LanguageProfile::ExactI32ByteInputV0,
             ..BuildConfig::default()
         };
+        let exact_byte_io = BuildConfig {
+            language_profile: LanguageProfile::ExactI32ByteIoV0,
+            ..BuildConfig::default()
+        };
         let source = "fn main() -> int { return 0; }";
 
         for modules in [None, Some(b"module-frame".as_slice())] {
@@ -2483,21 +2876,28 @@ mod tests {
                 compilation_cache_key(source, &exact_record_result, modules);
             let exact_byte_buffer_key = compilation_cache_key(source, &exact_byte_buffer, modules);
             let exact_byte_input_key = compilation_cache_key(source, &exact_byte_input, modules);
+            let exact_byte_io_key = compilation_cache_key(source, &exact_byte_io, modules);
             assert_ne!(experimental_key, stable_key);
             assert_ne!(experimental_key, exact_array_key);
             assert_ne!(experimental_key, exact_record_result_key);
             assert_ne!(experimental_key, exact_byte_buffer_key);
             assert_ne!(experimental_key, exact_byte_input_key);
+            assert_ne!(experimental_key, exact_byte_io_key);
             assert_ne!(stable_key, exact_array_key);
             assert_ne!(stable_key, exact_record_result_key);
             assert_ne!(stable_key, exact_byte_buffer_key);
             assert_ne!(stable_key, exact_byte_input_key);
+            assert_ne!(stable_key, exact_byte_io_key);
             assert_ne!(exact_array_key, exact_record_result_key);
             assert_ne!(exact_array_key, exact_byte_buffer_key);
             assert_ne!(exact_array_key, exact_byte_input_key);
+            assert_ne!(exact_array_key, exact_byte_io_key);
             assert_ne!(exact_record_result_key, exact_byte_buffer_key);
             assert_ne!(exact_record_result_key, exact_byte_input_key);
+            assert_ne!(exact_record_result_key, exact_byte_io_key);
             assert_ne!(exact_byte_buffer_key, exact_byte_input_key);
+            assert_ne!(exact_byte_buffer_key, exact_byte_io_key);
+            assert_ne!(exact_byte_input_key, exact_byte_io_key);
         }
     }
 
@@ -2552,6 +2952,7 @@ mod tests {
             "exact-i32-record-result-v0",
             "exact-i32-byte-buffer-v0",
             "exact-i32-byte-input-v0",
+            "exact-i32-byte-io-v0",
         ] {
             for mut arguments in cases.clone() {
                 let profile_index = arguments

@@ -84,7 +84,7 @@ fn accepted_source_runtime_and_legacy_vec_boundaries_are_frozen_before_r1b() {
     for (relative, expected) in [
         (
             "src/compiler/runtime/aero_runtime.c",
-            "993af1665a4e93249035b149dfc643be",
+            "090c9c07a5fa0a4c374b43953af8306f",
         ),
         (
             "src/compiler/runtime/aero_test_runtime.c",

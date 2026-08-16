@@ -4,6 +4,7 @@ mod binding_annotation;
 mod builtin_carrier_contract;
 mod byte_buffer_source_contract;
 mod byte_input_source_contract;
+mod byte_output_source_contract;
 mod closure_contract;
 mod code_generator;
 mod compatibility;
@@ -249,7 +250,9 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let direct_modules = direct_modules_start.elapsed();
 
     let semantics_start = Instant::now();
-    let mut semantic_analyzer = if language_profile.enables_byte_input_source() {
+    let mut semantic_analyzer = if language_profile.enables_byte_output_source() {
+        SemanticAnalyzer::new_with_byte_io_source()
+    } else if language_profile.enables_byte_input_source() {
         SemanticAnalyzer::new_with_byte_input_source()
     } else if language_profile.enables_byte_buffer_source() {
         SemanticAnalyzer::new_with_byte_buffer_source()
@@ -263,7 +266,9 @@ pub fn prepare_checked_program_with_module_observer_and_profile(
     let semantics = semantics_start.elapsed();
 
     let checked_ir_start = Instant::now();
-    let mut ir_generator = if language_profile.enables_byte_input_source() {
+    let mut ir_generator = if language_profile.enables_byte_output_source() {
+        IrGenerator::new_with_byte_io_source()
+    } else if language_profile.enables_byte_input_source() {
         IrGenerator::new_with_byte_input_source()
     } else if language_profile.enables_byte_buffer_source() {
         IrGenerator::new_with_byte_buffer_source()

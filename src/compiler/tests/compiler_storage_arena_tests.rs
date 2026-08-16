@@ -766,7 +766,7 @@ fn accepted_r2_runtime_ir_verifier_and_profile_remain_frozen_before_d1() {
     for (relative, expected) in [
         (
             "../../src/compiler/runtime/aero_runtime.c",
-            "993af1665a4e93249035b149dfc643be",
+            "090c9c07a5fa0a4c374b43953af8306f",
         ),
         (
             "../../src/compiler/runtime/aero_test_runtime.c",
@@ -774,11 +774,11 @@ fn accepted_r2_runtime_ir_verifier_and_profile_remain_frozen_before_d1() {
         ),
         (
             "../../src/compiler/src/ir.rs",
-            "e8b0f71c86d3345aa0c6756f609b0f1d",
+            "2b8288bcbb2825586a0e406f37fbe12d",
         ),
         (
             "../../src/compiler/src/ir_verifier.rs",
-            "ecd6759c4ca5c96e0d3bdad4dc39c5a2",
+            "d5fae602214665b724c48c9ae8090a06",
         ),
     ] {
         assert_eq!(
