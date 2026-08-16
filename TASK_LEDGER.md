@@ -158,7 +158,10 @@
   `src/compiler/tests/stdin_byte_input_profile_tests.rs`,
   `src/compiler/tests/source_byte_buffer_profile_tests.rs`, and
   `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs` only for
-  exact authority digests/exhaustiveness; `src/compiler/tests/version_claim_contract_tests.rs`
+  exact authority digests/exhaustiveness;
+  `src/compiler/tests/compiler_storage_arena_tests.rs` only for the same exact
+  runtime/IR/verifier authority digests exposed by the cumulative predecessor
+  ring; `src/compiler/tests/version_claim_contract_tests.rs`
   only if exact selector/help truth requires it; and
   `.github/workflows/rust.yml` for final Linux/Windows replay. No claim,
   benchmark, release, package, unrelated example/test, or evidence-bundle file
