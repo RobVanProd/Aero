@@ -149,10 +149,10 @@
   `fn score()->int{return 1+2*3-4/2;}`. Its accepted F1/M1A/M1B observations remain
   exact, including 104 serialized words and M1B checksum `355067`. B1A attempts
   once, verifies five instructions and four results, stores four verifier-result
-  values, evaluates root `5`, reports success, and returns silent exit `91` only
-  when its independently frozen checksum also agrees. The red-first test must
-  compute and pin that checksum before product implementation; the ledger may be
-  amended only in that tests-only checkpoint, not after implementation begins.
+  values, evaluates root `5`, and produces independently calculated verification
+  checksum `592819`. It reports success and returns silent exit `91` only when all
+  of those observations agree. The red-first test must recompute and pin that
+  checksum before product implementation; it may not derive it from product output.
 - Independent evidence and mutation matrix: the new Rust test owns a standalone
   serialized-format decoder/verifier and explicit valid module fixtures; it may
   reuse no Aero verifier decision and no Rust production verifier result as an
