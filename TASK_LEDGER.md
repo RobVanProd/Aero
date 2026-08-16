@@ -112,9 +112,13 @@
   `aero bootstrap-drive-b1c <emitter-executable> --llvm-bin <directory> --output-dir <new-directory> --opt-level <0|2>`.
   Both executable and LLVM directory are explicit; no PATH fallback is allowed.
   The output directory must be an absent absolute path and is created by the
-  driver. The driver runs the emitter with null stdin, captures stdout/stderr,
-  requires exit 91, empty stderr, exactly 144 bytes, and the frozen MD5, then
-  writes `module.ll` inside its new directory. It requires exact LLVM/Clang
+  driver. The accepted B1B/B1C product consumes the exact 34-byte canonical
+  input `fn score()->int{return 1+2*3-4/2;}` through R2, so the driver writes
+  exactly those frozen ASCII bytes to the emitter's stdin and then closes it.
+  The driver does not parse, normalize, infer from, parameterize, or substitute
+  that input; any broader source/bundle interface belongs to H1. It captures
+  stdout/stderr, requires exit 91, empty stderr, exactly 144 bytes, and the
+  frozen MD5, then writes `module.ll` inside its new directory. It requires exact LLVM/Clang
   22.1.8 identities, verifies via `llvm-as`, lowers the module to an object with
   the requested O0/O2 level, compiles one fixed C observer, links, and executes
   the probe; the probe must observe `aero_b1_entry()==5` and exit 91. Commands
@@ -184,7 +188,10 @@
   Aero, emits LLVM, accepts partial/mixed streams, or publishes artifacts before
   all checks; exact captured bytes differ by host/O0/O2; LLVM 22.1.8 cannot
   verify/lower/link the module; cleanup can escape the newly created output
-  directory; or protected evidence is not reproducible. B1C adds no general
+  directory; the host driver supplies any input other than the exact frozen
+  34-byte canonical source or tests the transaction with a substitute emitter
+  instead of the tracked Aero product; or protected evidence is not
+  reproducible. B1C adds no general
   stdout/text/file API, compiler process spawning, general driver/backend,
   source-name ABI, multi-function/block/control-flow/memory lowering, Rust
   front-end replacement, bootstrap convergence, self-hosting, stability,
