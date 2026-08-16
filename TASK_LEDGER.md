@@ -1,5 +1,168 @@
 # Aero Task Ledger
 
+## CAP-039-R2-STDIN-BYTE-INPUT - deterministic whole-stream binary stdin
+
+- Date/task/status: 2026-08-15, `CAP-039-R2-STDIN-BYTE-INPUT`, ledger-first
+  authorization from accepted R1 merge
+  `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
+  `cd03dde4fb14f66d65a193c3600b56e1fd9441c9`, on
+  `agent/r2-whole-stream-input` in D:-resident worktree
+  `D:\Aero-worktrees\r2-whole-stream-input`. R1 candidate
+  `0b30e1f923b7f349011d8e8f5b9750146b305274` has the same tree. Candidate and
+  accepted-head CI/Rust CI/CodeQL/Linux-Windows evidence are terminal-success;
+  accepted-head runs are `31915409139`, `31915409157`, `31915409048`, and
+  `31915409130` respectively.
+- Observed behavior and first honest failure: accepted R1 provides owned
+  runtime-sized bytes but no input symbol, source intrinsic, checked instruction,
+  or selected profile. `stdin_read_byte()` is an unresolved ordinary function,
+  emitted application LLVM has no input declaration, and `aero run` uses
+  `Command::output`, whose compiled child receives closed/null stdin rather than
+  the runner's stream. The first regression is therefore the absent
+  `exact-i32-byte-input-v0` selector and checked/runtime identity, not a parser,
+  ByteBuffer, path, or text-decoding failure.
+- Hypothesis and two-authority boundary: R2 can close binary whole-stream input
+  without file/path semantics, new source syntax, buffer ABI transport, or a
+  third compiler phase. Source/profile semantics plus independent checked-IR
+  production reserve one zero-argument intrinsic. Checked schema/verifier plus
+  backend own one scalar runtime call. The C runtime ABI and CPU driver stdin
+  inheritance are execution plumbing outside those two semantic compiler
+  authorities. Aero source, not Rust, owns the EOF loop and pushes each byte
+  through accepted R1 operations.
+- Frozen profile/source identity: add exactly
+  `exact-i32-byte-input-v0`, composing but not changing accepted
+  `exact-i32-byte-buffer-v0`, and reserve exactly
+  `stdin_read_byte() -> Result<int, int>`. The intrinsic is zero-argument,
+  direct, nongeneric, and source-function-only. Its Result requires the accepted
+  explicit typed context; inferred/discarded/first-class/overloaded/user-defined
+  or argument-bearing uses fail before checked IR. Earlier profiles continue to
+  treat the name as an ordinary unresolved function and retain exact bytes and
+  diagnostics.
+- Frozen runtime/error contract: production C exports exactly
+  `int32_t aero_stdin_read_byte(void)`. It returns `0..=255` for one consumed
+  byte, `-1` for clean sticky EOF, and `-2` for sticky I/O or Windows binary-mode
+  setup failure. It consumes no byte on EOF/error and exposes no pointer,
+  buffer, length, capacity, or uninitialized storage. Windows stdin is switched
+  to binary mode before reading; POSIX preserves the byte stream unchanged.
+  Source maps nonnegative raw values to `Ok(byte)` and negative raw values to
+  `Err(0 - raw)`: EOF `Err(1)`, I/O `Err(2)`, and a mock-only corrupt `-3`
+  control to `Err(3)`. No failure becomes EOF, byte success, fallback input, or
+  convenient `Int`.
+- Frozen checked/backend contract: add exactly
+  `Inst::CheckedStdinReadByte { result }`. It defines one logical `Int`, has no
+  operands/resource/place identity, and mutates no ByteBuffer. Existing SSA
+  definition/type verification owns uniqueness. After complete checked
+  verification, only the new profile may lower it to exactly
+  `call i32 @aero_stdin_read_byte()`; the declaration is conditional on use.
+  Raw generic calls, historical Vec instructions, backend spelling, or
+  unchecked IR cannot substitute for the dedicated instruction.
+- Frozen driver/product contract: `check`, compile, cache, and build never read
+  stdin. CPU `aero run` inherits its own stdin into the compiled child while
+  retaining captured stdout/stderr, exact exit mirroring, and isolated artifact
+  cleanup. ROCm/CUDA reject the new profile before object/link/execution
+  artifacts. The tracked Aero product creates one mutable ByteBuffer, repeatedly
+  reads one Result, pushes every Ok byte, stops only at EOF, surfaces other
+  failures, validates initialized content/length, and exits 91 silently. The
+  absence of an external length argument deliberately removes an invalid-length
+  channel; accepted R1 remains the only initialized-length/capacity authority.
+- Red-first and acceptance evidence: before production, add a characterization
+  preserving all five accepted profile/source products, R1 allocator/resource/
+  source behavior, diagnostics, LLVM/native results, and runtime/IR authority
+  bytes, plus one selector/intrinsic/checked/runtime structural red. Final tests
+  cover exact binary bytes NUL/CR/LF/`0x1a`/`0xff`, repeated EOF, closed stdin,
+  empty/short/growth/large streams, partial-prefix injected failure, mock corrupt
+  sentinel, exact Result mapping, cleanup/zero leaks, verifier corruption,
+  wrong-profile/backend bypass, source/file parity, CLI stdin forwarding,
+  accelerator artifact hygiene, deterministic LLVM, LLVM 22, O0/O2, Linux and
+  Windows. Focused rings, formatting, correctness Clippy, `git diff --check`,
+  and root `./tools/test.sh` must pass from D:-redirected paths.
+- Exact allowed behavioral files: new
+  `src/compiler/src/byte_input_source_contract.rs`,
+  `src/compiler/runtime/aero_runtime.c`, `src/compiler/src/lib.rs`,
+  `src/compiler/src/semantic_analyzer.rs`,
+  `src/compiler/src/language_profile.rs`, `src/compiler/src/ir.rs`,
+  `src/compiler/src/ir_generator.rs`, `src/compiler/src/ir_verifier.rs`,
+  `src/compiler/src/code_generator.rs`, and `src/compiler/src/main.rs`.
+  Any other production file is a stop unless it needs only an explicit
+  observation-neutral exhaustiveness arm for the new checked instruction and is
+  added to this ledger before mutation. Parser, AST, types, resolved-profile
+  witness schema, R1 source contract, deterministic allocator test runtime,
+  manifests, lockfile, optimizer semantics, ROCm, and CUDA remain frozen.
+- Exact allowed evidence/truth files: `TASK_LEDGER.md`, new
+  `BYTE_INPUT_READINESS.md`, `SELF_HOSTING_ROADMAP.md`,
+  `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`, existing
+  `src/compiler/tests/source_byte_buffer_profile_tests.rs` only for the new
+  exact accepted runtime/IR/verifier digests, existing
+  `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs` only for
+  the same exact production-runtime digest, new
+  `src/compiler/tests/stdin_byte_input_profile_tests.rs`, one new tracked product
+  beneath `examples/stdin_byte_input_v0/`, and `.github/workflows/rust.yml` for
+  final Linux/Windows replay. No other test, example, document, workflow,
+  runtime, manifest, package, claim, benchmark, release, or accelerator file may
+  change.
+- Risks and mandatory stops: stop if the runtime cannot preserve identical
+  binary bytes/sentinels on Linux and Windows; public run forwarding changes an
+  earlier program; source admission needs inference or a second AST walk;
+  checked/backend runtime calls can bypass verification; EOF/error can expose
+  an uninitialized byte; input must mutate ByteBuffer behind R1 verification;
+  any accepted R1 allocator/resource/profile contract changes; function/path/
+  text semantics are required; a third compiler phase or unlisted production
+  authority is needed; or a failure can silently become success/EOF/Int. R2
+  adds no file/path input, strings, general streams/collections, compiler names,
+  AST arenas, modules, frontend replacement, accelerator execution, safety,
+  stability, performance, release, or self-hosting claim.
+- Storage rule: every task-created worktree, Cargo target, temp workspace,
+  generated input/source/LLVM/object/executable, native harness, log, and PR
+  body remains on D:, respectively
+  `D:\Aero-worktrees\r2-whole-stream-input`, `D:\Aero-build-targets\r2`, and
+  `D:\Aero-temp\r2`. Installed C: tools are read-only dependencies; no task
+  cache or artifact is intentionally written there.
+
+### CAP-039/R2 locally green implementation checkpoint
+
+- Implementation summary: the new selected profile composes R1C and reserves
+  one direct zero-argument stdin intrinsic. Semantic analysis and independent
+  checked admission require its direct explicitly typed `Result<int, int>`
+  binding context and reject inferred, discarded, nested-call, generic,
+  argument-bearing, and source-definition substitutions before checked IR.
+  One operand-free checked scalar instruction is verified as logical `Int` and
+  lowers only under the new profile to a conditional runtime declaration/call.
+  Production C preserves binary bytes and sticky EOF/I/O, and the CPU driver
+  forwards stdin only for the R2 selector while retaining closed stdin for all
+  earlier profiles.
+- Product/evidence summary: the tracked Aero program owns the EOF loop and R1
+  ByteBuffer growth. The focused target passes 8/8, covering source/file parity,
+  deterministic LLVM, exact NUL/CR/LF/`0x1a`/`0xff`, sticky EOF and closed-stdin
+  failure, empty/short/4,097-byte streams, O0/O2, LLVM 22, public CLI forwarding,
+  and accelerator artifact hygiene. A mock-injected prefix then `-2` and a
+  zero-prefix corrupt `-3` prove exact Result mapping, allocation/deallocation
+  counters, no leaks, and no size mismatch. Three private contract tests prove
+  mode-off rejection, one logical-Int checked result, duplicate/nonidentifier
+  SSA rejection, and wrong-profile backend rejection. The accepted R1 source
+  product target remains green after updating only the authorized exact
+  runtime/IR/verifier authority digests.
+- Commands/results so far: formatting, all-target/all-feature check, focused R2
+  and R1C targets, private R2 unit tests, required LLVM verification/native
+  fixtures, and correctness-denying Clippy pass from the D:-resident worktree,
+  target, and temp roots. `git diff --check` passes. The corrected complete
+  repository-root gate passes formatting, correctness Clippy, 309/309 library
+  tests, 35/35 binary tests, every integration/native/system target, and doc
+  tests. Final scope/identity audit, commit, protected exact-head workflows,
+  merge, and post-merge replay remain pending; this is not public acceptance.
+- First root-gate correction: the complete gate passed formatting,
+  correctness Clippy, 309/309 library tests, 35/35 binary tests, and every
+  integration target through the R1B checked-resource suite, where its frozen
+  production-runtime digest still named the pre-R2 C authority. The runtime
+  bytes exactly match the new R2 characterization and R1C compatibility
+  digest `993af1665a4e93249035b149dfc643be`; the ledger now authorizes that one
+  observation-only historical fingerprint update. No assertion, behavior, or
+  test topology was removed or weakened. The fresh full gate then completed
+  successfully on the corrected content with the exact counts recorded above.
+- Remaining exclusions and risk: file/path/text input, general streams,
+  general collections, compiler storage/AST, module graphs, accelerator
+  execution, stable ABI, release, performance, safety, and self-hosting remain
+  absent. Cross-platform workflow declarations replay the binary product on
+  Linux and Windows, but they are evidence only after the exact public head runs.
+
 ## CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER - bounded source owner and selected profile
 
 - Date/task/status: 2026-08-15,

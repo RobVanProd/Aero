@@ -1,0 +1,51 @@
+fn result_value(result: Result<int, int>) -> int {
+    return match result {
+        Ok(value) => value,
+        Err(code) => 0 - code,
+    };
+}
+
+fn main() -> int {
+    let mut bytes: ByteBuffer = bytes_new();
+    let mut reading: bool = 1 < 2;
+    let mut failure: int = 0;
+    while reading {
+        let read: Result<int, int> = stdin_read_byte();
+        let value: int = result_value(read);
+        if value < 0 {
+            if value == -1 {
+                reading = 1 > 2;
+            } else {
+                failure = 0 - value;
+                reading = 1 > 2;
+            }
+        } else {
+            let pushed: Result<int, int> = bytes_push(&mut bytes, value);
+            let push_status: int = result_value(pushed);
+            if push_status < 0 {
+                failure = 0 - push_status;
+                reading = 1 > 2;
+            }
+        }
+    }
+
+    if failure == 0
+        && bytes_len(&bytes) == 9
+        && bytes_capacity(&bytes) == 16 {
+        let first: Result<int, int> = bytes_get(&bytes, 0);
+        let cr: Result<int, int> = bytes_get(&bytes, 1);
+        let lf: Result<int, int> = bytes_get(&bytes, 2);
+        let substitute: Result<int, int> = bytes_get(&bytes, 3);
+        let high: Result<int, int> = bytes_get(&bytes, 4);
+        let last: Result<int, int> = bytes_get(&bytes, 8);
+        if result_value(first) == 0
+            && result_value(cr) == 13
+            && result_value(lf) == 10
+            && result_value(substitute) == 26
+            && result_value(high) == 255
+            && result_value(last) == 4 {
+            return 91;
+        }
+    }
+    return failure + 1;
+}

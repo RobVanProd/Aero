@@ -13,6 +13,11 @@ use crate::byte_buffer_source_contract::{
     classify_byte_buffer_intrinsic_call, contains_byte_buffer_annotation,
     is_byte_buffer_annotation, is_reserved_byte_buffer_intrinsic, result_context_diagnostic,
 };
+use crate::byte_input_source_contract::{
+    STDIN_READ_BYTE, classify_byte_input_intrinsic_call, is_direct_byte_input_result_initializer,
+    is_reserved_byte_input_intrinsic,
+    result_context_diagnostic as byte_input_result_context_diagnostic,
+};
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
@@ -821,6 +826,8 @@ pub struct SemanticAnalyzer {
     /// Function trait bounds: function name -> [(type_param, [trait_name])]
     function_bounds: HashMap<String, Vec<(String, Vec<String>)>>,
     byte_buffer_source_enabled: bool,
+    byte_input_source_enabled: bool,
+    byte_input_result_initializer_active: bool,
 }
 
 impl SemanticAnalyzer {
@@ -851,12 +858,20 @@ impl SemanticAnalyzer {
             trait_impls: HashMap::new(),
             function_bounds: HashMap::new(),
             byte_buffer_source_enabled: false,
+            byte_input_source_enabled: false,
+            byte_input_result_initializer_active: false,
         }
     }
 
     pub(crate) fn new_with_byte_buffer_source() -> Self {
         let mut analyzer = Self::new();
         analyzer.byte_buffer_source_enabled = true;
+        analyzer
+    }
+
+    pub(crate) fn new_with_byte_input_source() -> Self {
+        let mut analyzer = Self::new_with_byte_buffer_source();
+        analyzer.byte_input_source_enabled = true;
         analyzer
     }
 
@@ -1023,6 +1038,37 @@ impl SemanticAnalyzer {
             ByteBufferIntrinsic::Length | ByteBufferIntrinsic::Capacity => Ty::Int,
             ByteBufferIntrinsic::New => unreachable!("constructor handled above"),
         }))
+    }
+
+    fn infer_byte_input_intrinsic(
+        &self,
+        name: &str,
+        arguments: &[Expression],
+        use_context: FunctionCallUse,
+    ) -> Result<Option<Ty>, String> {
+        if !self.byte_input_source_enabled || !classify_byte_input_intrinsic_call(name, arguments)?
+        {
+            return Ok(None);
+        }
+        if !self.scope_manager.is_in_function()
+            || !self.type_param_scopes.is_empty()
+            || self.inside_impl
+        {
+            return Err(format!(
+                "byte-input intrinsic `{STDIN_READ_BYTE}` requires a direct nongeneric source function body"
+            ));
+        }
+        if use_context == FunctionCallUse::Discarded {
+            return Err(byte_input_result_context_diagnostic());
+        }
+        if !self.byte_input_result_initializer_active {
+            return Err(byte_input_result_context_diagnostic());
+        }
+        let result = private_result_int_int_name();
+        self.enum_registry
+            .owned_place_logical_type(&result)
+            .map_err(|_| byte_input_result_context_diagnostic())?;
+        Ok(Some(Ty::Enum(result)))
     }
 
     fn analyze_byte_buffer_binding(
@@ -1421,6 +1467,11 @@ impl SemanticAnalyzer {
                         ));
                     }
                 }
+                if self.byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
+                    return Err(format!(
+                        "byte-input intrinsic name `{name}` is reserved by exact-i32-byte-input-v0"
+                    ));
+                }
                 let reference_transport = match classify_reference_function_with_enums(
                     name,
                     parameters,
@@ -1712,6 +1763,10 @@ impl SemanticAnalyzer {
                 self.check_expression_initialization(right)?;
             }
             Expression::FunctionCall { name, arguments } => {
+                if self.byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
+                    classify_byte_input_intrinsic_call(name, arguments)?;
+                    return Ok(());
+                }
                 if self.byte_buffer_source_enabled && is_reserved_byte_buffer_intrinsic(name) {
                     let call = classify_byte_buffer_intrinsic_call(name, arguments)?
                         .expect("reserved byte-buffer intrinsic is classified");
@@ -2150,6 +2205,10 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FunctionCall { name, arguments } => {
+                if self.byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
+                    classify_byte_input_intrinsic_call(name, arguments)?;
+                    return Ok(());
+                }
                 if self.byte_buffer_source_enabled && is_reserved_byte_buffer_intrinsic(name) {
                     let call = classify_byte_buffer_intrinsic_call(name, arguments)?
                         .expect("reserved byte-buffer intrinsic is classified");
@@ -2558,6 +2617,9 @@ impl SemanticAnalyzer {
         array_types: &mut ArrayInferenceCache,
         use_context: FunctionCallUse,
     ) -> Result<Ty, String> {
+        if let Some(result) = self.infer_byte_input_intrinsic(name, arguments, use_context)? {
+            return Ok(result);
+        }
         if let Some(result) = self.infer_byte_buffer_intrinsic(name, arguments, array_types)? {
             return Ok(result);
         }
@@ -3054,6 +3116,19 @@ impl SemanticAnalyzer {
                     ));
                 }
 
+                let byte_input_result_initializer = value.as_ref().is_some_and(|value| {
+                    is_direct_byte_input_result_initializer(value, type_annotation.as_ref())
+                });
+                if self.byte_input_source_enabled
+                    && value.as_ref().is_some_and(|value| {
+                        matches!(value, Expression::FunctionCall { name, arguments }
+                            if is_reserved_byte_input_intrinsic(name) && arguments.is_empty())
+                    })
+                    && !byte_input_result_initializer
+                {
+                    return Err(byte_input_result_context_diagnostic());
+                }
+
                 if self.byte_buffer_source_enabled {
                     let byte_buffer_initializer = value.as_ref().is_some_and(|value| match value {
                         Expression::FunctionCall { name, .. } => name == BYTES_NEW,
@@ -3075,7 +3150,6 @@ impl SemanticAnalyzer {
                         );
                     }
                 }
-
                 let disposition = type_annotation.as_ref().map_or(
                     BindingAnnotationDisposition::PreservedQuarantinedTopology,
                     |annotation| classify_binding_annotation(annotation, value.is_some()),
@@ -3093,7 +3167,11 @@ impl SemanticAnalyzer {
 
                 let inferred_type = if let Some(val) = value {
                     self.check_expression_initialization(val)?;
-                    let inferred = self.require_value(val)?;
+                    let previous_byte_input_context = self.byte_input_result_initializer_active;
+                    self.byte_input_result_initializer_active = byte_input_result_initializer;
+                    let inferred = self.require_value(val);
+                    self.byte_input_result_initializer_active = previous_byte_input_context;
+                    let inferred = inferred?;
                     if self.type_param_scopes.is_empty() && !self.inside_impl {
                         if let Some(contract) = type_annotation.as_ref().and_then(|annotation| {
                             self.struct_registry
@@ -3447,6 +3525,11 @@ impl SemanticAnalyzer {
                             "function `{name}` cannot transport ByteBuffer in a parameter or result"
                         ));
                     }
+                }
+                if self.byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
+                    return Err(format!(
+                        "byte-input intrinsic name `{name}` is reserved by exact-i32-byte-input-v0"
+                    ));
                 }
                 // Phase 5: Register generic type parameters in scope
                 if !type_params.is_empty() {
