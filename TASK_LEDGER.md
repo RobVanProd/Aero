@@ -66,7 +66,9 @@
   every logical table, and compares expected name/token/node/root counts plus a
   deterministic checksum. Starting at 17, the checksum updates as
   `(checksum * 31 + word) % 1000003` over decoded name, token, scope, and node
-  words in table order with frozen table separators and final counts/root. The
+  words in table order. It then folds separators 991, 992, 993, and 994 after
+  those respective tables, followed by name count, token count, node count,
+  and root ID. The
   tracked `main` supplies the independent oracle values for one canonical
   fixture and returns 91 only after exact agreement. Tests generate additional
   mains from the unchanged kernel using a separate Rust oracle, and a wrong
