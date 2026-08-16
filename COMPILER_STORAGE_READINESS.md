@@ -1,15 +1,16 @@
 # Deterministic Compiler Storage Readiness
 
-Status: CAP-040/D1 locally green implementation candidate from accepted R2
-merge `5c791393be5a251c187274d591174f7667866886`, tree
-`06ee7ada90315432ce26d706f348685e2ee5458f`, 2026-08-15.
+Status: CAP-040/D1 accepted as protected merge
+`104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
+`abd136d0cbc9066714148e0919010a697ccd350e`, 2026-08-15.
 
-The current local implementation commit is
-`7b4226f643dfb5107745186b90ce0608d13e54d2`. The focused D1 target passes
-3/3 tests from D:-resident worktree, build-target, and temporary roots. The
-complete root gate passes formatting, correctness Clippy, 309 library tests,
-35 binary tests, every integration/native/system target, and doc tests.
-Protected candidate/merge workflows remain required before D1 is accepted.
+Reviewed candidate `f712800a23b622fb589d6af089b4c35b529faf90` and the protected merge
+share the same tree. The focused D1 target passes 3/3 tests from D:-resident
+worktree, build-target, and temporary roots. The complete root gate passes
+formatting, correctness Clippy, 309 library tests, 35 binary tests, every
+integration/native/system target, and doc tests. Every candidate check and
+accepted-head CI `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`,
+and evidence `31920949972` are terminal-success.
 
 ## Decision
 
@@ -107,8 +108,7 @@ failure handling, and zero live allocations for the canonical case.
 LLVM is deterministic and externally verified with LLVM 22. Native O0/O2 and
 the public CPU runner return 91 with no application output. ROCm and CUDA routes
 reject before artifacts. Linux and Windows workflow steps independently replay
-the tracked product. The complete local root gate is green; protected remote
-replay is the remaining acceptance boundary.
+the tracked product. The complete local and protected gates are green.
 
 ## Explicit exclusions
 
@@ -121,8 +121,11 @@ self-hosting.
 
 ## Next dependency
 
-After protected D1 acceptance, F1 is the next direct self-hosting gate: an
-Aero-authored lexer/parser must consume accepted R2 bytes and produce accepted
-D1-style tokens and flat AST records under a separately frozen grammar,
-location, diagnostic, and differential-oracle contract. D1's framing and
-identifier-only product are evidence scaffolding, not that frontend.
+CAP-041/F1A is now the locally root-green direct successor. It consumes
+accepted R2 bytes and emits canonical name spans plus located D1-style token
+records; see
+[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). It remains a lexer
+only. After protected F1A acceptance, F1B must consume those records and emit
+flat AST nodes under a separately frozen grammar, precedence, location,
+diagnostic, and differential-oracle contract. D1's framing remains evidence
+scaffolding, not source syntax.

@@ -1,5 +1,193 @@
 # Aero Task Ledger
 
+## CAP-041-F1A-RUNTIME-ASCII-LEXER - runtime input to owned located tokens
+
+- Date/task/status: 2026-08-15, `CAP-041-F1A-RUNTIME-ASCII-LEXER`, locally
+  root-green candidate from accepted CAP-040/D1 merge
+  `104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
+  `abd136d0cbc9066714148e0919010a697ccd350e`, on
+  `agent/f1-aero-frontend` in D:-resident worktree
+  `D:\Aero-worktrees\f1-aero-frontend`. Its ordered parents are accepted R2
+  merge `5c791393be5a251c187274d591174f7667866886` and reviewed D1 candidate
+  `f712800a23b622fb589d6af089b4c35b529faf90`. Candidate D1 CI
+  `31920613823`/`31920615241`, Rust CI `31920615194`, CodeQL
+  `31920614390`, and evidence `31920615135`, plus accepted-head CI
+  `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`, and evidence
+  `31920949972`, are terminal-success.
+- Observed behavior and first honest failure: accepted R2 can fill an Aero-owned
+  ByteBuffer from binary stdin and accepted D1 can own canonical name spans and
+  serialized token records, but no tracked Aero program tokenizes runtime source
+  bytes. K1 reads a source-embedded `[int; 64]`; D1 reads length-prefixed
+  identifier evidence rather than Aero source. The first intentional red is the
+  absent runtime lexer product and must report exactly
+  `CAP-041 intentional product red: tracked runtime ASCII lexer is absent`.
+  A new compiler token, parser rule, profile, runtime symbol, or Rust lexer
+  diagnostic is the wrong first failure.
+- Hypothesis and F1 boundary: one product-only Aero program under accepted
+  `exact-i32-byte-input-v0` can compose the unchanged R2 input loop with the
+  unchanged D1 word/name/token representation. CAP-041 is F1A: runtime lexing
+  only. It does not parse, build AST nodes, replace the Rust lexer, close F1, or
+  claim self-hosting. The separately authorized F1B gate must consume these
+  records into the D1 flat AST under a frozen grammar before F1 can advance.
+- Frozen encoding, size, and ownership contract: input is raw 7-bit ASCII bytes
+  from stdin, at most 8,192 bytes. Byte offsets are zero-based; lines and columns
+  are one-based; LF advances the line and resets the next column to 1, while CR,
+  tab, and space each advance one column. The input ByteBuffer remains live until
+  all spans are validated. Separate direct owners hold canonical name metadata
+  and token records. No owner, reference, pointer, slice, or buffer escapes or is
+  transported by value. The lexer permits at most 1,024 completed non-EOF tokens,
+  1,024 unique names, and 63 bytes per identifier. Capacity failure is explicit,
+  never truncation or success.
+- Frozen token/name contract: token kinds are exactly K1's accepted vocabulary:
+  0 EOF, 1 identifier, 2 decimal integer; 3 `fn`, 4 `let`, 5 `mut`, 6 `return`,
+  7 `if`, 8 `else`, 9 `while`; 10 `(`, 11 `)`, 12 `{`, 13 `}`, 14 `[`, 15 `]`,
+  16 `,`, 17 `:`, 18 `;`, 19 `.`, 20 `+`, 21 `-`, 22 `*`, 23 `/`, 24 `%`,
+  25 `=`, 26 `==`, 27 `!`, 28 `!=`, 29 `<`, 30 `<=`, 31 `>`, 32 `>=`,
+  33 `&&`, 34 `||`, 35 `->`, and 36 `=>`. Identifiers are
+  `[A-Za-z_][A-Za-z0-9_]*`; decimal integers are `[0-9]+`. The listed
+  two-character operators and both comment openers use maximal munch. Spaces,
+  tabs, CR, LF, `//` comments through LF/CR/EOF, and nonnested `/* ... */`
+  comments are skipped. Strings, characters, floats, Unicode, nested block
+  comments, macros, and every unlisted byte/token family remain unsupported.
+  Keywords do not enter the name table. Each ordinary identifier receives the
+  deterministic 1-based ID of its first exact byte span; `0` means no NameId.
+- Frozen record/location contract: logical nonnegative words use D1's explicit
+  four-byte little-endian encoding and checked reconstruction. Each name record
+  is `(start, length)`. Each token record is
+  `(kind, start, length, line, column, name_id)`. Successful output appends one
+  EOF record `(0, input_length, 0, final_line, final_column, 0)` and includes it
+  in the token count. Errors preserve completed names and tokens, omit EOF, and
+  report the first source-order failure. Every record width, span, kind, name
+  identity, keyword NameId, location, EOF, and count is validated in Aero before
+  success.
+- Frozen status and precedence contract: status 0 is success; 1 is stdin I/O or
+  mock corruption; 2 is input length beyond 8,192 at offset 8,192; 3 is a byte
+  outside `0..=127`; 4 is an unsupported ASCII byte or unterminated block
+  comment; 5 is an identifier longer than 63 bytes; 6 is the 1,025th non-EOF
+  token; 7 is the 1,025th unique name; 8 is allocation/reallocation failure;
+  and 9 is internal read/record corruption. For source failures the tuple is the
+  exact `(status, zero-based byte offset, one-based line, one-based column)` of
+  the offending byte, token start, or opening `/*`. Success uses
+  `(-1, 0, 0)` for offset/line/column. The first active byte failure wins; an
+  allocation or checked-read failure at an otherwise valid step stops
+  immediately and cannot become a token, EOF, or later source diagnostic.
+- Frozen checksum and product contract: the tracked function accepts expected
+  status/location/name-count/token-count/checksum scalars, reads stdin, constructs
+  and validates all owners, and returns 91 only on exact agreement. Starting at
+  17, checksum updates as `(checksum * 31 + word) % 1000003` over input bytes,
+  separator 990, decoded name words, separator 991, decoded token words,
+  separator 992, then status, encoded error offset (`0` for none, otherwise
+  offset plus 1), error line, error column, name count, and token count. The
+  tracked `main` freezes one multiline canonical specimen. Tests may replace
+  only `main`; they may not synthesize or duplicate the Aero lexer.
+- Independent and differential oracle: the new Rust test owns a separately
+  implemented byte scanner and full record/checksum model without calling the
+  Aero product. It must compare the supported overlap against the accepted Rust
+  strict lexer for kind, span-derived spelling, line, and column, but Rust
+  production tokens may not supply the expected F1A model. Exact vectors cover
+  empty input, every keyword/operator/delimiter, identifiers and repeated names,
+  decimal integers, whitespace, CR/LF locations, line and block comments,
+  maximal munch, inactive absence of EOF on errors, non-ASCII, unsupported ASCII,
+  unterminated comments, 63/64-byte identifiers, token/name/input bounds, and
+  deterministic generated valid streams. Representative oracle fixtures must
+  execute through the unchanged Aero product; self-checksum alone is forbidden.
+- Red-first and acceptance gates: after this ledger-only commit, add only the
+  new focused test. Its sole initial failure must be the exact absent-product
+  message while the independent oracle, accepted K1/R1/R2/D1 characterization,
+  and D:-path contract pass. Add the product and Linux/Windows workflow replay
+  only after preserving that red commit. Final evidence requires source/file
+  check parity; two byte-identical checked LLVM builds; LLVM 22 verification;
+  O0/O2 and public CPU-runner silent exit 91; exact allocator-event and zero-leak
+  behavior including injected allocation/reallocation failures; wrong-oracle
+  and source-corruption controls; ordinary 1 MiB Windows-stack execution;
+  accelerator rejection before artifacts; focused K1/R1/R2/D1 compatibility;
+  formatting; correctness Clippy; `git diff --check`; and root
+  `./tools/test.sh`. Protected candidate and accepted-head CI, stable/nightly,
+  Windows LLVM 22, CodeQL, and Linux/Windows product evidence are mandatory.
+- Exact allowed files: this ledger; new `AERO_FRONTEND_READINESS.md`;
+  `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
+  `COMPILER_STORAGE_READINESS.md`; new
+  `src/compiler/tests/runtime_ascii_frontend_lexer_tests.rs`; new
+  `examples/aero_frontend_v0/runtime_ascii_lexer.aero`; and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the
+  red commit changes only the new test. Every compiler production/runtime file,
+  existing test/example, profile, grammar implementation, checked IR, verifier,
+  backend, driver, dependency, lockfile, evidence bundle, claim, benchmark,
+  release, and accelerator file is frozen.
+- Risks and mandatory stops: stop rather than widen if the accepted profile
+  cannot express the product; a hidden Rust/C collection or production lexer is
+  needed to build/validate product state; bytes, errors, allocation failures, or
+  unsupported syntax can become valid tokens; locations cannot be reproduced
+  deterministically; owner transport, recursion, parser/AST semantics, a new
+  source/profile/runtime/IR/backend rule, a third compiler phase, external
+  dependency, existing diagnostic/LLVM/native delta, red root, or unlisted file
+  is required. CAP-041 does not authorize F1B, Unicode/UTF-8, strings/chars/
+  floats, modules/imports, general collections, replacement of Rust compiler
+  code, M1/B1/H1/H2, memory-safety/stability/performance/accelerator/release
+  claims, or self-hosting.
+- Storage rule: every task-created worktree, Cargo target, temporary workspace,
+  generated input/source/LLVM/object/executable, native harness, log, and PR body
+  remains on D:, respectively `D:\Aero-worktrees\f1-aero-frontend`,
+  `D:\Aero-build-targets\f1`, and `D:\Aero-temp\f1`. Installed C: tools are
+  read-only dependencies; no task cache or artifact is intentionally written
+  there.
+
+### CAP-041 locally green implementation checkpoint
+
+- Immutable local history: ledger-only authorization
+  `c69299e`, exact intentional-red commit `d608a7e`, and implementation/workflow
+  commit `6290c99` are based directly on accepted D1 merge
+  `104d72dfb78921db68421c7ebd45e30dcbc3d804`. The red target was exactly 2/3:
+  its independent model and accepted-Rust overlap passed, while the sole failure
+  was `CAP-041 intentional product red: tracked runtime ASCII lexer is absent`.
+  No product or workflow code existed at that checkpoint.
+- Implementation: one tracked Aero source owns source, name, and token
+  ByteBuffers; consumes R2 stdin; scans the frozen K1 vocabulary; interns exact
+  first spans; emits six-word located token records; appends EOF only on
+  success; validates retained state; and compares the complete independent
+  checksum. No compiler production, runtime, profile, IR, verifier, backend,
+  driver, dependency, lockfile, or existing test/example changed.
+- Focused evidence: `runtime_ascii_frontend_lexer_tests` is 3/3 green. The
+  independent oracle freezes canonical records/checksum and every boundary;
+  the separate strict-Rust-lexer overlap agrees on supported kinds and
+  locations. Tracked and generated sources check through source/file APIs,
+  produce deterministic externally verified LLVM, and run at O0/O2. Empty,
+  located-comment, unsupported, non-ASCII, 1,025th-token, and 8,193rd-byte
+  models exit 91 only against exact expected state. Wrong checksum and mutated
+  keyword classification do not return 91. The public CPU runner exits 91 with
+  no application output, ROCm/CUDA reject before artifacts, and Linux/Windows
+  workflow steps freeze deterministic LLVM plus LLVM 22 and O0/O2 replay.
+- Ownership/failure evidence: the canonical source uses exactly three direct
+  owners. The independent allocator model and C test runtime cover failure
+  thresholds through the first fully successful event boundary, compare exact
+  allocation/reallocation/deallocation counts, reject size mismatches, and
+  observe zero live allocations after every return.
+- Compatibility evidence: accepted K1, R1C, R2, and D1 focused targets are
+  green (22 tests total). Formatting and diff hygiene are green. From exact
+  pre-record commit `57ecb881dcb24eabd70853556753bce8e7aaf024`, the complete
+  D:-redirected repository-root `./tools/test.sh` exits 0 with formatting,
+  correctness Clippy, 309 library tests, 35 binary tests, every integration,
+  native, and system target, and doc tests. Its durable D:-resident log is
+  `D:\Aero-temp\f1\root-gate.log`, SHA-256
+  `89e98281988a33552e279d386754d5d04cff66a9e8a27aab33b9b715bd6f1b67`.
+  The record-inclusive D:-redirected root rerun also exits 0 with the same
+  complete surface; its log is `D:\Aero-temp\f1\root-gate-record.log`,
+  SHA-256
+  `61ab7ee87771debc336a6c284dd645f0d22a1d6ba07db4617da8cd4bd78641b5`.
+  This result-recorded content is eligible for a candidate commit only if an
+  unchanged exact-content root rerun passes. That rerun exits 0 with the same
+  complete surface; its D:-resident log is
+  `D:\Aero-temp\f1\root-gate-final.log`, SHA-256
+  `fd09dea2b9e8d1935f342896f89873eb33c4901ebe193329f1b7c2d422339da2`.
+  Final local identity, exact-scope review, candidate workflows, protected
+  merge, and accepted-head replay remain pending; this is a local candidate,
+  not accepted public capability.
+- Remaining boundary and next action: F1A does not parse or close F1. After the
+  protected CAP-041 acceptance, authorize F1B separately to consume these
+  records into D1 flat nodes for one frozen grammar. Do not stack F1B on a red
+  or unpublished F1A branch and do not claim replacement of the Rust front end,
+  M1/B1/H1/H2, or self-hosting.
+
 ## CAP-040-D1-COMPILER-STORAGE-ARENA - deterministic owned compiler data model
 
 - Date/task/status: 2026-08-15, `CAP-040-D1-COMPILER-STORAGE-ARENA`,
