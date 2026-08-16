@@ -187,6 +187,25 @@
   front-end replacement, bootstrap convergence, self-hosting, stability,
   safety, performance, accelerator execution, release, or package claim.
 
+### CAP-047 red-first checkpoint
+
+- Red commit `8f9d4729a3f25d860c2a6e4b9f2580a0dadf500c` adds only
+  `src/compiler/tests/stdout_byte_output_driver_tests.rs` after ledger-only
+  commit `4c889529aaee2379b2fdda981567ffb7e7a0d475`. No production, product,
+  workflow, or truth-document file changed.
+- With `TEMP`, `TMP`, `TMPDIR`, and `CARGO_TARGET_DIR` redirected to the
+  frozen D: roots; one Cargo job/test thread; and pinned
+  `D:\AeroToolchains\llvm-22.1.8\bin` first on PATH, the focused target
+  completed 2/3. Accepted B1B source length/MD5, checked compilation,
+  deterministic outer LLVM, and required LLVM verification passed. The
+  independent 144-byte stream/seal oracle and LLVM 22 plus Clang O0/O2 linked
+  observer passed with exit 91 and empty streams.
+- The sole failure is exactly
+  `CAP-047 intentional product red: bounded stdout/toolchain driver is absent`.
+  There is no earlier parser, semantic, IR, LLVM, native, toolchain, or
+  environment failure. This authorizes the frozen production slice without
+  widening its semantics or files.
+
 ## CAP-046-B1B-SERIALIZED-CHECKED-IR-LLVM-EMITTER - bounded Aero LLVM text product
 
 - Date/task/status: 2026-08-16,
