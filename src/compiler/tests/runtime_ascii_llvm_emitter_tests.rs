@@ -1,16 +1,32 @@
-use compiler::{LlvmVerificationMode, verify_llvm_module};
+use compiler::{
+    CompilerOptions, LanguageProfile, LlvmVerificationMode, check_file, check_program,
+    compile_file, compile_program, verify_llvm_module,
+};
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const PRODUCT_RELATIVE_PATH: &str =
     "../../examples/aero_frontend_v0/runtime_ascii_llvm_emitter.aero";
+const PREDECESSOR_RELATIVE_PATH: &str =
+    "../../examples/aero_frontend_v0/runtime_ascii_checked_ir_verifier.aero";
+const WORKFLOW_RELATIVE_PATH: &str = "../../.github/workflows/rust.yml";
+const RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_runtime.c";
+const TEST_RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_test_runtime.c";
+const PROFILE_NAME: &str = "exact-i32-byte-input-v0";
+const B1A_BEGIN: &str = "// CAP-045 B1A VERIFIER BEGIN";
+const B1A_END: &str = "// CAP-045 B1A VERIFIER END";
+const B1B_BEGIN: &str = "// CAP-046 B1B LLVM EMITTER BEGIN";
+const B1B_END: &str = "// CAP-046 B1B LLVM EMITTER END";
+const SELF_TEST_MARKER: &str = "// CAP-046 TRACKED SELF-TEST";
 const INTENTIONAL_PRODUCT_RED: &str =
     "CAP-046 intentional product red: tracked runtime ASCII LLVM emitter is absent";
 const MAX_EMITTED_BYTES: usize = 21_438;
 const CANONICAL_B1A_CHECKSUM: i32 = 592_819;
+const CANONICAL_INPUT: &[u8] = b"fn score()->int{return 1+2*3-4/2;}";
 const CANONICAL_LLVM: &str = concat!(
     "define i32 @aero_b1_entry() {\n",
     "entry:\n",
@@ -33,6 +49,65 @@ struct Instruction {
     right_payload: i32,
     origin: i32,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct VerifierExpectation {
+    attempted: i32,
+    status: i32,
+    word_index: i32,
+    record_id: i32,
+    code: i32,
+    expected: i32,
+    actual: i32,
+    instruction_count: i32,
+    result_count: i32,
+    root_value: i32,
+    result_values: i32,
+    checksum: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EmitterExpectation {
+    attempted: i32,
+    status: i32,
+    byte_index: i32,
+    record_id: i32,
+    length: i32,
+    checksum: i32,
+}
+
+const VERIFIED_SUCCESS: VerifierExpectation = VerifierExpectation {
+    attempted: 1,
+    status: 0,
+    word_index: -1,
+    record_id: 0,
+    code: 0,
+    expected: 0,
+    actual: 0,
+    instruction_count: 5,
+    result_count: 4,
+    root_value: 5,
+    result_values: 4,
+    checksum: CANONICAL_B1A_CHECKSUM,
+};
+
+const EMITTED_SUCCESS: EmitterExpectation = EmitterExpectation {
+    attempted: 1,
+    status: 0,
+    byte_index: -1,
+    record_id: 0,
+    length: 144,
+    checksum: 611_963,
+};
+
+const EMITTED_SKIP: EmitterExpectation = EmitterExpectation {
+    attempted: 0,
+    status: 0,
+    byte_index: -1,
+    record_id: 0,
+    length: 0,
+    checksum: 0,
+};
 
 #[derive(Debug)]
 struct TestWorkspace {
@@ -80,6 +155,41 @@ impl Drop for TestWorkspace {
 
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative)
+}
+
+fn options() -> CompilerOptions {
+    CompilerOptions {
+        language_profile: LanguageProfile::ExactI32ByteInputV0,
+        ..CompilerOptions::default()
+    }
+}
+
+fn run_command_with_stdin(command: &mut Command, input: &[u8]) -> Output {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn CAP-046 child");
+    child
+        .stdin
+        .take()
+        .expect("CAP-046 child stdin")
+        .write_all(input)
+        .expect("write CAP-046 child stdin");
+    child.wait_with_output().expect("wait for CAP-046 child")
+}
+
+fn assert_silent_exit_91(output: &Output, label: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "{label} failed (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "{label} emitted stdout");
+    assert!(output.stderr.is_empty(), "{label} emitted stderr");
 }
 
 fn checksum_step(checksum: i32, word: i32) -> i32 {
@@ -256,6 +366,241 @@ fn canonical_words() -> Vec<i32> {
     )
 }
 
+fn invocation_arguments(
+    fault_word: i32,
+    fault_value: i32,
+    verified: VerifierExpectation,
+    emitted: EmitterExpectation,
+) -> String {
+    let arguments = [
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        20,
+        11,
+        11,
+        586_661,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        1,
+        11,
+        1,
+        827_574,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        9,
+        5,
+        4,
+        104,
+        2,
+        4,
+        1,
+        355_067,
+        fault_word,
+        fault_value,
+        verified.attempted,
+        verified.status,
+        verified.word_index,
+        verified.record_id,
+        verified.code,
+        verified.expected,
+        verified.actual,
+        verified.instruction_count,
+        verified.result_count,
+        verified.root_value,
+        verified.result_values,
+        verified.checksum,
+        emitted.attempted,
+        emitted.status,
+        emitted.byte_index,
+        emitted.record_id,
+        emitted.length,
+        emitted.checksum,
+    ];
+    assert_eq!(arguments.len(), 61, "CAP-046 invocation arity changed");
+    arguments
+        .into_iter()
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn verifier_fault_cases() -> Vec<(&'static str, i32, i32, VerifierExpectation)> {
+    vec![
+        (
+            "format family",
+            0,
+            2,
+            VerifierExpectation {
+                attempted: 1,
+                status: 1,
+                word_index: 0,
+                record_id: 0,
+                code: 2,
+                expected: 1,
+                actual: 2,
+                instruction_count: 0,
+                result_count: 0,
+                root_value: 0,
+                result_values: 0,
+                checksum: 510_488,
+            },
+        ),
+        (
+            "topology family",
+            9,
+            2,
+            VerifierExpectation {
+                attempted: 1,
+                status: 2,
+                word_index: 9,
+                record_id: 0,
+                code: 1,
+                expected: 1,
+                actual: 2,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 0,
+                checksum: 716_292,
+            },
+        ),
+        (
+            "instruction family",
+            27,
+            99,
+            VerifierExpectation {
+                attempted: 1,
+                status: 3,
+                word_index: 27,
+                record_id: 1,
+                code: 2,
+                expected: 99,
+                actual: 99,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 0,
+                checksum: 333_688,
+            },
+        ),
+        (
+            "operand family",
+            30,
+            9,
+            VerifierExpectation {
+                attempted: 1,
+                status: 4,
+                word_index: 30,
+                record_id: 1,
+                code: 1,
+                expected: 1,
+                actual: 9,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 0,
+                checksum: 251_078,
+            },
+        ),
+        (
+            "arithmetic family",
+            55,
+            0,
+            VerifierExpectation {
+                attempted: 1,
+                status: 5,
+                word_index: 49,
+                record_id: 3,
+                code: 4,
+                expected: 0,
+                actual: 0,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 2,
+                checksum: 276_369,
+            },
+        ),
+        (
+            "result family",
+            80,
+            3,
+            VerifierExpectation {
+                attempted: 1,
+                status: 6,
+                word_index: 80,
+                record_id: 1,
+                code: 1,
+                expected: 4,
+                actual: 3,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 4,
+                checksum: 319_541,
+            },
+        ),
+        (
+            "root family",
+            7,
+            3,
+            VerifierExpectation {
+                attempted: 1,
+                status: 7,
+                word_index: 7,
+                record_id: 5,
+                code: 2,
+                expected: 4,
+                actual: 3,
+                instruction_count: 5,
+                result_count: 4,
+                root_value: 0,
+                result_values: 4,
+                checksum: 458_247,
+            },
+        ),
+        (
+            "outside-view selector",
+            104,
+            0,
+            VerifierExpectation {
+                attempted: 1,
+                status: 1,
+                word_index: 104,
+                record_id: 0,
+                code: 1,
+                expected: 104,
+                actual: 0,
+                instruction_count: 0,
+                result_count: 0,
+                root_value: 0,
+                result_values: 0,
+                checksum: 971_129,
+            },
+        ),
+        ("same-value enabled selector", 0, 1, VERIFIED_SUCCESS),
+    ]
+}
+
 fn one_result(opcode: i32) -> Vec<i32> {
     module(
         4,
@@ -313,6 +658,201 @@ fn clang_link(
         String::from_utf8_lossy(&output.stderr)
     );
     executable
+}
+
+fn capture_test_runtime() -> String {
+    let mut runtime = fs::read_to_string(repository_path(TEST_RUNTIME_RELATIVE_PATH))
+        .expect("read accepted Aero test runtime");
+    let globals = "static uint64_t fail_after_successes = UINT64_MAX;";
+    assert_eq!(runtime.matches(globals).count(), 1);
+    runtime = runtime.replacen(
+        globals,
+        concat!(
+            "static uint64_t fail_after_successes = UINT64_MAX;\n",
+            "static uint8_t captured_first_deallocation[21438];\n",
+            "static uint64_t captured_first_deallocation_size;\n",
+        ),
+        1,
+    );
+
+    let deallocation = concat!(
+        "    header->metadata.magic = 0;\n",
+        "    free(header);\n",
+        "    --live_allocations;",
+    );
+    assert_eq!(runtime.matches(deallocation).count(), 1);
+    runtime = runtime.replacen(
+        deallocation,
+        concat!(
+            "    if (dealloc_calls == UINT64_C(1)) {\n",
+            "        captured_first_deallocation_size = size;\n",
+            "        uint64_t capture = size < UINT64_C(21438) ? size : UINT64_C(21438);\n",
+            "        for (uint64_t index = 0; index < capture; ++index) {\n",
+            "            captured_first_deallocation[index] = ((uint8_t *)allocation)[index];\n",
+            "        }\n",
+            "    }\n",
+            "    header->metadata.magic = 0;\n",
+            "    free(header);\n",
+            "    --live_allocations;",
+        ),
+        1,
+    );
+
+    let reset = "    fail_after_successes = requested_fail_after_successes;";
+    assert_eq!(runtime.matches(reset).count(), 1);
+    runtime = runtime.replacen(
+        reset,
+        concat!(
+            "    fail_after_successes = requested_fail_after_successes;\n",
+            "    captured_first_deallocation_size = 0;",
+        ),
+        1,
+    );
+    runtime.push_str(concat!(
+        "\nuint64_t aero_test_capture_size(void) {\n",
+        "    return captured_first_deallocation_size;\n",
+        "}\n\n",
+        "int32_t aero_test_capture_byte(uint64_t index) {\n",
+        "    if (index >= captured_first_deallocation_size || index >= UINT64_C(21438)) return -1;\n",
+        "    return captured_first_deallocation[index];\n",
+        "}\n",
+    ));
+    runtime
+}
+
+fn capture_harness() -> String {
+    let input = CANONICAL_INPUT
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let expected = CANONICAL_LLVM
+        .as_bytes()
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"
+#include <stddef.h>
+#include <stdint.h>
+
+extern int32_t aero_product_main(void);
+extern int32_t aero_test_reset(uint64_t fail_after_successes);
+extern uint64_t aero_test_alloc_calls(void);
+extern uint64_t aero_test_realloc_calls(void);
+extern uint64_t aero_test_dealloc_calls(void);
+extern uint64_t aero_test_live_allocations(void);
+extern uint64_t aero_test_size_mismatch_calls(void);
+extern uint64_t aero_test_capture_size(void);
+extern int32_t aero_test_capture_byte(uint64_t index);
+
+static const uint8_t input_bytes[] = {{ {input} }};
+static const uint8_t expected_bytes[] = {{ {expected} }};
+static size_t input_index;
+static int32_t sticky_status;
+
+int32_t aero_stdin_read_byte(void) {{
+    if (sticky_status != 0) return sticky_status;
+    if (input_index < sizeof(input_bytes)) return input_bytes[input_index++];
+    sticky_status = -1;
+    return sticky_status;
+}}
+
+int main(void) {{
+    if (aero_test_reset(UINT64_MAX) != 1) return 40;
+    input_index = 0;
+    sticky_status = 0;
+    if (aero_product_main() != 91) return 41;
+    if (aero_test_live_allocations() != 0) return 42;
+    if (aero_test_size_mismatch_calls() != 0) return 43;
+    if (aero_test_alloc_calls() != UINT64_C(14)) return 44;
+    if (aero_test_realloc_calls() != UINT64_C(58)) return 45;
+    if (aero_test_dealloc_calls() != UINT64_C(14)) return 46;
+    if (aero_test_capture_size() < sizeof(expected_bytes) ||
+        aero_test_capture_size() > UINT64_C(32768)) return 47;
+    for (uint64_t index = 0; index < sizeof(expected_bytes); ++index) {{
+        if (aero_test_capture_byte(index) != expected_bytes[index]) return 48;
+    }}
+    return 91;
+}}
+"#,
+    )
+}
+
+fn fault_and_allocation_harness() -> String {
+    use std::fmt::Write as _;
+
+    let mut calls = String::new();
+    for (case_index, (label, fault_word, fault_value, verified)) in
+        verifier_fault_cases().into_iter().enumerate()
+    {
+        let arguments = invocation_arguments(fault_word, fault_value, verified, EMITTED_SKIP);
+        writeln!(
+            calls,
+            "    /* {label} */\n    if (aero_test_reset(UINT64_MAX) != 1) return 50;\n    reset_input();\n    if (run_runtime_ascii_llvm_emitter({arguments}) != 91) return 51;\n    if (aero_test_live_allocations() != 0) return 52;\n    if (aero_test_size_mismatch_calls() != 0) return 53;\n    completed = {completed};",
+            completed = case_index + 1,
+        )
+        .expect("write CAP-046 verifier-fault case");
+    }
+
+    let parameter_types = std::iter::repeat_n("int32_t", 61)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let input = CANONICAL_INPUT
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let canonical = invocation_arguments(-1, 0, VERIFIED_SUCCESS, EMITTED_SUCCESS);
+    let expected_cases = verifier_fault_cases().len();
+    format!(
+        r#"
+#include <stddef.h>
+#include <stdint.h>
+
+extern int32_t run_runtime_ascii_llvm_emitter({parameter_types});
+extern int32_t aero_test_reset(uint64_t fail_after_successes);
+extern uint64_t aero_test_alloc_calls(void);
+extern uint64_t aero_test_realloc_calls(void);
+extern uint64_t aero_test_dealloc_calls(void);
+extern uint64_t aero_test_live_allocations(void);
+extern uint64_t aero_test_size_mismatch_calls(void);
+
+static const uint8_t input_bytes[] = {{ {input} }};
+static size_t input_index;
+static int32_t sticky_status;
+
+static void reset_input(void) {{ input_index = 0; sticky_status = 0; }}
+
+int32_t aero_stdin_read_byte(void) {{
+    if (sticky_status != 0) return sticky_status;
+    if (input_index < sizeof(input_bytes)) return input_bytes[input_index++];
+    sticky_status = -1;
+    return sticky_status;
+}}
+
+int main(void) {{
+    size_t completed = 0;
+{calls}
+    if (completed != {expected_cases}) return 54;
+    for (uint64_t threshold = 0; threshold <= UINT64_C(72); ++threshold) {{
+        if (aero_test_reset(threshold) != 1) return 55;
+        reset_input();
+        int32_t result = run_runtime_ascii_llvm_emitter({canonical});
+        if (threshold < UINT64_C(72) && result == 91) return 56;
+        if (threshold == UINT64_C(72) && result != 91) return 57;
+        if (aero_test_live_allocations() != 0) return 58;
+        if (aero_test_size_mismatch_calls() != 0) return 59;
+        if (threshold == UINT64_C(72) &&
+            (aero_test_alloc_calls() != UINT64_C(14) ||
+             aero_test_realloc_calls() != UINT64_C(58) ||
+             aero_test_dealloc_calls() != UINT64_C(14))) return 60;
+    }}
+    return 91;
+}}
+"#,
+    )
 }
 
 #[test]
@@ -478,7 +1018,262 @@ fn independent_b1b_canonical_llvm_lowers_and_executes_at_o0_and_o2() {
 }
 
 #[test]
+fn tracked_runtime_ascii_llvm_emitter_is_deterministic_captured_and_native() {
+    let product_path = repository_path(PRODUCT_RELATIVE_PATH);
+    let product = fs::read_to_string(&product_path).expect("read tracked CAP-046 product");
+
+    check_program(&product, options()).expect("tracked CAP-046 product checks");
+    let first = compile_program(&product, options()).expect("tracked CAP-046 product compiles");
+    let second = compile_program(&product, options()).expect("tracked CAP-046 product recompiles");
+    assert_eq!(first, second, "tracked CAP-046 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("tracked CAP-046 outer LLVM verifies");
+    assert!(first.contains("define i32 @run_runtime_ascii_llvm_emitter("));
+    for anchor in [
+        "%aero.byte_buffer = type { ptr, i32, i32 }",
+        "declare ptr @aero_alloc(i64)",
+        "declare ptr @aero_realloc(ptr, i64, i64)",
+        "declare void @aero_dealloc(ptr, i64)",
+        "declare i32 @aero_stdin_read_byte()",
+    ] {
+        assert!(first.contains(anchor), "tracked LLVM omitted `{anchor}`");
+    }
+    for forbidden in [
+        "double", "fptosi", "sitofp", " nsw ", " nuw ", "@malloc", "@free",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "tracked LLVM leaked `{forbidden}`"
+        );
+    }
+
+    let workspace = TestWorkspace::new("tracked-emitter");
+    let source_path = workspace.write("runtime_ascii_llvm_emitter.aero", &product);
+    check_file(&source_path, options()).expect("tracked CAP-046 file checks");
+    assert_eq!(
+        compile_file(&source_path, options()).expect("tracked CAP-046 file compiles"),
+        first,
+        "tracked CAP-046 source/file LLVM diverged"
+    );
+    let llvm_path = workspace.write("tracked.ll", &first);
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "tracked-emitter",
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), CANONICAL_INPUT),
+            &format!("tracked CAP-046 outer product {optimization}"),
+        );
+    }
+
+    let renamed = first.replacen("define i32 @main()", "define i32 @aero_product_main()", 1);
+    assert_ne!(renamed, first, "tracked CAP-046 LLVM omitted main");
+    let captured_llvm = workspace.write("captured.ll", renamed);
+    let captured_runtime = workspace.write("capture_runtime.c", capture_test_runtime());
+    let captured_harness = workspace.write("capture_harness.c", capture_harness());
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "captured-emitter",
+            &workspace,
+            &[
+                captured_llvm.as_path(),
+                captured_harness.as_path(),
+                captured_runtime.as_path(),
+            ],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &Command::new(executable)
+                .output()
+                .expect("run CAP-046 capture harness"),
+            &format!("CAP-046 captured bytes {optimization}"),
+        );
+    }
+
+    let mutation_harness = workspace.write("faults.c", fault_and_allocation_harness());
+    let test_runtime = repository_path(TEST_RUNTIME_RELATIVE_PATH);
+    let mutation_executable = clang_link(
+        "faults",
+        &workspace,
+        &[
+            captured_llvm.as_path(),
+            mutation_harness.as_path(),
+            test_runtime.as_path(),
+        ],
+        "-O2",
+    );
+    assert_silent_exit_91(
+        &Command::new(mutation_executable)
+            .output()
+            .expect("run CAP-046 fault/allocation harness"),
+        "CAP-046 verifier-gate and allocation replay",
+    );
+
+    let mut public = Command::new(env!("CARGO_BIN_EXE_aero"));
+    public
+        .args([
+            "run",
+            source_path.to_str().expect("public source path is UTF-8"),
+            "--language-profile",
+            PROFILE_NAME,
+        ])
+        .current_dir(&workspace.root);
+    let public_output = run_command_with_stdin(&mut public, CANONICAL_INPUT);
+    assert_eq!(public_output.status.code(), Some(91));
+    let public_stdout = String::from_utf8_lossy(&public_output.stdout);
+    assert_eq!(
+        public_stdout
+            .lines()
+            .filter(|line| *line == "Exit code: 91")
+            .count(),
+        1
+    );
+    assert!(
+        !public_stdout
+            .lines()
+            .any(|line| line.starts_with("Output:") || line.starts_with("Error output:"))
+    );
+    assert!(public_output.stderr.is_empty());
+
+    for target in ["rocm", "cuda"] {
+        let output_path = workspace.root.join(format!("{target}.ll"));
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .args([
+                "build",
+                source_path
+                    .to_str()
+                    .expect("accelerator source path is UTF-8"),
+                "-o",
+                output_path
+                    .to_str()
+                    .expect("accelerator output path is UTF-8"),
+                "--target",
+                target,
+                "--language-profile",
+                PROFILE_NAME,
+            ])
+            .current_dir(&workspace.root)
+            .output()
+            .expect("execute CAP-046 accelerator rejection");
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            !output_path.exists(),
+            "{target} rejection created an artifact"
+        );
+    }
+}
+
+#[test]
 fn tracked_runtime_ascii_llvm_emitter_is_structurally_complete() {
     let product = repository_path(PRODUCT_RELATIVE_PATH);
     assert!(product.is_file(), "{INTENTIONAL_PRODUCT_RED}");
+
+    let product = fs::read_to_string(product).expect("read tracked CAP-046 product");
+    let predecessor = fs::read_to_string(repository_path(PREDECESSOR_RELATIVE_PATH))
+        .expect("read accepted CAP-045 product");
+    assert!(product.is_ascii(), "CAP-046 product must remain raw ASCII");
+    assert!(product.contains(SELF_TEST_MARKER));
+    assert_eq!(
+        product.matches(": ByteBuffer = bytes_new();").count(),
+        14,
+        "CAP-046 must own exactly the accepted thirteen owners plus emitted_llvm"
+    );
+    assert!(product.contains(concat!(
+        "let mut verified_results: ByteBuffer = bytes_new();\n",
+        "    let mut emitted_llvm: ByteBuffer = bytes_new();",
+    )));
+
+    let b1a_section = |source: &str| {
+        source
+            .split_once(B1A_BEGIN)
+            .and_then(|(_, suffix)| suffix.split_once(B1A_END))
+            .map(|(section, _)| section)
+            .expect("isolate accepted B1A verifier section")
+            .to_owned()
+    };
+    assert_eq!(
+        b1a_section(&product),
+        b1a_section(&predecessor),
+        "CAP-046 changed the accepted B1A verifier body"
+    );
+
+    let emitter = product
+        .split_once(B1B_BEGIN)
+        .and_then(|(_, suffix)| suffix.split_once(B1B_END))
+        .map(|(section, _)| section)
+        .expect("isolate CAP-046 emitter section");
+    for anchor in [
+        "verified_attempted == 1 && verified_status == 0",
+        "verification_fault_word == -1 && verification_fault_value == 0",
+        "bytes_get(&checked_ir",
+        "bytes_push(\n                    &mut emitted_llvm",
+        "emitted_checksum = checksum_step(emitted_checksum, 991)",
+        "emitted_checksum = checksum_step(emitted_checksum, verified_checksum)",
+        "verified_instruction_count",
+        "emitted_opcode",
+        "emitter_fixed_byte",
+        "unsigned_decimal_digit",
+    ] {
+        assert!(
+            emitter.contains(anchor),
+            "CAP-046 emitter omitted `{anchor}`"
+        );
+    }
+    for forbidden in [
+        "bytes_get(&source",
+        "bytes_get(&names",
+        "bytes_get(&tokens",
+        "bytes_get(&nodes",
+        "bytes_get(&values",
+        "bytes_get(&operators",
+        "bytes_get(&origins",
+        "bytes_get(&symbols",
+        "bytes_get(&facts",
+        "bytes_get(&checked_values",
+        "bytes_get(&checked_instructions",
+        "bytes_get(&verified_results",
+        "bytes_push(&mut checked_ir",
+        "checked_checksum",
+        "checked_root_",
+        "expected_",
+        "println!",
+        "target triple",
+        "target datalayout",
+    ] {
+        assert!(
+            !emitter.contains(forbidden),
+            "CAP-046 emitter crossed its consumption boundary via `{forbidden}`"
+        );
+    }
+    for anchor in [
+        "expected_emitted_attempted: int",
+        "expected_emitted_status: int",
+        "expected_emitted_byte_index: int",
+        "expected_emitted_record_id: int",
+        "expected_emitted_length: int",
+        "expected_emitted_checksum: int",
+        "1, 0, -1, 0, 144, 611963",
+        "return 94;",
+    ] {
+        assert!(
+            product.contains(anchor),
+            "CAP-046 product omitted `{anchor}`"
+        );
+    }
+
+    let workflow = fs::read_to_string(repository_path(WORKFLOW_RELATIVE_PATH))
+        .expect("read protected workflow");
+    for step in [
+        "Test runtime ASCII LLVM emitter at O0 and O2",
+        "Test runtime ASCII LLVM emitter on Windows at O0 and O2",
+    ] {
+        assert!(
+            workflow.contains(step),
+            "protected workflow omitted `{step}`"
+        );
+    }
 }
