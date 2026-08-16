@@ -3,7 +3,9 @@
 ## CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER - independent Aero verification seal
 
 - Date/task/status: 2026-08-16, `CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER`,
-  ledger-first authorization only. Work starts from accepted CAP-044/M1B merge
+  locally implemented with the 5/5 focused target, accepted predecessor ring,
+  and complete root gate green; protected publication remains pending. Work
+  starts from accepted CAP-044/M1B merge
   `f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
   `bca690421a34862063a0bc9315c74873f261f354`, on
   `codex/b1a-checked-ir-verifier`. Accepted-head CI `31938072475`, Rust CI
@@ -175,6 +177,24 @@
   cleanup evidence; ROCm/CUDA artifact hygiene; protected Linux and Windows
   replay; formatting; correctness Clippy; `git diff --check`; and the complete
   root `./tools/test.sh` gate.
+- Local implementation evidence: ledger commit `422acb5`, checksum-seal commit
+  `05ab6b6`, and red commit `b5ad993` preserve the required history; the red
+  failed only with the exact absent-product message. The 4,929-line, 215,947-byte
+  tracked Aero product has SHA-256
+  `1fe59bc082912bc61c4ea55391c147c84e8c74d3d473e1912d9dd4e9b92ec460`.
+  The focused target passes 5/5 in 253.56 seconds. It proves canonical checksum
+  592819, source/file LLVM equality, external LLVM 22 verification, O0/O2 and
+  public silent exit 91, accelerator artifact hygiene, every direct one-word
+  verifier corruption, and every allocation threshold. Canonical execution has
+  exactly 66 successful allocation events: 13 initial allocations, 53
+  reallocations, and 13 deallocations; all injected failures leak zero owners.
+  Accepted M1B passes 10/10, M1A 7/7, F1B 4/4, F1A 3/3, and D1 3/3.
+  The complete D:-redirected `./tools/test.sh` gate passes formatting,
+  correctness Clippy, 309 library tests, 35 binary tests, every integration/
+  native/system target, and doc tests.
+  All worktree, Cargo target, temporary, log, and generated-artifact state is on
+  D:. This is local candidate evidence only until the remaining gates and
+  protected publication complete.
 - Allowed files, exactly: `TASK_LEDGER.md`; `AERO_FRONTEND_READINESS.md`;
   `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
   `COMPILER_STORAGE_READINESS.md`; new
@@ -200,9 +220,12 @@
 
 ## CAP-044-M1B-FLAT-CHECKED-IR - authenticated facts to bounded checked IR
 
-- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, locally
-  implemented with focused, predecessor-ring, and complete root gates green;
-  protected publication pending. Work starts from accepted CAP-043/M1A merge
+- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, accepted through
+  protected PR #86. Reviewed candidate
+  `a14d30d1c37c3b34626a6ec8c74848e2bc8f8a2c` merged as
+  `f51ea2d63b886c1615f522ea3d14bf7baefead1a`; their tree is identically
+  `bca690421a34862063a0bc9315c74873f261f354`. Candidate and accepted-head
+  workflows are terminal-green. Work started from accepted CAP-043/M1A merge
   `2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
   `35129ad5194354acafe082f3fcd55629ed767f27`, on
   `agent/m1-checked-ir-handoff` in D:-resident worktree

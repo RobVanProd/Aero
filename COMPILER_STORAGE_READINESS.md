@@ -135,12 +135,21 @@ parallel five-word node-origin records, then uses a name prepass and iterative
 node-ID pass to emit one function symbol plus closed Int/Bool/Copy facts. Nine
 direct ByteBuffer owners preserve D1's flat serialized model and exact cleanup.
 
-CAP-044/M1B is the current local product-only candidate. It consumes those
-retained M1A records without rescanning or retyping and adds value scratch,
-instruction scratch, and one serialized checked-IR owner. The canonical module
-has one function, one reachable block, 5 instructions, 4 results, 104 words,
-and checksum 355067; the 10/10 focused target and accepted M1A/F1B/F1A/D1 ring
-are green. See [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's
-framing remains evidence scaffolding rather than a general AST collection;
-M1B does not replace the Rust front end, independently verify its module, emit
-LLVM from it, or establish self-hosting.
+CAP-044/M1B is accepted as protected merge
+`f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
+`bca690421a34862063a0bc9315c74873f261f354`. It consumes those retained M1A
+records without rescanning or retyping and adds value scratch, instruction
+scratch, and one serialized checked-IR owner. The canonical module has one
+function, one reachable block, 5 instructions, 4 results, 104 words, and
+checksum 355067.
+
+CAP-045/B1A is the current local product-only candidate. It adds a thirteenth
+direct ByteBuffer owner and independently verifies only the serialized M1B
+bytes: framing, topology, instructions, backward SSA, signed-i32 evaluation,
+results, and root/Return equality. The canonical verification evaluates root 5
+and seals to 592819; the 5/5 focused target includes every corruption family
+and exact 66-threshold allocation cleanup. See
+[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing remains
+evidence scaffolding rather than a general AST collection. B1A does not replace
+the Rust front end or general verifier, emit LLVM, drive external tools, or
+establish self-hosting.

@@ -4,11 +4,11 @@ Last reviewed: 2026-08-16 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is CAP-043/M1A merge
-`2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
-`35129ad5194354acafe082f3fcd55629ed767f27`. CAP-044/M1B is the current
-product-only bounded checked-IR candidate on that baseline. It is not accepted
-public capability until its complete local and protected gates finish.
+The current accepted baseline is CAP-044/M1B merge
+`f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
+`bca690421a34862063a0bc9315c74873f261f354`. CAP-045/B1A is the current
+product-only bounded checked-IR verifier candidate on that baseline. It is not
+accepted public capability until its complete local and protected gates finish.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -203,7 +203,7 @@ Candidate and accepted-head CI, stable/nightly Rust, Windows LLVM 22 native,
 CodeQL, and evidence workflows are terminal-green. M1A emits facts, not
 checked IR.
 
-**M1B is locally implemented as the CAP-044 candidate.** A new Aero product
+**M1B is accepted.** The CAP-044 Aero product
 copies accepted M1A byte-for-byte, authenticates its retained origin, symbol,
 and logical-type/ownership facts, evaluates the bounded integer-expression
 graph with explicit signed-i32 overflow and zero-divisor rejection, and emits
@@ -218,9 +218,29 @@ accelerator hygiene, and Linux/Windows workflow contracts pass in the 10/10
 focused target. Accepted M1A/F1B/F1A/D1 remain 7/7, 4/4, 3/3, and 3/3 green.
 The complete D:-redirected root gate passes formatting, correctness Clippy,
 309 library tests, 35 binary tests, every integration/native/system target, and
-doc tests. CAP-044 changes no Rust compiler or runtime production file and does
-not yet provide an Aero verifier, LLVM emitter, driver, bootstrap convergence,
-or self-hosting claim.
+doc tests. Reviewed candidate `a14d30d1c37c3b34626a6ec8c74848e2bc8f8a2c`
+merged through protected PR #86 as
+`f51ea2d63b886c1615f522ea3d14bf7baefead1a`; their tree is identically
+`bca690421a34862063a0bc9315c74873f261f354`. Candidate and accepted-head
+workflows are terminal-green. CAP-044 changes no Rust compiler or runtime
+production file and does not provide an Aero verifier, LLVM emitter, driver,
+bootstrap convergence, or self-hosting claim.
+
+**B1A is locally implemented as the CAP-045 candidate.** It preserves M1B and
+adds one Aero-authored consumer that independently decodes only the final
+serialized checked-IR bytes. The verifier checks framing, module topology,
+instructions, backward SSA, exact signed-i32 arithmetic, result definitions,
+and the root/Return relation before producing a deterministic seal. A thirteenth
+direct ByteBuffer owns only verifier result values. The canonical module has
+5 instructions, 4 results, evaluated root 5, and verification checksum 592819.
+The independent Rust oracle covers every opcode, accepted count edge, corruption
+family, and first-error boundary. Source/file LLVM, LLVM 22, O0/O2, public CPU,
+accelerator hygiene, injected verifier faults, and all 66 allocation-failure
+thresholds are locally green. Accepted M1B/M1A/F1B/F1A/D1 remain 10/10, 7/7,
+4/4, 3/3, and 3/3 green. The complete D:-redirected root gate passes formatting,
+correctness Clippy, 309 library tests, 35 binary tests, every integration/native/
+system target, and doc tests. B1A does not emit LLVM, invoke tools, replace the
+general Rust verifier, or establish self-hosting.
 
 ## Dependency path
 
@@ -240,7 +260,10 @@ flowchart TD
     F1 --> M1A["M1A: origins and semantic facts"]
     M1A --> M1B["M1B: checked IR construction"]
     M1B --> M1["M1: bounded semantic compiler core"]
-    M1 --> B1["B1: Aero verifier, LLVM emitter, and driver"]
+    M1 --> B1A["B1A: serialized checked-IR verifier"]
+    B1A --> B1B["B1B: deterministic LLVM emitter"]
+    B1B --> B1C["B1C: external-tool driver"]
+    B1C --> B1["B1: trusted Aero backend path"]
     B1 --> H1["H1: stage-0 to stage-1 to stage-2 convergence"]
     H1 --> H2["H2: accepted reproducible self-hosting claim"]
     R2 -. "later maintainable source graph" .-> G1["G1: positive modules/imports/namespaces"]
@@ -269,8 +292,8 @@ compiler project rather than only a bootstrap bundle.
 | F1B — flat-AST parser | **Accepted** | Iterative Aero parser consuming F1A records and emitting D1 nodes for one frozen function/expression grammar | Independent parser oracle; Rust overlap without expected-node authority; malformed/boundary and mutation corpus; exact cleanup; deterministic LLVM; protected Linux/Windows O0/O2 replay | Syntax nodes are not name/type/ownership analysis, checked IR, or a production-front-end replacement |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
 | F1 — Aero front end | **Accepted bounded bootstrap slice** | F1A lexer and F1B parser consume R2 bytes and produce D1 located tokens/flat AST for one frozen grammar | Protected F1A/F1B differential oracles, malformed/boundary corpora, exact cleanup, deterministic LLVM, and Linux/Windows replay | This is not the full experimental grammar or replacement of the production Rust front end |
-| M1 — semantic compiler core | **M1A accepted; M1B locally root-green** | M1A emits bounded node origins, symbol, logical types, and ownership facts; M1B authenticates them and constructs one bounded flat checked IR while preserving fail-before-IR behavior | Independent valid/invalid semantic and checked-IR corpora, accepted-Rust projection, corruption controls, exact allocation cleanup, deterministic LLVM, and protected replay | The bounded flat module is not general semantics/IR, an Aero verifier/backend, or an ownership-safety proof |
-| B1 — trusted Aero backend path | **Future** | Aero checked-IR verifier, deterministic LLVM emitter, and a driver that invokes the declared LLVM/link trust base | Invalid IR rejection, LLVM verifier, O0/O2 object lowering, native system corpus, artifact hygiene | Emitting plausible LLVM without independent verification is not a compiler gate |
+| M1 — semantic compiler core | **M1A and M1B accepted** | M1A emits bounded node origins, symbol, logical types, and ownership facts; M1B authenticates them and constructs one bounded flat checked IR while preserving fail-before-IR behavior | Independent valid/invalid semantic and checked-IR corpora, accepted-Rust projection, corruption controls, exact allocation cleanup, deterministic LLVM, and protected replay | The bounded flat module is not general semantics/IR, an Aero backend, or an ownership-safety proof |
+| B1 — trusted Aero backend path | **B1A locally implemented; B1B/B1C future** | B1A independently verifies the serialized bounded module; B1B emits deterministic LLVM from a successful seal; B1C invokes the declared LLVM/link trust base | Invalid IR rejection, independent seal, LLVM verifier, O0/O2 object lowering, native system corpus, artifact hygiene | One bounded verifier is not a general verifier, and emitting plausible LLVM without prior verification is not a compiler gate |
 | H1 — bootstrap convergence | **Future** | Stage 0 builds stage 1; stage 1 builds stage 2 from the same canonical Aero compiler source | Clean isolated builds, frozen environment/toolchain manifest, raw LLVM comparison, canonical linked-artifact comparison, repeated-build equality | A single successful stage-1 build is not convergence |
 | H2 — accepted self-hosting | **Future** | Protected, reproducible H1 result plus the complete declared platform and conformance surface | Immutable manifests/artifacts, independent replay, exact candidate/merge identity, post-merge replay, truthful documentation | No stability, memory-safety, performance, accelerator, or release claim follows automatically |
 
@@ -286,9 +309,9 @@ compiler project rather than only a bootstrap bundle.
 | Input errors and typed failure | Accepted R2 maps byte/EOF/I/O sentinels into concrete `Result<int, int>` and rejects inferred/nested/discarded uses before IR. | Preserve this mapping when F1 consumes input; no failure may become a byte/token |
 | Modules and names | Root `mod` collection is flattened and bounded; executable imports, namespaces, visibility, recursive graphs, cycles, and separate compilation are absent. | G1 after owned bytes/names and deterministic collections; a declared single-file bootstrap may precede it |
 | Front-end fidelity | The production lexer/parser remain Rust. Accepted F1A lexes runtime ASCII into located owned records and accepted F1B consumes those exact records into a bounded D1 flat AST. | Preserve the exact F1 handoff while M1 advances; expand the grammar only under a separate contract |
-| Semantic and ownership fidelity | Accepted CAP-043/M1A records exact node provenance, one function symbol, and iterative Int/Bool/Copy facts for the frozen grammar. The Rust analyzer still owns general scopes, registries, maps, fixed-point ownership state, and normalization. | Protect CAP-044's exact authenticated handoff; broader semantics remain separate ledger-first work |
-| Checked IR and verification | Local CAP-044/M1B constructs one bounded flat module with explicit function/block/instruction/result records, but the accepted Rust verifier remains the only trusted verifier. | Finish and protect M1B; then B1 must independently parse and reject malformed M1B IR before any Aero-authored emission |
-| Code emission and driver | LLVM text, cache, CLI, process execution, object lowering, and linking are Rust-owned. | B1 plus a narrow runtime/process/file contract; LLVM and the linker can remain declared external tools |
+| Semantic and ownership fidelity | Accepted CAP-043/M1A records exact node provenance, one function symbol, and iterative Int/Bool/Copy facts for the frozen grammar. Accepted CAP-044/M1B authenticates those facts into one bounded checked module. The Rust analyzer still owns general scopes, registries, maps, fixed-point ownership state, and normalization. | Preserve the exact M1A/M1B handoff; broader semantics remain separate ledger-first work |
+| Checked IR and verification | Accepted CAP-044/M1B constructs one bounded flat module with explicit function/block/instruction/result records. Local CAP-045/B1A independently decodes and rejects malformed forms of that exact serialized module. | Finish and protect B1A; broader IR forms and the production Rust verifier remain outside this bounded gate |
+| Code emission and driver | LLVM text, cache, CLI, process execution, object lowering, and linking are Rust-owned. B1A emits no LLVM and invokes no tool. | B1B must emit deterministic LLVM only after a successful B1A seal; B1C then needs a narrow runtime/process/file contract. LLVM and the linker can remain declared external tools |
 | Bootstrap reproducibility | Product and claim evidence are reproducible, but no stage compiler or convergence manifest exists. | Freeze H1 comparison inputs, environment, ignored metadata, and failure rules before the first stage build |
 | Cross-platform trust | Existing Linux and Windows gates cover bounded accepted programs, not an Aero compiler executable. | Every bootstrap stage must run the same corpus on each claimed host; CPU self-hosting does not imply ROCm/CUDA execution |
 
@@ -328,17 +351,18 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Finish validation and protect **CAP-044/M1B checked IR** from exact accepted
-M1A head `2eaa3bdd9de886453d8556d457d49dbb937770ae`. Preserve ledger-first
-`1a09eb7` and red-first `a498efd`; the focused target and accepted
-M1A/F1B/F1A/D1 neighboring ring and complete D:-redirected root gate are green.
-Freeze the exact candidate and publish without changing compiler production,
-runtime, profile, grammar, or accepted predecessor behavior.
+Finish validation and protect **CAP-045/B1A serialized checked-IR verification**
+from exact accepted M1B head `f51ea2d63b886c1615f522ea3d14bf7baefead1a`.
+Preserve ledger-first `422acb5`, seal pin `05ab6b6`, and red-first `b5ad993`;
+the focused product target, accepted M1B/M1A/F1B/F1A/D1 ring, and complete
+D:-redirected root gate must be green. Freeze the exact candidate and publish
+without changing compiler production, runtime, profile, grammar, or accepted
+predecessor behavior.
 
-After M1B acceptance, authorize B1 separately and red-first. B1 must consume
-and independently verify the serialized M1B module before an Aero-authored LLVM
-emitter or driver can be trusted. Do not call the Rust front end replaced—or
-the project self-hosted—before B1 and H1/H2 independently close.
+After B1A acceptance, authorize **B1B** separately and red-first. B1B must emit
+deterministic LLVM only from the independently verified serialized M1B module;
+the external-tool driver remains B1C. Do not call the Rust front end replaced—or
+the project self-hosted—before B1B/B1C and H1/H2 independently close.
 
 ## Deliberately absent schedule
 

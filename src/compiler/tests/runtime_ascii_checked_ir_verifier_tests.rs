@@ -1,12 +1,26 @@
+use compiler::{
+    CompilerOptions, LanguageProfile, LlvmVerificationMode, check_file, check_program,
+    compile_file, compile_program, verify_llvm_module,
+};
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const PRODUCT_RELATIVE_PATH: &str =
     "../../examples/aero_frontend_v0/runtime_ascii_checked_ir_verifier.aero";
 const M1B_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_checked_ir.aero";
 const WORKFLOW_RELATIVE_PATH: &str = "../../.github/workflows/rust.yml";
+const RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_runtime.c";
+const TEST_RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_test_runtime.c";
+const PROFILE_NAME: &str = "exact-i32-byte-input-v0";
+const SELF_TEST_MARKER: &str = "// CAP-045 TRACKED SELF-TEST";
 const INTENTIONAL_PRODUCT_RED: &str =
     "CAP-045 intentional product red: tracked runtime ASCII checked IR verifier is absent";
+
+static NEXT_WORKSPACE_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Diagnostic {
@@ -54,6 +68,116 @@ struct Instruction {
 
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative)
+}
+
+fn options() -> CompilerOptions {
+    CompilerOptions {
+        language_profile: LanguageProfile::ExactI32ByteInputV0,
+        ..CompilerOptions::default()
+    }
+}
+
+#[derive(Debug)]
+struct TestWorkspace {
+    root: PathBuf,
+}
+
+impl TestWorkspace {
+    fn new(label: &str) -> Self {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let serial = NEXT_WORKSPACE_ID.fetch_add(1, Ordering::Relaxed);
+        let parent = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| repository_path("../../target"))
+            .join("cap045-runtime-checked-ir-verifier-tests");
+        let root = parent.join(format!(
+            "cap045-{label}-{}-{nonce}-{serial}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("create CAP-045 test workspace");
+        Self { root }
+    }
+
+    fn write(&self, name: &str, contents: impl AsRef<[u8]>) -> PathBuf {
+        let path = self.root.join(name);
+        fs::write(&path, contents).expect("write CAP-045 artifact");
+        path
+    }
+}
+
+impl Drop for TestWorkspace {
+    fn drop(&mut self) {
+        let valid = self
+            .root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("cap045-"));
+        if valid {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+}
+
+fn run_command_with_stdin(command: &mut Command, input: &[u8]) -> Output {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn CAP-045 child");
+    child
+        .stdin
+        .take()
+        .expect("CAP-045 child stdin")
+        .write_all(input)
+        .expect("write CAP-045 child stdin");
+    child.wait_with_output().expect("wait for CAP-045 child")
+}
+
+fn clang_link(
+    label: &str,
+    workspace: &TestWorkspace,
+    inputs: &[&Path],
+    optimization: &str,
+) -> PathBuf {
+    let executable = workspace.root.join(if cfg!(windows) {
+        format!("{label}-{optimization}.exe")
+    } else {
+        format!("{label}-{optimization}")
+    });
+    let mut command = Command::new("clang");
+    command.args([
+        "-std=c11",
+        optimization,
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-override-module",
+    ]);
+    command.args(inputs).arg("-o").arg(&executable);
+    let output = command.output().expect("execute Clang for CAP-045");
+    assert!(
+        output.status.success(),
+        "link {label} {optimization} (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    executable
+}
+
+fn assert_silent_exit_91(output: &Output, label: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "{label} failed (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "{label} emitted stdout");
+    assert!(output.stderr.is_empty(), "{label} emitted stderr");
 }
 
 fn checksum_step(checksum: i32, word: i32) -> i32 {
@@ -723,6 +847,209 @@ fn canonical_words() -> Vec<i32> {
     )
 }
 
+fn canonical_faults() -> Vec<(&'static str, usize, i32, i32)> {
+    vec![
+        ("format", 0, 2, 1),
+        ("function count", 1, 2, 1),
+        ("block count", 2, 2, 1),
+        ("instruction count", 3, 4, 1),
+        ("result count", 4, 3, 1),
+        ("entry function", 5, 2, 1),
+        ("root type", 8, 0, 1),
+        ("function tag", 9, 2, 2),
+        ("function name", 11, 0, 2),
+        ("function node", 12, 2, 2),
+        ("function span", 17, 4, 2),
+        ("block tag", 18, 1, 2),
+        ("block reachability", 21, 0, 2),
+        ("block successors", 22, 1, 2),
+        ("instruction tag", 25, 4, 3),
+        ("instruction id", 26, 2, 3),
+        ("opcode", 27, 99, 3),
+        ("instruction result", 28, 0, 3),
+        ("instruction type", 29, 0, 3),
+        ("instruction origin", 34, 0, 3),
+        ("function identity", 35, 2, 3),
+        ("operand kind", 30, 9, 4),
+        ("forward result use", 44, 4, 4),
+        ("unused unary lane", 76, 1, 4),
+        ("divide by zero", 55, 0, 5),
+        ("result tag", 80, 3, 6),
+        ("result function", 81, 2, 6),
+        ("result id", 82, 2, 6),
+        ("result type", 83, 0, 6),
+        ("definition id", 84, 2, 6),
+        ("result origin", 85, 5, 6),
+        ("root kind", 6, 1, 7),
+        ("root payload", 7, 3, 7),
+        ("return root", 75, 3, 7),
+        ("numeric overflow", 31, i32::MAX, 5),
+    ]
+}
+
+fn invocation_arguments(fault_word: i32, fault_value: i32, seal: &Seal) -> String {
+    let mut arguments = vec![
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        2,
+        20,
+        11,
+        11,
+        586_661,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        11,
+        1,
+        11,
+        1,
+        827_574,
+        1,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        9,
+        5,
+        4,
+        104,
+        2,
+        4,
+        1,
+        355_067,
+        fault_word,
+        fault_value,
+        seal.attempted,
+        seal.diagnostic.status,
+        seal.diagnostic.word_index,
+        seal.diagnostic.record_id,
+        seal.diagnostic.code,
+        seal.diagnostic.expected,
+        seal.diagnostic.actual,
+        seal.instruction_count,
+        seal.result_count,
+        seal.root_value,
+        i32::try_from(seal.verified_results.len()).expect("bounded verifier results"),
+        seal.checksum,
+    ];
+    assert_eq!(arguments.len(), 55, "CAP-045 invocation arity changed");
+    arguments
+        .drain(..)
+        .map(|value| value.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn fault_harness() -> String {
+    use std::fmt::Write as _;
+
+    let canonical = canonical_words();
+    let mut calls = String::new();
+    let canonical_seal = verify(&canonical, None);
+    let mut cases = vec![("canonical", -1, 0, canonical_seal)];
+    for (label, index, value, expected_status) in canonical_faults() {
+        let seal = verify(&canonical, Some((index, value)));
+        assert_eq!(seal.diagnostic.status, expected_status, "{label}");
+        cases.push((
+            label,
+            i32::try_from(index).expect("bounded fault word"),
+            value,
+            seal,
+        ));
+    }
+    let outside_index = canonical.len();
+    let outside = verify(&canonical, Some((outside_index, 0)));
+    assert_eq!(outside.diagnostic.status, 1);
+    cases.push((
+        "outside word",
+        i32::try_from(outside_index).expect("bounded outside word"),
+        0,
+        outside,
+    ));
+
+    for (case_index, (label, fault_word, fault_value, seal)) in cases.iter().enumerate() {
+        let arguments = invocation_arguments(*fault_word, *fault_value, seal);
+        writeln!(
+            calls,
+            "    /* {label} */\n    if (aero_test_reset(UINT64_MAX) != 1) return 60;\n    reset_input();\n    if (run_runtime_ascii_checked_ir_verifier({arguments}) != 91) return 61;\n    if (aero_test_live_allocations() != 0) return 62;\n    if (aero_test_size_mismatch_calls() != 0) return 63;\n    completed = {completed};",
+            completed = case_index + 1,
+        )
+        .expect("write CAP-045 fault case");
+    }
+    let parameter_types = std::iter::repeat_n("int32_t", 55)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let input_bytes = b"fn score()->int{return 1+2*3-4/2;}"
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let expected_cases = cases.len();
+    format!(
+        r#"
+#include <stddef.h>
+#include <stdint.h>
+
+extern int32_t run_runtime_ascii_checked_ir_verifier({parameter_types});
+extern int32_t aero_test_reset(uint64_t fail_after_successes);
+extern uint64_t aero_test_alloc_calls(void);
+extern uint64_t aero_test_realloc_calls(void);
+extern uint64_t aero_test_dealloc_calls(void);
+extern uint64_t aero_test_live_allocations(void);
+extern uint64_t aero_test_size_mismatch_calls(void);
+
+static const uint8_t input_bytes[] = {{ {input_bytes} }};
+static size_t input_index;
+static int32_t sticky_status;
+
+static void reset_input(void) {{ input_index = 0; sticky_status = 0; }}
+
+int32_t aero_stdin_read_byte(void) {{
+    if (sticky_status != 0) return sticky_status;
+    if (input_index < sizeof(input_bytes)) return input_bytes[input_index++];
+    sticky_status = -1;
+    return sticky_status;
+}}
+
+int main(void) {{
+    size_t completed = 0;
+{calls}
+    if (completed != {expected_cases}) return 64;
+    for (uint64_t threshold = 0; threshold <= UINT64_C(66); ++threshold) {{
+        if (aero_test_reset(threshold) != 1) return 65;
+        reset_input();
+        int32_t result = run_runtime_ascii_checked_ir_verifier(
+            {canonical_arguments}
+        );
+        if (threshold < UINT64_C(66) && result == 91) return 66;
+        if (threshold == UINT64_C(66) && result != 91) return 67;
+        if (aero_test_live_allocations() != 0) return 68;
+        if (aero_test_size_mismatch_calls() != 0) return 69;
+        if (threshold == UINT64_C(66) &&
+            (aero_test_alloc_calls() != UINT64_C(13) ||
+             aero_test_realloc_calls() != UINT64_C(53) ||
+             aero_test_dealloc_calls() != UINT64_C(13))) return 70;
+    }}
+    return 91;
+}}
+"#,
+        canonical_arguments = invocation_arguments(-1, 0, &verify(&canonical, None)),
+    )
+}
+
 #[test]
 fn independent_b1a_oracle_freezes_the_canonical_seal() {
     let words = canonical_words();
@@ -889,45 +1216,11 @@ fn independent_b1a_oracle_accepts_every_opcode_boundaries_and_maximum_counts() {
 fn independent_b1a_oracle_rejects_each_corruption_family_deterministically() {
     let canonical = canonical_words();
     let mut mutations = Vec::new();
-    let mut push = |label: &'static str, index: usize, value: i32, status: i32| {
+    for (label, index, value, status) in canonical_faults() {
         let mut words = canonical.clone();
         words[index] = value;
         mutations.push((label, words, status));
-    };
-    push("format", 0, 2, 1);
-    push("function count", 1, 2, 1);
-    push("block count", 2, 2, 1);
-    push("instruction count", 3, 4, 1);
-    push("result count", 4, 3, 1);
-    push("entry function", 5, 2, 1);
-    push("root type", 8, 0, 1);
-    push("function tag", 9, 2, 2);
-    push("function name", 11, 0, 2);
-    push("function node", 12, 2, 2);
-    push("function span", 17, 4, 2);
-    push("block tag", 18, 1, 2);
-    push("block reachability", 21, 0, 2);
-    push("block successors", 22, 1, 2);
-    push("instruction tag", 25, 4, 3);
-    push("instruction id", 26, 2, 3);
-    push("opcode", 27, 99, 3);
-    push("instruction result", 28, 0, 3);
-    push("instruction type", 29, 0, 3);
-    push("instruction origin", 34, 0, 3);
-    push("function identity", 35, 2, 3);
-    push("operand kind", 30, 9, 4);
-    push("forward result use", 44, 4, 4);
-    push("unused unary lane", 76, 1, 4);
-    push("divide by zero", 55, 0, 5);
-    push("result tag", 80, 3, 6);
-    push("result function", 81, 2, 6);
-    push("result id", 82, 2, 6);
-    push("result type", 83, 0, 6);
-    push("definition id", 84, 2, 6);
-    push("result origin", 85, 5, 6);
-    push("root kind", 6, 1, 7);
-    push("root payload", 7, 3, 7);
-    push("return root", 75, 3, 7);
+    }
 
     let mut truncated = canonical.clone();
     truncated.pop();
@@ -935,30 +1228,6 @@ fn independent_b1a_oracle_rejects_each_corruption_family_deterministically() {
     let mut trailing = canonical.clone();
     trailing.push(0);
     mutations.push(("trailing", trailing, 1));
-
-    let overflow = module(
-        5,
-        &[
-            Instruction {
-                opcode: 1,
-                left_kind: 1,
-                left_payload: i32::MAX,
-                right_kind: 1,
-                right_payload: 1,
-                origin: 2,
-            },
-            Instruction {
-                opcode: 6,
-                left_kind: 2,
-                left_payload: 1,
-                right_kind: 0,
-                right_payload: 0,
-                origin: 4,
-            },
-        ],
-        (2, 1),
-    );
-    mutations.push(("numeric overflow", overflow, 5));
 
     for (label, words, expected_status) in mutations {
         let first = verify(&words, None);
@@ -982,6 +1251,136 @@ fn independent_b1a_oracle_rejects_each_corruption_family_deterministically() {
 }
 
 #[test]
+fn tracked_runtime_ascii_checked_ir_verifier_is_deterministic_verified_and_native() {
+    let product_path = repository_path(PRODUCT_RELATIVE_PATH);
+    let product = fs::read_to_string(&product_path).expect("read tracked CAP-045 product");
+    let canonical = b"fn score()->int{return 1+2*3-4/2;}";
+
+    check_program(&product, options()).expect("tracked CAP-045 product checks");
+    let first = compile_program(&product, options()).expect("tracked CAP-045 product compiles");
+    let second = compile_program(&product, options()).expect("tracked CAP-045 product recompiles");
+    assert_eq!(first, second, "tracked CAP-045 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("tracked CAP-045 LLVM verifies");
+    assert!(first.contains("define i32 @run_runtime_ascii_checked_ir_verifier("));
+    for anchor in [
+        "%aero.byte_buffer = type { ptr, i32, i32 }",
+        "declare ptr @aero_alloc(i64)",
+        "declare ptr @aero_realloc(ptr, i64, i64)",
+        "declare void @aero_dealloc(ptr, i64)",
+        "declare i32 @aero_stdin_read_byte()",
+    ] {
+        assert!(first.contains(anchor), "tracked LLVM omitted `{anchor}`");
+    }
+    for forbidden in [
+        "double", "fptosi", "sitofp", " nsw ", " nuw ", "@malloc", "@free",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "tracked LLVM leaked `{forbidden}`"
+        );
+    }
+
+    let workspace = TestWorkspace::new("tracked-verifier");
+    let source_path = workspace.write("runtime_ascii_checked_ir_verifier.aero", &product);
+    check_file(&source_path, options()).expect("tracked CAP-045 file checks");
+    assert_eq!(
+        compile_file(&source_path, options()).expect("tracked CAP-045 file compiles"),
+        first,
+        "tracked CAP-045 source/file LLVM diverged"
+    );
+    let llvm_path = workspace.write("tracked.ll", &first);
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "tracked-verifier",
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), canonical),
+            &format!("tracked CAP-045 {optimization}"),
+        );
+    }
+
+    let renamed = first.replacen("define i32 @main()", "define i32 @aero_product_main()", 1);
+    assert_ne!(renamed, first, "tracked CAP-045 LLVM omitted main");
+    let mutation_llvm = workspace.write("faults.ll", renamed);
+    let mutation_harness = workspace.write("faults.c", fault_harness());
+    let test_runtime = repository_path(TEST_RUNTIME_RELATIVE_PATH);
+    let mutation_executable = clang_link(
+        "faults",
+        &workspace,
+        &[
+            mutation_llvm.as_path(),
+            mutation_harness.as_path(),
+            test_runtime.as_path(),
+        ],
+        "-O2",
+    );
+    assert_silent_exit_91(
+        &Command::new(mutation_executable)
+            .output()
+            .expect("run CAP-045 fault harness"),
+        "CAP-045 independent fault replay",
+    );
+
+    let mut public = Command::new(env!("CARGO_BIN_EXE_aero"));
+    public
+        .args([
+            "run",
+            source_path.to_str().expect("public source path is UTF-8"),
+            "--language-profile",
+            PROFILE_NAME,
+        ])
+        .current_dir(&workspace.root);
+    let public_output = run_command_with_stdin(&mut public, canonical);
+    assert_eq!(public_output.status.code(), Some(91));
+    let public_stdout = String::from_utf8_lossy(&public_output.stdout);
+    assert_eq!(
+        public_stdout
+            .lines()
+            .filter(|line| *line == "Exit code: 91")
+            .count(),
+        1
+    );
+    assert!(
+        !public_stdout
+            .lines()
+            .any(|line| line.starts_with("Output:") || line.starts_with("Error output:"))
+    );
+    assert!(public_output.stderr.is_empty());
+
+    for target in ["rocm", "cuda"] {
+        let output_path = workspace.root.join(format!("{target}.ll"));
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .args([
+                "build",
+                source_path
+                    .to_str()
+                    .expect("accelerator source path is UTF-8"),
+                "-o",
+                output_path
+                    .to_str()
+                    .expect("accelerator output path is UTF-8"),
+                "--target",
+                target,
+                "--language-profile",
+                PROFILE_NAME,
+            ])
+            .current_dir(&workspace.root)
+            .output()
+            .expect("execute CAP-045 accelerator rejection");
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            !output_path.exists(),
+            "{target} rejection created an artifact"
+        );
+    }
+}
+
+#[test]
 fn tracked_runtime_ascii_checked_ir_verifier_is_structurally_complete() {
     let product_path = repository_path(PRODUCT_RELATIVE_PATH);
     assert!(product_path.is_file(), "{INTENTIONAL_PRODUCT_RED}");
@@ -995,7 +1394,7 @@ fn tracked_runtime_ascii_checked_ir_verifier_is_structurally_complete() {
     assert!(product.is_ascii(), "CAP-045 product must remain raw ASCII");
     assert!(product.contains("// CAP-045 B1A VERIFIER BEGIN"));
     assert!(product.contains("// CAP-045 B1A VERIFIER END"));
-    assert!(product.contains("// CAP-045 TRACKED SELF-TEST"));
+    assert!(product.contains(SELF_TEST_MARKER));
     assert!(product.contains("let mut verified_results: ByteBuffer = bytes_new();"));
     assert_eq!(
         product.matches(": ByteBuffer = bytes_new();").count(),

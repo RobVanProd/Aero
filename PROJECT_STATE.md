@@ -4,51 +4,57 @@ Last updated: 2026-08-16 (America/New_York)
 
 ## Current objective
 
-### M1B local candidate: authenticated facts to bounded checked IR
+### B1A local candidate: independent serialized checked-IR verification
 
-The current accepted public master is CAP-043/M1A merge
-`2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
-`35129ad5194354acafe082f3fcd55629ed767f27`. Reviewed candidate
-`1cfa7acc09c741d219c57ebe04f1e6c26949838e` has the identical tree. Protected
-PR #85 and accepted-head CI, stable/nightly Rust, Windows LLVM 22 native,
-CodeQL, and evidence workflows are terminal-green. M1A preserves accepted F1B,
-adds exact node provenance, and emits one function symbol plus complete
-`Void`/`Int`/`Bool` and `Copy` facts for the bounded bootstrap grammar.
+The current accepted public master is CAP-044/M1B merge
+`f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
+`bca690421a34862063a0bc9315c74873f261f354`. Reviewed candidate
+`a14d30d1c37c3b34626a6ec8c74848e2bc8f8a2c` has the identical tree. Protected
+PR #86 and all 13 candidate checks are green; accepted-head CI `31938072475`,
+Rust CI `31938072465`, CodeQL `31938071907`, and evidence `31938072658` are
+terminal-green. M1B preserves accepted M1A and serializes one authenticated
+bounded flat module with 5 instructions, 4 SSA results, 104 words, root
+`Result(4): Int`, checksum 355067, and silent exit 91.
 
-CAP-044/M1B is implemented locally from that exact accepted head. Ledger-only
-commit `1a09eb7` freezes the product and stop boundaries; red commit `a498efd`
-failed only because the tracked checked-IR product was absent. The candidate
-copies accepted M1A rather than changing it, authenticates every retained
-origin/symbol/fact relation, evaluates the integer-expression graph within a
-frozen signed-i32 boundary, and serializes one flat module with a header,
-function, reachable entry block, instructions, and SSA result definitions.
+CAP-045/B1A is implemented locally from that exact accepted head. Ledger-only
+commit `422acb5` freezes the verifier and stop boundaries, `05ab6b6` pins the
+independently computed canonical seal, and red commit `b5ad993` failed only
+because the tracked verifier product was absent. The candidate copies accepted
+M1B and independently consumes only its final serialized `checked_ir` owner.
+It cannot use source, tokens, nodes, semantic facts, construction scratch, M1B
+counters, or the M1B checksum to decide acceptance.
 
-The independent oracle owns the frontend, semantic, checked-value,
-instruction/result, structural-verification, evaluation, and checksum models
-without calling the Aero product. Accepted Rust checked-IR overlap supplies
-only projected behavior and metadata, not M1B records. Coverage spans every
-opcode, exact i32 edges, overflow and zero-divisor precedence, earlier-phase
-failure with zero IR, malformed and mutated records, source/file deterministic
-LLVM, LLVM 22, O0/O2 native, public CPU, accelerator artifact hygiene, and
-failure at every allocation/reallocation boundary with zero leaks. The
-canonical source `fn score()->int{return 1+2*3-4/2;}` retains M1A checksum
-827574 and emits 9 values, 5 instructions, 4 results, 104 checked-IR words,
-root `Result(4): Int`, checked checksum 355067, and silent exit 91. All task
-worktrees, build targets, temporary files, generated artifacts, and logs are on
-D:.
+The Aero verifier checks framing, exact function/block topology, instruction
+records, backward-only SSA, exact signed-i32 arithmetic, result definitions,
+and the root/Return relation. It adds exactly one thirteenth direct ByteBuffer
+owner for independently evaluated result records. The canonical module verifies
+5 instructions and 4 results, evaluates root 5, produces verification checksum
+592819, and exits silently with 91.
 
-The focused CAP-044 target is 10/10 green. Accepted M1A is 7/7, F1B is 4/4,
-F1A is 3/3, and D1 is 3/3 green. The complete D:-redirected root gate passes
-formatting, correctness Clippy, 309 library tests, 35 binary tests, every
-integration/native/system target, and doc tests. Protected publication remains
-pending. M1B changes no Rust compiler or runtime production file. It does not
-implement general semantics or general checked IR,
-independently verify its serialized module, emit LLVM from that module, replace
-the Rust front end, or establish self-hosting. The exact contract is in
+The independent Rust model accepts every opcode and frozen count boundary and
+rejects every header, topology, instruction, operand, SSA, arithmetic, result,
+and root corruption family with deterministic first-error precedence. The 5/5
+focused target is green, including source/file deterministic LLVM, external
+LLVM 22 verification, O0/O2 native, public CPU, accelerator artifact hygiene,
+direct calls into the compiled Aero verifier for every one-word mutation, and
+all 66 allocation-failure thresholds. Canonical allocation evidence is exactly
+13 initial allocations, 53 reallocations, 13 deallocations, and zero leaks.
+Accepted M1B is 10/10, M1A 7/7, F1B 4/4, F1A 3/3, and D1 3/3 green.
+The complete D:-redirected root gate passes formatting, correctness Clippy,
+309 library tests, 35 binary tests, every integration/native/system target,
+and doc tests.
+All task worktrees, Cargo targets, temporary files, logs, and generated artifacts
+remain on D:.
+
+B1A changes no Rust compiler or runtime production file. It does not implement
+general semantics, general checked IR, LLVM emission, a compiler driver,
+bootstrap convergence, or self-hosting, and it does not replace the production
+Rust verifier. The exact contract is in
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md),
-[`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md), and the CAP-044 ledger.
-After protected M1B, B1 must be frozen separately and red-first to parse and
-verify the module before any Aero-authored emitter or driver can be trusted.
+[`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md), and the CAP-045 ledger.
+After protected B1A, B1B must be frozen separately and red-first to emit
+deterministic LLVM only from the independently verified serialized module;
+external-tool orchestration remains a later driver checkpoint.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
