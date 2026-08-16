@@ -1,0 +1,780 @@
+fn result_value(result: Result<int, int>) -> int {
+    return match result {
+        Ok(value) => value,
+        Err(code) => 0 - code,
+    };
+}
+
+fn is_identifier_start(value: int) -> int {
+    if value == 95 || (value >= 65 && value <= 90) || (value >= 97 && value <= 122) {
+        return 1;
+    }
+    return 0;
+}
+
+fn is_identifier_continue(value: int) -> int {
+    if is_identifier_start(value) == 1 || (value >= 48 && value <= 57) {
+        return 1;
+    }
+    return 0;
+}
+
+fn quotient_256(value: int) -> int {
+    let mut remaining: int = value;
+    let mut quotient: int = 0;
+    while remaining >= 256 {
+        remaining = remaining - 256;
+        quotient = quotient + 1;
+    }
+    return quotient;
+}
+
+fn word_byte_0(value: int) -> int {
+    let mut remaining: int = value;
+    while remaining >= 256 {
+        remaining = remaining - 256;
+    }
+    return remaining;
+}
+
+fn word_byte_1(value: int) -> int {
+    return word_byte_0(quotient_256(value));
+}
+
+fn word_byte_2(value: int) -> int {
+    return word_byte_0(quotient_256(quotient_256(value)));
+}
+
+fn word_byte_3(value: int) -> int {
+    return quotient_256(quotient_256(quotient_256(value)));
+}
+
+fn checksum_step(checksum: int, word: int) -> int {
+    let mut reduced_word: int = word;
+    while reduced_word >= 1000003 {
+        reduced_word = reduced_word - 1000003;
+    }
+    let mut combined: int = checksum * 31 + reduced_word;
+    while combined >= 1000003 {
+        combined = combined - 1000003;
+    }
+    return combined;
+}
+
+fn read_input_value() -> int {
+    let read: Result<int, int> = stdin_read_byte();
+    return result_value(read);
+}
+
+fn run_compiler_storage(expected_names: int, expected_tokens: int,
+        expected_nodes: int, expected_root: int, expected_checksum: int) -> int {
+    let mut source: ByteBuffer = bytes_new();
+    let mut names: ByteBuffer = bytes_new();
+    let mut tokens: ByteBuffer = bytes_new();
+    let mut scopes: ByteBuffer = bytes_new();
+    let mut nodes: ByteBuffer = bytes_new();
+
+    if expected_names < 0 || expected_tokens < 0 || expected_nodes < 0
+        || expected_root < 0 || expected_checksum < 0 {
+        return 10;
+    }
+
+    let mut reading: int = 1;
+    let mut input_value: int = 0;
+    while reading == 1 {
+        input_value = read_input_value();
+        if input_value >= 0 {
+            if result_value(bytes_push(&mut source, input_value)) < 0 {
+                return 11;
+            }
+        } else if input_value == -1 {
+            reading = 0;
+        } else {
+            return 12;
+        }
+    }
+
+    let source_length: int = bytes_len(&source);
+    let mut input_offset: int = 0;
+    let mut name_count: int = 0;
+    let mut token_count: int = 0;
+    let mut node_count: int = 0;
+    let mut root: int = 0;
+
+    let mut name_length: int = 0;
+    let mut name_start: int = 0;
+    let mut name_end: int = 0;
+    let mut character_index: int = 0;
+    let mut character: int = 0;
+    let mut found_name_id: int = 0;
+    let mut candidate_name: int = 0;
+    let mut stored_start: int = 0;
+    let mut stored_length: int = 0;
+    let mut name_field: int = 0;
+    let mut word_offset: int = 0;
+    let mut byte_0: int = 0;
+    let mut byte_1: int = 0;
+    let mut byte_2: int = 0;
+    let mut byte_3: int = 0;
+    let mut word: int = 0;
+    let mut same: int = 0;
+    let mut compare_index: int = 0;
+    let mut canonical_byte: int = 0;
+    let mut current_byte: int = 0;
+    let mut name_id: int = 0;
+    let mut append_name_field: int = 0;
+    let mut token_field: int = 0;
+    let mut leaf_node_id: int = 0;
+    let mut leaf_field: int = 0;
+    let mut scope_field: int = 0;
+    let mut sequence_node_id: int = 0;
+    let mut sequence_field: int = 0;
+    while input_offset < source_length {
+        name_length = result_value(bytes_get(&source, input_offset));
+        if name_length < 0 {
+            return 20;
+        }
+        if name_length == 0 || name_length > 63 {
+            return 21;
+        }
+        name_start = input_offset + 1;
+        if name_length > source_length - name_start {
+            return 22;
+        }
+        name_end = name_start + name_length;
+
+        character_index = 0;
+        while character_index < name_length {
+            character = result_value(bytes_get(&source, name_start + character_index));
+            if character < 0 {
+                return 23;
+            }
+            if character_index == 0 {
+                if is_identifier_start(character) == 0 {
+                    return 24;
+                }
+            } else if is_identifier_continue(character) == 0 {
+                return 24;
+            }
+            character_index = character_index + 1;
+        }
+
+        found_name_id = 0;
+        candidate_name = 0;
+        while candidate_name < name_count && found_name_id == 0 {
+            stored_start = 0;
+            stored_length = 0;
+            name_field = 0;
+            while name_field < 2 {
+                word_offset = candidate_name * 8 + name_field * 4;
+                byte_0 = result_value(bytes_get(&names, word_offset));
+                byte_1 = result_value(bytes_get(&names, word_offset + 1));
+                byte_2 = result_value(bytes_get(&names, word_offset + 2));
+                byte_3 = result_value(bytes_get(&names, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    return 30;
+                }
+                word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                if name_field == 0 {
+                    stored_start = word;
+                } else {
+                    stored_length = word;
+                }
+                name_field = name_field + 1;
+            }
+
+            if stored_length == name_length {
+                same = 1;
+                compare_index = 0;
+                while compare_index < name_length && same == 1 {
+                    canonical_byte = result_value(bytes_get(
+                        &source, stored_start + compare_index));
+                    current_byte = result_value(bytes_get(
+                        &source, name_start + compare_index));
+                    if canonical_byte < 0 || current_byte < 0 {
+                        return 31;
+                    }
+                    if canonical_byte != current_byte {
+                        same = 0;
+                    }
+                    compare_index = compare_index + 1;
+                }
+                if same == 1 {
+                    found_name_id = candidate_name + 1;
+                }
+            }
+            candidate_name = candidate_name + 1;
+        }
+
+        name_id = found_name_id;
+        if name_id == 0 {
+            name_id = name_count + 1;
+            append_name_field = 0;
+            while append_name_field < 2 {
+                word = name_start;
+                if append_name_field == 1 {
+                    word = name_length;
+                }
+                if result_value(bytes_push(&mut names, word_byte_0(word))) < 0 {
+                    return 32;
+                }
+                if result_value(bytes_push(&mut names, word_byte_1(word))) < 0 {
+                    return 32;
+                }
+                if result_value(bytes_push(&mut names, word_byte_2(word))) < 0 {
+                    return 32;
+                }
+                if result_value(bytes_push(&mut names, word_byte_3(word))) < 0 {
+                    return 32;
+                }
+                append_name_field = append_name_field + 1;
+            }
+            name_count = name_count + 1;
+        }
+
+        token_field = 0;
+        while token_field < 4 {
+            word = 1;
+            if token_field == 1 {
+                word = name_start;
+            } else if token_field == 2 {
+                word = name_length;
+            } else if token_field == 3 {
+                word = name_id;
+            }
+            if result_value(bytes_push(&mut tokens, word_byte_0(word))) < 0 {
+                return 40;
+            }
+            if result_value(bytes_push(&mut tokens, word_byte_1(word))) < 0 {
+                return 40;
+            }
+            if result_value(bytes_push(&mut tokens, word_byte_2(word))) < 0 {
+                return 40;
+            }
+            if result_value(bytes_push(&mut tokens, word_byte_3(word))) < 0 {
+                return 40;
+            }
+            token_field = token_field + 1;
+        }
+
+        leaf_node_id = node_count + 1;
+        leaf_field = 0;
+        while leaf_field < 4 {
+            word = 0;
+            if leaf_field == 0 {
+                word = 1;
+            } else if leaf_field == 1 {
+                word = name_id;
+            }
+            if result_value(bytes_push(&mut nodes, word_byte_0(word))) < 0 {
+                return 41;
+            }
+            if result_value(bytes_push(&mut nodes, word_byte_1(word))) < 0 {
+                return 41;
+            }
+            if result_value(bytes_push(&mut nodes, word_byte_2(word))) < 0 {
+                return 41;
+            }
+            if result_value(bytes_push(&mut nodes, word_byte_3(word))) < 0 {
+                return 41;
+            }
+            leaf_field = leaf_field + 1;
+        }
+        node_count = leaf_node_id;
+
+        scope_field = 0;
+        while scope_field < 2 {
+            word = name_id;
+            if scope_field == 1 {
+                word = leaf_node_id;
+            }
+            if result_value(bytes_push(&mut scopes, word_byte_0(word))) < 0 {
+                return 42;
+            }
+            if result_value(bytes_push(&mut scopes, word_byte_1(word))) < 0 {
+                return 42;
+            }
+            if result_value(bytes_push(&mut scopes, word_byte_2(word))) < 0 {
+                return 42;
+            }
+            if result_value(bytes_push(&mut scopes, word_byte_3(word))) < 0 {
+                return 42;
+            }
+            scope_field = scope_field + 1;
+        }
+
+        if root == 0 {
+            root = leaf_node_id;
+        } else {
+            let sequence_left: int = root;
+            sequence_node_id = node_count + 1;
+            sequence_field = 0;
+            while sequence_field < 4 {
+                word = 0;
+                if sequence_field == 0 {
+                    word = 2;
+                } else if sequence_field == 2 {
+                    word = sequence_left;
+                } else if sequence_field == 3 {
+                    word = leaf_node_id;
+                }
+                if result_value(bytes_push(&mut nodes, word_byte_0(word))) < 0 {
+                    return 43;
+                }
+                if result_value(bytes_push(&mut nodes, word_byte_1(word))) < 0 {
+                    return 43;
+                }
+                if result_value(bytes_push(&mut nodes, word_byte_2(word))) < 0 {
+                    return 43;
+                }
+                if result_value(bytes_push(&mut nodes, word_byte_3(word))) < 0 {
+                    return 43;
+                }
+                sequence_field = sequence_field + 1;
+            }
+            node_count = sequence_node_id;
+            root = sequence_node_id;
+        }
+
+        token_count = token_count + 1;
+        input_offset = name_end;
+    }
+
+    let names_length: int = bytes_len(&names);
+    let tokens_length: int = bytes_len(&tokens);
+    let scopes_length: int = bytes_len(&scopes);
+    let nodes_length: int = bytes_len(&nodes);
+    if names_length != name_count * 8 || tokens_length != token_count * 16
+        || scopes_length != token_count * 8 || nodes_length != node_count * 16 {
+        return 50;
+    }
+
+    let mut checksum: int = 17;
+    let mut validate_name: int = 0;
+    let mut canonical_start: int = 0;
+    let mut canonical_length: int = 0;
+    let mut validate_name_field: int = 0;
+    let mut validate_name_word_offset: int = 0;
+    let mut validate_name_byte_0: int = 0;
+    let mut validate_name_byte_1: int = 0;
+    let mut validate_name_byte_2: int = 0;
+    let mut validate_name_byte_3: int = 0;
+    let mut validate_name_word: int = 0;
+    let mut earlier_name: int = 0;
+    let mut earlier_start_offset: int = 0;
+    let mut earlier_length_offset: int = 0;
+    let mut earlier_start_0: int = 0;
+    let mut earlier_start_1: int = 0;
+    let mut earlier_start_2: int = 0;
+    let mut earlier_start_3: int = 0;
+    let mut earlier_length_0: int = 0;
+    let mut earlier_length_1: int = 0;
+    let mut earlier_length_2: int = 0;
+    let mut earlier_length_3: int = 0;
+    let mut earlier_start_value: int = 0;
+    let mut earlier_length_value: int = 0;
+    let mut duplicate: int = 0;
+    let mut duplicate_index: int = 0;
+    let mut earlier_byte: int = 0;
+    let mut validate_name_canonical_byte: int = 0;
+    while validate_name < name_count {
+        canonical_start = 0;
+        canonical_length = 0;
+        validate_name_field = 0;
+        while validate_name_field < 2 {
+            validate_name_word_offset = validate_name * 8 + validate_name_field * 4;
+            validate_name_byte_0 = result_value(bytes_get(&names, validate_name_word_offset));
+            validate_name_byte_1 = result_value(bytes_get(&names, validate_name_word_offset + 1));
+            validate_name_byte_2 = result_value(bytes_get(&names, validate_name_word_offset + 2));
+            validate_name_byte_3 = result_value(bytes_get(&names, validate_name_word_offset + 3));
+            if validate_name_byte_0 < 0 || validate_name_byte_1 < 0
+                || validate_name_byte_2 < 0 || validate_name_byte_3 < 0
+                || validate_name_byte_3 > 127 {
+                return 51;
+            }
+            validate_name_word = validate_name_byte_0 + validate_name_byte_1 * 256
+                + validate_name_byte_2 * 65536
+                + validate_name_byte_3 * 16777216;
+            checksum = checksum_step(checksum, validate_name_word);
+            if validate_name_field == 0 {
+                canonical_start = validate_name_word;
+            } else {
+                canonical_length = validate_name_word;
+            }
+            validate_name_field = validate_name_field + 1;
+        }
+        if canonical_start <= 0 || canonical_length <= 0 || canonical_length > 63
+            || canonical_start > source_length - canonical_length {
+            return 52;
+        }
+
+        earlier_name = 0;
+        while earlier_name < validate_name {
+            earlier_start_offset = earlier_name * 8;
+            earlier_length_offset = earlier_start_offset + 4;
+            earlier_start_0 = result_value(bytes_get(&names, earlier_start_offset));
+            earlier_start_1 = result_value(bytes_get(&names, earlier_start_offset + 1));
+            earlier_start_2 = result_value(bytes_get(&names, earlier_start_offset + 2));
+            earlier_start_3 = result_value(bytes_get(&names, earlier_start_offset + 3));
+            earlier_length_0 = result_value(bytes_get(&names, earlier_length_offset));
+            earlier_length_1 = result_value(bytes_get(&names, earlier_length_offset + 1));
+            earlier_length_2 = result_value(bytes_get(&names, earlier_length_offset + 2));
+            earlier_length_3 = result_value(bytes_get(&names, earlier_length_offset + 3));
+            if earlier_start_0 < 0 || earlier_start_1 < 0 || earlier_start_2 < 0
+                || earlier_start_3 < 0 || earlier_start_3 > 127
+                || earlier_length_0 < 0 || earlier_length_1 < 0
+                || earlier_length_2 < 0 || earlier_length_3 < 0
+                || earlier_length_3 > 127 {
+                return 53;
+            }
+            earlier_start_value = earlier_start_0 + earlier_start_1 * 256
+                + earlier_start_2 * 65536 + earlier_start_3 * 16777216;
+            earlier_length_value = earlier_length_0 + earlier_length_1 * 256
+                + earlier_length_2 * 65536 + earlier_length_3 * 16777216;
+            if earlier_length_value == canonical_length {
+                duplicate = 1;
+                duplicate_index = 0;
+                while duplicate_index < canonical_length && duplicate == 1 {
+                    earlier_byte = result_value(bytes_get(
+                        &source, earlier_start_value + duplicate_index));
+                    validate_name_canonical_byte = result_value(bytes_get(
+                        &source, canonical_start + duplicate_index));
+                    if earlier_byte < 0 || validate_name_canonical_byte < 0 {
+                        return 54;
+                    }
+                    if earlier_byte != validate_name_canonical_byte {
+                        duplicate = 0;
+                    }
+                    duplicate_index = duplicate_index + 1;
+                }
+                if duplicate == 1 {
+                    return 55;
+                }
+            }
+            earlier_name = earlier_name + 1;
+        }
+        validate_name = validate_name + 1;
+    }
+    checksum = checksum_step(checksum, 991);
+
+    let mut validate_token: int = 0;
+    let mut previous_end: int = 0;
+    let mut token_kind: int = 0;
+    let mut token_start: int = 0;
+    let mut token_length: int = 0;
+    let mut token_name_id: int = 0;
+    let mut validate_token_field: int = 0;
+    let mut token_word_offset: int = 0;
+    let mut token_byte_0: int = 0;
+    let mut token_byte_1: int = 0;
+    let mut token_byte_2: int = 0;
+    let mut token_byte_3: int = 0;
+    let mut token_word: int = 0;
+    let mut canonical_offset: int = 0;
+    let mut canonical_start_0: int = 0;
+    let mut canonical_start_1: int = 0;
+    let mut canonical_start_2: int = 0;
+    let mut canonical_start_3: int = 0;
+    let mut canonical_length_0: int = 0;
+    let mut canonical_length_1: int = 0;
+    let mut canonical_length_2: int = 0;
+    let mut canonical_length_3: int = 0;
+    let mut token_canonical_start: int = 0;
+    let mut token_canonical_length: int = 0;
+    let mut token_byte_index: int = 0;
+    let mut token_byte: int = 0;
+    let mut token_canonical_byte: int = 0;
+    while validate_token < token_count {
+        token_kind = 0;
+        token_start = 0;
+        token_length = 0;
+        token_name_id = 0;
+        validate_token_field = 0;
+        while validate_token_field < 4 {
+            token_word_offset = validate_token * 16 + validate_token_field * 4;
+            token_byte_0 = result_value(bytes_get(&tokens, token_word_offset));
+            token_byte_1 = result_value(bytes_get(&tokens, token_word_offset + 1));
+            token_byte_2 = result_value(bytes_get(&tokens, token_word_offset + 2));
+            token_byte_3 = result_value(bytes_get(&tokens, token_word_offset + 3));
+            if token_byte_0 < 0 || token_byte_1 < 0 || token_byte_2 < 0
+                || token_byte_3 < 0 || token_byte_3 > 127 {
+                return 56;
+            }
+            token_word = token_byte_0 + token_byte_1 * 256 + token_byte_2 * 65536
+                + token_byte_3 * 16777216;
+            checksum = checksum_step(checksum, token_word);
+            if validate_token_field == 0 {
+                token_kind = token_word;
+            } else if validate_token_field == 1 {
+                token_start = token_word;
+            } else if validate_token_field == 2 {
+                token_length = token_word;
+            } else {
+                token_name_id = token_word;
+            }
+            validate_token_field = validate_token_field + 1;
+        }
+        if token_kind != 1 || token_length <= 0 || token_length > 63
+            || token_name_id <= 0 || token_name_id > name_count
+            || token_start > source_length - token_length {
+            return 57;
+        }
+        if validate_token == 0 {
+            if token_start != 1 {
+                return 58;
+            }
+        } else if token_start != previous_end + 1 {
+            return 58;
+        }
+        previous_end = token_start + token_length;
+
+        canonical_offset = (token_name_id - 1) * 8;
+        canonical_start_0 = result_value(bytes_get(&names, canonical_offset));
+        canonical_start_1 = result_value(bytes_get(&names, canonical_offset + 1));
+        canonical_start_2 = result_value(bytes_get(&names, canonical_offset + 2));
+        canonical_start_3 = result_value(bytes_get(&names, canonical_offset + 3));
+        canonical_length_0 = result_value(bytes_get(&names, canonical_offset + 4));
+        canonical_length_1 = result_value(bytes_get(&names, canonical_offset + 5));
+        canonical_length_2 = result_value(bytes_get(&names, canonical_offset + 6));
+        canonical_length_3 = result_value(bytes_get(&names, canonical_offset + 7));
+        if canonical_start_0 < 0 || canonical_start_1 < 0 || canonical_start_2 < 0
+            || canonical_start_3 < 0 || canonical_start_3 > 127
+            || canonical_length_0 < 0 || canonical_length_1 < 0
+            || canonical_length_2 < 0 || canonical_length_3 < 0
+            || canonical_length_3 > 127 {
+            return 59;
+        }
+        token_canonical_start = canonical_start_0 + canonical_start_1 * 256
+            + canonical_start_2 * 65536 + canonical_start_3 * 16777216;
+        token_canonical_length = canonical_length_0 + canonical_length_1 * 256
+            + canonical_length_2 * 65536 + canonical_length_3 * 16777216;
+        if token_canonical_length != token_length {
+            return 60;
+        }
+        token_byte_index = 0;
+        while token_byte_index < token_length {
+            token_byte = result_value(bytes_get(&source, token_start + token_byte_index));
+            token_canonical_byte = result_value(bytes_get(
+                &source, token_canonical_start + token_byte_index));
+            if token_byte < 0 || token_canonical_byte < 0
+                || token_byte != token_canonical_byte {
+                return 60;
+            }
+            token_byte_index = token_byte_index + 1;
+        }
+        validate_token = validate_token + 1;
+    }
+    if token_count > 0 && previous_end != source_length {
+        return 61;
+    }
+    checksum = checksum_step(checksum, 992);
+
+    let mut validate_scope: int = 0;
+    let mut validate_scope_offset: int = 0;
+    let mut validate_scope_name_0: int = 0;
+    let mut validate_scope_name_1: int = 0;
+    let mut validate_scope_name_2: int = 0;
+    let mut validate_scope_name_3: int = 0;
+    let mut validate_scope_leaf_0: int = 0;
+    let mut validate_scope_leaf_1: int = 0;
+    let mut validate_scope_leaf_2: int = 0;
+    let mut validate_scope_leaf_3: int = 0;
+    let mut validate_scope_name_id: int = 0;
+    let mut validate_scope_leaf_id: int = 0;
+    let mut token_name_offset: int = 0;
+    let mut token_name_0: int = 0;
+    let mut token_name_1: int = 0;
+    let mut token_name_2: int = 0;
+    let mut token_name_3: int = 0;
+    let mut scope_token_name_id: int = 0;
+    let mut expected_leaf_id: int = 0;
+    while validate_scope < token_count {
+        validate_scope_offset = validate_scope * 8;
+        validate_scope_name_0 = result_value(bytes_get(&scopes, validate_scope_offset));
+        validate_scope_name_1 = result_value(bytes_get(&scopes, validate_scope_offset + 1));
+        validate_scope_name_2 = result_value(bytes_get(&scopes, validate_scope_offset + 2));
+        validate_scope_name_3 = result_value(bytes_get(&scopes, validate_scope_offset + 3));
+        validate_scope_leaf_0 = result_value(bytes_get(&scopes, validate_scope_offset + 4));
+        validate_scope_leaf_1 = result_value(bytes_get(&scopes, validate_scope_offset + 5));
+        validate_scope_leaf_2 = result_value(bytes_get(&scopes, validate_scope_offset + 6));
+        validate_scope_leaf_3 = result_value(bytes_get(&scopes, validate_scope_offset + 7));
+        if validate_scope_name_0 < 0 || validate_scope_name_1 < 0
+            || validate_scope_name_2 < 0 || validate_scope_name_3 < 0
+            || validate_scope_name_3 > 127 || validate_scope_leaf_0 < 0
+            || validate_scope_leaf_1 < 0 || validate_scope_leaf_2 < 0
+            || validate_scope_leaf_3 < 0 || validate_scope_leaf_3 > 127 {
+            return 62;
+        }
+        validate_scope_name_id = validate_scope_name_0 + validate_scope_name_1 * 256
+            + validate_scope_name_2 * 65536 + validate_scope_name_3 * 16777216;
+        validate_scope_leaf_id = validate_scope_leaf_0 + validate_scope_leaf_1 * 256
+            + validate_scope_leaf_2 * 65536 + validate_scope_leaf_3 * 16777216;
+        checksum = checksum_step(checksum, validate_scope_name_id);
+        checksum = checksum_step(checksum, validate_scope_leaf_id);
+
+        token_name_offset = validate_scope * 16 + 12;
+        token_name_0 = result_value(bytes_get(&tokens, token_name_offset));
+        token_name_1 = result_value(bytes_get(&tokens, token_name_offset + 1));
+        token_name_2 = result_value(bytes_get(&tokens, token_name_offset + 2));
+        token_name_3 = result_value(bytes_get(&tokens, token_name_offset + 3));
+        if token_name_0 < 0 || token_name_1 < 0 || token_name_2 < 0
+            || token_name_3 < 0 || token_name_3 > 127 {
+            return 63;
+        }
+        scope_token_name_id = token_name_0 + token_name_1 * 256
+            + token_name_2 * 65536 + token_name_3 * 16777216;
+        expected_leaf_id = 1;
+        if validate_scope > 0 {
+            expected_leaf_id = validate_scope * 2;
+        }
+        if validate_scope_name_id != scope_token_name_id
+            || validate_scope_leaf_id != expected_leaf_id {
+            return 64;
+        }
+        validate_scope = validate_scope + 1;
+    }
+
+    let mut lookup_name_id: int = 1;
+    let mut reverse_scope: int = 0;
+    let mut latest_leaf: int = 0;
+    let mut lookup_scope_offset: int = 0;
+    let mut lookup_scope_name_0: int = 0;
+    let mut lookup_scope_name_1: int = 0;
+    let mut lookup_scope_name_2: int = 0;
+    let mut lookup_scope_name_3: int = 0;
+    let mut lookup_scope_leaf_0: int = 0;
+    let mut lookup_scope_leaf_1: int = 0;
+    let mut lookup_scope_leaf_2: int = 0;
+    let mut lookup_scope_leaf_3: int = 0;
+    let mut lookup_scope_name_id: int = 0;
+    while lookup_name_id <= name_count {
+        reverse_scope = token_count;
+        latest_leaf = 0;
+        while reverse_scope > 0 && latest_leaf == 0 {
+            reverse_scope = reverse_scope - 1;
+            lookup_scope_offset = reverse_scope * 8;
+            lookup_scope_name_0 = result_value(bytes_get(&scopes, lookup_scope_offset));
+            lookup_scope_name_1 = result_value(bytes_get(&scopes, lookup_scope_offset + 1));
+            lookup_scope_name_2 = result_value(bytes_get(&scopes, lookup_scope_offset + 2));
+            lookup_scope_name_3 = result_value(bytes_get(&scopes, lookup_scope_offset + 3));
+            lookup_scope_leaf_0 = result_value(bytes_get(&scopes, lookup_scope_offset + 4));
+            lookup_scope_leaf_1 = result_value(bytes_get(&scopes, lookup_scope_offset + 5));
+            lookup_scope_leaf_2 = result_value(bytes_get(&scopes, lookup_scope_offset + 6));
+            lookup_scope_leaf_3 = result_value(bytes_get(&scopes, lookup_scope_offset + 7));
+            if lookup_scope_name_0 < 0 || lookup_scope_name_1 < 0
+                || lookup_scope_name_2 < 0 || lookup_scope_name_3 < 0
+                || lookup_scope_name_3 > 127 || lookup_scope_leaf_0 < 0
+                || lookup_scope_leaf_1 < 0 || lookup_scope_leaf_2 < 0
+                || lookup_scope_leaf_3 < 0 || lookup_scope_leaf_3 > 127 {
+                return 65;
+            }
+            lookup_scope_name_id = lookup_scope_name_0 + lookup_scope_name_1 * 256
+                + lookup_scope_name_2 * 65536
+                + lookup_scope_name_3 * 16777216;
+            if lookup_scope_name_id == lookup_name_id {
+                latest_leaf = lookup_scope_leaf_0 + lookup_scope_leaf_1 * 256
+                    + lookup_scope_leaf_2 * 65536
+                    + lookup_scope_leaf_3 * 16777216;
+            }
+        }
+        if latest_leaf == 0 {
+            return 66;
+        }
+        lookup_name_id = lookup_name_id + 1;
+    }
+    checksum = checksum_step(checksum, 993);
+
+    let mut leaf_count: int = 0;
+    let mut sequence_count: int = 0;
+    let mut validate_node: int = 0;
+    let mut node_kind: int = 0;
+    let mut node_payload: int = 0;
+    let mut node_left: int = 0;
+    let mut node_right: int = 0;
+    let mut node_field: int = 0;
+    let mut node_word_offset: int = 0;
+    let mut node_byte_0: int = 0;
+    let mut node_byte_1: int = 0;
+    let mut node_byte_2: int = 0;
+    let mut node_byte_3: int = 0;
+    let mut node_word: int = 0;
+    let mut node_id: int = 0;
+    while validate_node < node_count {
+        node_kind = 0;
+        node_payload = 0;
+        node_left = 0;
+        node_right = 0;
+        node_field = 0;
+        while node_field < 4 {
+            node_word_offset = validate_node * 16 + node_field * 4;
+            node_byte_0 = result_value(bytes_get(&nodes, node_word_offset));
+            node_byte_1 = result_value(bytes_get(&nodes, node_word_offset + 1));
+            node_byte_2 = result_value(bytes_get(&nodes, node_word_offset + 2));
+            node_byte_3 = result_value(bytes_get(&nodes, node_word_offset + 3));
+            if node_byte_0 < 0 || node_byte_1 < 0 || node_byte_2 < 0
+                || node_byte_3 < 0 || node_byte_3 > 127 {
+                return 67;
+            }
+            node_word = node_byte_0 + node_byte_1 * 256 + node_byte_2 * 65536
+                + node_byte_3 * 16777216;
+            checksum = checksum_step(checksum, node_word);
+            if node_field == 0 {
+                node_kind = node_word;
+            } else if node_field == 1 {
+                node_payload = node_word;
+            } else if node_field == 2 {
+                node_left = node_word;
+            } else {
+                node_right = node_word;
+            }
+            node_field = node_field + 1;
+        }
+        node_id = validate_node + 1;
+        if node_kind == 1 {
+            if node_payload <= 0 || node_payload > name_count
+                || node_left != 0 || node_right != 0 {
+                return 68;
+            }
+            leaf_count = leaf_count + 1;
+        } else if node_kind == 2 {
+            if node_payload != 0 || node_left <= 0 || node_right <= 0
+                || node_left >= node_id || node_right >= node_id {
+                return 69;
+            }
+            sequence_count = sequence_count + 1;
+        } else {
+            return 70;
+        }
+        validate_node = validate_node + 1;
+    }
+    checksum = checksum_step(checksum, 994);
+
+    if token_count == 0 {
+        if name_count != 0 || node_count != 0 || root != 0
+            || leaf_count != 0 || sequence_count != 0 {
+            return 71;
+        }
+    } else if leaf_count != token_count || sequence_count != token_count - 1
+        || node_count != token_count * 2 - 1 || root != node_count {
+        return 71;
+    }
+
+    checksum = checksum_step(checksum, name_count);
+    checksum = checksum_step(checksum, token_count);
+    checksum = checksum_step(checksum, node_count);
+    checksum = checksum_step(checksum, root);
+    if name_count != expected_names || token_count != expected_tokens
+        || node_count != expected_nodes || root != expected_root
+        || checksum != expected_checksum {
+        return 80;
+    }
+    return 91;
+}
+
+// CAP-040 TRACKED SELF-TEST
+
+fn main() -> int {
+    return run_compiler_storage(3, 4, 7, 7, 639832);
+}
