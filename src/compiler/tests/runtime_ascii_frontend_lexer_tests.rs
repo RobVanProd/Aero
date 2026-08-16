@@ -1,15 +1,26 @@
-use compiler::{Token, try_tokenize_with_locations};
+use compiler::{
+    CompilerOptions, LanguageProfile, LlvmVerificationMode, Token, check_file, check_program,
+    compile_file, compile_program, try_tokenize_with_locations, verify_llvm_module,
+};
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_INPUT_BYTES: usize = 8_192;
 const MAX_REAL_TOKENS: usize = 1_024;
 const MAX_NAMES: usize = 1_024;
 const MAX_IDENTIFIER_BYTES: usize = 63;
+const PROFILE_NAME: &str = "exact-i32-byte-input-v0";
 const PRODUCT_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_lexer.aero";
+const WORKFLOW_RELATIVE_PATH: &str = "../../.github/workflows/rust.yml";
 const SELF_TEST_MARKER: &str = "// CAP-041 TRACKED SELF-TEST";
 const INTENTIONAL_PRODUCT_RED: &str =
     "CAP-041 intentional product red: tracked runtime ASCII lexer is absent";
+
+static NEXT_WORKSPACE_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NameRecord {
@@ -457,6 +468,327 @@ fn production_kind(token: &Token) -> Option<i32> {
     }
 }
 
+fn options() -> CompilerOptions {
+    CompilerOptions {
+        language_profile: LanguageProfile::ExactI32ByteInputV0,
+        ..CompilerOptions::default()
+    }
+}
+
+fn repository_path(relative: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative)
+}
+
+#[derive(Debug)]
+struct TestWorkspace {
+    root: PathBuf,
+}
+
+impl TestWorkspace {
+    fn new(label: &str) -> Self {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let serial = NEXT_WORKSPACE_ID.fetch_add(1, Ordering::Relaxed);
+        let parent = std::env::var_os("CARGO_TARGET_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| repository_path("../../target"))
+            .join("cap041-runtime-lexer-tests");
+        let root = parent.join(format!("{label}-{}-{nonce}-{serial}", std::process::id()));
+        fs::create_dir_all(&root).expect("create CAP-041 test workspace");
+        Self { root }
+    }
+
+    fn write(&self, name: &str, contents: impl AsRef<[u8]>) -> PathBuf {
+        let path = self.root.join(name);
+        fs::write(&path, contents).expect("write CAP-041 artifact");
+        path
+    }
+}
+
+impl Drop for TestWorkspace {
+    fn drop(&mut self) {
+        let valid = self
+            .root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("cap041-"));
+        if valid {
+            let _ = fs::remove_dir_all(&self.root);
+        }
+    }
+}
+
+fn run_command_with_stdin(command: &mut Command, input: &[u8]) -> Output {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn CAP-041 child");
+    child
+        .stdin
+        .take()
+        .expect("CAP-041 child stdin")
+        .write_all(input)
+        .expect("write CAP-041 child stdin");
+    child.wait_with_output().expect("wait for CAP-041 child")
+}
+
+fn clang_link(
+    label: &str,
+    workspace: &TestWorkspace,
+    inputs: &[&Path],
+    optimization: &str,
+) -> PathBuf {
+    let executable = workspace.root.join(if cfg!(windows) {
+        format!("{label}-{optimization}.exe")
+    } else {
+        format!("{label}-{optimization}")
+    });
+    let mut command = Command::new("clang");
+    command.args([
+        "-std=c11",
+        optimization,
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-override-module",
+    ]);
+    command.args(inputs).arg("-o").arg(&executable);
+    let output = command.output().expect("execute Clang for CAP-041");
+    assert!(
+        output.status.success(),
+        "link {label} {optimization} (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    executable
+}
+
+fn assert_silent_exit_91(output: &Output, label: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "{label} failed (stdout={:?}, stderr={:?})",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "{label} emitted stdout");
+    assert!(output.stderr.is_empty(), "{label} emitted stderr");
+}
+
+fn generated_program(kernel_prefix: &str, model: &LexModel, checksum_delta: i32) -> String {
+    format!(
+        "{}\n\nfn main() -> int {{\n    return run_runtime_ascii_lexer({}, {}, {}, {}, {}, {}, {});\n}}\n",
+        kernel_prefix.trim_end(),
+        model.status,
+        model.error_offset,
+        model.error_line,
+        model.error_column,
+        model.names.len(),
+        model.tokens.len(),
+        model.checksum + checksum_delta,
+    )
+}
+
+fn compile_generated(program: &str) -> String {
+    check_program(program, options()).expect("generated CAP-041 program checks");
+    let first = compile_program(program, options()).expect("generated CAP-041 program compiles");
+    let second = compile_program(program, options()).expect("generated CAP-041 program recompiles");
+    assert_eq!(first, second, "generated CAP-041 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("generated CAP-041 LLVM verifies");
+    first
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct BufferState {
+    length: usize,
+    capacity: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AllocationExpectation {
+    success: bool,
+    allocations: u64,
+    reallocations: u64,
+    deallocations: u64,
+}
+
+fn simulate_pushes(
+    state: &mut BufferState,
+    count: usize,
+    fail_after: u64,
+    successful_events: &mut u64,
+    allocations: &mut u64,
+    reallocations: &mut u64,
+) -> bool {
+    for _ in 0..count {
+        if state.length == state.capacity {
+            if state.capacity == 0 {
+                *allocations += 1;
+            } else {
+                *reallocations += 1;
+            }
+            if *successful_events >= fail_after {
+                return false;
+            }
+            *successful_events += 1;
+            state.capacity = if state.capacity == 0 {
+                8
+            } else {
+                state.capacity * 2
+            };
+        }
+        state.length += 1;
+    }
+    true
+}
+
+fn allocation_expectation(
+    input: &[u8],
+    model: &LexModel,
+    fail_after: u64,
+) -> AllocationExpectation {
+    let mut buffers = [BufferState::default(); 3];
+    let mut successful_events = 0;
+    let mut allocations = 0;
+    let mut reallocations = 0;
+    let mut completed = simulate_pushes(
+        &mut buffers[0],
+        input.len(),
+        fail_after,
+        &mut successful_events,
+        &mut allocations,
+        &mut reallocations,
+    );
+    let mut seen_names = vec![false; model.names.len() + 1];
+    if completed {
+        for token in &model.tokens {
+            if token.name_id != 0 && !seen_names[token.name_id] {
+                completed = simulate_pushes(
+                    &mut buffers[1],
+                    8,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+                seen_names[token.name_id] = completed;
+            }
+            if completed {
+                completed = simulate_pushes(
+                    &mut buffers[2],
+                    24,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+            }
+            if !completed {
+                break;
+            }
+        }
+    }
+    AllocationExpectation {
+        success: completed,
+        allocations,
+        reallocations,
+        deallocations: buffers.iter().filter(|buffer| buffer.capacity != 0).count() as u64,
+    }
+}
+
+fn allocation_harness(input: &[u8], model: &LexModel) -> String {
+    let mut cases = String::new();
+    for threshold in [0u64, 1, 2, 3, 4, 6, 9, 11, 12] {
+        let expected = allocation_expectation(input, model, threshold);
+        use std::fmt::Write as _;
+        writeln!(
+            cases,
+            "    {{ UINT64_C({threshold}), {}, UINT64_C({}), UINT64_C({}), UINT64_C({}) }},",
+            i32::from(expected.success),
+            expected.allocations,
+            expected.reallocations,
+            expected.deallocations,
+        )
+        .expect("write CAP-041 allocation case");
+    }
+    let input_bytes = input
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"
+#include <stddef.h>
+#include <stdint.h>
+
+extern int aero_program_main(void);
+extern int32_t aero_test_reset(uint64_t fail_after_successes);
+extern uint64_t aero_test_alloc_calls(void);
+extern uint64_t aero_test_realloc_calls(void);
+extern uint64_t aero_test_dealloc_calls(void);
+extern uint64_t aero_test_live_allocations(void);
+extern uint64_t aero_test_size_mismatch_calls(void);
+
+static const uint8_t input_bytes[] = {{ {input_bytes} }};
+static size_t input_index;
+static int32_t sticky_status;
+
+static void reset_input(void) {{
+    input_index = 0;
+    sticky_status = 0;
+}}
+
+int32_t aero_stdin_read_byte(void) {{
+    if (sticky_status != 0) return sticky_status;
+    if (input_index < sizeof(input_bytes)) return input_bytes[input_index++];
+    sticky_status = -1;
+    return sticky_status;
+}}
+
+struct Case {{
+    uint64_t fail_after;
+    int32_t success;
+    uint64_t allocations;
+    uint64_t reallocations;
+    uint64_t deallocations;
+}};
+
+int main(void) {{
+    const struct Case cases[] = {{
+{cases}    }};
+    for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {{
+        const struct Case *test = &cases[index];
+        if (aero_test_reset(test->fail_after) != 1) return 70;
+        reset_input();
+        int32_t result = aero_program_main();
+        if ((result == 91) != test->success) return 71;
+        if (aero_test_alloc_calls() != test->allocations) return 72;
+        if (aero_test_realloc_calls() != test->reallocations) return 73;
+        if (aero_test_dealloc_calls() != test->deallocations) return 74;
+        if (aero_test_live_allocations() != 0) return 75;
+        if (aero_test_size_mismatch_calls() != 0) return 76;
+    }}
+    return 91;
+}}
+"#,
+    )
+}
+
+fn workflow_step<'a>(workflow: &'a str, name: &str) -> &'a str {
+    let marker = format!("    - name: {name}\n");
+    let start = workflow
+        .find(&marker)
+        .unwrap_or_else(|| panic!("workflow step `{name}` is absent"));
+    let remainder = &workflow[start + marker.len()..];
+    let end = remainder.find("\n    - name: ").unwrap_or(remainder.len());
+    &remainder[..end]
+}
+
 #[test]
 fn independent_oracle_freezes_owned_records_limits_locations_and_checksum() {
     let canonical = reference_lex(b"fn f()->int{return f;}");
@@ -678,13 +1010,283 @@ fn accepted_rust_lexer_overlap_matches_independent_kind_and_location_oracle() {
 
 #[test]
 fn tracked_runtime_ascii_lexer_product_is_present_before_native_evidence() {
-    let product_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(PRODUCT_RELATIVE_PATH);
+    let product_path = repository_path(PRODUCT_RELATIVE_PATH);
     let product =
         fs::read_to_string(&product_path).unwrap_or_else(|_| panic!("{INTENTIONAL_PRODUCT_RED}"));
-    assert!(
-        product.contains("fn run_runtime_ascii_lexer("),
-        "{INTENTIONAL_PRODUCT_RED}"
-    );
+    let (kernel_prefix, tracked_main) = product
+        .split_once(SELF_TEST_MARKER)
+        .expect("tracked product retains one lexer/self-test boundary");
+
     assert_eq!(product.matches(SELF_TEST_MARKER).count(), 1);
-    assert!(product.contains("fn main() -> int"));
+    assert_eq!(product.matches("fn run_runtime_ascii_lexer(").count(), 1);
+    assert!(tracked_main.contains("fn main() -> int"));
+    assert!(tracked_main.contains("run_runtime_ascii_lexer(0, -1, 0, 0, 2, 12, 602295)"));
+    for owner in ["source", "names", "tokens"] {
+        assert!(
+            product.contains(&format!("let mut {owner}: ByteBuffer = bytes_new();")),
+            "tracked CAP-041 product omitted `{owner}`"
+        );
+    }
+    for forbidden in [
+        "String", "Vec", "HashMap", "print", "mod ", "use ", "unsafe",
+    ] {
+        assert!(
+            !product.contains(forbidden),
+            "tracked CAP-041 product contains `{forbidden}`"
+        );
+    }
+
+    check_program(&product, options()).expect("tracked CAP-041 product checks");
+    let first = compile_program(&product, options()).expect("tracked CAP-041 product compiles");
+    let second = compile_program(&product, options()).expect("tracked CAP-041 product recompiles");
+    assert_eq!(first, second, "tracked CAP-041 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("tracked CAP-041 LLVM verifies");
+    assert_eq!(
+        first.matches("declare i32 @aero_stdin_read_byte()").count(),
+        1
+    );
+    assert_eq!(first.matches("call i32 @aero_stdin_read_byte()").count(), 1);
+    for anchor in [
+        "%aero.byte_buffer = type { ptr, i32, i32 }",
+        "declare ptr @aero_alloc(i64)",
+        "declare ptr @aero_realloc(ptr, i64, i64)",
+        "declare void @aero_dealloc(ptr, i64)",
+    ] {
+        assert!(first.contains(anchor), "tracked LLVM omitted `{anchor}`");
+    }
+    for forbidden in [
+        "double", "fptosi", "sitofp", " nsw ", " nuw ", "@malloc", "@free",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "tracked LLVM leaked `{forbidden}`"
+        );
+    }
+
+    let workspace = TestWorkspace::new("tracked");
+    let tracked_source = workspace.write("runtime_ascii_lexer.aero", &product);
+    check_file(&tracked_source, options()).expect("tracked CAP-041 file checks");
+    assert_eq!(
+        compile_file(&tracked_source, options()).expect("tracked CAP-041 file compiles"),
+        first,
+        "tracked CAP-041 source/file LLVM diverged"
+    );
+
+    let canonical = b"fn f()->int{return f;}".to_vec();
+    let canonical_model = reference_lex(&canonical);
+    assert_eq!(canonical_model.checksum, 602_295);
+    let runtime = repository_path("../../src/compiler/runtime/aero_runtime.c");
+    let llvm_path = workspace.write("tracked.ll", &first);
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "tracked",
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), &canonical),
+            &format!("tracked CAP-041 {optimization}"),
+        );
+    }
+
+    let located = b"let alpha\r\n\talpha/* x\ny */+12".to_vec();
+    let unsupported = b"fn @".to_vec();
+    let non_ascii = vec![b'\n', 0xff];
+    let token_bound = "x ".repeat(MAX_REAL_TOKENS + 1).into_bytes();
+    let oversized = vec![b' '; MAX_INPUT_BYTES + 1];
+    for (label, input) in [
+        ("empty", Vec::new()),
+        ("located", located),
+        ("unsupported", unsupported),
+        ("non-ascii", non_ascii),
+        ("token-bound", token_bound),
+        ("input-bound", oversized),
+    ] {
+        let model = reference_lex(&input);
+        let program = generated_program(kernel_prefix, &model, 0);
+        let llvm = compile_generated(&program);
+        let case = TestWorkspace::new(label);
+        let llvm_path = case.write("case.ll", llvm);
+        let executable = clang_link(
+            label,
+            &case,
+            &[llvm_path.as_path(), runtime.as_path()],
+            "-O2",
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), &input),
+            &format!("generated CAP-041 {label}"),
+        );
+    }
+
+    let wrong_program = generated_program(kernel_prefix, &canonical_model, 1);
+    let wrong_llvm = compile_generated(&wrong_program);
+    let wrong = TestWorkspace::new("wrong-oracle");
+    let wrong_path = wrong.write("wrong.ll", wrong_llvm);
+    let wrong_executable = clang_link(
+        "wrong",
+        &wrong,
+        &[wrong_path.as_path(), runtime.as_path()],
+        "-O2",
+    );
+    assert_ne!(
+        run_command_with_stdin(&mut Command::new(wrong_executable), &canonical)
+            .status
+            .code(),
+        Some(91),
+        "wrong independent expectation was accepted"
+    );
+
+    let corrupted_kernel = kernel_prefix.replacen("return 3;", "return 4;", 1);
+    assert_ne!(
+        corrupted_kernel, kernel_prefix,
+        "corruption anchor was absent"
+    );
+    let corrupt_program = generated_program(&corrupted_kernel, &canonical_model, 0);
+    let corrupt_llvm = compile_generated(&corrupt_program);
+    let corrupt = TestWorkspace::new("corrupt-keyword");
+    let corrupt_path = corrupt.write("corrupt.ll", corrupt_llvm);
+    let corrupt_executable = clang_link(
+        "corrupt",
+        &corrupt,
+        &[corrupt_path.as_path(), runtime.as_path()],
+        "-O2",
+    );
+    assert_ne!(
+        run_command_with_stdin(&mut Command::new(corrupt_executable), &canonical)
+            .status
+            .code(),
+        Some(91),
+        "keyword corruption was accepted"
+    );
+
+    let renamed = first.replacen("define i32 @main()", "define i32 @aero_program_main()", 1);
+    assert_ne!(renamed, first, "tracked CAP-041 product omitted main");
+    let allocation = TestWorkspace::new("allocation");
+    let allocation_llvm = allocation.write("program.ll", renamed);
+    let harness = allocation.write(
+        "harness.c",
+        allocation_harness(&canonical, &canonical_model),
+    );
+    let test_runtime = repository_path("../../src/compiler/runtime/aero_test_runtime.c");
+    let executable = clang_link(
+        "allocation",
+        &allocation,
+        &[
+            allocation_llvm.as_path(),
+            test_runtime.as_path(),
+            harness.as_path(),
+        ],
+        "-O2",
+    );
+    assert_silent_exit_91(
+        &Command::new(executable)
+            .output()
+            .expect("execute CAP-041 allocation harness"),
+        "CAP-041 allocation/failure matrix",
+    );
+
+    let public = TestWorkspace::new("public-run");
+    let public_source = public.write(
+        "runtime_ascii_lexer.aero",
+        generated_program(kernel_prefix, &canonical_model, 0),
+    );
+    let mut run = Command::new(env!("CARGO_BIN_EXE_aero"));
+    run.args([
+        "run",
+        public_source.to_str().expect("public source path is UTF-8"),
+        "--language-profile",
+        PROFILE_NAME,
+    ])
+    .current_dir(&public.root);
+    let output = run_command_with_stdin(&mut run, &canonical);
+    assert_eq!(
+        output.status.code(),
+        Some(91),
+        "public CAP-041 runner failed"
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(
+        stdout
+            .lines()
+            .filter(|line| *line == "Exit code: 91")
+            .count(),
+        1
+    );
+    assert!(
+        !stdout
+            .lines()
+            .any(|line| line.starts_with("Output:") || line.starts_with("Error output:"))
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "public CAP-041 runner emitted stderr"
+    );
+
+    for target in ["rocm", "cuda"] {
+        let output_path = public.root.join(format!("{target}.ll"));
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .args([
+                "build",
+                public_source.to_str().expect("public source path is UTF-8"),
+                "-o",
+                output_path.to_str().expect("output path is UTF-8"),
+                "--target",
+                target,
+                "--language-profile",
+                PROFILE_NAME,
+            ])
+            .current_dir(&public.root)
+            .output()
+            .expect("execute CAP-041 accelerator rejection");
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            !output_path.exists(),
+            "{target} rejection created an artifact"
+        );
+    }
+
+    let workflow =
+        fs::read_to_string(repository_path(WORKFLOW_RELATIVE_PATH)).expect("read Rust workflow");
+    let linux = workflow_step(&workflow, "Test runtime ASCII lexer at O0 and O2");
+    for anchor in [
+        "runtime_ascii_lexer.aero",
+        "exact-i32-byte-input-v0",
+        "runtime_ascii_lexer.linux.repeat.ll",
+        "cmp -s",
+        "llvm-as-22",
+        "opt-22",
+        "llc-22",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            linux.contains(anchor),
+            "Linux CAP-041 step omitted `{anchor}`"
+        );
+    }
+    let windows = workflow_step(
+        &workflow,
+        "Test runtime ASCII lexer on Windows at O0 and O2",
+    );
+    for anchor in [
+        "runtime_ascii_lexer.aero",
+        "exact-i32-byte-input-v0",
+        "runtime_ascii_lexer.windows.repeat.ll",
+        "SequenceEqual",
+        "llvm-as.exe",
+        "opt.exe",
+        "llc.exe",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            windows.contains(anchor),
+            "Windows CAP-041 step omitted `{anchor}`"
+        );
+    }
 }
