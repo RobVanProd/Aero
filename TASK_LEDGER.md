@@ -1,5 +1,155 @@
 # Aero Task Ledger
 
+## CAP-042-F1B-RUNTIME-ASCII-PARSER - located tokens to flat AST
+
+- Date/task/status: 2026-08-15, `CAP-042-F1B-RUNTIME-ASCII-PARSER`,
+  ledger-first authorization from accepted CAP-041/F1A merge
+  `4bdfcb206f541356aa83987084a9d2feffbe511c`, tree
+  `5bfe506bfc6714e32f6453ad5ddc233923298b54`, on
+  `agent/f1b-flat-ast-parser` in D:-resident worktree
+  `D:\Aero-worktrees\f1b-flat-ast-parser`. Its ordered parents are accepted
+  D1 merge `104d72dfb78921db68421c7ebd45e30dcbc3d804` and reviewed F1A
+  candidate `9e6e4cf87fe4a520afaf196790b5361a255056d9`; the reviewed candidate has
+  the identical tree. Candidate CI `31923184834`/`31923186661`, Rust CI
+  `31923186657`, CodeQL `31923184958`, and evidence `31923186631`, plus
+  accepted-head CI `31923494419`, Rust CI `31923494436`, CodeQL
+  `31923494324`, and evidence `31923494441`, are terminal-success. Merged PR
+  #83 is synchronized to those exact identities and results.
+- Observed behavior and first honest failure: accepted F1A reads runtime ASCII
+  source once and owns canonical names plus located token records; accepted D1
+  owns deterministic four-word flat AST records. No tracked Aero program
+  consumes the F1A record format as syntax or emits a source-derived D1 AST.
+  The first intentional red is the absent parser product and must report
+  exactly `CAP-042 intentional product red: tracked runtime ASCII parser is
+  absent`. A Rust parser change, new compiler token/grammar rule, new profile,
+  or backend diagnostic is the wrong first failure.
+- Hypothesis and F1 boundary: one product-only Aero program under accepted
+  `exact-i32-byte-input-v0` can preserve the accepted F1A scanner, scan each
+  source byte exactly once, and then parse only the retained token/name records
+  into an append-only D1 node arena. CAP-042 is F1B, not the whole F1 gate. F1
+  advances only after the composed lexer/parser product passes its protected
+  differential, malformed-source, failure, and deterministic replay surface.
+  The Rust stage-0 lexer/parser remain the production authorities.
+- Frozen source grammar, exactly:
+  `program := function EOF`; `function := fn IDENT ( ) -> int { return expr ;
+  }`; `expr := logical_or`; logical-or `||`, logical-and `&&`, equality `==`
+  and `!=`, relational `< <= > >=`, additive `+ -`, and multiplicative `* / %`
+  form descending precedence levels. All binary operators are left-associative.
+  Prefix `!` and prefix `-` are right-associative and bind more tightly than
+  every binary operator. Primaries are decimal integer tokens, ordinary
+  identifier tokens, or parenthesized expressions. The return type spelling is
+  the exact lowercase ASCII name `int`; it is still an F1A identifier token.
+  The function has no parameters and its body has exactly one return statement.
+- Frozen exclusions: no second function, parameter, declaration, assignment,
+  block expression, conditional, loop, call, method, field/index projection,
+  array/tuple/record/enum syntax, path, module/import, macro, string, character,
+  float, Unicode, recovery, implicit semicolon, unary plus, semantic name
+  resolution, type checking, constant folding, or code generation is admitted.
+  F1B may retain an unresolved identifier expression as a syntax node; that is
+  not a declaration, successful binding, or semantic claim. Decimal payloads
+  are `0..=2147483647`; unary minus is a separate node, so source
+  `-2147483648` remains outside this bounded grammar.
+- Frozen node contract: nodes are 1-based append-only IDs; zero means no child.
+  Each record is D1's four nonnegative little-endian words
+  `(kind, payload, left_id, right_id)`. Kinds are exactly: 1 integer literal,
+  2 identifier reference, 3 unary negate, 4 unary not, 5 multiply, 6 divide,
+  7 modulo, 8 add, 9 subtract, 10 less, 11 less-or-equal, 12 greater,
+  13 greater-or-equal, 14 equal, 15 not-equal, 16 logical-and, 17 logical-or,
+  18 return, and 19 function. Literal payload is its checked decimal value;
+  identifier/function payload is its accepted 1-based F1A NameId; every other
+  payload is zero. Unary and return nodes use `left_id` and zero `right_id`;
+  binary nodes use both children; the function node uses its name payload,
+  return node as left child, and zero right child. Operands precede parents,
+  the root is the sole function node, and every nonzero child is less than its
+  parent, proving a finite cycle-free arena without recursion.
+- Frozen parsing algorithm and resource contract: parsing is iterative
+  shunting-yard/postorder lowering over two private ByteBuffer stacks. The
+  parser never recursively walks expressions and never rescans source to
+  classify syntax. It may read source/name spans only to decode decimal payloads
+  and confirm the exact `int` spelling. Direct owners are source, names, tokens,
+  nodes, value stack, and operator stack; none escapes or is transported by
+  value. Accepted F1A limits remain 8,192 input bytes, 1,024 real tokens, 1,024
+  names, and 63-byte identifiers. F1B permits at most 512 nodes and 512 entries
+  on either parser stack. Capacity failure is explicit, never truncation,
+  recovery, or success. All owners are destroyed exactly once on every return.
+- Frozen location, status, and precedence contract: F1A statuses 1 through 9
+  and their first source-order locations remain unchanged. Parser status 10 is
+  a fixed-token mismatch and records the exact expected token kind plus actual
+  kind; 11 is an invalid expression token/state and distinguishes expected
+  operand from expected operator/end; 12 is a non-`int` return-type spelling;
+  13 is decimal i32 overflow at the integer token start; 14 is the attempted
+  513th AST node at the originating operand/operator; 15 is the attempted 513th
+  value/operator stack entry; and 16 is decoded record/topology corruption.
+  Status 0 is success. Diagnostics are
+  `(status, zero-based offset, one-based line, one-based column, expected_code,
+  actual_kind)`; success uses `(-1, 0, 0, 0, 0)` after status. Lexing failures
+  precede parsing; otherwise the first left-to-right fixed skeleton or
+  expression-state failure wins. Reduction/allocation failure is attributed to
+  the stored originating operator, not the later lookahead that triggered it.
+- Frozen checksum and product contract: the tracked function accepts expected
+  diagnostic, name/token/node counts, root, and checksum scalars; reads stdin;
+  builds and validates all six owners; and returns 91 only on exact agreement.
+  Starting at 17, checksum updates as `(checksum * 31 + word) % 1000003` over
+  source bytes, separator 990, decoded name words, separator 991, all six
+  decoded token words, separator 992, all four decoded node words, separator
+  993, then status, encoded error offset (`0` for none, otherwise offset plus
+  1), line, column, expected code, actual kind, name count, token count, node
+  count, and root. The tracked main freezes one valid arithmetic specimen.
+  Tests may replace only `main`; they may not synthesize tokens/nodes or
+  duplicate parser state inside Aero.
+- Independent and differential oracle: the new Rust test owns a separate ASCII
+  scanner and precedence parser that builds exact names, located tokens, nodes,
+  diagnostics, and checksum without calling the Aero product or Rust production
+  lexer/parser. A separate overlap control must compare accepted F1A records
+  and accepted Rust syntax on the supported intersection without using either
+  as the expected F1B node model. Exact vectors cover every node kind and
+  precedence boundary, left/right associativity, nested parentheses/unary
+  chains, repeated names, integer 0/max/overflow, every fixed delimiter, empty
+  and missing expressions, wrong `int`, extra/trailing functions/tokens,
+  mismatched parentheses, lexical failures, 512/513 node and stack bounds, and
+  deterministic generated valid expressions. Mutation controls change one
+  precedence, associativity, payload, child, root, diagnostic, or checksum fact
+  and must prevent exit 91.
+- Red-first and acceptance gates: after this ledger-only commit, add only
+  `src/compiler/tests/runtime_ascii_frontend_parser_tests.rs`. Its independent
+  model and accepted F1A/D1 characterizations must pass while its sole failure
+  is the exact absent-product message. Only after preserving that commit may a
+  tracked parser and Linux/Windows workflow steps be added. Final evidence
+  requires source/file check parity; two byte-identical checked LLVM builds;
+  LLVM 22 verification; O0/O2 and public CPU-runner silent exit 91; exact
+  allocator-event/failure/zero-leak behavior; ordinary 1 MiB Windows-stack
+  execution; accelerator rejection before artifacts; accepted F1A and D1
+  compatibility; formatting; correctness Clippy; `git diff --check`; and root
+  `./tools/test.sh`. Protected candidate and accepted-head CI, stable/nightly,
+  Windows LLVM 22, CodeQL, and Linux/Windows product evidence are mandatory.
+- Exact allowed files: this ledger; `AERO_FRONTEND_READINESS.md`;
+  `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
+  `COMPILER_STORAGE_READINESS.md`; new
+  `src/compiler/tests/runtime_ascii_frontend_parser_tests.rs`; new
+  `examples/aero_frontend_v0/runtime_ascii_parser.aero`; and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the
+  red commit changes only the new test. Every compiler production/runtime file,
+  accepted lexer/storage product, existing test/example, profile, grammar
+  implementation, checked IR, verifier, backend, driver, dependency, lockfile,
+  evidence bundle, claim, benchmark, release, and accelerator file is frozen.
+- Risks and mandatory stops: stop rather than widen if the accepted profile
+  cannot express the product; the parser cannot consume retained F1A records
+  without a second lexical classification pass; a hidden Rust/C collection or
+  parser supplies product state; owner transport, recursive parsing, recovery,
+  semantic/type/IR/backend behavior, a third compiler phase, external
+  dependency, existing diagnostic/LLVM/native delta, red root, or unlisted file
+  is required. Stop if copied F1A logic drifts from the accepted token contract
+  or if accepted F1A/D1 gates change. CAP-042 does not authorize M1/B1/H1/H2,
+  general collections, source modules, replacement of production Rust code,
+  memory-safety/stability/performance/accelerator/release claims, or
+  self-hosting.
+- Storage rule: every task-created worktree, Cargo target, temporary workspace,
+  generated input/source/LLVM/object/executable, native harness, log, and PR body
+  remains on D:, respectively `D:\Aero-worktrees\f1b-flat-ast-parser`,
+  `D:\Aero-build-targets\f1b`, and `D:\Aero-temp\f1b`. Installed C: tools are
+  read-only dependencies; no task cache or artifact is intentionally written
+  there.
+
 ## CAP-041-F1A-RUNTIME-ASCII-LEXER - runtime input to owned located tokens
 
 - Date/task/status: 2026-08-15, `CAP-041-F1A-RUNTIME-ASCII-LEXER`, locally

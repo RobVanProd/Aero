@@ -1,15 +1,14 @@
 # Aero Self-Hosting Roadmap
 
-Last reviewed: 2026-08-15 (America/New_York)
+Last reviewed: 2026-08-16 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is D1 merge
-`104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
-`abd136d0cbc9066714148e0919010a697ccd350e`.
-CAP-041/F1A is a locally root-green product-only runtime-lexer candidate on top
-of that baseline; its focused, neighboring, and complete D:-redirected root
-gates are green while protected publication remains pending.
+The current accepted baseline is CAP-041/F1A merge
+`4bdfcb206f541356aa83987084a9d2feffbe511c`, tree
+`5bfe506bfc6714e32f6453ad5ddc233923298b54`. CAP-042/F1B is the current
+product-only flat-AST parser candidate on that baseline. It is not accepted
+public capability until its complete local and protected gates finish.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -153,18 +152,33 @@ accepted-head CI `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`,
 and evidence `31920949972` are terminal-success. See
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
-**F1A is locally implemented and root-green, with public acceptance pending.**
-CAP-041 composes unchanged R2 stdin and D1 storage in one
+**F1A is accepted.** CAP-041 composes unchanged R2 stdin and D1 storage in one
 Aero-authored runtime ASCII lexer. It retains source bytes, interns canonical
 name spans, emits six-word located token records, validates the complete state,
 and compares an independent checksum. The focused 3/3 target covers
 differential kinds/locations, malformed and bounded inputs, allocator failure,
 LLVM 22, O0/O2, public CPU execution, accelerator artifact hygiene, and Linux/
 Windows workflow contracts. K1/R1C/R2/D1 neighboring targets remain green.
-The complete root gate passes formatting, correctness Clippy, 309 library
-tests, 35 binary tests, every integration/native/system target, and doc tests.
-F1A is not a parser and does not close F1. See
+The complete root gate and protected candidate/merge/accepted-head workflows
+are green. Reviewed candidate `9e6e4cf87fe4a520afaf196790b5361a255056d9`
+merged through PR #83 as `4bdfcb206f541356aa83987084a9d2feffbe511c`;
+their tree is identically `5bfe506bfc6714e32f6453ad5ddc233923298b54`.
+F1A alone is not a parser and does not close F1. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md).
+
+**F1B is locally implemented as the CAP-042 candidate.** The same Aero product
+preserves F1A token production, then parses its retained records with iterative
+value/operator stacks into one-based, lower-child D1 nodes for a frozen
+single-function expression grammar. No Rust compiler, runtime, profile, IR, or
+backend production file changes. The canonical 42-byte source yields 2 names,
+22 real tokens, 13 nodes, root 13, checksum 846139, and silent native exit 91.
+Independent parsing, mutation, capacity, allocation, LLVM 22, O0/O2, public
+CPU, accelerator-hygiene, and Linux/Windows replay controls are part of the
+candidate gate. The focused target is 4/4 green and accepted F1A/D1 neighboring
+targets are 3/3 green locally. The complete D:-redirected root gate passes 309
+library tests, 35 binary tests, every integration/native/system target, and doc
+tests. F1B is not accepted until protected publication and accepted-head replay
+finish; it supplies syntax only, not M1 semantics.
 
 ## Dependency path
 
@@ -207,7 +221,8 @@ compiler project rather than only a bootstrap bundle.
 | R1 — owned bytes | **Accepted** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | Accepted R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; protected Linux/Windows replay | This is one bounded owner, not Vec/String/general collections, input, or a memory-safety claim |
 | R2 — host byte input | **Accepted** | Deterministic whole-stream binary stdin ingestion through an Aero-owned EOF loop and accepted ByteBuffer | Empty/short/large input, partial prefix then failure, sticky EOF/I/O, binary sentinel bytes, verifier corruption, LLVM 22, O0/O2, and protected Linux/Windows replay | Stdin bytes are not file/path I/O, text decoding, modules, or a production frontend |
 | D1 — compiler data model | **Accepted** | Five Aero-owned byte stores for input, interned name spans, token records, a scope log, and a flat append-only AST arena using integer node IDs | Independent oracle; exact allocation/failure/drop evidence; cycle-free arena validation; deterministic iteration; 1,025-token/2,049-node stress; no host collection substitution; complete local and protected replay green | This bounded serialized product is not general collections or replacement of the Rust `String`/`Vec`/`Box` AST |
-| F1A — runtime lexer | **Locally root-green candidate; public acceptance pending** | Aero runtime ASCII scanner consuming R2 bytes and emitting D1-style canonical names plus located token records | Independent and Rust-overlap oracles; malformed/boundary corpus; allocator failure; deterministic LLVM; Linux/Windows O0/O2 and public-run replay | Located token production is not parsing or replacement of the Rust front end |
+| F1A — runtime lexer | **Accepted** | Aero runtime ASCII scanner consuming R2 bytes and emitting D1-style canonical names plus located token records | Independent and Rust-overlap oracles; malformed/boundary corpus; allocator failure; deterministic LLVM; protected Linux/Windows O0/O2 and public-run replay | Located token production is not parsing or replacement of the Rust front end |
+| F1B — flat-AST parser | **Locally root-green candidate; public acceptance pending** | Iterative Aero parser consuming F1A records and emitting D1 nodes for one frozen function/expression grammar | Independent parser oracle; Rust overlap without expected-node authority; malformed/boundary and mutation corpus; exact cleanup; deterministic LLVM; Linux/Windows O0/O2 replay | Syntax nodes are not name/type/ownership analysis, checked IR, or a production-front-end replacement |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
 | F1 — Aero front end | **Future** | Aero lexer and parser consuming R2 bytes and producing D1 tokens/AST with deterministic locations and diagnostics | Differential oracle against the accepted grammar; malformed-source corpus; fuzz/property tests; bounded-memory failure behavior | K1's fixed kernel is not the production front end |
 | M1 — semantic compiler core | **Future** | Aero name/type/ownership analysis, normalized profile facts, checked IR construction, and fail-before-backend behavior | Differential valid/invalid corpus; checked-IR structural equality or frozen equivalence; corruption controls; determinism | Parsing success does not prove semantics or ownership safety |
@@ -226,7 +241,7 @@ compiler project rather than only a bootstrap bundle.
 | Compiler-safe selected surface | Accepted `exact-i32-byte-input-v0` composes exact integers, records/Result, ByteBuffer, and scalar stdin while freezing every earlier profile. | D1 uses the accepted profile unchanged; F1 requires its own ledger-first grammar/product contract |
 | Input errors and typed failure | Accepted R2 maps byte/EOF/I/O sentinels into concrete `Result<int, int>` and rejects inferred/nested/discarded uses before IR. | Preserve this mapping when F1 consumes input; no failure may become a byte/token |
 | Modules and names | Root `mod` collection is flattened and bounded; executable imports, namespaces, visibility, recursive graphs, cycles, and separate compilation are absent. | G1 after owned bytes/names and deterministic collections; a declared single-file bootstrap may precede it |
-| Front-end fidelity | The production lexer/parser remain Rust. K1 handles fixed source-embedded ASCII; accepted D1 handles runtime identifier frames; local F1A now lexes runtime ASCII into located owned records. | Protect F1A, then have F1B consume those records into the D1 flat AST before the composed F1 gate can close |
+| Front-end fidelity | The production lexer/parser remain Rust. Accepted F1A lexes runtime ASCII into located owned records; local CAP-042/F1B consumes those exact records into a bounded D1 flat AST. | Protect F1B, then freeze the bounded F1 handoff to M1 without extending the grammar implicitly |
 | Semantic and ownership fidelity | The Rust semantic analyzer uses multiple scopes, registries, maps, fixed-point ownership state, and normalization authorities. | M1 must port bounded authorities with differential and corruption evidence rather than re-infer convenient types |
 | Checked IR and verification | Current checked IR and verifier are trusted Rust authority. | M1 constructs it; B1 independently verifies it before emission |
 | Code emission and driver | LLVM text, cache, CLI, process execution, object lowering, and linking are Rust-owned. | B1 plus a narrow runtime/process/file contract; LLVM and the linker can remain declared external tools |
@@ -269,19 +284,17 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Finish validation and protect **CAP-041/F1A runtime ASCII lexer** from exact
-accepted D1 head `104d72dfb78921db68421c7ebd45e30dcbc3d804`. Its focused and neighboring
-D:-redirected gates plus complete and record-inclusive root gates are green. It
-also passes the unchanged exact-content rerun. It must still pass exact-scope
-review, candidate workflows, protected merge, and post-merge replay without
-changing compiler production, runtime, or accepted K1/R1/R2/D1 behavior.
+Finish validation and protect **CAP-042/F1B flat-AST parser** from exact
+accepted F1A head `4bdfcb206f541356aa83987084a9d2feffbe511c`.
+Preserve its ledger-first `376dfa0` and red-first `b513fba` checkpoints, run the
+candidate workflows, protected merge, and accepted head without changing
+compiler production, runtime, or accepted F1A/D1 behavior. Its focused,
+neighboring, complete D:-redirected gates and exact eight-file scope are green.
 
-After F1A acceptance, authorize **F1B flat-AST parser** ledger-first and
-red-first: consume the frozen located token records without re-lexing and emit
-D1 nodes under a frozen single-function grammar, precedence, associativity,
-diagnostic-order, topology, and differential-oracle contract. Do not call F1
-closed—or the project self-hosted—before F1B, M1, B1, and H1/H2 independently
-close.
+After F1B acceptance, record the bounded F1 handoff and authorize M1 only under
+a separately frozen semantic and checked-IR contract. Do not call the Rust
+front end replaced—or the project self-hosted—before M1, B1, and H1/H2
+independently close.
 
 ## Deliberately absent schedule
 
