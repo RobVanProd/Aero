@@ -1,5 +1,161 @@
 # Aero Task Ledger
 
+## CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS - node provenance and bounded semantics
+
+- Date/task/status: 2026-08-16, `CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS`,
+  ledger-first authorization from accepted CAP-042/F1B merge
+  `35020e9d14ae58cd8a2bbd34d81f7930aa537be5`, tree
+  `baab4ce63fc48a4fc55b6fa56b2cc1416a447c8e`, on
+  `agent/m1-flat-ast-semantics` in D:-resident worktree
+  `D:\Aero-worktrees\m1-flat-ast-semantics`, with Cargo output only under
+  `D:\Aero-build-targets\m1` and task temporary files only under
+  `D:\Aero-temp\m1`. CAP-042 reviewed candidate
+  `e42d6aa290bcb5e052e5c7c51702b484b4af1877` has the identical tree; PR #84
+  candidate checks and accepted-head CI `31927545104`, Rust CI `31927545082`,
+  CodeQL `31927545098`, and evidence `31927545097` are terminal-success.
+- Observed behavior and exact first failure: accepted F1B consumes runtime ASCII
+  and emits deterministic four-word D1 nodes, but those nodes carry neither an
+  originating token location nor logical type/ownership facts. The accepted
+  Rust semantic analyzer and checked-IR generator remain the only semantic
+  authorities. The first intentional red is the absent M1A product and must
+  report exactly `CAP-043 intentional product red: tracked runtime ASCII
+  semantic facts are absent`. A Rust semantic change, new parser rule, new
+  profile, or checked-IR/backend diagnostic is the wrong first failure.
+- Hypothesis and two-phase boundary: one new product-only Aero program under
+  accepted `exact-i32-byte-input-v0` can preserve F1A names/tokens and F1B
+  four-word nodes exactly while recording one parallel node-origin sidecar at
+  the already-authoritative parser append decision, then perform one iterative
+  postorder semantic pass that emits closed Int/Bool/Copy facts. Phase one is
+  F1 node provenance; phase two is M1A name/type/ownership classification. This
+  task does not emit checked IR, verify IR, lower LLVM, or change the Rust
+  compiler. M1B remains separately ledgered and red-first.
+- Frozen source and F1 compatibility: CAP-042's raw 7-bit ASCII encoding,
+  complete token vocabulary, comments, maximal munch, single zero-parameter
+  `fn IDENT() -> int { return expression; } EOF` grammar, precedence,
+  associativity, limits, statuses 1 through 16, names, located token records,
+  four-word nodes, IDs, root, diagnostics, and frontend checksum remain exact.
+  The new product copies that accepted product rather than changing it; the
+  tracked CAP-042 source and test remain byte-frozen. Grouping still creates no
+  node. Unsupported F1 syntax still stops before M1A.
+- Frozen node-origin sidecar: each successfully appended D1 node has exactly one
+  five-word origin record `(node_id, zero_based_offset, one_based_line,
+  one_based_column, token_kind)`. Literal and identifier origins are their
+  primary token; prefix/binary origins are their operator token; return and
+  function origins are their keywords. Records are append-only and in exact
+  node-ID order. IDs are one-based, counts equal the node count on frontend
+  success, and every field is validated against the retained source/token/node
+  owners. Each origin record is attempted before its corresponding accepted
+  node append, so an origin failure cannot become a node, semantic fact, or
+  success; an already-complete origin may remain observable only when the
+  subsequent accepted F1B node append fails.
+- Frozen symbols, types, and ownership universe: M1A records exactly one
+  four-word function symbol `(kind=1, name_id, function_node_id,
+  return_type=1)`. Logical type codes are `0=Void`, `1=Int`, and `2=Bool`.
+  Ownership codes are `0=not-a-value` and `1=Copy`; every admitted Int/Bool
+  expression is Copy. Each semantically completed node emits one three-word
+  fact `(node_id, logical_type, ownership)`. Literal nodes are Int; identifier
+  nodes are never silently typed because this grammar declares no parameters or
+  locals; return and function nodes are Void/not-a-value. No unsupported type
+  may become Int or Bool. A failing node and every ancestor emit no fact;
+  already-completed earlier postorder nodes remain in the fact owner. The name
+  prepass emits no facts, so an undeclared identifier always leaves facts empty.
+- Frozen semantic rules from the accepted Rust authorities: before any type
+  classification, one complete source-order name-initialization pass rejects
+  the first identifier expression as undeclared. With no identifiers, node-ID
+  order is the accepted left-to-right postorder. Negation requires Int and
+  returns Int; logical NOT requires Bool and returns Bool. `+`, `-`, `*`, and
+  `/` require two Int operands and return Int. `%` is parsed by F1B but is
+  semantically unsupported, matching the accepted Rust semantic diagnostic.
+  `<`, `<=`, `>`, `>=`, `==`, and `!=` require equal admitted operand types and
+  return Bool; this intentionally preserves the current Rust Bool-with-Bool
+  comparison behavior. `&&` and `||` require Bool left then Bool right and
+  return Bool. The return node requires Int. Child errors precede parent errors;
+  the name prepass precedes every type error, matching accepted semantic phase
+  order. M1A does not fold constants or diagnose division by zero; that remains
+  the accepted checked-admission/M1B boundary.
+- Frozen M1A result and diagnostics: frontend status/location/code/actual remain
+  separate and unchanged. On frontend success, M1A status `0` means semantic
+  success; `17` is undeclared identifier, `18` unsupported modulo, `19`
+  arithmetic operand mismatch, `20` comparison operand mismatch, `21` logical
+  left mismatch, `22` logical right mismatch, `23` logical-NOT mismatch, `24`
+  negation mismatch, `25` return mismatch, `26` origin/symbol/fact capacity or
+  allocation failure, and `27` internal sidecar/semantic corruption. One M1A
+  diagnostic is `(status, node_id, offset, line, column, code, expected_type,
+  actual_type)`. Success uses `(0, 0, -1, 0, 0, 0, 0, 0)`. The first frozen
+  failure wins; no recovery or later error replacement is admitted. For status
+  17 through 25, `code` is the failing D1 node kind. Undeclared and unsupported
+  modulo use expected/actual type `0/0`; arithmetic, logical, unary, and return
+  mismatches use the required type and the first offending actual type;
+  comparison mismatch uses the left type as expected and right type as actual.
+  Status 26 uses code `1=origin`, `2=symbol`, or `3=fact`; status 27 uses code
+  `1=origin identity/location`, `2=node topology/kind`, `3=symbol identity`, or
+  `4=fact identity/type/ownership`. Non-type failures use expected/actual `0/0`.
+- Frozen ownership, limits, and cleanup: direct owners are the accepted six
+  source/name/token/node/value/operator buffers plus origins, symbols, and
+  facts. None escapes or is transported by value. F1 limits remain exact; M1A
+  permits at most 512 origin records, 1 symbol, and 512 semantic facts.
+  Capacity/allocation failure is explicit and all nine owners are destroyed
+  exactly once in reverse declaration order on every exit. No Rust/C container
+  may hold product state.
+- Frozen checksum and tracked product: the accepted CAP-042 frontend checksum is
+  computed before M1A and must remain byte-for-byte identical for the same
+  source and frontend outcome. A separate semantic checksum starts at 17,
+  consumes every five-word origin record, separator 994, every four-word symbol
+  record, separator 995, every three-word fact record, separator 996, then the
+  eight M1A diagnostic words, origin/symbol/fact counts, and semantic root type,
+  using `(checksum * 31 + word) % 1000003`; signed offset `-1` is encoded as 0
+  and every nonnegative offset as `offset + 1`. Semantic root type is `1` only
+  after a complete Int-returning program and `0` on every M1A failure. The
+  tracked main uses valid
+  source `fn score()->int{return 1+2*3-4/2;}` and returns 91 only after exact
+  independent agreement with both frontend and M1A observations.
+- Independent and differential evidence: the new Rust test owns an independent
+  ASCII scanner, precedence parser, origin builder, and two-pass semantic oracle
+  without calling the Aero product or Rust production semantic analyzer. A
+  separate overlap control invokes the accepted Rust lexer/parser/semantic
+  route only to compare success/rejection classes and first-error family; it
+  must not supply expected sidecars, facts, diagnostics, or checksums. Exact
+  vectors cover every node/type/operator rule, nested precedence and unary
+  order, the name-prepass-over-type-error rule, undeclared repeated names,
+  modulo, every operand/return mismatch, corrupted origin/node/type/symbol
+  identity, 512/513 bounds, deterministic generated valid expressions, and
+  frontend lexical/parser failures that must produce zero M1A facts.
+- Red-first and acceptance gates: after this ledger-only commit, add only
+  `src/compiler/tests/runtime_ascii_frontend_semantic_tests.rs`. Its independent
+  model and accepted F1B characterization must pass while its sole structural
+  assertion fails with the exact absent-product message. Commit that red before
+  creating the Aero product. Final evidence requires the focused target green;
+  accepted CAP-042 parser, CAP-041 lexer, and D1 targets unchanged; direct
+  source/file check and deterministic LLVM equality; external LLVM 22 verify;
+  native O0/O2 and public CPU exit 91 with empty application output; exact
+  nine-owner allocation/reallocation/deallocation and every injected failure
+  with zero leaks; source/origin/fact/symbol/checksum mutations not returning
+  91; ROCm/CUDA rejection before requested artifacts; Linux and Windows workflow
+  replay; formatting; correctness Clippy; `git diff --check`; exact-scope audit;
+  and `./tools/test.sh` from repository root.
+- Allowed files, exactly: `TASK_LEDGER.md`;
+  `AERO_FRONTEND_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
+  `COMPILER_STORAGE_READINESS.md`; new
+  `src/compiler/tests/runtime_ascii_frontend_semantic_tests.rs`; new
+  `examples/aero_frontend_v0/runtime_ascii_semantics.aero`; and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the
+  red commit changes only the new test. Every compiler production/runtime file,
+  accepted source/test/example, profile, grammar implementation, checked IR,
+  verifier, backend, driver, dependency, lockfile, evidence bundle, claim,
+  benchmark, release, and accelerator file is frozen.
+- Risks and mandatory stops: stop rather than widen if node origins cannot be
+  recorded at the existing append decisions without changing accepted F1B
+  records/order/diagnostics; if Rust semantic precedence differs from the
+  frozen two-pass rules; if the accepted profile cannot express nine direct
+  owners and iterative fact construction; if owner transport, recursive
+  semantic traversal, new language semantics, checked-IR/backend behavior, a
+  third compiler phase, external dependency, existing diagnostic/LLVM/native
+  delta, red root, accepted F1B/D1 drift, or an unlisted file is required.
+  CAP-043 does not authorize M1B/B1/H1/H2, production-frontend replacement,
+  general scopes/calls/declarations/types/ownership, modules, Unicode, error
+  recovery, memory-safety/stability/performance/accelerator/release claims, or
+  self-hosting.
+
 ## CAP-042-F1B-RUNTIME-ASCII-PARSER - located tokens to flat AST
 
 - Date/task/status: 2026-08-15, `CAP-042-F1B-RUNTIME-ASCII-PARSER`,
