@@ -1,9 +1,204 @@
 # Aero Task Ledger
 
+## CAP-044-M1B-FLAT-CHECKED-IR - authenticated facts to bounded checked IR
+
+- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, ledger-first
+  authorization from accepted CAP-043/M1A merge
+  `2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
+  `35129ad5194354acafe082f3fcd55629ed767f27`, on
+  `agent/m1-checked-ir-handoff` in D:-resident worktree
+  `D:\Aero-worktrees\m1-checked-ir-handoff`. Cargo output is restricted to
+  `D:\Aero-build-targets\m1b` and task temporary files to
+  `D:\Aero-temp\m1b`; this task may not create worktrees, build outputs, logs,
+  probes, or temporary artifacts on C:.
+- Accepted predecessor evidence: CAP-043 candidate
+  `1cfa7acc09c741d219c57ebe04f1e6c26949838e` merged through PR #85 as the
+  merge above, and both commits have the identical accepted tree. Candidate CI
+  `31930839752`/`31930859736`, Rust CI `31930859742`, CodeQL
+  `31930859030`, and evidence `31930859739` are terminal-success. Accepted-head
+  CI `31931332544`, Rust CI `31931332530` including stable, nightly, and the
+  Windows LLVM 22 native gate, CodeQL `31931332508`, and evidence
+  `31931332534` are terminal-success.
+- Observed behavior and exact first failure: accepted M1A owns exact F1
+  source/names/tokens/nodes plus node origins, one function symbol, and complete
+  Int/Bool/Copy facts, but it emits no checked instruction, result, function,
+  or block product. The trusted Rust stage 0 remains the only checked-IR
+  constructor. The first intentional red is the absent M1B product and must
+  report exactly `CAP-044 intentional product red: tracked runtime ASCII
+  checked IR is absent`. A Rust compiler change, new source grammar/profile, or
+  LLVM/backend diagnostic is the wrong first failure.
+- Hypothesis and two-phase boundary: one new product-only Aero program under
+  accepted `exact-i32-byte-input-v0` can copy CAP-043 byte-for-byte, then (1)
+  authenticate and evaluate the retained M1A node/origin/symbol/fact graph into
+  append-only value and instruction scratch records, and (2) validate and
+  serialize one bounded flat checked-IR module. No Rust production, runtime,
+  language-profile, AST, checked-IR, verifier, backend, cache, CLI, or driver
+  file changes. Independent B1 verification and LLVM emission remain a later
+  ledger-first checkpoint; M1B does not silently combine them.
+- Frozen predecessor contract: CAP-043 source bytes, scanner, token/name
+  records, parser grammar, four-word nodes and IDs, frontend diagnostics and
+  checksum, five-word origins, four-word function symbol, three-word semantic
+  facts, M1A diagnostics/statuses 17 through 27, semantic checksum, limits, and
+  cleanup order remain exact. The tracked CAP-043 source/test and every earlier
+  product are byte-frozen. M1B runs only after frontend success and complete
+  M1A success. Earlier failure sets `checked_attempted=0`, leaves the serialized
+  checked-IR owner empty, emits no M1B diagnostic, and cannot reach B1.
+- Frozen authenticated input: M1B must consume the existing retained owners,
+  not rescan source, reparse tokens, or re-infer a type. It rechecks exactly one
+  symbol `(kind=1, name_id, function_node_id, result_type=Int)`, one origin and
+  one fact for every node, source-order and postorder identities, child-before-
+  parent topology, `Int/Copy` for every admitted expression, and
+  `Void/not-a-value` for Return and Function. A mismatch is corruption, never a
+  fallback Int, default value, or partially successful module.
+- Frozen M1B numeric admission: the first checked-IR slice admits only the M1A
+  successful integer-expression family whose every unary and arithmetic
+  intermediate is exactly representable in signed i32 and whose every division
+  denominator is nonzero. Addition, subtraction, multiplication, negation, and
+  division use explicit pre-operation overflow guards; `i32::MIN / -1` is an
+  overflow. Status 1 rejects the first out-of-range postorder node and status 2
+  rejects the first zero denominator before any serialized checked IR. This is
+  an explicit bounded-bootstrap exclusion, not a new result for Rust-accepted
+  overflowing programs; wider/dynamic arithmetic remains future work. Modulo,
+  Bool-returning comparison/logical expressions, identifiers, and every F1/M1A
+  exclusion continue to stop in their earlier accepted phase.
+- Frozen value scratch: every expression node before the terminal Return and
+  Function nodes emits exactly one six-word scratch record
+  `(node_id, operand_kind, operand_payload, sign, magnitude_high,
+  magnitude_low)`. Operand kind `1` is a nonnegative immediate literal and kind
+  `2` is a one-based SSA result ID. Evaluation is signed i32; sign `0` is
+  nonnegative and sign `1` is negative. Magnitude uses base 32768 as
+  `high * 32768 + low`; `i32::MIN` has the unique representation
+  `(sign=1, high=65536, low=0)`. Scratch is internal construction state, not
+  checked IR, and cannot be consumed by B1.
+- Frozen instruction and result universe: literals emit no instruction. Each
+  accepted unary/binary node emits exactly one instruction and one one-based
+  result in left-to-right postorder; Return emits the final instruction and no
+  result. Opcodes are `1=Add`, `2=Sub`, `3=Mul`, `4=Div`, `5=Neg`, and
+  `6=Return`. Types are `0=Void` and `1=Int`; operand kinds are the two value
+  kinds above. Every result is defined once before use, every used result
+  belongs to the same function, every opcode agrees with its source node and
+  exact M1A fact, and the single Return consumes the root expression as Int.
+  No comparison/logical, memory, pointer, call, branch, aggregate, resource,
+  drop, exception, backend, or opaque opcode is representable.
+- Frozen serialized checked-IR format: every field is a nonnegative little-
+  endian 32-bit word in one `ByteBuffer`. The module begins with nine words
+  `(format=1, function_count=1, block_count=1, instruction_count, result_count,
+  entry_function_id=1, root_operand_kind, root_operand_payload,
+  root_type=Int)`. It then contains one tagged nine-word function record
+  `(kind=1, function_id=1, name_id, function_node_id, parameter_count=0,
+  result_type=Int, entry_block_id=1, first_instruction_id=1,
+  instruction_count)` and one tagged seven-word block record
+  `(kind=2, block_id=1, function_id=1, reachable=1, successor_count=0,
+  first_instruction_id=1, instruction_count)`. Next are tagged eleven-word
+  instruction records `(kind=3, instruction_id, opcode, result_id,
+  result_type, left_kind, left_payload, right_kind, right_payload,
+  origin_node_id, function_id=1)`. Last are tagged six-word result records
+  `(kind=4, function_id=1, result_id, result_type=Int,
+  definition_instruction_id, origin_node_id)`. IDs and records are contiguous;
+  the one block is reachable, has no successors, spans every instruction, and
+  the Return is last.
+- Frozen equivalence to accepted Rust checked IR: for every admitted M1B source,
+  the independent model evaluates the serialized unfolded postorder IR to the
+  same signed-i32 result as the trusted Rust `score` body. Accepted Rust checked
+  generation may fold arithmetic/literal negation or retain residual SSA (for
+  example composite negation); representative exact projections are frozen,
+  but those stage-0 optimization choices are not copied into the portable M1B
+  format. Its metadata has zero parameters, Int result, no places, one reachable
+  `entry` block, and no successors. Rust's synthetic top-level `main` wrapper
+  and duplicate empty raw function entry are also stage-0 container details and
+  are deliberately omitted. This evaluation-plus-metadata projection is the
+  M1B equivalence contract; no LLVM or native equivalence is claimed until B1
+  consumes independently verified M1B IR.
+- Frozen M1B result and diagnostics: `checked_attempted` is `1` exactly after
+  F1/M1A success and otherwise `0`. Checked status `0` is success (or skipped
+  when attempted is zero), `1` is bounded-i32 overflow, `2` constant division
+  by zero, `3` scratch/final-owner capacity or allocation failure, `4`
+  authenticated predecessor corruption, and `5` constructed-IR corruption.
+  The diagnostic is `(status, node_id, offset, line, column, code, expected,
+  actual)`; success/skipped is `(0,0,-1,0,0,0,0,0)`. Status 1/2 uses the
+  failing node kind as code. Status 3 uses code `1=value scratch`,
+  `2=instruction scratch`, or `3=serialized checked IR`. Status 4 uses code
+  `1=origin`, `2=symbol`, `3=fact/node topology`; status 5 uses code
+  `1=module/function/block`, `2=instruction`, or `3=result/SSA`. Non-type
+  failures use expected/actual `0/0`. The first failure wins and no serialized
+  checked IR exists for statuses 1, 2, or 4.
+- Frozen counts, owners, and checksum: the accepted nine M1A owners are followed
+  by exactly three new direct owners: value scratch, instruction scratch, and
+  serialized checked IR. None is transported by value or stored in a Rust/C
+  container. With at most 512 nodes there are at most 510 value records, 510
+  instructions including Return, and 509 result records. All twelve owners are
+  destroyed exactly once in reverse declaration order on every exit. A separate
+  checked checksum starts at 23, consumes the accepted semantic checksum,
+  separator 997, every serialized checked-IR word, separator 998, the eight
+  diagnostic words (offset encoded as in M1A), attempted/value/instruction/
+  result/serialized-word counts, and root kind/payload/type using the accepted
+  `(checksum * 31 + word) % 1000003` step. Prefix scratch or final allocation
+  state may remain observable only on a reported failure and can never return
+  the success sentinel.
+- Frozen canonical product: the tracked source remains exact ASCII
+  `fn score()->int{return 1+2*3-4/2;}`. M1A remains 2 names, 20 real tokens,
+  11 nodes/root 11, frontend checksum 586661, 11 origins, 1 symbol, 11 facts,
+  semantic root Int, and semantic checksum 827574. M1B has 9 value records;
+  four SSA results for Mul, Add, Div, Sub; five instructions including Return;
+  root operand `Result(4)` of type Int; and exactly 104 serialized words. Its
+  instruction origins are nodes 4, 5, 8, 9, and 10, and the independent
+  red-first checked checksum is `355067`. The tracked program returns silent
+  exit 91 only after every observation agrees.
+- Independent evidence and corruption matrix: the new Rust target owns an
+  independent M1A-compatible scanner/parser/semantic model plus a separate M1B
+  admission, flat-IR builder, structural verifier, and interpreter. Accepted
+  Rust overlap may compare success/failure family, projected signature/block
+  metadata, folded return value, and division-zero diagnostic, but must not
+  supply expected M1B records or checksum. Positive coverage includes every
+  opcode, precedence/associativity, nested negation, literal and result
+  operands, exact i32 boundaries, maximum unary depth, deterministic generated
+  expressions, source/file equality, and repeated construction. Negative
+  coverage includes every overflow class, direct/derived zero divisor, every
+  earlier F1/M1A failure with zero IR, malformed record/tag/count/order/type/
+  origin/result/use/function/block data, duplicate/forward/missing SSA results,
+  nonfinal/multiple Return, capacity/reallocation failure, and source/origin/
+  symbol/fact/scratch/final-IR/checksum mutations never returning 91.
+- Red-first and acceptance gates: after this ledger-only commit, add only
+  `src/compiler/tests/runtime_ascii_checked_ir_tests.rs`. Its independent model,
+  accepted M1A characterization, and Rust checked-admission projection must pass
+  while its sole structural assertion fails with the exact absent-product
+  message. Commit that red before creating the Aero product. Final evidence
+  requires the focused target green; accepted M1A, F1B, F1A, and D1 targets
+  unchanged; source/file deterministic LLVM equality for the product; external
+  LLVM 22 verification; product native O0/O2 and public CPU exit 91 with empty
+  application output; exact twelve-owner allocation/reallocation/deallocation
+  evidence and injected failures with zero leaks; ROCm/CUDA rejection before
+  requested artifacts; Linux/Windows workflow replay; formatting; correctness
+  Clippy; `git diff --check`; exact-scope audit; and D:-redirected
+  `./tools/test.sh` from repository root.
+- Allowed files, exactly: `TASK_LEDGER.md`; `AERO_FRONTEND_READINESS.md`;
+  `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
+  `COMPILER_STORAGE_READINESS.md`; new
+  `src/compiler/tests/runtime_ascii_checked_ir_tests.rs`; new
+  `examples/aero_frontend_v0/runtime_ascii_checked_ir.aero`; and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the
+  red commit changes only the new test. Every compiler production/runtime file,
+  accepted source/test/example, profile, grammar, Rust checked IR/verifier,
+  backend, driver, dependency, lockfile, evidence bundle, claim, benchmark,
+  release, accelerator, and external repository file is frozen.
+- Risks and mandatory stops: stop rather than widen if exact predecessor facts
+  cannot be consumed without rescanning/retyping; overflow cannot be diagnosed
+  before a host overflow; division-zero precedence differs from accepted Rust
+  within the admitted boundary; the IR needs a second source/type authority,
+  recursive traversal, pointer/storage/call/control-flow/drop semantics, an
+  unlisted file, a third new phase, or a Rust compiler change; any invalid source
+  reaches serialized IR; any result is used before definition; independent
+  verification cannot reject a mutation; accepted M1A/F1B/F1A/D1 bytes,
+  diagnostics, LLVM, or native behavior move; the red/root gate is unrelatedly
+  red; or any test/spec must be weakened. CAP-044 does not authorize B1/H1/H2,
+  production-front-end replacement, general semantics or checked IR,
+  self-hosting, memory-safety/stability/performance/accelerator/release claims,
+  or deletion of preserved experimental work.
+
 ## CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS - node provenance and bounded semantics
 
-- Date/task/status: 2026-08-16, `CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS`, local
-  root-green candidate from accepted CAP-042/F1B merge
+- Date/task/status: 2026-08-16, `CAP-043-M1A-FLAT-AST-SEMANTIC-FACTS`, accepted
+  through PR #85 from accepted CAP-042/F1B merge
   `35020e9d14ae58cd8a2bbd34d81f7930aa537be5`, tree
   `baab4ce63fc48a4fc55b6fa56b2cc1416a447c8e`, on
   `agent/m1-flat-ast-semantics` in D:-resident worktree
@@ -133,7 +328,7 @@
   91; ROCm/CUDA rejection before requested artifacts; Linux and Windows workflow
   replay; formatting; correctness Clippy; `git diff --check`; exact-scope audit;
   and `./tools/test.sh` from repository root.
-- Local implementation evidence: ledger commit `b6bba12` and red commit
+- Accepted implementation evidence: ledger commit `b6bba12` and red commit
   `669d2ba` preserve the required order; the red failed only with the frozen
   absent-product message. The final focused target passes 7/7. Accepted F1B,
   F1A, and D1 neighboring targets pass 4/4, 3/3, and 3/3. The direct product,
@@ -142,8 +337,14 @@
   mutation controls are green. Formatting, correctness Clippy,
   `git diff --check`, and the exact eight-file scope are clean. The complete
   D:-redirected `./tools/test.sh` gate passes 309 library tests, 35 binary tests,
-  every integration/native/system target, and doc tests. Protected candidate,
-  merge, and accepted-head workflow evidence remain pending.
+  every integration/native/system target, and doc tests. Candidate
+  `1cfa7acc09c741d219c57ebe04f1e6c26949838e` merged as
+  `2eaa3bdd9de886453d8556d457d49dbb937770ae`; both have identical tree
+  `35129ad5194354acafe082f3fcd55629ed767f27`. Candidate CI
+  `31930839752`/`31930859736`, Rust CI `31930859742`, CodeQL
+  `31930859030`, and evidence `31930859739`, plus accepted-head CI
+  `31931332544`, Rust CI `31931332530`, CodeQL `31931332508`, and evidence
+  `31931332534`, are terminal-success.
 - Allowed files, exactly: `TASK_LEDGER.md`;
   `AERO_FRONTEND_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
   `COMPILER_STORAGE_READINESS.md`; new
