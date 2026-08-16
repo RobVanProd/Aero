@@ -167,9 +167,10 @@
   runtime/IR/verifier authority digests exposed by the cumulative predecessor
   ring; `src/compiler/tests/version_claim_contract_tests.rs`
   only if exact selector/help truth requires it; and
-  `.github/workflows/rust.yml` for final Linux/Windows replay. No claim,
-  benchmark, release, package, unrelated example/test, or evidence-bundle file
-  may change.
+  `.github/workflows/rust.yml` for final Linux/Windows replay; and
+  `.github/workflows/ci.yml` only for the pinned Clang 22 prerequisite required
+  by the unskipped real-driver test. No claim, benchmark, release, package,
+  unrelated example/test, or evidence-bundle file may change.
 - Acceptance order: commit this ledger alone; commit the independent focused
   red test; record the exact intentional red; implement the smallest complete
   product; run focused output/driver tests and the accepted predecessor ring;
@@ -258,6 +259,23 @@
   Clang and unversioned `llvm-as`, and retains the existing explicit-bin/PATH
   fallbacks. No production or workflow behavior changed. A CI-equivalent local
   rerun of the formerly failing real-emitter test passes 1/1 in 65.88 seconds.
+- Candidate-CI second red and narrow workflow reauthorization: corrected
+  candidate `6201580ba66221301dce2edbd22ec7988b1e8f78`, tree
+  `77b3ac00d667639c8bfb0dc18fc2b182265fd404`, reaches the real driver in Rust
+  CI run `31970246596`, but stable and nightly reject the test-created output
+  directory because its fallback spelling retains `../../target` components.
+  The driver is correct to reject that non-normalized spelling. Push and pull
+  compiler-test runs `31970245588` and `31970246817` instead stop at the same
+  test's tool precondition: generic CI installs pinned `llvm-22` but not pinned
+  `clang-22`, so it cannot execute the real external-driver contract. The
+  Windows LLVM 22 native gate, both evidence captures, CodeQL, and the other
+  seven B1C tests are green on this candidate; the complete D:-redirected local
+  root gate is also green. Before further mutation, this record authorizes only
+  two observation-neutral harness corrections: canonicalize the newly created
+  CAP-047 test workspace before deriving child output paths, and extend generic
+  CI's existing pinned LLVM installation/identity check to include Clang 22.
+  Stop if either correction requires production behavior, a skipped test, a
+  non-22 tool, or any workflow change beyond that exact tool prerequisite.
 - D:-only evidence environment: worktree
   `D:\Aero-worktrees\b1c-driver`, Cargo target
   `D:\Aero-build-targets\b1c`, temporary root `D:\Aero-temp\b1c`, and pinned
