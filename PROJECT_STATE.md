@@ -4,50 +4,50 @@ Last updated: 2026-08-16 (America/New_York)
 
 ## Current objective
 
-### F1B local candidate: located tokens into a bounded flat AST
+### M1A local candidate: bounded node provenance and semantic facts
 
-The current accepted public master is CAP-041/F1A merge
-`4bdfcb206f541356aa83987084a9d2feffbe511c`, tree
-`5bfe506bfc6714e32f6453ad5ddc233923298b54`. Reviewed candidate
-`9e6e4cf87fe4a520afaf196790b5361a255056d9` has the identical tree. Protected
-PR #83 and accepted-head workflows are terminal-green. F1A accepts one
-Aero-authored runtime ASCII scanner over R2 stdin and D1-owned source, names,
-and located token records. It remains a bounded lexer, not the production Rust
-front end.
+The current accepted public master is CAP-042/F1B merge
+`35020e9d14ae58cd8a2bbd34d81f7930aa537be5`, tree
+`baab4ce63fc48a4fc55b6fa56b2cc1416a447c8e`. Reviewed candidate
+`e42d6aa290bcb5e052e5c7c51702b484b4af1877` has the identical tree. Protected
+PR #84 and accepted-head workflows are terminal-green. F1B preserves accepted
+F1A runtime ASCII scanning, consumes those located records without re-lexing,
+and emits a bounded one-based flat AST. It remains a selected bootstrap grammar,
+not the production Rust front end.
 
-CAP-042/F1B is implemented locally from that exact accepted head. Ledger-only
-commit `376dfa0` freezes the product and stop boundaries; red commit `b513fba`
-failed only because the tracked parser product was absent. The candidate keeps
-the accepted F1A scan in the same Aero function, then consumes the retained
-records without re-lexing. An iterative shunting-yard state machine emits D1
-`(kind, payload, left_id, right_id)` records for one zero-parameter function,
-one `return expression;`, decimal i32 literals, identifiers, grouping, prefix
-`!`/`-`, and the frozen binary precedence table.
+CAP-043/M1A is implemented locally from that exact accepted head. Ledger-only
+commit `b6bba12` freezes the product and stop boundaries; red commit `669d2ba`
+failed only because the tracked semantic-facts product was absent. The candidate
+copies accepted F1B rather than changing it. At each existing node-append
+decision it first records `(node_id, offset, line, column, token_kind)`, then a
+complete source-order name prepass and iterative node-ID pass emit one function
+symbol plus closed `Void`/`Int`/`Bool` and `Copy` facts.
 
-The independent oracle owns tokens, names, node topology, diagnostics, and the
-checksum without calling either Aero product or the Rust production parser.
-Separate overlap and F1A/D1 compatibility controls prevent it from borrowing
-expected nodes. Coverage spans every operator and precedence boundary,
-associativity, malformed and bounded sources, parser mutations, deterministic
-allocation failure and zero-leak cleanup, LLVM 22, O0/O2 native, public CPU,
-accelerator artifact hygiene, and Linux/Windows workflow replay. The canonical
-source `fn score()->int{return 1+2*3-4/2%2;}` yields 2 names, 22 tokens,
-13 nodes, root 13, checksum 846139, and silent exit 91. All task worktrees,
+The independent oracle owns source scanning, parsing, origins, symbols, facts,
+diagnostics, phase order, and both checksums without calling the Aero product.
+A separate accepted Rust semantic overlap compares only success/rejection and
+first-error families. Coverage spans every frozen type/operator rule, semantic
+statuses 17 through 25, malformed and bounded sources, mutations, deterministic
+failure at every allocation/reallocation boundary, exact reverse cleanup,
+LLVM 22, O0/O2 native, public CPU, accelerator artifact hygiene, and Linux/
+Windows workflow replay. The canonical source
+`fn score()->int{return 1+2*3-4/2;}` yields 2 names, 20 tokens, 11 nodes,
+root 11, frontend checksum 586661, 11 origins, 1 symbol, 11 facts, semantic root
+type Int, semantic checksum 827574, and silent exit 91. All task worktrees,
 build targets, temporary files, generated artifacts, and logs are on D:.
 
-The focused CAP-042 target is 4/4 green, accepted F1A and D1 neighboring targets
-are each 3/3 green, and the tracked product passes its direct selected-profile
-check. The exact eight-file scope is clean. The complete D:-redirected root gate
-passes formatting, correctness Clippy, 309 library tests, 35 binary tests,
-every integration/native/system target, and doc tests. Protected candidate
-workflows, merge, and accepted-head replay remain pending. F1B supplies syntax
-only. It does not replace the Rust front end, perform name/type/ownership
-analysis, construct checked IR, emit LLVM, or establish self-hosting. The exact
-contract is in
-[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md) and the CAP-042
-ledger. After protected F1B, the next dependency is a separately frozen M1
-semantic/checked-IR handoff for this bounded AST—not an implicit grammar or
-language expansion.
+The focused CAP-043 target is 7/7 green. Accepted F1B is 4/4, F1A is 3/3, and
+D1 is 3/3 green. The exact eight-file scope and `git diff --check` are clean.
+The complete D:-redirected root gate passes formatting, correctness Clippy,
+309 library tests, 35 binary tests, every integration/native/system target, and
+doc tests. Candidate workflows, merge, and accepted-head replay remain pending.
+M1A does not change Rust compiler production, runtime, profile, grammar, IR,
+verifier, backend, or driver code. It does not construct checked IR, implement
+general scopes/types/ownership, replace the Rust front end, or establish
+self-hosting. The exact contract is in
+[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md) and the CAP-043
+ledger. After protected M1A, M1B must be frozen separately and red-first to turn
+authenticated facts into a bounded checked-IR product.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3384,14 +3384,15 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish and protect CAP-042/F1B from accepted CAP-041 head. Its focused,
+Finish and protect CAP-043/M1A from accepted CAP-042 head. Its focused, three
 neighboring, complete D:-redirected gates and exact eight-file scope are green.
 Freeze the candidate identity, publish through one protected PR, merge without
 history rewrites, and verify accepted-head CI, Rust CI, CodeQL, and evidence.
 
-After protected F1B, freeze the bounded F1-to-M1 handoff and authorize the
-first semantic/checked-IR slice separately. Do not claim replacement of the
-Rust front end or self-hosting until M1, B1, and H1/H2 also close.
+After protected M1A, freeze M1B separately and red-first to construct bounded
+checked IR from authenticated origins, symbol, and type/ownership facts. Do not
+claim replacement of the Rust front end or self-hosting until M1B, B1, and
+H1/H2 also close.
 
 ## Historical post-CAP-024 ranking
 
