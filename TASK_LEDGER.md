@@ -1,5 +1,129 @@
 # Aero Task Ledger
 
+## CAP-040-D1-COMPILER-STORAGE-ARENA - deterministic owned compiler data model
+
+- Date/task/status: 2026-08-15, `CAP-040-D1-COMPILER-STORAGE-ARENA`,
+  ledger-first authorization from accepted R2 merge
+  `5c791393be5a251c187274d591174f7667866886`, tree
+  `06ee7ada90315432ce26d706f348685e2ee5458f`, on
+  `agent/d1-owned-compiler-storage` in D:-resident worktree
+  `D:\Aero-worktrees\d1-owned-compiler-storage`. Reviewed R2 candidate
+  `c020d477f6bfd188b0008249b8287d4d6d5051c5` has the same tree. Candidate
+  CI `31917890547`/`31917892368`, Rust CI `31917892361`, CodeQL
+  `31917890763`, and evidence `31917892375`, plus accepted-head CI
+  `31918179906`, Rust CI `31918179914`, CodeQL `31918179970`, and evidence
+  `31918179909`, are terminal-success.
+- Observed behavior and first honest failure: accepted R2 supplies exact binary
+  stdin plus one verified source-owned growable byte buffer, but the only
+  Aero-authored token product is K1's fixed `[int; N]` kernel. The repository
+  has no runtime-sized owned token table, name interner, scope lookup log, or
+  flat AST arena. Production Rust still represents lexer tokens and AST nodes
+  with `String`, `Vec`, and `Box`. The intentional red is therefore the absent
+  tracked D1 product and must report exactly
+  `CAP-040 intentional product red: tracked owned compiler-storage arena is absent`.
+  A selector, parser, new runtime symbol, or compiler-production diagnostic is
+  the wrong first failure.
+- Hypothesis and authority boundary: the complete bounded D1 product is
+  expressible in Aero source under accepted `exact-i32-byte-input-v0` without
+  changing any compiler production file. Five direct `ByteBuffer` owners hold
+  the input bytes, canonical name metadata, token records, scope-log entries,
+  and AST records. Aero code explicitly serializes nonnegative logical `int`
+  words into four little-endian bytes and reconstructs them through checked R1
+  reads. Rust may implement only an independent test oracle and native harness;
+  no Rust/C collection or compiler helper may build, mutate, validate, or
+  traverse the product's logical tables.
+- Frozen input/name contract: the D1 harness input is a binary sequence of
+  one-byte lengths followed by that many identifier bytes. Length is `1..=63`;
+  the first byte is ASCII letter or underscore and remaining bytes are ASCII
+  letter, digit, or underscore. EOF must occur only between complete entries.
+  This framing is evidence input, not Aero source lexing, text decoding, file
+  I/O, or a grammar claim. The input `ByteBuffer` stays live for the complete
+  run. The name table stores canonical `(start, length)` spans into that owner,
+  assigns deterministic 1-based `NameId` values on first occurrence, uses `0`
+  only as invalid/no-ID, and reuses the first ID after exact byte comparison.
+- Frozen word/table contract: every stored logical word is an exact
+  nonnegative `int` encoded as four little-endian bytes; the fourth byte is at
+  most 127, so reconstruction remains in `0..=i32::MAX`. Every table byte
+  length is a checked multiple of its fixed record width. Tokens append exactly
+  `(kind=1, start, length, name_id)`. The append-only scope log appends exactly
+  `(name_id, leaf_node_id)` for each token; reverse traversal defines the
+  deterministic latest binding and the intern table supplies set uniqueness.
+  No hash, pointer, host iteration order, raw allocation, implicit conversion,
+  or unsupported value may stand in for these words.
+- Frozen arena contract: the AST arena appends fixed
+  `(kind, payload, left_id, right_id)` records and assigns the new record's
+  1-based index as its `NodeId`. Kind 1 is a name leaf with a valid `NameId` and
+  zero children. Kind 2 is a sequence node with zero payload and two nonzero
+  child IDs strictly less than the new ID. Each token creates one leaf; every
+  token after the first creates one sequence node joining the previous root to
+  the new leaf. Empty input has root 0; otherwise root is the last node. A full
+  Aero traversal must reject unknown kinds, bad payloads, forward/self/missing
+  children, invalid names, malformed record widths, or a noncanonical root.
+  Construction and validation are cycle-free by the strict lower-ID rule; no
+  recursive heap object or host graph exists.
+- Frozen deterministic product/oracle contract: the tracked kernel exposes one
+  scalar-parameter function that reads stdin, builds all five owners, validates
+  every logical table, and compares expected name/token/node/root counts plus a
+  deterministic checksum. Starting at 17, the checksum updates as
+  `(checksum * 31 + word) % 1000003` over decoded name, token, scope, and node
+  words in table order with frozen table separators and final counts/root. The
+  tracked `main` supplies the independent oracle values for one canonical
+  fixture and returns 91 only after exact agreement. Tests generate additional
+  mains from the unchanged kernel using a separate Rust oracle, and a wrong
+  expectation or structurally corrupted child edge must not return 91.
+- Frozen failure/ownership contract: every stdin read, byte-buffer push, and
+  byte-buffer get Result is consumed explicitly. Invalid framing, non-ASCII or
+  invalid identifier bytes, truncated input, word/offset/count overflow,
+  allocation/reallocation failure, read corruption, or arena corruption returns
+  a deterministic non-91 status. No partial table is success. All live owners
+  are compiler-dropped exactly once in reverse order on every return; accepted
+  R1 failure-state preservation, allocation counters, size checks, and loan
+  rules remain the final authority. Large evidence must exceed 255 node IDs and
+  cross repeated growth boundaries.
+- Red-first and acceptance evidence: after this ledger-only commit, add an
+  independent Rust oracle plus characterization and one product-presence test
+  whose sole initial failure is the exact intentional-red message above.
+  Final evidence covers empty, one-name, repeated-name/shadowing, multiple
+  unique names, maximum 63-byte names, malformed/truncated/non-ASCII inputs,
+  wrong expected values, corrupted arena topology, deterministic iteration,
+  node IDs above 255, and at least 4,097 input bytes. It must prove exact
+  allocation/reallocation/deallocation behavior and zero leaks under injected
+  failures, deterministic checked LLVM, LLVM 22 verification, O0/O2 native and
+  public CLI exit 91 with empty application output on Linux and Windows,
+  accelerator rejection before artifacts, source/file parity, focused
+  neighboring R1/R2 tests, formatting, correctness Clippy, `git diff --check`,
+  and root `./tools/test.sh` from D:-redirected paths.
+- Exact allowed files: `TASK_LEDGER.md`, new
+  `COMPILER_STORAGE_READINESS.md`, `SELF_HOSTING_ROADMAP.md`,
+  `PROJECT_STATE.md`, `BYTE_INPUT_READINESS.md`,
+  `OWNED_BYTE_BUFFER_READINESS.md`, new
+  `src/compiler/tests/compiler_storage_arena_tests.rs`, new
+  `examples/compiler_storage_v0/deterministic_compiler_storage.aero`, and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the
+  red commit changes only the new test. Every compiler production file,
+  runtime, existing test/example, dependency, lockfile, cache, evidence bundle,
+  claim, benchmark, release, and accelerator file is frozen.
+- Risks and mandatory stops: stop rather than widen if the accepted R2 profile
+  cannot express the product; any new selector/type/intrinsic, parser/AST rule,
+  source inference, owner transport, stored alias, runtime ABI, checked IR,
+  verifier, backend, driver, hidden Rust/C collection, raw allocator access, or
+  compiler production change is required; deterministic word reconstruction
+  cannot avoid overflow; a failure can become a valid word/ID/success; the
+  cycle rule needs pointer identity or recursion; Linux/Windows bytes differ;
+  an earlier profile/diagnostic/LLVM/native result changes; the root build is
+  red; or an unlisted file is needed. D1 is a bounded serialized compiler data
+  model for the first bundled bootstrap, not `String`, `Vec`, `HashMap`, a
+  general collection ABI, buffer function transport, a production lexer/parser,
+  modules, semantic analysis, code generation, self-hosting, memory safety,
+  stability, performance, accelerator execution, or release readiness.
+- Storage rule: every task-created worktree, Cargo target, temp workspace,
+  generated input/source/LLVM/object/executable, native harness, log, and PR
+  body remains on D:, respectively
+  `D:\Aero-worktrees\d1-owned-compiler-storage`,
+  `D:\Aero-build-targets\d1`, and `D:\Aero-temp\d1`. Installed C: tools are
+  read-only dependencies; no task cache or artifact is intentionally written
+  there.
+
 ## CAP-039-R2-STDIN-BYTE-INPUT - deterministic whole-stream binary stdin
 
 - Date/task/status: 2026-08-15, `CAP-039-R2-STDIN-BYTE-INPUT`, ledger-first
@@ -162,6 +286,26 @@
   execution, stable ABI, release, performance, safety, and self-hosting remain
   absent. Cross-platform workflow declarations replay the binary product on
   Linux and Windows, but they are evidence only after the exact public head runs.
+
+### CAP-039/R2 accepted checkpoint
+
+- Reviewed candidate `c020d477f6bfd188b0008249b8287d4d6d5051c5`
+  merged normally through protected PR #81 as
+  `5c791393be5a251c187274d591174f7667866886`. Their shared tree is
+  `06ee7ada90315432ce26d706f348685e2ee5458f`; the merge's ordered parents are
+  accepted R1 `cc75e2caa888a52f9d1c79bf806bb041b64a0a77` then the exact candidate.
+- All candidate checks passed: CI `31917890547`/`31917892368`, Rust CI
+  `31917892361`, CodeQL `31917890763`, and evidence `31917892375`.
+  Accepted-head CI `31918179906`, Rust CI `31918179914`, CodeQL
+  `31918179970`, and evidence `31918179909` are terminal-success; stable,
+  nightly, pinned Windows LLVM 22, binary stdin O0/O2, and public runner lanes
+  all pass.
+- R2 is therefore accepted only as deterministic whole-stream binary stdin
+  feeding the accepted R1 ByteBuffer through an Aero-owned EOF loop. File/path
+  input, text decoding, general streams/collections, compiler storage, modules,
+  a production frontend, accelerators, safety/stability/performance/release
+  claims, and self-hosting remain absent. D1 proceeds separately from this exact
+  accepted head.
 
 ## CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER - bounded source owner and selected profile
 
