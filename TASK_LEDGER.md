@@ -1,10 +1,231 @@
 # Aero Task Ledger
 
+## CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER - independent Aero verification seal
+
+- Date/task/status: 2026-08-16, `CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER`,
+  locally implemented with the 5/5 focused target, accepted predecessor ring,
+  and complete root gate green; protected publication remains pending. Work
+  starts from accepted CAP-044/M1B merge
+  `f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
+  `bca690421a34862063a0bc9315c74873f261f354`, on
+  `codex/b1a-checked-ir-verifier`. Accepted-head CI `31938072475`, Rust CI
+  `31938072465`, CodeQL `31938071907`, and evidence `31938072658` are terminal
+  green. The isolated worktree, Cargo target, and temporary root are respectively
+  `D:\Aero-worktrees\b1a-checked-ir-verifier`,
+  `D:\Aero-build-targets\b1a`, and `D:\Aero-temp\b1a`; this task may not create
+  build, test, log, generated-artifact, or temporary state on `C:`.
+- Observed behavior and exact first failure: accepted M1B serializes one bounded
+  flat module, and it checks construction facts while the predecessor AST, facts,
+  value scratch, and instruction scratch remain live. No Aero-authored consumer
+  reparses and verifies only the final serialized owner. The trusted Rust verifier
+  therefore remains the only independent checked-IR gate, and an Aero LLVM emitter
+  cannot yet consume an authenticated product. The first intentional red is the
+  absent tracked B1A product and must report exactly `CAP-045 intentional product
+  red: tracked runtime ASCII checked IR verifier is absent`. A Rust compiler
+  production change, LLVM diagnostic, emitter, file/process API, or driver is the
+  wrong first failure.
+- Hypothesis and two-phase boundary: one new product-only Aero program under the
+  accepted `exact-i32-byte-input-v0` profile can copy CAP-044 behavior exactly,
+  then (1) decode and validate the serialized module's framing, fixed module
+  topology, records, and word domain using only the retained `checked_ir` owner,
+  and (2) validate SSA/type/origin/numeric/root relations while independently
+  evaluating prior results into one new bounded verifier scratch owner. The output
+  is a deterministic verification seal. No Rust production, runtime, profile,
+  grammar, AST, checked-IR, verifier, backend, cache, CLI, file/process, linker, or
+  driver change is authorized. LLVM emission remains the separately ledgered
+  B1B checkpoint; process/file orchestration remains later still.
+- Frozen predecessor contract: accepted CAP-044 source bytes, selected profile,
+  F1A/F1B/M1A/M1B grammar and products, twelve owner identities, diagnostics,
+  checksums, limits, serialized format, O0/O2 LLVM, native behavior, and cleanup
+  order remain byte-for-byte unchanged. The tracked CAP-044 source and test are
+  frozen. B1A begins only after complete M1B success and its checked checksum has
+  been finalized. Any earlier F1/M1A/M1B failure leaves `verified_attempted=0`,
+  produces no B1A diagnostic or seal, keeps verifier scratch empty, and cannot
+  reach B1B.
+- Frozen independence boundary: after `verified_attempted` is selected, the B1A
+  verifier may read only the serialized `checked_ir` bytes, its own scalar state,
+  and its own `verified_results` owner. It may not read source, names, tokens,
+  nodes, parser scratch, origins, symbols, semantic facts, M1B value scratch,
+  M1B instruction scratch, M1B counters, M1B root fields, or the M1B checksum to
+  decide acceptance. It may not rescan source, reparse tokens, re-infer a type,
+  borrow the Rust checked-IR verifier, or trust a constructor-side success flag as
+  proof of the serialized bytes. Verification is one forward bounded pass plus
+  the final result/root cross-check; no recursion, hidden collection, or raw host
+  pointer is permitted.
+- Frozen test-only corruption view: the product's private runner accepts
+  `(verification_fault_word, verification_fault_value)`. Canonical `main` always
+  passes `(-1, 0)`. A nonnegative fault index substitutes exactly one decoded word
+  after its four real bytes have been read and before any verifier rule or seal
+  consumes it; it never mutates the owner and exists only so the independent test
+  can exercise already-compiled verifier branches. An index outside the actual
+  word count or a value outside `0..=i32::MAX` is framing failure. No CLI flag,
+  language feature, emitted artifact, or successful production path exposes this
+  hook, and B1B may consume only the canonical `-1` seal.
+- Frozen word/framing admission: every input is a `ByteBuffer` whose length is a
+  positive multiple of four. Every little-endian word is decoded from four present
+  bytes and must be nonnegative (`byte3 <= 127`). The first nine words are format
+  `1`, exactly one function, exactly one block, instruction count in `1..=510`,
+  result count in `0..=509`, entry function ID `1`, one root operand, and root type
+  `Int=1`. Instruction count must equal result count plus one. Exact total length
+  is `25 + 11*instruction_count + 6*result_count` words, computed with bounded
+  pre-operation guards before any record offset. Trailing, truncated, overflowing,
+  zero-count, and unsupported-version inputs fail before a record is consumed.
+- Frozen module topology: the sole tagged function record is nine words
+  `(kind=1, id=1, positive_name_id, function_node_id, parameters=0,
+  result_type=Int, entry_block=1, first_instruction=1, instruction_count)`. The
+  function node ID is in `3..=512`. The sole tagged block record is seven words
+  `(kind=2, id=1, function=1, reachable=1, successors=0,
+  first_instruction=1, instruction_count)`. Every count/span must agree with the
+  header. B1A recognizes no second function/block, parameter, successor, place,
+  memory, aggregate, resource, branch, call, or opaque extension.
+- Frozen instruction pass: records are consumed in serialized order at word
+  `25 + 11*(instruction_id-1)`. Tag is `3`, instruction IDs are contiguous from
+  one, and function ID is one. Opcodes are exactly `1=Add`, `2=Sub`, `3=Mul`,
+  `4=Div`, `5=Neg`, and `6=Return`. Instructions before the last use result ID
+  equal to their instruction ID and result type `Int`; the last instruction is
+  the only Return and has result ID/type zero. Arithmetic origin node IDs are
+  positive and strictly increasing. Return origin is exactly
+  `function_node_id-1`, every earlier origin is lower, and no origin reaches the
+  function node.
+- Frozen operands and SSA: operand kind `1` is an immediate nonnegative i32 word;
+  kind `2` is a one-based result ID strictly lower than the consuming instruction
+  ID. Kind zero is permitted only in the unused right lane of Neg and Return and
+  requires payload zero. Binary instructions require two values; Neg and Return
+  require one left value and an exact zero right lane. No forward, zero, missing,
+  duplicate, cross-function, untyped, or unsupported operand is accepted. The
+  verifier resolves result operands only from its own already-appended
+  `verified_results` records, never from M1B construction scratch.
+- Frozen numeric verification: because the B1A module has no parameters and all
+  operands are literals or earlier results, the verifier independently evaluates
+  every arithmetic instruction as signed i32. Its direct owner stores exactly one
+  three-word signed-magnitude record `(sign, high, low)` per result, using base
+  32768 and the unique `(1,65536,0)` representation for `i32::MIN`. Addition,
+  subtraction, multiplication, negation, and division use explicit
+  pre-operation guards; a zero divisor or `i32::MIN / -1` fails verification.
+  There is no wrapping, saturation, float, host-width fallback, or LLVM-poison
+  interpretation. A scratch allocation/reallocation failure is a verifier
+  failure and cannot return a partial seal.
+- Frozen result records: after all instructions, exactly `result_count` tagged
+  six-word records are consumed in ID order. Each is
+  `(kind=4, function=1, result_id, type=Int, definition_instruction_id,
+  origin_node_id)`. Result and definition IDs both equal the one-based record ID;
+  origin equals the corresponding defining instruction origin. Every instruction
+  result therefore has exactly one matching record and every result record has
+  exactly one prior definition.
+- Frozen root/return seal: the header root operand must be a valid immediate or a
+  defined result and must exactly equal the final Return's left operand; root type
+  is Int. The Return has zero right lane, zero result, and the terminal origin
+  frozen above. The independently evaluated root becomes `verified_root_value`.
+  A verifier success exposes only attempted/status, counts, the evaluated root,
+  and the checksum seal; it does not expose or transport the scratch owner.
+- Frozen diagnostics and precedence: the B1A diagnostic is
+  `(status, word_index, record_id, code, expected, actual)`, with success/skipped
+  `(0,-1,0,0,0,0)`. Status `1` is word/framing/count/length, `2` is
+  function/block topology, `3` is instruction tag/ID/opcode/type/origin, `4` is
+  operand/SSA, `5` is arithmetic trap, `6` is result/definition, `7` is
+  root/Return, and `8` is verifier scratch allocation. Code `1/2/3` identifies,
+  respectively, the first broad check within that status in the order frozen
+  above; arithmetic code is the failing opcode and allocation code is `1`.
+  `word_index` is zero-based at the first failing field, `record_id` is the
+  instruction/result ID when one exists, and expected/actual hold the first
+  mismatched nonnegative scalar or `0/0` when none exists. Precedence is framing,
+  module topology, each instruction in order (schema, left operand, right operand,
+  numeric evaluation, scratch append), each result in order, then root/Return.
+- Frozen verification checksum: the seal starts at `29`, consumes every decoded
+  verifier-view word in order with the accepted
+  `(checksum*31+word)%1000003` step, then separator `995`, status,
+  `word_index+1` (zero for `-1`), record, code, expected, actual, attempted,
+  instruction count, result count, root sign/high/low, and verifier-result count.
+  It deliberately does not consume the M1B checksum or any predecessor owner.
+  Failure and skip seals remain deterministic but cannot authorize B1B. Only
+  canonical no-fault status zero, complete consumption, exact count equality, and
+  scratch-count equality form a successful seal.
+- Frozen owner/cleanup contract: B1A adds exactly one thirteenth direct owner,
+  `verified_results`, declared after `checked_ir`, never moved, returned, stored in
+  another owner, or passed across a function boundary. It holds at most 509
+  twelve-byte records. All thirteen owners are destroyed exactly once in reverse
+  declaration order on every success, predecessor failure, verifier failure,
+  injected corruption, capacity failure, and early exit. No verifier observation
+  survives a failed allocation as an accepted partial product.
+- Frozen canonical product: input remains exact ASCII
+  `fn score()->int{return 1+2*3-4/2;}`. Its accepted F1/M1A/M1B observations remain
+  exact, including 104 serialized words and M1B checksum `355067`. B1A attempts
+  once, verifies five instructions and four results, stores four verifier-result
+  values, evaluates root `5`, and produces independently calculated verification
+  checksum `592819`. It reports success and returns silent exit `91` only when all
+  of those observations agree. The red-first test must recompute and pin that
+  checksum before product implementation; it may not derive it from product output.
+- Independent evidence and mutation matrix: the new Rust test owns a standalone
+  serialized-format decoder/verifier and explicit valid module fixtures; it may
+  reuse no Aero verifier decision and no Rust production verifier result as an
+  expected B1A record. Positive coverage includes literal-only root, every opcode,
+  immediate/result operands, negative and i32-boundary results, maximum accepted
+  counts, deterministic repeat, source/file equality, and canonical Rust-result
+  comparison. Negative coverage mutates every header, function, block,
+  instruction, operand, result, origin, count/span, root/Return, truncation,
+  trailing-word, overflow/divide-zero, allocation, and first-error boundary.
+  Every mutation must deterministically fail and never return `91`; a plausible
+  checksum or constructor-side success cannot bypass verification.
+- Red-first and acceptance gates: after this ledger-only commit, add only
+  `src/compiler/tests/runtime_ascii_checked_ir_verifier_tests.rs`. Its independent
+  fixtures, accepted CAP-044 characterization, and checksum oracle must pass while
+  its sole structural assertion fails with the exact absent-product message.
+  Commit that red before creating the Aero product. Final evidence requires the
+  focused target green; accepted M1B/M1A/F1B/F1A/D1 rings unchanged; deterministic
+  source/file LLVM equality; external LLVM 22 verification; O0/O2 and public CPU
+  exit 91 with empty application output; exact thirteen-owner allocation and
+  cleanup evidence; ROCm/CUDA artifact hygiene; protected Linux and Windows
+  replay; formatting; correctness Clippy; `git diff --check`; and the complete
+  root `./tools/test.sh` gate.
+- Local implementation evidence: ledger commit `422acb5`, checksum-seal commit
+  `05ab6b6`, and red commit `b5ad993` preserve the required history; the red
+  failed only with the exact absent-product message. The 4,929-line, 215,947-byte
+  tracked Aero product has SHA-256
+  `1fe59bc082912bc61c4ea55391c147c84e8c74d3d473e1912d9dd4e9b92ec460`.
+  The focused target passes 5/5 in 253.56 seconds. It proves canonical checksum
+  592819, source/file LLVM equality, external LLVM 22 verification, O0/O2 and
+  public silent exit 91, accelerator artifact hygiene, every direct one-word
+  verifier corruption, and every allocation threshold. Canonical execution has
+  exactly 66 successful allocation events: 13 initial allocations, 53
+  reallocations, and 13 deallocations; all injected failures leak zero owners.
+  Accepted M1B passes 10/10, M1A 7/7, F1B 4/4, F1A 3/3, and D1 3/3.
+  The complete D:-redirected `./tools/test.sh` gate passes formatting,
+  correctness Clippy, 309 library tests, 35 binary tests, every integration/
+  native/system target, and doc tests.
+  All worktree, Cargo target, temporary, log, and generated-artifact state is on
+  D:. This is local candidate evidence only until the remaining gates and
+  protected publication complete.
+- Allowed files, exactly: `TASK_LEDGER.md`; `AERO_FRONTEND_READINESS.md`;
+  `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
+  `COMPILER_STORAGE_READINESS.md`; new
+  `src/compiler/tests/runtime_ascii_checked_ir_verifier_tests.rs`; new
+  `examples/aero_frontend_v0/runtime_ascii_checked_ir_verifier.aero`; and
+  `.github/workflows/rust.yml`. The first commit changes only this ledger; the red
+  commit changes only the new test. Every Rust compiler/runtime production file,
+  accepted source/test/example, profile, grammar, checked-IR/verifier/backend,
+  cache, CLI, driver, dependency, lockfile, evidence bundle, claim, benchmark,
+  release, accelerator, and external repository file is frozen.
+- Risks and mandatory stops: stop rather than widen if the serialized owner cannot
+  be consumed without predecessor facts or M1B scratch; a malformed word can
+  cause unchecked offset arithmetic or host overflow; a use can precede its
+  definition; a result can escape independent cross-checking; arithmetic differs
+  from exact signed i32; a failed allocation can authorize a seal; canonical
+  output depends on the test fault view; ByteBuffer transport, recursion, hidden
+  Rust/C storage, new language/runtime semantics, compiler production, an emitter,
+  file/process API, driver, third phase, external dependency, existing diagnostic/
+  LLVM/native delta, red root, unlisted file, or weakened test/spec is required.
+  CAP-045 does not authorize B1B/H1/H2, general checked IR, replacement of the Rust
+  front end/verifier/backend, self-hosting, memory-safety/stability/performance/
+  accelerator/release claims, or deletion of preserved experimental work.
+
 ## CAP-044-M1B-FLAT-CHECKED-IR - authenticated facts to bounded checked IR
 
-- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, locally
-  implemented with focused, predecessor-ring, and complete root gates green;
-  protected publication pending. Work starts from accepted CAP-043/M1A merge
+- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, accepted through
+  protected PR #86. Reviewed candidate
+  `a14d30d1c37c3b34626a6ec8c74848e2bc8f8a2c` merged as
+  `f51ea2d63b886c1615f522ea3d14bf7baefead1a`; their tree is identically
+  `bca690421a34862063a0bc9315c74873f261f354`. Candidate and accepted-head
+  workflows are terminal-green. Work started from accepted CAP-043/M1A merge
   `2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
   `35129ad5194354acafe082f3fcd55629ed767f27`, on
   `agent/m1-checked-ir-handoff` in D:-resident worktree
