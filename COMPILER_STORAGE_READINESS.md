@@ -12,8 +12,8 @@ integration/native/system target, and doc tests. Every candidate check and
 accepted-head CI `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`,
 and evidence `31920949972` are terminal-success.
 
-The accepted F1A/F1B/M1A/M1B/B1A/B1B chain builds on this unchanged storage
-contract. Local CAP-047/B1C has passed its complete D:-redirected gate while
+The accepted F1A/F1B/M1A/M1B/B1A/B1B/B1C chain builds on this unchanged storage
+contract. CAP-047/B1C passed its complete D:-redirected gate while
 preserving the exact predecessor owners and emitting the authenticated B1B
 module without adding compiler storage; its host driver owns only external
 stream capture and toolchain artifacts. D1 remains the bounded arena authority,
@@ -172,7 +172,7 @@ Candidate and accepted-head workflows are terminal-green.
 See [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing
 remains evidence scaffolding rather than a general AST collection. B1B does not
 replace the Rust front end/general backend, write a file, drive external tools,
-or establish self-hosting. Local CAP-047/B1C preserves the same fourteen owners
+or establish self-hosting. Accepted CAP-047/B1C preserves the same fourteen owners
 while adding a separately checked scalar output and transactional host-driver
 handoff; see
 [`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).

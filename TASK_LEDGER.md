@@ -12,7 +12,12 @@
   normally through protected PR #88. All 13 candidate checks passed.
   Accepted-head CI `31956165245`, Rust CI `31956165384` (stable, nightly, and
   Windows LLVM 22), CodeQL push `31956164788`, and evidence `31956165210` are
-  terminal-success on the exact merge.
+  terminal-success on the exact merge. Final B1C candidate
+  `18a507c8fabfc79e24167c79bef516b531506914` merged through protected PR #89 as
+  `0365e5c91bd503b198855b97b7f16054488d6dff`; both have tree
+  `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`. All 13 final candidate checks and
+  accepted-head CI `31975615300`, Rust CI `31975615304`, CodeQL `31975614982`,
+  and evidence `31975615309` are terminal-success. CAP-047/B1C is accepted.
 - D:-only task storage: the worktree, Cargo target, and temporary root are
   respectively `D:\Aero-worktrees\b1c-driver`,
   `D:\Aero-build-targets\b1c`, and `D:\Aero-temp\b1c`. Every task-created
@@ -317,6 +322,34 @@
   this implementation and synchronized evidence, freeze its candidate/tree,
   publish one draft protected PR, and require all candidate and accepted-head
   gates before authorizing H1 ledger-first.
+
+### CAP-047 protected acceptance checkpoint
+
+- Final candidate `18a507c8fabfc79e24167c79bef516b531506914` was published
+  through protected PR #89 and merged normally as
+  `0365e5c91bd503b198855b97b7f16054488d6dff`. Their tree is identically
+  `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`; the merge's ordered first parent
+  is accepted CAP-046/B1B `3219d7f08a92f9d18334a37315e10cfde6fba931`
+  and its second parent is the reviewed candidate.
+- All 13 final candidate checks passed. Accepted-head CI `31975615300`, Rust CI
+  `31975615304` including stable, nightly, and Windows LLVM 22 native, CodeQL
+  `31975614982`, and accepted-head evidence `31975615309` are all
+  terminal-success on the exact merge.
+- The exact final local gate passed 312 library tests, 36 binary tests, every
+  integration/native/system target, and doc tests. The B1C focused target
+  passed 8/8, including the real transactional LLVM/Clang driver on its pinned
+  tools. No accepted source, runtime, serialized module, predecessor artifact,
+  diagnostic, or claim was weakened to obtain publication.
+- CAP-047/B1C is therefore the accepted bounded B1 backend handoff. It remains
+  one fixed bootstrap compiler product and declared host transaction, not a
+  general compiler driver, replacement of the Rust stage 0, bootstrap
+  convergence, self-hosting, stability, safety, performance, accelerator, or
+  release claim.
+- Recommended next action: authorize H1 ledger-first from accepted merge
+  `0365e5c` and freeze its canonical Aero compiler source bundle, exact
+  stage-0/stage-1/stage-2 interfaces, D:-resident environment/toolchain
+  manifest, comparison contract, diagnostics, and mandatory stops before any
+  convergence behavior is implemented.
 
 ## CAP-046-B1B-SERIALIZED-CHECKED-IR-LLVM-EMITTER - bounded Aero LLVM text product
 

@@ -44,13 +44,17 @@ CAP-046/B1B is accepted through protected PR #88. Reviewed candidate
 `055dfe065ada29b62f22864d879a9c3e18e17c93`. All candidate and accepted-head
 workflows are terminal-green.
 
-CAP-047/B1C is the current local candidate on that exact accepted head. It
+CAP-047/B1C is accepted through protected PR #89. Reviewed candidate
+`18a507c8fabfc79e24167c79bef516b531506914` merged as
+`0365e5c91bd503b198855b97b7f16054488d6dff`; their tree is identically
+`e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`. It
 preserves B1B, adds one fail-closed scalar raw-byte output operation, emits the
 authenticated 144-byte module through stdout, and adds a narrow transactional
 host driver for explicit LLVM/Clang 22.1.8 tools. Its focused 8/8 target and the
 complete accepted predecessor ring are green. The D:-redirected root gate is
 green at 312 library tests, 36 binary tests, every integration/native/system
-target, and doc tests. Protected publication remains pending. See
+target, and doc tests. All candidate and accepted-head workflows are
+terminal-green. See
 [`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md).
 
 ## Frozen F1A product
@@ -334,13 +338,14 @@ CAP-047 preserves ledger-first commit `4c88952`, red-first commit `8f9d472`,
 and red record `6246d87`; the red checkpoint passed independent stream and
 LLVM/toolchain oracles and failed only with
 `CAP-047 intentional product red: bounded stdout/toolchain driver is absent`.
-The local implementation's source/IR/verifier unit tests are 3/3 and its
+The accepted implementation's source/IR/verifier unit tests are 3/3 and its
 focused product boundary is 8/8 green. Evidence covers exact raw bytes, sticky
 runtime failures, every 144-byte failure index, exact cleanup, source/file and
 O0/O2 parity, malformed streams, no PATH fallback, transactional hygiene, and
 the explicit LLVM 22.1.8 driver. The complete accepted predecessor ring and
-the complete D:-redirected root gate are green. Protected publication remains
-pending.
+the complete D:-redirected root gate are green. Reviewed candidate `18a507c`
+merged as `0365e5c` with identical tree `e13bcc9`; all candidate and
+accepted-head workflows are terminal-green.
 
 ## Remaining gaps
 
@@ -366,10 +371,9 @@ stable ABI.
 
 ## Exact next dependency
 
-Freeze CAP-047/B1C from exact accepted CAP-046 merge `3219d7f` and protect its
-bounded output/toolchain handoff through candidate, merge, and accepted-head
-replay without widening the frozen frontend, semantics,
-serialized checked IR, verifier, or LLVM emitter. After B1C acceptance, freeze
-H1 separately and ledger-first for stage-0/stage-1/stage-2 convergence. Do not
+Freeze H1 separately and ledger-first from accepted CAP-047/B1C merge
+`0365e5c` for stage-0/stage-1/stage-2 convergence. Preserve the bounded
+frontend, semantics, serialized checked IR, verifier, LLVM emitter, and driver
+unchanged. Do not
 infer additional semantics, call the Rust front end replaced, or call the
 project self-hosted before H1 and H2 independently close.

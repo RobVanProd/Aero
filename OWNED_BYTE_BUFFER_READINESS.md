@@ -11,9 +11,9 @@ pointer and does not alter R1 ownership, allocation, initialized-range, growth,
 loan, move, or drop rules. Candidate and accepted-head workflows are green.
 See [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
 
-CAP-040/D1 and the bounded F1/M1/B1A/B1B chain are accepted downstream users.
+CAP-040/D1 and the bounded F1/M1/B1A/B1B/B1C chain are accepted downstream users.
 D1 composes five direct accepted owners into input, names, tokens, scope-log,
-and flat-AST storage without changing this contract. Local CAP-047/B1C adds no
+and flat-AST storage without changing this contract. Accepted CAP-047/B1C adds no
 owner: its tracked product retains B1B's exact fourteen owners and 14/58/14
 cleanup while emitting authenticated bytes through a separate scalar runtime
 operation. See [`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md)
@@ -345,9 +345,9 @@ performance, release readiness, or CPU/GPU parity.
 
 R1 is accepted at merge `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`,
 and R2 is accepted at merge `5c791393be5a251c187274d591174f7667866886`.
-The downstream D1/F1/M1/B1A/B1B chain is also accepted. Local CAP-047/B1C has
+The downstream D1/F1/M1/B1A/B1B/B1C chain is also accepted. CAP-047/B1C
 passed its complete D:-redirected gate without changing the accepted R1A
 allocator ABI, R1B schema/verifier/backend, R1C owner/profile, or R2 scalar
-input contract. Freeze and protect that exact candidate. B1C adds no owner and
+input contract. B1C adds no owner and
 preserves B1B's exact fourteen-owner lifecycle while its separate checked
 scalar output crosses the bounded host-driver handoff.

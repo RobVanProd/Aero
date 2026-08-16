@@ -11,7 +11,7 @@ CodeQL `31918179970`, and accepted-head evidence `31918179909` are
 terminal-success. Protected PR #81 records the exact candidate, ordered merge
 parents, merge, and tree identity.
 
-CAP-047/B1C is the current locally gated downstream candidate. Its
+Accepted CAP-047/B1C is the current downstream consumer. Its
 `exact-i32-byte-io-v0` selector composes this accepted input surface unchanged
 and adds only a separately checked scalar stdout operation. The B1C host driver
 writes exactly the frozen 34-byte canonical source to the tracked emitter and
@@ -157,8 +157,8 @@ phase is required; or any failure can silently become EOF, success, or `Int`.
 
 ## Next dependency after R2
 
-R2 and its downstream D1/F1/M1/B1A/B1B chain are accepted. Local CAP-047/B1C
-has passed its complete D:-redirected gate while reusing the exact R2
+R2 and its downstream D1/F1/M1/B1A/B1B/B1C chain are accepted. CAP-047/B1C
+passed its complete D:-redirected gate while reusing the exact R2
 byte-input contract to feed one frozen 34-byte source into the actual Aero
 emitter, then adding output through a separate checked scalar operation. See
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md) and
