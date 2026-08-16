@@ -32,11 +32,12 @@ verified under LLVM 22; O0/O2 native and the public CPU runner exit 91 silently;
 ROCm/CUDA reject before artifacts; Linux and Windows workflow contracts replay
 the product. All worktree, Cargo target, generated, and log paths are on D:.
 
-The complete root gate, exact-scope review, protected candidate workflows,
-merge, and accepted-head replay remain pending. D1 is bounded serialized
-compiler-data evidence, not general collections, owned strings, a production
-lexer/parser, replacement of the Rust AST, modules, or self-hosting. The exact
-contract is in
+The complete root gate passes formatting, correctness Clippy, 309 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
+Exact-scope review, protected candidate workflows, merge, and accepted-head
+replay remain pending. D1 is bounded serialized compiler-data evidence, not
+general collections, owned strings, a production lexer/parser, replacement of
+the Rust AST, modules, or self-hosting. The exact contract is in
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md) and the
 CAP-040 ledger. After protected D1, the next direct dependency is F1: an
 Aero-authored lexer/parser over R2 bytes and D1 storage.
@@ -3376,11 +3377,11 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish CAP-040/D1 from accepted R2 with the tracked Aero-owned five-buffer
-product, independent oracle, and Linux/Windows O0/O2 workflow replay. Preserve
-the exact allowed-file scope and run the complete D:-redirected root gate before
-candidate publication. Then protect the exact candidate, merge without history
-rewrites, and verify accepted-head CI, Rust CI, CodeQL, and evidence.
+Protect CAP-040/D1 from accepted R2 with the tracked Aero-owned five-buffer
+product, independent oracle, and Linux/Windows O0/O2 workflow replay. The exact
+allowed-file scope and complete D:-redirected root gate are green. Publish the
+exact candidate, merge without history rewrites, and verify accepted-head CI,
+Rust CI, CodeQL, and evidence.
 
 After protected D1, authorize F1 ledger-first and red-first. F1 must consume R2
 bytes and produce D1 tokens/flat AST under one frozen ASCII/source-encoding,

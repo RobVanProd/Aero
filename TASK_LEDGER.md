@@ -25,8 +25,10 @@
   places allocations at the declaration site; the single local
   `sequence_left` binding is retained as the topology mutation anchor. Every
   intrinsic push now stops immediately on its own Result failure, matching the
-  independent allocation-event oracle. The complete root gate, exact-scope
-  audit, candidate workflows, protected merge, and accepted-head replay remain
+  independent allocation-event oracle. The complete D:-redirected root gate
+  passes formatting, correctness Clippy, 309 library tests, 35 binary tests,
+  every integration/native/system target, and doc tests. Exact-scope audit,
+  candidate workflows, protected merge, and accepted-head replay remain
   pending.
 - Observed behavior and first honest failure: accepted R2 supplies exact binary
   stdin plus one verified source-owned growable byte buffer, but the only

@@ -8,7 +8,7 @@ The current accepted baseline is R2 merge
 `5c791393be5a251c187274d591174f7667866886`, tree
 `06ee7ada90315432ce26d706f348685e2ee5458f`.
 CAP-040/D1 is a locally green product-only candidate on top of that baseline;
-its complete root gate and protected publication remain pending.
+its complete local root gate is green and protected publication remains pending.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -144,7 +144,9 @@ lower-child node IDs provide deterministic construction and cycle-free
 validation. An independent Rust oracle covers allocation failure, malformed
 input, corrupted topology, 1,025 tokens, and 2,049 nodes. The focused target is
 3/3 green with LLVM 22, O0/O2, CLI, and Linux/Windows workflow contracts. The
-complete root gate and protected replay remain mandatory. See
+complete root gate passes formatting, correctness Clippy, 309 library tests,
+35 binary tests, every integration/native/system target, and doc tests.
+Protected replay remains mandatory. See
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
 ## Dependency path
@@ -185,7 +187,7 @@ compiler project rather than only a bootstrap bundle.
 | P1 — selected compiler subset | **Accepted** | A post-semantic exact profile for the frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles; protected Linux/Windows O0/O2 product exits 91 | No general enums, generics, references, modules, allocation, ABI, or broad stability |
 | R1 — owned bytes | **Accepted** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | Accepted R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; protected Linux/Windows replay | This is one bounded owner, not Vec/String/general collections, input, or a memory-safety claim |
 | R2 — host byte input | **Accepted** | Deterministic whole-stream binary stdin ingestion through an Aero-owned EOF loop and accepted ByteBuffer | Empty/short/large input, partial prefix then failure, sticky EOF/I/O, binary sentinel bytes, verifier corruption, LLVM 22, O0/O2, and protected Linux/Windows replay | Stdin bytes are not file/path I/O, text decoding, modules, or a production frontend |
-| D1 — compiler data model | **Locally green candidate; public acceptance pending** | Five Aero-owned byte stores for input, interned name spans, token records, a scope log, and a flat append-only AST arena using integer node IDs | Independent oracle; exact allocation/failure/drop evidence; cycle-free arena validation; deterministic iteration; 1,025-token/2,049-node stress; no host collection substitution; full root/protected replay pending | This bounded serialized product is not general collections or replacement of the Rust `String`/`Vec`/`Box` AST |
+| D1 — compiler data model | **Locally green candidate; public acceptance pending** | Five Aero-owned byte stores for input, interned name spans, token records, a scope log, and a flat append-only AST arena using integer node IDs | Independent oracle; exact allocation/failure/drop evidence; cycle-free arena validation; deterministic iteration; 1,025-token/2,049-node stress; no host collection substitution; complete local root gate green; protected replay pending | This bounded serialized product is not general collections or replacement of the Rust `String`/`Vec`/`Box` AST |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
 | F1 — Aero front end | **Future** | Aero lexer and parser consuming R2 bytes and producing D1 tokens/AST with deterministic locations and diagnostics | Differential oracle against the accepted grammar; malformed-source corpus; fuzz/property tests; bounded-memory failure behavior | K1's fixed kernel is not the production front end |
 | M1 — semantic compiler core | **Future** | Aero name/type/ownership analysis, normalized profile facts, checked IR construction, and fail-before-backend behavior | Differential valid/invalid corpus; checked-IR structural equality or frozen equivalence; corruption controls; determinism | Parsing success does not prove semantics or ownership safety |
@@ -250,9 +252,10 @@ slice still requires its own ledger and failing regression first.
 Finish validation and protect **CAP-040/D1 deterministic compiler storage**
 from the exact accepted R2 head. The local product owns input, canonical name
 spans, tokens, a scope log, and a cycle-free flat AST arena through five
-accepted ByteBuffers. It must still pass the complete D:-redirected root gate,
-exact-scope review, candidate workflows, protected merge, and post-merge replay
-without changing compiler production, runtime, R1/R2, or file/text semantics.
+accepted ByteBuffers. Its complete D:-redirected root gate is green. It must
+still pass exact-scope review, candidate workflows, protected merge, and
+post-merge replay without changing compiler production, runtime, R1/R2, or
+file/text semantics.
 
 After D1 acceptance, authorize **F1 Aero frontend** ledger-first and red-first:
 consume accepted R2 bytes and emit D1 tokens/flat AST under a frozen source

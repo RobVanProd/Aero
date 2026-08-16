@@ -7,8 +7,9 @@ merge `5c791393be5a251c187274d591174f7667866886`, tree
 The current local implementation commit is
 `7b4226f643dfb5107745186b90ce0608d13e54d2`. The focused D1 target passes
 3/3 tests from D:-resident worktree, build-target, and temporary roots. The
-complete repository gate and protected candidate/merge workflows remain
-required before D1 is accepted.
+complete root gate passes formatting, correctness Clippy, 309 library tests,
+35 binary tests, every integration/native/system target, and doc tests.
+Protected candidate/merge workflows remain required before D1 is accepted.
 
 ## Decision
 
@@ -106,7 +107,8 @@ failure handling, and zero live allocations for the canonical case.
 LLVM is deterministic and externally verified with LLVM 22. Native O0/O2 and
 the public CPU runner return 91 with no application output. ROCm and CUDA routes
 reject before artifacts. Linux and Windows workflow steps independently replay
-the tracked product.
+the tracked product. The complete local root gate is green; protected remote
+replay is the remaining acceptance boundary.
 
 ## Explicit exclusions
 
