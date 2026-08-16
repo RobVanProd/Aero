@@ -67,6 +67,7 @@ impl TestWorkspace {
             std::process::id()
         ));
         fs::create_dir_all(&root).expect("create CAP-047 test workspace");
+        let root = fs::canonicalize(root).expect("canonicalize CAP-047 test workspace");
         Self { root }
     }
 

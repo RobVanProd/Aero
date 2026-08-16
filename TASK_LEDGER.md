@@ -276,6 +276,11 @@
   CI's existing pinned LLVM installation/identity check to include Clang 22.
   Stop if either correction requires production behavior, a skipped test, a
   non-22 tool, or any workflow change beyond that exact tool prerequisite.
+  The path correction passes the formerly failing real-driver case 1/1 in
+  61.76 seconds with `CARGO_TARGET_DIR` deliberately spelled as
+  `D:\Aero-build-targets\b1c\..\b1c`; the complete focused target passes 8/8
+  in 384.86 seconds under the same spelling. Generic-CI Clang installation
+  remains publication evidence and is not represented as a local result.
 - D:-only evidence environment: worktree
   `D:\Aero-worktrees\b1c-driver`, Cargo target
   `D:\Aero-build-targets\b1c`, temporary root `D:\Aero-temp\b1c`, and pinned

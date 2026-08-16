@@ -38,9 +38,10 @@ jobs:
           echo "deb [signed-by=/etc/apt/keyrings/apt.llvm.org.gpg] http://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-22 main" \
             | sudo tee /etc/apt/sources.list.d/llvm-22.list
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends llvm-22
+          sudo apt-get install -y --no-install-recommends llvm-22 clang-22
           opt-22 --version
           llvm-as-22 --version
+          clang-22 --version
 
       - name: Confirm LLVM 22 rejects known-invalid IR
         shell: bash
