@@ -32,14 +32,18 @@ CAP-044/M1B is accepted through protected PR #86. Reviewed candidate
 stable/nightly Rust, Windows LLVM 22 native, CodeQL, and evidence workflows are
 terminal-green.
 
-CAP-045/B1A is the current product-only candidate on that exact accepted head.
-It copies accepted M1B, then independently decodes and verifies only the final
-serialized checked-IR owner into a thirteenth direct verifier-results owner. It
-does not consult source, tokens, nodes, semantic facts, constructor scratch, or
-the M1B checksum when deciding acceptance. It changes no Rust compiler,
-runtime, profile, grammar, checked-IR, verifier, backend, or driver production
-file. B1A authenticates data for a later Aero emitter; it does not emit LLVM or
-invoke a compiler toolchain.
+CAP-045/B1A is accepted through protected PR #87. Reviewed candidate
+`5d36aacc0ffadf149eb6b4920ee59cd5d175c113` merged as
+`3054db736cbde2c53ade068e7a8d608b510feb63`; their tree is identically
+`f534988d9264a236c36f8ed9b02e08dad7cceba7`. All candidate and accepted-head
+workflows are terminal-green.
+
+CAP-046/B1B is the current product-only local candidate on that exact accepted
+head. It preserves B1A byte-for-byte, then rereads only the authenticated
+serialized `checked_ir` into a fourteenth direct `emitted_llvm` owner. It emits
+one deterministic 144-byte, host-neutral LLVM module for the bounded module and
+does not change Rust compiler/runtime production or invoke a toolchain. B1B is
+not accepted until its complete local and protected gates finish.
 
 ## Frozen F1A product
 
@@ -161,6 +165,28 @@ invoke a compiler toolchain.
   This is an independent bounded verifier, not an LLVM emitter or general IR
   verifier.
 
+## Frozen B1B product
+
+- B1B begins only after actual B1A success, complete counts, and a disabled
+  verifier fault selector. Earlier failures and every enabled selector skip
+  emission with an empty output and zero seal.
+- The emitter rereads only immutable authenticated `checked_ir` words plus the
+  actual B1A seal/count scalars. It does not consult source, names, tokens,
+  nodes, semantic facts, construction scratch, verifier-result scratch, or
+  expected-value parameters as admission authority.
+- The exact mapping covers `add`, `sub`, `mul`, `sdiv`, integer negation as
+  `sub i32 0, L`, and terminal `ret`, with deterministic `%rN` identities and
+  unsigned decimal rendering. Output is ASCII/LF only and contains no target,
+  path, timestamp, debug metadata, or source-name claim.
+- The canonical module is exactly 144 bytes, MD5
+  `fd2390d17d448d4539a72bf1991314dc`, and B1B seal 611963. LLVM 22 accepts it
+  and an independent native caller observes result 5 at O0 and O2.
+- `emitted_llvm` is the sole new fourteenth ByteBuffer owner. Canonical success
+  uses 14 allocations, 58 reallocations, and 14 reverse-order deallocations;
+  every injected failure leaves zero live allocations and no size mismatch.
+- This is one bounded in-memory LLVM text emitter. It is not file/process
+  output, object generation, linking, a general backend, or self-hosting.
+
 ## Evidence
 
 CAP-041 and CAP-042 preserve their exact red-first histories and are protected
@@ -255,20 +281,40 @@ Accepted M1B is 10/10, M1A 7/7, F1B 4/4, F1A 3/3, and D1 3/3 green.
 The complete D:-redirected root gate passes formatting, correctness Clippy,
 309 library tests, 35 binary tests, every integration/native/system target,
 and doc tests.
-Protected publication and accepted-head replay remain pending.
+Reviewed candidate `5d36aacc0ffadf149eb6b4920ee59cd5d175c113` merged through
+PR #87 as `3054db736cbde2c53ade068e7a8d608b510feb63` with identical tree
+`f534988d9264a236c36f8ed9b02e08dad7cceba7`. All 13 candidate checks and
+accepted-head CI `31946571509`, Rust CI `31946571387`, CodeQL `31946571049`,
+and evidence `31946571478` are terminal-green; CAP-045 is accepted.
+
+CAP-046 preserves ledger-only commit `cbc71a6` and red-first commit `f52ff37`;
+the red checkpoint passed three independent oracle tests and failed only with
+`CAP-046 intentional product red: tracked runtime ASCII LLVM emitter is
+absent`. Local implementation commit `4078b2f` adds the product, expanded
+focused proof, and Linux/Windows workflow steps without changing Rust compiler
+or runtime production. The focused target is 5/5 green: exact Aero-owned bytes
+are captured at cleanup and equal the independent 144-byte oracle at O0/O2;
+LLVM 22 and native result 5 pass; all seven B1A corruption families, outside
+and same-value enabled selectors, all 72 allocation thresholds, exact cleanup,
+public CPU execution, and accelerator artifact hygiene pass.
+The accepted B1A/M1B/M1A/F1B/F1A/D1 predecessor ring is green, and the complete
+D:-redirected root gate exits 0 with formatting, correctness Clippy, 309 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
+Protected publication remains pending, so CAP-046 is not yet accepted.
 
 ## Remaining gaps
 
-CAP-044 and CAP-045 analyze and verify only the frozen F1B/M1A bootstrap
+CAP-044, CAP-045, and CAP-046 process only the frozen F1B/M1A bootstrap
 grammar. They do not implement the complete experimental Rust token/grammar surface,
 declarations beyond one function, multiple statements, calls, arrays, records,
 `Match`, Unicode/UTF-8,
 strings, characters, floats, macros, modules/imports, path/file input, error
 recovery, general scopes or symbols, general types or ownership, dynamic
-arithmetic, general checked-IR verification, LLVM emission, or a compiler
-driver. B1A is an independent Aero verifier for the one exact M1B format; it is
-not a verifier for the production Rust checked-IR universe. The
-F1A/F1B/M1A/M1B/B1A surface is a selected bootstrap subset,
+arithmetic, general checked-IR verification, file/process output, or a compiler
+driver. B1A is an independent Aero verifier for the one exact M1B format; B1B
+emits LLVM only for that authenticated bounded format. Neither is a verifier
+or backend for the production Rust checked-IR universe. The
+F1A/F1B/M1A/M1B/B1A/B1B surface is a selected bootstrap subset,
 not a claim that unsupported stage-0 syntax disappeared from Aero or that the
 Rust front end has been replaced.
 
@@ -279,11 +325,10 @@ stable ABI.
 
 ## Exact next dependency
 
-Finish CAP-045/B1A validation from exact accepted CAP-044 head, then protect it
-through candidate, merge, and accepted-head replay without changing compiler
-production, runtime, profile, or accepted M1B/M1A/F1B/F1A/D1 behavior. After
-B1A acceptance, freeze B1B separately and red-first: consume only the successful
-B1A seal and serialized module to emit deterministic LLVM before any driver
-step. Do not infer additional semantics, call the Rust front end replaced, or
-call the project self-hosted before B1B, the driver, and H1/H2 independently
-close.
+Finish CAP-046/B1B validation from exact accepted CAP-045 merge `3054db7` and
+protect its bounded in-memory LLVM emitter through candidate, merge, and
+accepted-head replay without changing compiler production, runtime, profile,
+or accepted predecessor behavior. After B1B acceptance, freeze B1C separately
+and red-first for the file/process/toolchain driver. Do not infer additional
+semantics, call the Rust front end replaced, or call the project self-hosted
+before B1C and H1/H2 independently close.

@@ -186,6 +186,65 @@
   B1B emitter. After protected acceptance, freeze B1C separately for file/process
   orchestration against the declared external LLVM/link trust base.
 
+### CAP-046 local implementation checkpoint
+
+- Red-first evidence: ledger-only commit
+  `cbc71a6edc393f4b048cb967a64f8bd347a10a84` preceded red-first commit
+  `f52ff37760d9ba849f0b7b1bc45ed8ccd19755a7`. With the product absent, the
+  focused target passed the three independent byte/LLVM/native oracles and
+  failed only at `CAP-046 intentional product red: tracked runtime ASCII LLVM
+  emitter is absent`. A test-only Clang warning-policy correction was made
+  before product mutation so the triple-free module remained the intended
+  oracle instead of failing on host-triple override diagnostics.
+- Implementation identity and summary: commit
+  `4078b2f5dfa23dfa56f9df75f92a9cf22a2081ab`, tree
+  `314d4a1785fd10cf085c3e939046531bd852fd5e`, stable patch ID
+  `e875dd29ee6eb6acc95d9e6700132035ecbe37c8`, adds only the tracked Aero
+  product, expanded focused test, and protected Linux/Windows steps. It copies
+  accepted B1A, preserves the marked verifier body byte-for-byte, adds one
+  fourteenth `emitted_llvm` owner, and iteratively renders authenticated
+  instructions into exact ASCII/LF LLVM only after complete B1A success and a
+  disabled fault selector. No Rust compiler/runtime production file changes.
+- Focused result: `runtime_ascii_llvm_emitter_tests` passes 5/5 in 228.25s
+  from D:-resident worktree, Cargo target, and temporary roots. The product
+  checks under `exact-i32-byte-input-v0` and a direct public source-to-native
+  run exits 91. Independent capture proves the Aero-owned output is exactly 144
+  bytes, MD5 `fd2390d17d448d4539a72bf1991314dc`, raw fold 629434, and seal
+  611963 at O0/O2; LLVM 22 accepts it and an independent caller observes 5.
+  Seven verifier-corruption families plus outside-view and same-value enabled
+  selectors prove B1B skip. Allocation thresholds 0 through 72 prove zero
+  leaks/size mismatches and exact successful 14 allocations, 58 reallocations,
+  and 14 reverse-order deallocations. Source/file equality, public CPU, and
+  accelerator artifact hygiene are green.
+- Files changed by the implementation checkpoint: exactly
+  `.github/workflows/rust.yml`, new
+  `examples/aero_frontend_v0/runtime_ascii_llvm_emitter.aero`, and the existing
+  CAP-046 red target `src/compiler/tests/runtime_ascii_llvm_emitter_tests.rs`.
+  The subsequent truth-document update remains limited to this ledger plus
+  `AERO_FRONTEND_READINESS.md`, `COMPILER_STORAGE_READINESS.md`,
+  `PROJECT_STATE.md`, and `SELF_HOSTING_ROADMAP.md`.
+- Commands/evidence: `cargo fmt`, repeated focused `cargo test --locked
+  --manifest-path src/compiler/Cargo.toml --test
+  runtime_ascii_llvm_emitter_tests -- --test-threads=1`, direct exact-profile
+  `aero check`/`run`, pinned LLVM/Clang 22 verification/linking from the focused
+  target, `git diff --check`, exact scope/status/hash inspection, and immutable
+  B1A-section comparison. The accepted B1A/M1B/M1A/F1B/F1A/D1 predecessor ring
+  passes 5/5, 10/10, 7/7, 4/4, 3/3, and 3/3. The complete D:-redirected
+  repository-root `./tools/test.sh` exits 0 with formatting, correctness Clippy,
+  309 library tests, 35 binary tests, every integration/native/system target,
+  and doc tests. All task-created worktree, build, test, capture, and temporary
+  artifacts stayed on D:.
+- Remaining uncertainty and regression risk: exact candidate scope/identity and
+  protected Linux/Windows/CodeQL/evidence replay are still pending. Risks remain
+  decimal/fragment drift outside the canonical module, accidental dependency on
+  forbidden predecessor state, allocation-boundary cleanup, and workflow host
+  differences; the independent opcode/boundary/max-count oracle, structural
+  consumption checks, fault gating, complete local gate, and protected steps
+  are the controls. This local checkpoint is not accepted/public B1B.
+- Recommended next action: freeze the exact candidate commit/tree/scope, publish
+  one bounded protected PR, and require exact-head plus accepted-head workflow
+  success. Only then authorize B1C separately.
+
 ## CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER - independent Aero verification seal
 
 - Date/task/status: 2026-08-16, `CAP-045-B1A-SERIALIZED-CHECKED-IR-VERIFIER`,

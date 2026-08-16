@@ -4,57 +4,54 @@ Last updated: 2026-08-16 (America/New_York)
 
 ## Current objective
 
-### B1A local candidate: independent serialized checked-IR verification
+### B1B local candidate: deterministic LLVM from verified serialized IR
 
-The current accepted public master is CAP-044/M1B merge
-`f51ea2d63b886c1615f522ea3d14bf7baefead1a`, tree
-`bca690421a34862063a0bc9315c74873f261f354`. Reviewed candidate
-`a14d30d1c37c3b34626a6ec8c74848e2bc8f8a2c` has the identical tree. Protected
-PR #86 and all 13 candidate checks are green; accepted-head CI `31938072475`,
-Rust CI `31938072465`, CodeQL `31938071907`, and evidence `31938072658` are
-terminal-green. M1B preserves accepted M1A and serializes one authenticated
-bounded flat module with 5 instructions, 4 SSA results, 104 words, root
-`Result(4): Int`, checksum 355067, and silent exit 91.
+The current accepted public master is CAP-045/B1A merge
+`3054db736cbde2c53ade068e7a8d608b510feb63`, tree
+`f534988d9264a236c36f8ed9b02e08dad7cceba7`. Reviewed candidate
+`5d36aacc0ffadf149eb6b4920ee59cd5d175c113` has the identical tree. Protected
+PR #87 and all 13 candidate checks are green; accepted-head CI `31946571509`,
+Rust CI `31946571387`, CodeQL `31946571049`, and evidence `31946571478` are
+terminal-green. B1A independently verifies the bounded M1B module and seals its
+5 instructions, 4 results, root value 5, and checksum 592819.
 
-CAP-045/B1A is implemented locally from that exact accepted head. Ledger-only
-commit `422acb5` freezes the verifier and stop boundaries, `05ab6b6` pins the
-independently computed canonical seal, and red commit `b5ad993` failed only
-because the tracked verifier product was absent. The candidate copies accepted
-M1B and independently consumes only its final serialized `checked_ir` owner.
-It cannot use source, tokens, nodes, semantic facts, construction scratch, M1B
-counters, or the M1B checksum to decide acceptance.
+CAP-046/B1B is implemented locally from that exact accepted head. Ledger-only
+commit `cbc71a6` freezes emission and stop boundaries, and red-first commit
+`f52ff37` passed three independent oracles before failing only because the
+tracked emitter product was absent. Implementation commit `4078b2f` preserves
+the B1A verifier body byte-for-byte and adds one fourteenth direct ByteBuffer,
+`emitted_llvm`, after `verified_results`.
 
-The Aero verifier checks framing, exact function/block topology, instruction
-records, backward-only SSA, exact signed-i32 arithmetic, result definitions,
-and the root/Return relation. It adds exactly one thirteenth direct ByteBuffer
-owner for independently evaluated result records. The canonical module verifies
-5 instructions and 4 results, evaluates root 5, produces verification checksum
-592819, and exits silently with 91.
+The Aero emitter runs only after actual B1A success, complete counts, and a
+disabled verifier fault selector. It rereads immutable authenticated
+`checked_ir` records and maps only Add/Sub/Mul/Div/Neg/Return to deterministic
+ASCII LLVM. It cannot consult source, names, tokens, AST nodes, semantic facts,
+construction scratch, verifier results, or expected-value parameters as
+authority. The fixed internal symbol is `@aero_b1_entry` because the serialized
+format carries only an opaque positive name ID.
 
-The independent Rust model accepts every opcode and frozen count boundary and
-rejects every header, topology, instruction, operand, SSA, arithmetic, result,
-and root corruption family with deterministic first-error precedence. The 5/5
-focused target is green, including source/file deterministic LLVM, external
-LLVM 22 verification, O0/O2 native, public CPU, accelerator artifact hygiene,
-direct calls into the compiled Aero verifier for every one-word mutation, and
-all 66 allocation-failure thresholds. Canonical allocation evidence is exactly
-13 initial allocations, 53 reallocations, 13 deallocations, and zero leaks.
-Accepted M1B is 10/10, M1A 7/7, F1B 4/4, F1A 3/3, and D1 3/3 green.
-The complete D:-redirected root gate passes formatting, correctness Clippy,
-309 library tests, 35 binary tests, every integration/native/system target,
-and doc tests.
-All task worktrees, Cargo targets, temporary files, logs, and generated artifacts
-remain on D:.
+The canonical output is exactly 144 LF-only bytes, MD5
+`fd2390d17d448d4539a72bf1991314dc`, raw byte fold 629434, and final seal
+611963. The focused target is 5/5 green: it captures the first reverse-order
+deallocation at O0/O2 and compares every byte with an independent oracle,
+verifies and independently executes the module at O0/O2 with result 5, covers
+all seven B1A corruption families plus outside/same-value enabled selectors,
+passes every allocation threshold 0 through 72, and proves exact successful
+14/58/14 allocation cleanup with zero leaks or size mismatches. Source/file
+LLVM equality, public CPU exit 91, and accelerator artifact hygiene also pass.
 
-B1A changes no Rust compiler or runtime production file. It does not implement
-general semantics, general checked IR, LLVM emission, a compiler driver,
-bootstrap convergence, or self-hosting, and it does not replace the production
-Rust verifier. The exact contract is in
+B1B changes no Rust compiler or runtime production file. It does not write a
+file, invoke LLVM/Clang, create an object, link, implement general checked IR or
+a general backend, replace the Rust compiler, establish convergence, or claim
+self-hosting. The accepted B1A/M1B/M1A/F1B/F1A/D1 neighboring ring is green,
+and the complete D:-redirected root gate exits 0 with formatting, correctness
+Clippy, 309 library tests, 35 binary tests, every integration/native/system
+target, and doc tests. Protected publication remains pending. Every local
+worktree, Cargo target, temporary file, log, and generated artifact remains on
+D:. The exact contract is in
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md),
-[`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md), and the CAP-045 ledger.
-After protected B1A, B1B must be frozen separately and red-first to emit
-deterministic LLVM only from the independently verified serialized module;
-external-tool orchestration remains a later driver checkpoint.
+[`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md), and the CAP-046 ledger.
+B1C remains a separate red-first file/process/toolchain-driver checkpoint.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3391,11 +3388,12 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Finish and protect CAP-044/M1B from accepted CAP-043 head. Its 10/10 focused
-target, accepted M1A/F1B/F1A/D1 neighboring ring, and complete D:-redirected
-root gate are green. Complete the exact eight-file scope audit, freeze the
+Finish and protect CAP-046/B1B from accepted CAP-045 merge `3054db7`. Require
+the 5/5 focused emitter proof, accepted B1A/M1B/M1A/F1B/F1A/D1 neighboring
+ring, exact eight-file scope, and complete D:-redirected root gate. Freeze the
 candidate identity, publish through one protected PR, merge without history
-rewrites, and verify accepted-head CI, Rust CI, CodeQL, and evidence.
+rewrites, and verify accepted-head CI, Rust CI, Windows LLVM 22, CodeQL, and
+evidence. Only then freeze B1C separately for file/process/toolchain driving.
 
 After protected M1B, freeze B1 separately and red-first to independently parse
 and verify the serialized module before Aero-authored LLVM emission or driver

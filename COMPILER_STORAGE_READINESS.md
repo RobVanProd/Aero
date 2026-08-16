@@ -143,13 +143,24 @@ scratch, and one serialized checked-IR owner. The canonical module has one
 function, one reachable block, 5 instructions, 4 results, 104 words, and
 checksum 355067.
 
-CAP-045/B1A is the current local product-only candidate. It adds a thirteenth
-direct ByteBuffer owner and independently verifies only the serialized M1B
-bytes: framing, topology, instructions, backward SSA, signed-i32 evaluation,
-results, and root/Return equality. The canonical verification evaluates root 5
-and seals to 592819; the 5/5 focused target includes every corruption family
-and exact 66-threshold allocation cleanup. See
-[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing remains
-evidence scaffolding rather than a general AST collection. B1A does not replace
-the Rust front end or general verifier, emit LLVM, drive external tools, or
-establish self-hosting.
+CAP-045/B1A is accepted as protected PR #87 merge
+`3054db736cbde2c53ade068e7a8d608b510feb63`, tree
+`f534988d9264a236c36f8ed9b02e08dad7cceba7`. It adds a thirteenth direct
+ByteBuffer owner and independently verifies only the serialized M1B bytes:
+framing, topology, instructions, backward SSA, signed-i32 evaluation, results,
+and root/Return equality. The canonical verification evaluates root 5 and seals
+to 592819; candidate and accepted-head workflows are terminal-green.
+
+CAP-046/B1B is the current local product-only candidate. It preserves the B1A
+verifier body and adds exactly one fourteenth `emitted_llvm` owner. Only a
+successful B1A seal with the fault selector disabled can emit. The canonical
+authenticated module becomes exactly 144 ASCII/LF LLVM bytes, MD5
+`fd2390d17d448d4539a72bf1991314dc`, seal 611963, and independent native result
+5. The 5/5 focused proof captures exact bytes at cleanup, covers all B1A fault
+families and 72 allocation thresholds, and proves 14/58/14 successful cleanup.
+The accepted B1A/M1B/M1A/F1B/F1A/D1 predecessor ring and complete D:-redirected
+root gate are green; protected publication remains pending.
+See [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing
+remains evidence scaffolding rather than a general AST collection. B1B does not
+replace the Rust front end/general backend, write a file, drive external tools,
+or establish self-hosting; B1C remains separate.
