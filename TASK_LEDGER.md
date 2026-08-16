@@ -13,6 +13,21 @@
   `31917890763`, and evidence `31917892375`, plus accepted-head CI
   `31918179906`, Rust CI `31918179914`, CodeQL `31918179970`, and evidence
   `31918179909`, are terminal-success.
+- Local checkpoint: ledger commits `daa763ad7a8130c72facbd02b9c20d9e4ff74f7e`,
+  `0110e4d`, and `fe12107` froze the contract before red commit
+  `ec4161a720a9c2a039f80506f6cfa02431cbcb65`, whose focused target was exactly
+  `2/3` with the sole intentional absent-product failure. Implementation commit
+  `7b4226f643dfb5107745186b90ce0608d13e54d2` adds only the tracked Aero product
+  and Linux/Windows workflow replay. The focused target is now `3/3` green.
+  Its large native fixture has 5,638 input bytes, 1,025 tokens, 2,049 nodes,
+  root 2,049, and ordinary 1 MiB Windows-stack exit 91. Reusable scalar scratch
+  bindings remain outside repeated loops because current source `let` lowering
+  places allocations at the declaration site; the single local
+  `sequence_left` binding is retained as the topology mutation anchor. Every
+  intrinsic push now stops immediately on its own Result failure, matching the
+  independent allocation-event oracle. The complete root gate, exact-scope
+  audit, candidate workflows, protected merge, and accepted-head replay remain
+  pending.
 - Observed behavior and first honest failure: accepted R2 supplies exact binary
   stdin plus one verified source-owned growable byte buffer, but the only
   Aero-authored token product is K1's fixed `[int; N]` kernel. The repository

@@ -1,20 +1,15 @@
 # Whole-Stream Byte Input Readiness Contract
 
-Status: CAP-039/R2 locally green implementation candidate from accepted R1 merge
-`cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
-`cd03dde4fb14f66d65a193c3600b56e1fd9441c9`, 2026-08-15.
+Status: CAP-039/R2 accepted at protected merge
+`5c791393be5a251c187274d591174f7667866886`, tree
+`06ee7ada90315432ce26d706f348685e2ee5458f`, 2026-08-15.
 
-R1 candidate `0b30e1f923b7f349011d8e8f5b9750146b305274` and the
-protected merge have that identical tree. Candidate CI, Rust CI, CodeQL, and
-Linux/Windows evidence runs and accepted-head CI `31915409139`, Rust CI
-`31915409157`, CodeQL `31915409048`, and evidence `31915409130` are all
-terminal-success.
-
-The exact local R2 content passes formatting, correctness-denying Clippy, 309
-library tests, 35 binary tests, every integration/native/system target, and doc
-tests from D:-resident worktree, Cargo-target, and temp roots. Protected
-candidate publication, exact-head workflows, merge, and post-merge replay are
-still required; R2 is not yet public acceptance.
+Reviewed candidate `c020d477f6bfd188b0008249b8287d4d6d5051c5` has the
+identical tree. All 13 candidate checks passed. Accepted-head CI
+`31918179906`, Rust CI `31918179914` (stable, nightly, and Windows LLVM 22),
+CodeQL `31918179970`, and accepted-head evidence `31918179909` are
+terminal-success. Protected PR #81 records the exact candidate, ordered merge
+parents, merge, and tree identity.
 
 ## Decision
 
@@ -152,6 +147,8 @@ phase is required; or any failure can silently become EOF, success, or `Int`.
 
 ## Next dependency after R2
 
-After protected R2 acceptance, the next self-hosting gate is D1: deterministic
+R2 is accepted. CAP-040/D1 is now the locally green successor: deterministic
 owned token/name storage and a flat append-only AST arena with integer IDs.
-R2 supplies bytes only; it does not supply the compiler data model.
+See [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md). R2
+supplies bytes only; D1 remains separately unaccepted until its full gate and
+protected replay close.

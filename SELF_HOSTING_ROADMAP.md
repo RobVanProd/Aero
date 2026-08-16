@@ -4,11 +4,11 @@ Last reviewed: 2026-08-15 (America/New_York)
 
 This is the canonical dependency path from Aero's current Rust bootstrap
 compiler to a reproducible Aero-authored compiler. It records gates, not dates.
-The current accepted baseline is R1 merge
-`cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
-`cd03dde4fb14f66d65a193c3600b56e1fd9441c9`.
-CAP-039/R2 is a locally green candidate on top of that baseline; it is not yet
-protected or publicly accepted.
+The current accepted baseline is R2 merge
+`5c791393be5a251c187274d591174f7667866886`, tree
+`06ee7ada90315432ce26d706f348685e2ee5458f`.
+CAP-040/D1 is a locally green product-only candidate on top of that baseline;
+its complete root gate and protected publication remain pending.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -122,19 +122,30 @@ accelerator routes before artifacts, and freezes every earlier profile. R1C
 does not provide host input, text, general collections, compiler data arenas,
 or self-hosting.
 
-**R2 is locally implemented and focused-green, with public acceptance
-pending.** The separate `exact-i32-byte-input-v0` profile admits only a direct
-zero-argument `stdin_read_byte()` initializer in an explicitly typed
-`Result<int, int>` binding. Production C preserves binary bytes and exposes
-sticky EOF/I/O sentinels; one dedicated verified scalar instruction lowers to
-the conditional runtime call. The Aero product owns the EOF loop and accepted
-ByteBuffer growth. Local tests cover binary sentinels, empty/short/4,097-byte
-streams, injected partial-prefix failure, mock corruption, cleanup counters,
-O0/O2, LLVM 22, CLI forwarding, wrong-profile/corrupt-IR rejection, and
-accelerator artifact hygiene. The complete local root gate passes formatting,
-correctness Clippy, 309 library tests, 35 binary tests, every integration,
-native, and system target, and doc tests. Protected candidate and post-merge
-workflows are still mandatory, so the accepted baseline remains R1.
+**R2 is accepted.** Candidate
+`c020d477f6bfd188b0008249b8287d4d6d5051c5` merged as
+`5c791393be5a251c187274d591174f7667866886`; their tree is identically
+`06ee7ada90315432ce26d706f348685e2ee5458f`. All 13 candidate checks and the
+accepted-head CI `31918179906`, Rust CI `31918179914`, CodeQL `31918179970`,
+and evidence `31918179909` are terminal-success. The separate
+`exact-i32-byte-input-v0` profile admits only a direct zero-argument
+`stdin_read_byte()` initializer in an explicitly typed `Result<int, int>`
+binding. Production C preserves binary bytes and sticky EOF/I/O sentinels; one
+verified scalar instruction lowers to the conditional runtime call. The Aero
+product owns the EOF loop and accepted ByteBuffer growth. R2 remains binary
+stdin only, not path/file input, text, or a frontend.
+
+**D1 is locally implemented and focused-green, with public acceptance
+pending.** CAP-040 changes no compiler production or runtime file. One tracked
+Aero product owns five accepted ByteBuffers for input, canonical name spans,
+token records, an append-only scope log, and a flat AST arena. Exact
+little-endian word records, 1-based IDs, reverse scope lookup, and strict
+lower-child node IDs provide deterministic construction and cycle-free
+validation. An independent Rust oracle covers allocation failure, malformed
+input, corrupted topology, 1,025 tokens, and 2,049 nodes. The focused target is
+3/3 green with LLVM 22, O0/O2, CLI, and Linux/Windows workflow contracts. The
+complete root gate and protected replay remain mandatory. See
+[`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
 ## Dependency path
 
@@ -147,9 +158,8 @@ flowchart TD
     R1B --> R1C["R1C: source/profile slice"]
     R1C --> R1["R1: owned byte gate accepted"]
     R1 --> R2["R2: whole-stream byte input"]
-    R1 --> D1["D1: owned compiler collections and flat AST arena"]
-    R2 --> F1["F1: Aero lexer and parser over runtime input"]
-    D1 --> F1
+    R2 --> D1["D1: owned compiler storage and flat AST arena"]
+    D1 --> F1["F1: Aero lexer and parser over runtime input"]
     F1 --> M1["M1: Aero semantic analysis and checked IR"]
     M1 --> B1["B1: Aero verifier, LLVM emitter, and driver"]
     B1 --> H1["H1: stage-0 to stage-1 to stage-2 convergence"]
@@ -174,8 +184,8 @@ compiler project rather than only a bootstrap bundle.
 | K1 — bounded compiler kernel | **Accepted** | Aero function that lexes a fixed ASCII buffer and logical length into fixed `[status, count, kind, start, length, ...]` storage | Independent Rust oracle; 18 valid/invalid fixtures; deterministic verified LLVM; protected Linux/Windows O0/O2 native parity; exact candidate/merge/post-merge evidence | No runtime text, file input, Unicode, dynamic tokens, production-lexer replacement, or self-hosting |
 | P1 — selected compiler subset | **Accepted** | A post-semantic exact profile for the frozen record, concrete `Result`, exhaustive `Match`, flat exact-array, `int`, and `bool` surface | Red-first pre-IR admission; exact root/function context; CAP-030 surface witness consumption; CAP-029 authentication; CAP-026 exact layout; unchanged existing profiles; protected Linux/Windows O0/O2 product exits 91 | No general enums, generics, references, modules, allocation, ABI, or broad stability |
 | R1 — owned bytes | **Accepted** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | Accepted R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; protected Linux/Windows replay | This is one bounded owner, not Vec/String/general collections, input, or a memory-safety claim |
-| R2 — host byte input | **Locally green candidate; public acceptance pending** | Deterministic whole-stream binary stdin ingestion through an Aero-owned EOF loop and accepted ByteBuffer | Empty/short/large input, partial prefix then failure, sticky EOF/I/O, binary sentinel bytes, verifier corruption, O0/O2, and declared Linux/Windows replay; protected exact-head evidence still required | Stdin bytes are not file/path I/O, text decoding, modules, or a production frontend |
-| D1 — compiler data model | **Future** | Owned token storage, interned or owned names, maps/sets required by scopes, and a flat append-only AST arena using integer node IDs | Growth/failure/drop evidence; cycle-free arena validation; deterministic iteration; large-source stress; no host collection substitution | The current Rust `String`/`Vec`/`Box` AST is not available to Aero source |
+| R2 — host byte input | **Accepted** | Deterministic whole-stream binary stdin ingestion through an Aero-owned EOF loop and accepted ByteBuffer | Empty/short/large input, partial prefix then failure, sticky EOF/I/O, binary sentinel bytes, verifier corruption, LLVM 22, O0/O2, and protected Linux/Windows replay | Stdin bytes are not file/path I/O, text decoding, modules, or a production frontend |
+| D1 — compiler data model | **Locally green candidate; public acceptance pending** | Five Aero-owned byte stores for input, interned name spans, token records, a scope log, and a flat append-only AST arena using integer node IDs | Independent oracle; exact allocation/failure/drop evidence; cycle-free arena validation; deterministic iteration; 1,025-token/2,049-node stress; no host collection substitution; full root/protected replay pending | This bounded serialized product is not general collections or replacement of the Rust `String`/`Vec`/`Box` AST |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
 | F1 — Aero front end | **Future** | Aero lexer and parser consuming R2 bytes and producing D1 tokens/AST with deterministic locations and diagnostics | Differential oracle against the accepted grammar; malformed-source corpus; fuzz/property tests; bounded-memory failure behavior | K1's fixed kernel is not the production front end |
 | M1 — semantic compiler core | **Future** | Aero name/type/ownership analysis, normalized profile facts, checked IR construction, and fail-before-backend behavior | Differential valid/invalid corpus; checked-IR structural equality or frozen equivalence; corruption controls; determinism | Parsing success does not prove semantics or ownership safety |
@@ -187,14 +197,14 @@ compiler project rather than only a bootstrap bundle.
 
 | Gap | Current repository evidence | Owning work before the gate can close |
 |---|---|---|
-| Runtime-sized source bytes | Accepted R1 supplies owned runtime-sized source storage; the local R2 candidate feeds it verified binary stdin bytes. | Protect and accept CAP-039; file/path input remains separate |
-| Allocation and destruction | Accepted R1A supplies the replaceable CPU allocator/link object, accepted R1B supplies verified resource IR/backend lowering, and accepted R1C produces that IR only from the bounded source owner with exact cleanup. | Preserve R1 unchanged while R2 feeds it scalar verified bytes |
-| Owned text and names | The Rust lexer builds `String` values and returns `Vec<LocatedToken>`; Aero runtime String ownership is not accepted. | Byte buffer first, then an explicit UTF-8/ASCII and owned-name contract; the first bootstrap subset may remain documented ASCII |
-| Recursive compiler data | `ast.rs` uses `String`, `Vec`, and `Box` throughout expressions, statements, patterns, types, and blocks. | Prefer D1 flat arenas and integer IDs before recursive heap objects |
-| Compiler-safe selected surface | Accepted `exact-i32-byte-buffer-v0` adds only the bounded owner API; local R2 adds a separate selector while freezing every earlier one. | Complete protected CAP-039 evidence without changing the accepted R1C selector |
-| Input errors and typed failure | Local R2 maps byte/EOF/I/O sentinels into concrete `Result<int, int>` and rejects inferred/nested/discarded uses before IR. | Protect the candidate and preserve this mapping when F1 consumes it |
+| Runtime-sized source bytes | Accepted R1 supplies owned runtime-sized storage and accepted R2 feeds it verified binary stdin bytes. | Preserve R1/R2 unchanged; file/path input remains a separate later contract |
+| Allocation and destruction | Accepted R1A supplies the replaceable CPU allocator/link object, accepted R1B supplies verified resource IR/backend lowering, and accepted R1C produces that IR only from the bounded source owner with exact cleanup. | D1 composes those owners without changing allocation or destruction authority |
+| Owned text and names | The Rust lexer builds `String` values and returns `Vec<LocatedToken>`; D1 stores only canonical ASCII spans into its live input owner. | F1 must freeze source encoding and diagnostics; owned UTF-8 remains separate |
+| Recursive compiler data | `ast.rs` uses `String`, `Vec`, and `Box` throughout expressions, statements, patterns, types, and blocks; local D1 instead proves a flat integer-ID arena. | Protect D1, then have F1 emit that bounded shape before M1 expands the model |
+| Compiler-safe selected surface | Accepted `exact-i32-byte-input-v0` composes exact integers, records/Result, ByteBuffer, and scalar stdin while freezing every earlier profile. | D1 uses the accepted profile unchanged; F1 requires its own ledger-first grammar/product contract |
+| Input errors and typed failure | Accepted R2 maps byte/EOF/I/O sentinels into concrete `Result<int, int>` and rejects inferred/nested/discarded uses before IR. | Preserve this mapping when F1 consumes input; no failure may become a byte/token |
 | Modules and names | Root `mod` collection is flattened and bounded; executable imports, namespaces, visibility, recursive graphs, cycles, and separate compilation are absent. | G1 after owned bytes/names and deterministic collections; a declared single-file bootstrap may precede it |
-| Front-end fidelity | The production lexer/parser are Rust and allocate dynamically. Accepted CAP-031 handles only fixed source-embedded ASCII storage. | K1 establishes bounded token-policy evidence; F1 replaces fixed storage only after R1/R2/D1 |
+| Front-end fidelity | The production lexer/parser remain Rust. K1 handles fixed source-embedded ASCII; local D1 handles runtime identifier frames, not Aero syntax. | After protected D1, F1 must differentially implement the frozen lexer/parser over R2 input and D1 storage |
 | Semantic and ownership fidelity | The Rust semantic analyzer uses multiple scopes, registries, maps, fixed-point ownership state, and normalization authorities. | M1 must port bounded authorities with differential and corruption evidence rather than re-infer convenient types |
 | Checked IR and verification | Current checked IR and verifier are trusted Rust authority. | M1 constructs it; B1 independently verifies it before emission |
 | Code emission and driver | LLVM text, cache, CLI, process execution, object lowering, and linking are Rust-owned. | B1 plus a narrow runtime/process/file contract; LLVM and the linker can remain declared external tools |
@@ -237,17 +247,18 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Finish validation and protect **CAP-039/R2 binary stdin** from the exact accepted
-R1 head. The local candidate has the frozen runtime scalar ABI, checked read
-instruction, explicit typed source intrinsic, fail-closed selector, Aero-owned
-EOF loop, and CPU forwarding. It must still pass the complete D:-redirected root
-gate, exact-scope review, candidate workflows, protected merge, and post-merge
-replay without changing R1, earlier profiles, parser/AST, or file/path semantics.
+Finish validation and protect **CAP-040/D1 deterministic compiler storage**
+from the exact accepted R2 head. The local product owns input, canonical name
+spans, tokens, a scope log, and a cycle-free flat AST arena through five
+accepted ByteBuffers. It must still pass the complete D:-redirected root gate,
+exact-scope review, candidate workflows, protected merge, and post-merge replay
+without changing compiler production, runtime, R1/R2, or file/text semantics.
 
-After R2 acceptance, advance to **D1 deterministic compiler storage/flat AST
-arenas**: owned tokens/names and integer-ID arenas without hidden Rust
-collections. Do not broaden stdin into file/text/module claims or call the
-project self-hosted before F1, M1, B1, and H1/H2 independently close.
+After D1 acceptance, authorize **F1 Aero frontend** ledger-first and red-first:
+consume accepted R2 bytes and emit D1 tokens/flat AST under a frozen source
+encoding, grammar, location, diagnostic-order, and differential-oracle
+contract. Do not call the project self-hosted before F1, M1, B1, and H1/H2
+independently close.
 
 ## Deliberately absent schedule
 

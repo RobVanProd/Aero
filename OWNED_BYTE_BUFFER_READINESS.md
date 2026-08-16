@@ -3,13 +3,18 @@
 Status: CAP-035 route plus R1A/R1B/R1C and bounded R1 accepted,
 2026-08-15.
 
-CAP-039/R2 is now a locally green, not-yet-public candidate layered above this
-accepted storage contract. It feeds one verified scalar byte at a time through
-the existing `bytes_push` API; input never receives a buffer pointer and does
-not alter R1 ownership, allocation, initialized-range, growth, loan, move, or
-drop rules. Its complete local root gate passes 309 library tests, 35 binary
-tests, every integration/native/system target, and doc tests. See
-[`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
+CAP-039/R2 is accepted at protected merge
+`5c791393be5a251c187274d591174f7667866886`, tree
+`06ee7ada90315432ce26d706f348685e2ee5458f`. It feeds one verified scalar byte
+at a time through the existing `bytes_push` API; input never receives a buffer
+pointer and does not alter R1 ownership, allocation, initialized-range, growth,
+loan, move, or drop rules. Candidate and accepted-head workflows are green.
+See [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
+
+CAP-040/D1 is the locally green product-only successor. It composes five direct
+accepted owners into input, names, tokens, scope-log, and flat-AST storage
+without changing this contract. See
+[`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
@@ -325,16 +330,17 @@ candidate identity, merge identity, and accepted-head workflow replay.
 CAP-035 itself added no runtime, allocator, source type, IR, verifier rule,
 backend behavior, input, or owned storage. Accepted R1A and R1B individually do
 not make `ByteBuffer` source-valid; accepted R1C adds only the frozen bounded
-owner. Accepted R1 does not provide stdin/file
-input (R2), general collections or a flat AST arena (D1), owned UTF-8 text,
+owner. Accepted R1 alone does not provide stdin/file input or compiler storage.
+Accepted R2 adds only binary stdin; local D1 demonstrates one bounded flat
+arena product, not general collections. Neither provides owned UTF-8 text,
 modules, a production Aero frontend, self-hosting, general memory safety,
 performance, release readiness, or CPU/GPU parity.
 
 ## Exact next action
 
-R1 is accepted at merge `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`.
-Proceed separately to CAP-039/R2 binary stdin using the scalar runtime read and
-checked source contract in [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
-Do not change the accepted R1A allocator ABI, R1B schema/verifier/backend, or
-R1C owner/profile. After protected R2, D1 owns compiler collections and flat
-arenas; neither input nor compiler storage is implied by accepted R1.
+R1 is accepted at merge `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`,
+and R2 is accepted at merge `5c791393be5a251c187274d591174f7667866886`.
+Finish CAP-040/D1 without changing the accepted R1A allocator ABI, R1B
+schema/verifier/backend, R1C owner/profile, or R2 scalar input contract. After
+protected D1, proceed to a separately frozen F1 Aero frontend slice; neither
+input nor the bounded D1 arena implies general compiler collections.
