@@ -4,51 +4,43 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### R2 locally green candidate: deterministic whole-stream binary stdin
+### D1 locally green candidate: deterministic owned compiler storage
 
-The current accepted public master is bounded R1 merge
-`cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
-`cd03dde4fb14f66d65a193c3600b56e1fd9441c9`. R1C candidate
-`0b30e1f923b7f349011d8e8f5b9750146b305274` has the identical tree. All
-candidate checks passed, and accepted-head CI `31915409139`, Rust CI
-`31915409157`, CodeQL `31915409048`, and evidence `31915409130` are
-terminal-success. R1 therefore accepts one bounded source-visible owned byte
-buffer with verified allocation/growth/read/move/immediate-loan/drop behavior,
-typed failures, deterministic LLVM, Linux/Windows O0/O2 exit 91, and zero-leak
-controls. Historical Vec remains rejected; this is not a general collection or
-memory-safety claim.
+The current accepted public master is R2 merge
+`5c791393be5a251c187274d591174f7667866886`, tree
+`06ee7ada90315432ce26d706f348685e2ee5458f`. Reviewed candidate
+`c020d477f6bfd188b0008249b8287d4d6d5051c5` has the identical tree. All 13
+candidate checks passed, and accepted-head CI `31918179906`, Rust CI
+`31918179914`, CodeQL `31918179970`, and evidence `31918179909` are
+terminal-success. R2 therefore accepts deterministic whole-stream binary stdin
+through an Aero-owned EOF loop and the accepted R1 ByteBuffer. It remains
+binary stdin only, not file/path I/O, text decoding, or a frontend.
 
-CAP-039/R2 is implemented locally from that exact head. Protected publication,
-candidate-head workflows, merge, and post-merge acceptance remain pending.
+CAP-040/D1 is implemented locally from that exact head at implementation commit
+`7b4226f643dfb5107745186b90ce0608d13e54d2`. It changes no compiler production
+or runtime file. One Aero product owns five accepted ByteBuffers for the input,
+canonical name spans, token records, an append-only scope log, and a flat AST
+arena. Nonnegative words are explicit four-byte little-endian records; names
+and nodes use deterministic 1-based IDs; reverse log traversal selects the
+latest binding; strict lower child IDs make the arena cycle-free.
 
-The candidate adds a separate fail-closed
-`exact-i32-byte-input-v0` selector and only
-`stdin_read_byte() -> Result<int, int>`. Production C returns one binary byte as
-`0..=255`, sticky EOF as `-1`, and sticky I/O or Windows binary-mode failure as
-`-2`; source maps them to `Ok(byte)`, `Err(1)`, and `Err(2)`. One dedicated
-checked scalar instruction and independent verifier/backend authority prevent a
-raw external call. An Aero-authored loop owns EOF handling and pushes each byte
-through accepted R1. CPU `aero run` forwards stdin only under the R2 selector;
-every earlier profile retains closed stdin. Check/compile/cache/build never
-execute the input runtime.
+The independent Rust oracle and focused product gate are 3/3 green. Evidence
+covers canonical, empty, shadowing, maximum-length, malformed, wrong-oracle,
+corrupted-child, and deterministic allocator-failure cases. The large fixture
+has 5,638 bytes, 1,025 tokens, and 2,049 nodes. LLVM is deterministic and
+verified under LLVM 22; O0/O2 native and the public CPU runner exit 91 silently;
+ROCm/CUDA reject before artifacts; Linux and Windows workflow contracts replay
+the product. All worktree, Cargo target, generated, and log paths are on D:.
 
-Focused evidence is green: eight public integration tests and three private
-contract/corruption tests cover exact source admission, wrong-profile and SSA
-corruption rejection, binary/sticky runtime behavior, empty/short/large streams,
-injected prefix failure, zero-leak cleanup, required LLVM 22, O0/O2, source/file
-parity, CLI forwarding, accelerator artifact hygiene, deterministic LLVM, and
-Linux/Windows workflow replay declarations. All-target/all-feature check and
-correctness-denying Clippy pass. The complete repository-root gate also passes
-formatting, correctness Clippy, 309 library tests, 35 binary tests, every
-integration/native/system target, and doc tests. Protected candidate-head and
-post-merge public evidence are still required before R2 can be called accepted.
-
-The exact contract, evidence matrix, allowed files, and mandatory stops are in
-[`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md) and the CAP-039 ledger.
-R2 deliberately excludes file paths, text decoding, strings, general streams,
-buffer ABI transport, modules, accelerator execution, and frontend claims.
-After protected R2, D1 owns deterministic compiler token/name storage and flat
-integer-ID AST arenas.
+The complete root gate passes formatting, correctness Clippy, 309 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
+Exact-scope review, protected candidate workflows, merge, and accepted-head
+replay remain pending. D1 is bounded serialized compiler-data evidence, not
+general collections, owned strings, a production lexer/parser, replacement of
+the Rust AST, modules, or self-hosting. The exact contract is in
+[`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md) and the
+CAP-040 ledger. After protected D1, the next direct dependency is F1: an
+Aero-authored lexer/parser over R2 bytes and D1 storage.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3385,20 +3377,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Implement CAP-039/R2 from accepted R1 with a characterization-green,
-selector/runtime/checked-authority-red checkpoint first. Add only binary
-`aero_stdin_read_byte`, dedicated checked scalar read, explicit typed source
-Result, the separate `exact-i32-byte-input-v0` selector, and CPU child-stdin
-inheritance. The Aero product—not Rust—must own the whole-stream EOF loop and
-accepted ByteBuffer pushes. Preserve every R1 and earlier profile byte,
-diagnostic, ownership, verifier, and cleanup contract; stop on path/text
-semantics, input-driven uninitialized storage, cross-platform divergence, or a
-third compiler authority.
+Protect CAP-040/D1 from accepted R2 with the tracked Aero-owned five-buffer
+product, independent oracle, and Linux/Windows O0/O2 workflow replay. The exact
+allowed-file scope and complete D:-redirected root gate are green. Publish the
+exact candidate, merge without history rewrites, and verify accepted-head CI,
+Rust CI, CodeQL, and evidence.
 
-After protected R2, authorize D1 deterministic owned compiler storage and flat
-AST arenas. D1 owns tokens/names and cycle-free integer-ID arenas without hidden
-Rust collections. Self-hosting remains unclaimed until F1, M1, B1, and H1/H2
-also close.
+After protected D1, authorize F1 ledger-first and red-first. F1 must consume R2
+bytes and produce D1 tokens/flat AST under one frozen ASCII/source-encoding,
+grammar, location, diagnostic-order, and differential-oracle contract. Do not
+broaden D1 into general collections or claim self-hosting until F1, M1, B1, and
+H1/H2 also close.
 
 ## Historical post-CAP-024 ranking
 
