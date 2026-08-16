@@ -245,6 +245,19 @@
   control passes 1/1 and rejects `22.1.7` and `22.1.9`. The first in-progress
   root run was deliberately stopped when this portability defect was found;
   the complete root gate below is a fresh post-correction run.
+- Candidate-CI red and test-harness correction: initial published candidate
+  `025eabb262359107bae5e6de5dba217ec6e523ca`, tree
+  `9ab595f230ce3790fb0a3ed5a6c65cc649af031b`, reached every B1C-specific
+  Linux/Windows/evidence gate green, but push CI run `31967845752` failed only
+  `external_driver_is_explicit_transactional_and_green_at_o0_and_o2`. The
+  runner exported `AERO_LLVM_AS=/usr/bin/llvm-as-22`, while the test-only
+  `llvm_bin()` helper ignored that accepted verifier identity and searched only
+  for an unversioned `llvm-as` directory on PATH. The other seven B1C tests and
+  all predecessor targets in that run were green. The helper now prefers the
+  canonical parent of `AERO_LLVM_AS`, confirms that exact directory also owns
+  Clang and unversioned `llvm-as`, and retains the existing explicit-bin/PATH
+  fallbacks. No production or workflow behavior changed. A CI-equivalent local
+  rerun of the formerly failing real-emitter test passes 1/1 in 65.88 seconds.
 - D:-only evidence environment: worktree
   `D:\Aero-worktrees\b1c-driver`, Cargo target
   `D:\Aero-build-targets\b1c`, temporary root `D:\Aero-temp\b1c`, and pinned

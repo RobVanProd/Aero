@@ -206,6 +206,22 @@ fn llvm_bin() -> PathBuf {
             return path;
         }
     }
+    if let Some(llvm_as) = std::env::var_os("AERO_LLVM_AS").map(PathBuf::from)
+        && let Ok(llvm_as) = fs::canonicalize(llvm_as)
+        && let Some(path) = llvm_as.parent()
+        && path
+            .join(if cfg!(windows) { "clang.exe" } else { "clang" })
+            .is_file()
+        && path
+            .join(if cfg!(windows) {
+                "llvm-as.exe"
+            } else {
+                "llvm-as"
+            })
+            .is_file()
+    {
+        return path.to_path_buf();
+    }
     let path = std::env::var_os("PATH").expect("CAP-047 tests require PATH");
     std::env::split_paths(&path)
         .find(|directory| {
