@@ -4,7 +4,7 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### F1A locally green candidate: runtime ASCII lexer into owned located tokens
+### F1A locally root-green candidate: runtime ASCII lexer into owned located tokens
 
 The current accepted public master is D1 merge
 `104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
@@ -17,7 +17,8 @@ input, canonical names, token records, a scope log, and a cycle-free flat AST
 arena. It remains bounded compiler-data evidence, not a frontend.
 
 CAP-041/F1A is implemented locally from that exact head at implementation
-commit `6290c99`. It changes no compiler production or runtime file. One
+commit `6290c99`, with candidate record commit `57ecb88`. It changes no
+compiler production or runtime file. One
 Aero-authored product reads accepted R2 stdin into a live source owner, scans
 the K1 ASCII vocabulary, interns deterministic 1-based name spans, and emits
 six-word `(kind, start, length, line, column, name_id)` token records through
@@ -36,10 +37,13 @@ artifacts; Linux and Windows workflow contracts replay the product. K1, R1C,
 R2, and D1 neighboring targets are green. All task worktree, build, temporary,
 generated, and log paths are on D:.
 
-The complete root gate, exact-scope review, protected candidate workflows,
-merge, and accepted-head replay remain pending. F1A is runtime lexing only: it
-does not parse, replace the Rust front end, close F1, or establish self-hosting.
-The exact contract is in
+The complete and record-inclusive D:-redirected root gates pass formatting,
+correctness Clippy, 309 library tests, 35 binary tests, every integration/
+native/system target, and doc tests; the unchanged exact-content rerun passes
+the same surface. Exact-scope review, protected candidate workflows, merge,
+and accepted-head replay remain pending. F1A is runtime lexing only: it does
+not parse, replace the Rust front end, close F1, or establish self-hosting. The
+exact contract is in
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md) and the CAP-041
 ledger. After protected F1A, the next direct dependency is F1B: consume these
 located token records and emit D1 flat AST nodes under a separately frozen
@@ -3380,17 +3384,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Protect CAP-040/D1 from accepted R2 with the tracked Aero-owned five-buffer
-product, independent oracle, and Linux/Windows O0/O2 workflow replay. The exact
-allowed-file scope and complete D:-redirected root gate are green. Publish the
-exact candidate, merge without history rewrites, and verify accepted-head CI,
+Finish and protect CAP-041/F1A from accepted D1. Its focused, neighboring,
+complete, record-inclusive, and exact-content D:-redirected root gates are
+green. Freeze the exact eight-file candidate identity, publish through one
+protected PR, merge without history rewrites, and verify accepted-head CI,
 Rust CI, CodeQL, and evidence.
 
-After protected D1, authorize F1 ledger-first and red-first. F1 must consume R2
-bytes and produce D1 tokens/flat AST under one frozen ASCII/source-encoding,
-grammar, location, diagnostic-order, and differential-oracle contract. Do not
-broaden D1 into general collections or claim self-hosting until F1, M1, B1, and
-H1/H2 also close.
+After protected F1A, authorize F1B ledger-first and red-first. F1B must consume
+the accepted located token records without re-lexing and emit D1 flat AST nodes
+under one frozen grammar, precedence, location, diagnostic-order, topology,
+and differential-oracle contract. Do not claim replacement of the Rust front
+end or self-hosting until F1B, M1, B1, and H1/H2 also close.
 
 ## Historical post-CAP-024 ranking
 

@@ -7,9 +7,9 @@ compiler to a reproducible Aero-authored compiler. It records gates, not dates.
 The current accepted baseline is D1 merge
 `104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
 `abd136d0cbc9066714148e0919010a697ccd350e`.
-CAP-041/F1A is a locally green product-only runtime-lexer candidate on top of
-that baseline; its focused and neighboring gates are green while the complete
-root gate and protected publication remain pending.
+CAP-041/F1A is a locally root-green product-only runtime-lexer candidate on top
+of that baseline; its focused, neighboring, and complete D:-redirected root
+gates are green while protected publication remains pending.
 
 For current feature truth, use
 [`SPEC_IMPLEMENTATION_MATRIX.md`](SPEC_IMPLEMENTATION_MATRIX.md) and
@@ -153,14 +153,16 @@ accepted-head CI `31920949979`, Rust CI `31920949994`, CodeQL `31920949457`,
 and evidence `31920949972` are terminal-success. See
 [`COMPILER_STORAGE_READINESS.md`](COMPILER_STORAGE_READINESS.md).
 
-**F1A is locally implemented and focused-green, with public acceptance
-pending.** CAP-041 composes unchanged R2 stdin and D1 storage in one
+**F1A is locally implemented and root-green, with public acceptance pending.**
+CAP-041 composes unchanged R2 stdin and D1 storage in one
 Aero-authored runtime ASCII lexer. It retains source bytes, interns canonical
 name spans, emits six-word located token records, validates the complete state,
 and compares an independent checksum. The focused 3/3 target covers
 differential kinds/locations, malformed and bounded inputs, allocator failure,
 LLVM 22, O0/O2, public CPU execution, accelerator artifact hygiene, and Linux/
 Windows workflow contracts. K1/R1C/R2/D1 neighboring targets remain green.
+The complete root gate passes formatting, correctness Clippy, 309 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
 F1A is not a parser and does not close F1. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md).
 
@@ -205,7 +207,7 @@ compiler project rather than only a bootstrap bundle.
 | R1 — owned bytes | **Accepted** | One byte-specific owned growable buffer with length, capacity, initialized range, allocation failure, move, alias, reallocation invalidation, and exactly-once destruction contracts | Accepted R1A runtime/failure ABI; R1B checked ownership identity and verifier corruption matrix; R1C source negatives/product; allocation-failure/drop counters; protected Linux/Windows replay | This is one bounded owner, not Vec/String/general collections, input, or a memory-safety claim |
 | R2 — host byte input | **Accepted** | Deterministic whole-stream binary stdin ingestion through an Aero-owned EOF loop and accepted ByteBuffer | Empty/short/large input, partial prefix then failure, sticky EOF/I/O, binary sentinel bytes, verifier corruption, LLVM 22, O0/O2, and protected Linux/Windows replay | Stdin bytes are not file/path I/O, text decoding, modules, or a production frontend |
 | D1 — compiler data model | **Accepted** | Five Aero-owned byte stores for input, interned name spans, token records, a scope log, and a flat append-only AST arena using integer node IDs | Independent oracle; exact allocation/failure/drop evidence; cycle-free arena validation; deterministic iteration; 1,025-token/2,049-node stress; no host collection substitution; complete local and protected replay green | This bounded serialized product is not general collections or replacement of the Rust `String`/`Vec`/`Box` AST |
-| F1A — runtime lexer | **Locally green candidate; public acceptance pending** | Aero runtime ASCII scanner consuming R2 bytes and emitting D1-style canonical names plus located token records | Independent and Rust-overlap oracles; malformed/boundary corpus; allocator failure; deterministic LLVM; Linux/Windows O0/O2 and public-run replay | Located token production is not parsing or replacement of the Rust front end |
+| F1A — runtime lexer | **Locally root-green candidate; public acceptance pending** | Aero runtime ASCII scanner consuming R2 bytes and emitting D1-style canonical names plus located token records | Independent and Rust-overlap oracles; malformed/boundary corpus; allocator failure; deterministic LLVM; Linux/Windows O0/O2 and public-run replay | Located token production is not parsing or replacement of the Rust front end |
 | G1 — source graph | **Future; may trail first bundled bootstrap** | Positive modules/imports, namespaces, collision and cycle rules, visibility, canonical file identity, and deterministic traversal | Multi-file positive/negative corpus, cycle and ambiguity diagnostics, cache identity, cross-platform path rules | Current direct module collection and parsed-but-rejected imports are not this gate |
 | F1 — Aero front end | **Future** | Aero lexer and parser consuming R2 bytes and producing D1 tokens/AST with deterministic locations and diagnostics | Differential oracle against the accepted grammar; malformed-source corpus; fuzz/property tests; bounded-memory failure behavior | K1's fixed kernel is not the production front end |
 | M1 — semantic compiler core | **Future** | Aero name/type/ownership analysis, normalized profile facts, checked IR construction, and fail-before-backend behavior | Differential valid/invalid corpus; checked-IR structural equality or frozen equivalence; corruption controls; determinism | Parsing success does not prove semantics or ownership safety |
@@ -269,10 +271,10 @@ slice still requires its own ledger and failing regression first.
 
 Finish validation and protect **CAP-041/F1A runtime ASCII lexer** from exact
 accepted D1 head `104d72dfb78921db68421c7ebd45e30dcbc3d804`. Its focused and neighboring
-D:-redirected gates are green. It must still pass the complete root gate,
-exact-scope review, candidate workflows, protected merge, and post-merge replay
-without changing compiler production, runtime, or accepted K1/R1/R2/D1
-behavior.
+D:-redirected gates plus complete and record-inclusive root gates are green. It
+also passes the unchanged exact-content rerun. It must still pass exact-scope
+review, candidate workflows, protected merge, and post-merge replay without
+changing compiler production, runtime, or accepted K1/R1/R2/D1 behavior.
 
 After F1A acceptance, authorize **F1B flat-AST parser** ledger-first and
 red-first: consume the frozen located token records without re-lexing and emit

@@ -2,8 +2,8 @@
 
 ## CAP-041-F1A-RUNTIME-ASCII-LEXER - runtime input to owned located tokens
 
-- Date/task/status: 2026-08-15, `CAP-041-F1A-RUNTIME-ASCII-LEXER`,
-  ledger-first authorization from accepted CAP-040/D1 merge
+- Date/task/status: 2026-08-15, `CAP-041-F1A-RUNTIME-ASCII-LEXER`, locally
+  root-green candidate from accepted CAP-040/D1 merge
   `104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
   `abd136d0cbc9066714148e0919010a697ccd350e`, on
   `agent/f1-aero-frontend` in D:-resident worktree
@@ -163,15 +163,30 @@
   allocation/reallocation/deallocation counts, reject size mismatches, and
   observe zero live allocations after every return.
 - Compatibility evidence: accepted K1, R1C, R2, and D1 focused targets are
-  green (22 tests total). Formatting and diff hygiene are green. The complete
-  root gate, final local identity, exact-scope review, candidate workflows,
-  protected merge, and accepted-head replay remain pending; this is a local
-  candidate, not accepted public capability.
+  green (22 tests total). Formatting and diff hygiene are green. From exact
+  pre-record commit `57ecb881dcb24eabd70853556753bce8e7aaf024`, the complete
+  D:-redirected repository-root `./tools/test.sh` exits 0 with formatting,
+  correctness Clippy, 309 library tests, 35 binary tests, every integration,
+  native, and system target, and doc tests. Its durable D:-resident log is
+  `D:\Aero-temp\f1\root-gate.log`, SHA-256
+  `89e98281988a33552e279d386754d5d04cff66a9e8a27aab33b9b715bd6f1b67`.
+  The record-inclusive D:-redirected root rerun also exits 0 with the same
+  complete surface; its log is `D:\Aero-temp\f1\root-gate-record.log`,
+  SHA-256
+  `61ab7ee87771debc336a6c284dd645f0d22a1d6ba07db4617da8cd4bd78641b5`.
+  This result-recorded content is eligible for a candidate commit only if an
+  unchanged exact-content root rerun passes. That rerun exits 0 with the same
+  complete surface; its D:-resident log is
+  `D:\Aero-temp\f1\root-gate-final.log`, SHA-256
+  `fd09dea2b9e8d1935f342896f89873eb33c4901ebe193329f1b7c2d422339da2`.
+  Final local identity, exact-scope review, candidate workflows, protected
+  merge, and accepted-head replay remain pending; this is a local candidate,
+  not accepted public capability.
 - Remaining boundary and next action: F1A does not parse or close F1. After the
-  exact root gate and protected CAP-041 acceptance, authorize F1B separately to
-  consume these records into D1 flat nodes for one frozen grammar. Do not stack
-  F1B on a red or unpublished F1A branch and do not claim replacement of the
-  Rust front end, M1/B1/H1/H2, or self-hosting.
+  protected CAP-041 acceptance, authorize F1B separately to consume these
+  records into D1 flat nodes for one frozen grammar. Do not stack F1B on a red
+  or unpublished F1A branch and do not claim replacement of the Rust front end,
+  M1/B1/H1/H2, or self-hosting.
 
 ## CAP-040-D1-COMPILER-STORAGE-ARENA - deterministic owned compiler data model
 

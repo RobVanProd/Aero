@@ -121,8 +121,9 @@ self-hosting.
 
 ## Next dependency
 
-CAP-041/F1A is now the locally green direct successor. It consumes accepted R2
-bytes and emits canonical name spans plus located D1-style token records; see
+CAP-041/F1A is now the locally root-green direct successor. It consumes
+accepted R2 bytes and emits canonical name spans plus located D1-style token
+records; see
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). It remains a lexer
 only. After protected F1A acceptance, F1B must consume those records and emit
 flat AST nodes under a separately frozen grammar, precedence, location,

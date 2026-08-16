@@ -73,9 +73,12 @@ checks allocator/reallocator/deallocator counts, injected failure boundaries,
 exact-size destruction, and zero leaks. The public CPU runner exits 91 with no
 application output, while ROCm and CUDA reject before requested artifacts.
 
-K1, R1C, R2, and D1 neighboring product targets remain green. The full root
-gate and protected candidate/merge replay remain required before CAP-041 can be
-called accepted.
+K1, R1C, R2, and D1 neighboring product targets remain green. The complete
+D:-redirected root gate also passes formatting, correctness Clippy, 309 library
+tests, 35 binary tests, every integration/native/system target, and doc tests.
+The record-inclusive and unchanged exact-content reruns pass the same complete
+surface. Protected candidate/merge replay remains required before CAP-041 can
+be called accepted.
 
 ## Remaining gaps
 
