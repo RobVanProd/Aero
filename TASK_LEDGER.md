@@ -41,6 +41,11 @@
   run. The name table stores canonical `(start, length)` spans into that owner,
   assigns deterministic 1-based `NameId` values on first occurrence, uses `0`
   only as invalid/no-ID, and reuses the first ID after exact byte comparison.
+  The input owner is filled completely before decoding. For each complete
+  framed entry, construction then appends a newly interned name when needed,
+  followed in order by its token, name-leaf node, scope entry, and (after the
+  first token) sequence node. This order is part of deterministic allocation
+  and injected-failure evidence.
 - Frozen word/table contract: every stored logical word is an exact
   nonnegative `int` encoded as four little-endian bytes; the fourth byte is at
   most 127, so reconstruction remains in `0..=i32::MAX`. Every table byte
