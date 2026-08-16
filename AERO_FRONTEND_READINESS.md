@@ -1,6 +1,6 @@
 # Aero Front-End Readiness
 
-Last reviewed: 2026-08-15 (America/New_York)
+Last reviewed: 2026-08-16 (America/New_York)
 
 This record tracks the bounded route from accepted runtime bytes and compiler
 storage to an Aero-authored front end. It does not redefine the language. The
@@ -9,19 +9,20 @@ gate is independently closed.
 
 ## Current decision
 
-CAP-041/F1A is a locally green product-only candidate based on accepted D1
-merge `104d72dfb78921db68421c7ebd45e30dcbc3d804`, tree
-`abd136d0cbc9066714148e0919010a697ccd350e`. It changes no compiler production
-or runtime file. One Aero-authored program consumes accepted R2 binary stdin,
+CAP-041/F1A is accepted as protected PR #83 merge
+`4bdfcb206f541356aa83987084a9d2feffbe511c`, tree
+`5bfe506bfc6714e32f6453ad5ddc233923298b54`. It changes no compiler production
+or runtime file. Its Aero-authored program consumes accepted R2 binary stdin,
 retains the complete source in an accepted ByteBuffer, interns canonical name
 spans, and emits located serialized token records through two further accepted
 ByteBuffer owners.
 
-F1 is not closed. CAP-041 deliberately supplies only F1A runtime lexing. A
-separate ledger-first F1B parser must consume the frozen token records and emit
-D1 flat AST records under a frozen grammar and diagnostic contract. Only after
-that composed product passes differential, malformed-source, determinism,
-failure, and protected replay gates may F1 advance toward M1.
+CAP-042/F1B is the current product-only candidate on that exact accepted head.
+It preserves the F1A scanner in the same Aero function, consumes the retained
+token records without re-lexing, and uses iterative value/operator stacks to
+emit append-only D1 `(kind, payload, left_id, right_id)` records. It changes no
+compiler production or runtime file. F1 is not accepted until this composed
+product passes its complete local and protected replay gates.
 
 ## Frozen F1A product
 
@@ -49,12 +50,36 @@ failure, and protected replay gates may F1 advance toward M1.
   records, status/location, and counts. The tracked main returns 91 only after
   exact agreement with an independent oracle.
 
+## Frozen F1B product
+
+- The admitted grammar is exactly one zero-parameter function returning
+  `int`, with one `return expression;` statement and EOF. Identifiers and
+  decimal `0..=2147483647` literals are primaries; grouping, prefix `!`/`-`,
+  and the frozen arithmetic, comparison, equality, `&&`, and `||` operators
+  are admitted.
+- Binary operators are left-associative with the frozen precedence order;
+  prefix operators are right-associative. Parsing is iterative. The product
+  transports no ByteBuffer and adds no recursive compiler representation.
+- Node kinds 1 through 19 represent literals, identifiers, prefix/binary
+  expressions, return, and function. IDs are one-based append positions;
+  every child ID is lower than its parent; the root is the final function
+  node.
+- F1A limits remain 8,192 bytes, 1,024 real tokens/names, and 63-byte names.
+  F1B adds explicit 512-node and 512-entry value/operator-stack bounds.
+- Parser statuses 10 through 16 distinguish fixed-token mismatch, expression
+  state, wrong return type, i32 overflow, node/stack exhaustion, and internal
+  corruption without changing F1A statuses 1 through 9.
+- One checksum covers source, names, located tokens, parser status/diagnostic,
+  nodes, counts, and root. The canonical source
+  `fn score()->int{return 1+2*3-4/2%2;}` yields 2 names, 22 real tokens,
+  13 nodes, root 13, checksum 846139, and silent exit 91.
+
 ## Evidence
 
-The committed red checkpoint is exact: the new target ran 2/3 and failed only
-with `CAP-041 intentional product red: tracked runtime ASCII lexer is absent`.
-Implementation commit `6290c99` adds the product and Linux/Windows workflow
-replay after that failure was preserved.
+CAP-041 preserved its exact red-first history and is now protected and
+accepted. CAP-042 likewise has separate ledger commit `376dfa0` and red commit
+`b513fba`; its first test failure was only
+`CAP-042 intentional product red: tracked runtime ASCII parser is absent`.
 
 The focused target is 3/3 green. Its independent Rust scanner constructs the
 entire expected source/name/token/checksum model without calling the Aero
@@ -73,21 +98,27 @@ checks allocator/reallocator/deallocator counts, injected failure boundaries,
 exact-size destruction, and zero leaks. The public CPU runner exits 91 with no
 application output, while ROCm and CUDA reject before requested artifacts.
 
-K1, R1C, R2, and D1 neighboring product targets remain green. The complete
-D:-redirected root gate also passes formatting, correctness Clippy, 309 library
-tests, 35 binary tests, every integration/native/system target, and doc tests.
-The record-inclusive and unchanged exact-content reruns pass the same complete
-surface. Protected candidate/merge replay remains required before CAP-041 can
-be called accepted.
+The CAP-042 proof adds an independent parser/node/diagnostic/checksum oracle,
+an accepted Rust lexer/parser overlap control that does not supply expected
+nodes, every operator and precedence boundary, associativity, grouping and
+unary chains, malformed input, exact capacity boundaries, deterministic
+allocator-failure cleanup, LLVM 22 verification, O0/O2 native replay, public
+CPU execution, accelerator artifact hygiene, and Linux/Windows workflow
+contracts. Its focused target is 4/4 green; accepted F1A and D1 remain separate
+3/3-green neighboring controls. The tracked product also passes its direct
+`exact-i32-byte-input-v0` check. The D:-redirected root gate passes formatting,
+correctness Clippy, 309 library tests, 35 binary tests, every integration/
+native/system target, and doc tests. Protected publication remains pending.
 
 ## Remaining gaps
 
-CAP-041 does not parse. It also does not implement the complete experimental
-Rust token vocabulary, Unicode/UTF-8, strings, characters, floats, macros,
-modules/imports, path/file input, general collections, recursive heap objects,
-semantic analysis, checked-IR construction, verification, LLVM emission, or a
-compiler driver. The F1A grammar is the selected bootstrap subset, not a claim
-that unsupported stage-0 syntax disappeared from Aero.
+CAP-042 parses only the frozen bootstrap grammar. It does not implement the
+complete experimental Rust token/grammar surface, declarations beyond one
+function, multiple statements, calls, arrays, records, `Match`, Unicode/UTF-8,
+strings, characters, floats, macros, modules/imports, path/file input, error
+recovery, semantic analysis, checked-IR construction, verification, LLVM
+emission, or a compiler driver. The F1A/F1B grammar is a selected bootstrap
+subset, not a claim that unsupported stage-0 syntax disappeared from Aero.
 
 The token record intentionally stores spans into the still-live input owner.
 It is not an owned String and may not outlive or escape that owner. The
@@ -96,11 +127,9 @@ stable ABI.
 
 ## Exact next dependency
 
-After protected CAP-041 acceptance, authorize F1B ledger-first and red-first.
-The first parser slice should consume the accepted F1A records without
-re-lexing and emit D1 `(kind, payload, left_id, right_id)` nodes for one frozen
-single-function grammar. It must freeze precedence, associativity, expected-
-token diagnostics, source-order error selection, node topology, and a complete
-independent oracle before product mutation. It must stop rather than add parser
-or AST semantics to the Rust compiler, transport a ByteBuffer owner, or infer an
-unsupported type.
+Finish CAP-042/F1B validation from exact accepted CAP-041 head, then protect it
+through candidate, merge, and accepted-head replay without changing compiler
+production, runtime, or accepted F1A/D1 behavior. Only after that acceptance
+may the bounded composed F1 gate advance toward a separately ledgered M1
+semantic/checked-IR slice. Do not infer semantics from parser nodes or call the
+project self-hosted before M1, B1, and H1/H2 independently close.

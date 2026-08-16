@@ -121,11 +121,12 @@ self-hosting.
 
 ## Next dependency
 
-CAP-041/F1A is now the locally root-green direct successor. It consumes
-accepted R2 bytes and emits canonical name spans plus located D1-style token
-records; see
-[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). It remains a lexer
-only. After protected F1A acceptance, F1B must consume those records and emit
-flat AST nodes under a separately frozen grammar, precedence, location,
-diagnostic, and differential-oracle contract. D1's framing remains evidence
-scaffolding, not source syntax.
+CAP-041/F1A is accepted as protected merge
+`4bdfcb206f541356aa83987084a9d2feffbe511c`. It consumes accepted R2 bytes and
+emits canonical name spans plus located D1-style token records. CAP-042/F1B is
+the current local product-only candidate: it preserves that scanner, consumes
+the retained records without re-lexing, and emits one-based lower-child D1
+nodes for the frozen single-function expression grammar; see
+[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing remains
+evidence scaffolding, not source syntax, and the candidate does not add a
+general AST collection or replace the Rust front end.
