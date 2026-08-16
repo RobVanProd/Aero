@@ -333,7 +333,7 @@ compiler project rather than only a bootstrap bundle.
 | F1 — Aero front end | **Accepted bounded bootstrap slice** | F1A lexer and F1B parser consume R2 bytes and produce D1 located tokens/flat AST for one frozen grammar | Protected F1A/F1B differential oracles, malformed/boundary corpora, exact cleanup, deterministic LLVM, and Linux/Windows replay | This is not the full experimental grammar or replacement of the production Rust front end |
 | M1 — semantic compiler core | **M1A and M1B accepted** | M1A emits bounded node origins, symbol, logical types, and ownership facts; M1B authenticates them and constructs one bounded flat checked IR while preserving fail-before-IR behavior | Independent valid/invalid semantic and checked-IR corpora, accepted-Rust projection, corruption controls, exact allocation cleanup, deterministic LLVM, and protected replay | The bounded flat module is not general semantics/IR, an Aero backend, or an ownership-safety proof |
 | B1 — trusted Aero backend path | **Accepted through B1C** | B1A independently verifies the serialized bounded module; B1B emits deterministic LLVM from a successful seal; B1C emits authenticated raw bytes and invokes the declared LLVM/link trust base through a transactional host driver | Invalid IR rejection, independent seal, exact emitted bytes, all output-failure boundaries, LLVM verifier, O0/O2 object lowering, native system corpus, artifact hygiene | One bounded verifier/emitter/driver is not a general backend or a self-compiling compiler |
-| H1 — bootstrap convergence | **Future** | Stage 0 builds stage 1; stage 1 builds stage 2 from the same canonical Aero compiler source | Clean isolated builds, frozen environment/toolchain manifest, raw LLVM comparison, canonical linked-artifact comparison, repeated-build equality | A single successful stage-1 build is not convergence |
+| H1 — bootstrap convergence | **Contract candidate; implementation prerequisites open** | Stage 0 builds stage 1; stage 1 builds stage 2 from the same canonical Aero compiler source | Clean isolated builds, frozen environment/toolchain manifest, raw LLVM comparison, canonical linked-artifact comparison, repeated-build equality | A single successful stage-1 build is not convergence |
 | H2 — accepted self-hosting | **Future** | Protected, reproducible H1 result plus the complete declared platform and conformance surface | Immutable manifests/artifacts, independent replay, exact candidate/merge identity, post-merge replay, truthful documentation | No stability, memory-safety, performance, accelerator, or release claim follows automatically |
 
 ## Current gaps and their owners
@@ -390,12 +390,15 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Authorize **H1** ledger-first from accepted CAP-047/B1C merge
-`0365e5c91bd503b198855b97b7f16054488d6dff`. H1 must freeze the canonical Aero
-compiler source bundle, stage interfaces, environment/toolchain manifest,
-stage-1/stage-2 comparison, and failure rules before convergence behavior is
-implemented. All H1 worktrees, targets, temporary files, and artifacts stay on
-`D:`.
+Review and protect the documentation-only **CAP-048/H1 convergence contract**
+from accepted CAP-047/B1C merge `0365e5c91bd503b198855b97b7f16054488d6dff`.
+It freezes the canonical single-file source rule, stage interfaces,
+environment/toolchain manifest, stage-1/stage-2 comparison, prerequisite order,
+and failure rules in
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
+After CAP-048 acceptance, authorize H1A red-first for complete canonical source
+and token ingestion only. All H1 worktrees, targets, temporary files, and
+artifacts stay on `D:`.
 Do not call the Rust front end replaced—or the project self-hosted—before H1
 and H2 independently close.
 

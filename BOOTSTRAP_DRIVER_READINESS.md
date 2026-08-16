@@ -171,3 +171,8 @@ identity, diagnostics, and stop rules before adding convergence behavior. Any ex
 the bounded grammar, module topology, semantic universe, serialized checked IR,
 or LLVM emitter must remain a separate red-first checkpoint rather than being
 hidden inside the convergence driver.
+
+CAP-048 now records that documentation-only contract in
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
+Its first separately authorized implementation gate is complete canonical
+self-source ingestion, not a wider B1C host driver.

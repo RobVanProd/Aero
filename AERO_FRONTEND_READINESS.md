@@ -377,3 +377,7 @@ frontend, semantics, serialized checked IR, verifier, LLVM emitter, and driver
 unchanged. Do not
 infer additional semantics, call the Rust front end replaced, or call the
 project self-hosted before H1 and H2 independently close.
+
+The documentation-only CAP-048 contract and its ordered, red-first frontend
+expansion gates are recorded in
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).

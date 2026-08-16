@@ -63,6 +63,12 @@ artifact, and log remains on D:. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md), and
 [`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md).
 
+CAP-048 is the current documentation-only H1 contract candidate. It records the
+accepted compiler's exact 241,941-byte self-source versus 8,192-byte input
+boundary, freezes a new single-file canonical source path, defines the stage
+process and comparison protocol, and orders H1A through final replay. See
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
+
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
 to that historical checkpoint and is superseded by this current-objective
@@ -3404,6 +3410,11 @@ canonical Aero compiler source bundle, exact stage-0/stage-1/stage-2
 interfaces, environment and toolchain manifest, comparison contract, and
 failure rules before any convergence implementation. Do not treat the bounded
 B1C product as a general compiler or a self-hosting claim.
+
+CAP-048 freezes that contract without changing behavior. After its protected
+acceptance, authorize H1A red-first for complete canonical source/token
+ingestion and stop at the independently predicted first unsupported parser
+construct.
 
 ## Historical post-CAP-024 ranking
 
