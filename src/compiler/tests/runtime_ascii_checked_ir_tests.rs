@@ -17,17 +17,15 @@ const MAX_IDENTIFIER_BYTES: usize = 63;
 const MAX_NODES: usize = 512;
 const PROFILE_NAME: &str = "exact-i32-byte-input-v0";
 const PARSER_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_parser.aero";
-const PRODUCT_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_semantics.aero";
-const CHECKED_PRODUCT_RELATIVE_PATH: &str =
-    "../../examples/aero_frontend_v0/runtime_ascii_checked_ir.aero";
+const SEMANTIC_PRODUCT_RELATIVE_PATH: &str =
+    "../../examples/aero_frontend_v0/runtime_ascii_semantics.aero";
+const PRODUCT_RELATIVE_PATH: &str = "../../examples/aero_frontend_v0/runtime_ascii_checked_ir.aero";
 const RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_runtime.c";
 const TEST_RUNTIME_RELATIVE_PATH: &str = "../../src/compiler/runtime/aero_test_runtime.c";
 const WORKFLOW_RELATIVE_PATH: &str = "../../.github/workflows/rust.yml";
-const SELF_TEST_MARKER: &str = "// CAP-043 TRACKED SELF-TEST";
+const SEMANTIC_SELF_TEST_MARKER: &str = "// CAP-043 TRACKED SELF-TEST";
+const SELF_TEST_MARKER: &str = "// CAP-044 TRACKED SELF-TEST";
 const INTENTIONAL_PRODUCT_RED: &str =
-    "CAP-043 intentional product red: tracked runtime ASCII semantic facts are absent";
-const CHECKED_SELF_TEST_MARKER: &str = "// CAP-044 TRACKED SELF-TEST";
-const INTENTIONAL_CHECKED_PRODUCT_RED: &str =
     "CAP-044 intentional product red: tracked runtime ASCII checked IR is absent";
 
 static NEXT_WORKSPACE_ID: AtomicU64 = AtomicU64::new(0);
@@ -1371,21 +1369,21 @@ fn generated_program(
     kernel_prefix: &str,
     frontend: &FrontendModel,
     semantic: &SemanticModel,
+    checked: &CheckedModel,
     frontend_checksum_delta: i32,
     semantic_checksum_delta: i32,
+    checked_checksum_delta: i32,
 ) -> String {
-    format!(
-        "{}\n\nfn main() -> int {{\n    return run_runtime_ascii_semantics({}, {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {}, {}, {}, {},\n        {}, {}, {}, {}, {});\n}}\n",
-        kernel_prefix.trim_end(),
+    let arguments = [
         frontend.diagnostic.status,
         frontend.diagnostic.offset,
         frontend.diagnostic.line,
         frontend.diagnostic.column,
         frontend.diagnostic.expected_code,
         frontend.diagnostic.actual_kind,
-        frontend.names.len(),
-        frontend.tokens.len(),
-        frontend.nodes.len(),
+        i32::try_from(frontend.names.len()).expect("bounded names"),
+        i32::try_from(frontend.tokens.len()).expect("bounded tokens"),
+        i32::try_from(frontend.nodes.len()).expect("bounded nodes"),
         frontend.root,
         frontend.checksum + frontend_checksum_delta,
         semantic.diagnostic.status,
@@ -1396,19 +1394,43 @@ fn generated_program(
         semantic.diagnostic.code,
         semantic.diagnostic.expected_type,
         semantic.diagnostic.actual_type,
-        semantic.origins.len(),
-        semantic.symbols.len(),
-        semantic.facts.len(),
+        i32::try_from(semantic.origins.len()).expect("bounded origins"),
+        i32::try_from(semantic.symbols.len()).expect("bounded symbols"),
+        i32::try_from(semantic.facts.len()).expect("bounded facts"),
         semantic.root_type,
         semantic.checksum + semantic_checksum_delta,
+        checked.attempted,
+        checked.diagnostic.status,
+        checked.diagnostic.node_id,
+        checked.diagnostic.offset,
+        checked.diagnostic.line,
+        checked.diagnostic.column,
+        checked.diagnostic.code,
+        checked.diagnostic.expected,
+        checked.diagnostic.actual,
+        i32::try_from(checked.values.len()).expect("bounded checked values"),
+        i32::try_from(checked.instructions.len()).expect("bounded checked instructions"),
+        i32::try_from(checked.results.len()).expect("bounded checked results"),
+        i32::try_from(checked.words.len()).expect("bounded checked words"),
+        checked.root_kind,
+        checked.root_payload,
+        checked.root_type,
+        checked.checksum + checked_checksum_delta,
+    ]
+    .map(|value| value.to_string())
+    .join(", ");
+    format!(
+        "{}\n\nfn main() -> int {{\n    return run_runtime_ascii_checked_ir({});\n}}\n",
+        kernel_prefix.trim_end(),
+        arguments,
     )
 }
 
 fn compile_generated(program: &str) -> String {
-    check_program(program, options()).expect("generated CAP-043 program checks");
-    let llvm = compile_program(program, options()).expect("generated CAP-043 program compiles");
+    check_program(program, options()).expect("generated CAP-044 program checks");
+    let llvm = compile_program(program, options()).expect("generated CAP-044 program compiles");
     verify_llvm_module(&llvm, LlvmVerificationMode::Required)
-        .expect("generated CAP-043 LLVM verifies");
+        .expect("generated CAP-044 LLVM verifies");
     llvm
 }
 
@@ -1459,9 +1481,10 @@ fn simulate_pushes(
 fn allocation_expectation(
     input: &[u8],
     frontend: &FrontendModel,
+    checked: &CheckedModel,
     fail_after: u64,
 ) -> AllocationExpectation {
-    let mut buffers = [BufferState::default(); 9];
+    let mut buffers = [BufferState::default(); 12];
     let mut successful_events = 0;
     let mut allocations = 0;
     let mut reallocations = 0;
@@ -1555,6 +1578,73 @@ fn allocation_expectation(
             &mut reallocations,
         );
     }
+    if completed && checked.attempted == 1 && checked.diagnostic.status == 0 {
+        for value in &checked.values {
+            if value.operand_kind == 2 {
+                completed = simulate_pushes(
+                    &mut buffers[10],
+                    44,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+            }
+            if completed {
+                completed = simulate_pushes(
+                    &mut buffers[9],
+                    24,
+                    fail_after,
+                    &mut successful_events,
+                    &mut allocations,
+                    &mut reallocations,
+                );
+            }
+            if !completed {
+                break;
+            }
+        }
+    }
+    if completed && checked.attempted == 1 && checked.diagnostic.status == 0 {
+        completed = simulate_pushes(
+            &mut buffers[10],
+            44,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
+    if completed && checked.attempted == 1 && checked.diagnostic.status == 0 {
+        completed = simulate_pushes(
+            &mut buffers[11],
+            25 * 4,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
+    if completed && checked.attempted == 1 && checked.diagnostic.status == 0 {
+        completed = simulate_pushes(
+            &mut buffers[11],
+            checked.instructions.len() * 11 * 4,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
+    if completed && checked.attempted == 1 && checked.diagnostic.status == 0 {
+        completed = simulate_pushes(
+            &mut buffers[11],
+            checked.results.len() * 6 * 4,
+            fail_after,
+            &mut successful_events,
+            &mut allocations,
+            &mut reallocations,
+        );
+    }
     AllocationExpectation {
         success: completed,
         allocations,
@@ -1563,10 +1653,12 @@ fn allocation_expectation(
     }
 }
 
-fn allocation_harness(input: &[u8], frontend: &FrontendModel) -> String {
+fn allocation_harness(input: &[u8], frontend: &FrontendModel, checked: &CheckedModel) -> String {
     let mut cases = String::new();
-    for threshold in 0_u64..=48 {
-        let expected = allocation_expectation(input, frontend, threshold);
+    let complete = allocation_expectation(input, frontend, checked, u64::MAX);
+    let final_threshold = complete.allocations + complete.reallocations;
+    for threshold in 0_u64..=final_threshold {
+        let expected = allocation_expectation(input, frontend, checked, threshold);
         use std::fmt::Write as _;
         writeln!(
             cases,
@@ -1576,7 +1668,7 @@ fn allocation_harness(input: &[u8], frontend: &FrontendModel) -> String {
             expected.reallocations,
             expected.deallocations,
         )
-        .expect("write CAP-043 allocation case");
+        .expect("write CAP-044 allocation case");
     }
     let input_bytes = input
         .iter()
@@ -1984,13 +2076,13 @@ fn accepted_f1b_product_remains_deterministic_and_byte_identical_to_its_oracle()
 }
 
 #[test]
-fn tracked_runtime_ascii_semantics_is_the_only_intentional_red() {
-    let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
-        .unwrap_or_else(|_| panic!("{INTENTIONAL_PRODUCT_RED}"));
+fn accepted_runtime_ascii_semantics_remains_frozen() {
+    let product = fs::read_to_string(repository_path(SEMANTIC_PRODUCT_RELATIVE_PATH))
+        .expect("read accepted CAP-043 product");
     let (kernel_prefix, tracked_main) = product
-        .split_once(SELF_TEST_MARKER)
+        .split_once(SEMANTIC_SELF_TEST_MARKER)
         .expect("tracked product retains one semantic/self-test boundary");
-    assert_eq!(product.matches(SELF_TEST_MARKER).count(), 1);
+    assert_eq!(product.matches(SEMANTIC_SELF_TEST_MARKER).count(), 1);
     assert_eq!(
         product.matches("fn run_runtime_ascii_semantics(").count(),
         1
@@ -2161,19 +2253,196 @@ fn tracked_runtime_ascii_semantics_is_the_only_intentional_red() {
 }
 
 #[test]
-fn tracked_runtime_ascii_checked_ir_is_the_only_intentional_red() {
-    let product = fs::read_to_string(repository_path(CHECKED_PRODUCT_RELATIVE_PATH))
-        .unwrap_or_else(|_| panic!("{INTENTIONAL_CHECKED_PRODUCT_RED}"));
-    assert_eq!(product.matches(CHECKED_SELF_TEST_MARKER).count(), 1);
+fn tracked_runtime_ascii_checked_ir_is_complete_deterministic_and_native() {
+    let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
+        .unwrap_or_else(|_| panic!("{INTENTIONAL_PRODUCT_RED}"));
+    let (kernel_prefix, tracked_main) = product
+        .split_once(SELF_TEST_MARKER)
+        .expect("tracked product retains one checked-IR/self-test boundary");
+    assert_eq!(product.matches(SELF_TEST_MARKER).count(), 1);
+    assert_eq!(
+        product.matches("fn run_runtime_ascii_checked_ir(").count(),
+        1
+    );
+    for owner in [
+        "source",
+        "names",
+        "tokens",
+        "nodes",
+        "values",
+        "operators",
+        "origins",
+        "symbols",
+        "facts",
+        "checked_values",
+        "checked_instructions",
+        "checked_ir",
+    ] {
+        assert!(
+            product.contains(&format!("let mut {owner}: ByteBuffer = bytes_new();")),
+            "tracked CAP-044 product omitted `{owner}`"
+        );
+    }
+    assert!(tracked_main.contains("2, 20, 11, 11, 586661"));
+    assert!(tracked_main.contains("11, 1, 11, 1, 827574"));
+    assert!(tracked_main.contains("9, 5, 4, 104, 2, 4, 1, 355067"));
+    for anchor in [
+        "fn signed_quotient(dividend: int, divisor: int) -> int",
+        "checked_status = 1",
+        "checked_status = 2",
+        "checked_status = 3",
+        "checked_status = 4",
+        "checked_status = 5",
+        "checked_append_field < 25",
+        "checked_append_field < 11",
+        "checked_append_field < 6",
+        "bytes_len(&checked_values) != checked_value_count * 24",
+        "bytes_len(&checked_instructions) != checked_instruction_count * 44",
+        "bytes_len(&checked_ir) != checked_expected_words * 4",
+        "checked_checksum = checksum_step(checked_checksum, 997)",
+        "checked_checksum = checksum_step(checked_checksum, 998)",
+    ] {
+        assert!(
+            product.contains(anchor),
+            "tracked CAP-044 product omitted `{anchor}`"
+        );
+    }
+    for forbidden in [
+        "String",
+        "Vec",
+        "HashMap",
+        "unsafe",
+        "fn run_runtime_ascii_parser(",
+        "fn run_runtime_ascii_semantics(",
+    ] {
+        assert!(
+            !product.contains(forbidden),
+            "tracked CAP-044 product contains `{forbidden}`"
+        );
+    }
+
+    check_program(&product, options()).expect("tracked CAP-044 product checks");
+    let first = compile_program(&product, options()).expect("tracked CAP-044 product compiles");
+    let second = compile_program(&product, options()).expect("tracked CAP-044 product recompiles");
+    assert_eq!(first, second, "tracked CAP-044 LLVM is nondeterministic");
+    verify_llvm_module(&first, LlvmVerificationMode::Required)
+        .expect("tracked CAP-044 LLVM verifies");
+    for anchor in [
+        "%aero.byte_buffer = type { ptr, i32, i32 }",
+        "declare ptr @aero_alloc(i64)",
+        "declare ptr @aero_realloc(ptr, i64, i64)",
+        "declare void @aero_dealloc(ptr, i64)",
+        "declare i32 @aero_stdin_read_byte()",
+    ] {
+        assert!(first.contains(anchor), "tracked LLVM omitted `{anchor}`");
+    }
+    for forbidden in [
+        "double", "fptosi", "sitofp", " nsw ", " nuw ", "@malloc", "@free",
+    ] {
+        assert!(
+            !first.contains(forbidden),
+            "tracked LLVM leaked `{forbidden}`"
+        );
+    }
+
+    let workspace = TestWorkspace::new("tracked-checked");
+    let source_path = workspace.write("runtime_ascii_checked_ir.aero", &product);
+    check_file(&source_path, options()).expect("tracked CAP-044 file checks");
+    assert_eq!(
+        compile_file(&source_path, options()).expect("tracked CAP-044 file compiles"),
+        first,
+        "tracked CAP-044 source/file LLVM diverged"
+    );
+    let canonical = b"fn score()->int{return 1+2*3-4/2;}";
+    let frontend = reference_frontend(canonical);
+    let semantic = reference_semantics(&frontend);
+    let checked = reference_checked_ir(&frontend, &semantic);
+    assert_eq!(frontend.checksum, 586_661);
+    assert_eq!(semantic.checksum, 827_574);
+    assert_eq!(checked.checksum, 355_067);
+    let llvm_path = workspace.write("tracked.ll", &first);
+    let runtime = repository_path(RUNTIME_RELATIVE_PATH);
+    for optimization in ["-O0", "-O2"] {
+        let executable = clang_link(
+            "tracked-checked",
+            &workspace,
+            &[llvm_path.as_path(), runtime.as_path()],
+            optimization,
+        );
+        assert_silent_exit_91(
+            &run_command_with_stdin(&mut Command::new(executable), canonical),
+            &format!("tracked CAP-044 {optimization}"),
+        );
+    }
+
+    let mut public = Command::new(env!("CARGO_BIN_EXE_aero"));
+    public
+        .args([
+            "run",
+            source_path.to_str().expect("public source path is UTF-8"),
+            "--language-profile",
+            PROFILE_NAME,
+        ])
+        .current_dir(&workspace.root);
+    let public_output = run_command_with_stdin(&mut public, canonical);
+    assert_eq!(public_output.status.code(), Some(91));
+    let public_stdout = String::from_utf8_lossy(&public_output.stdout);
+    assert_eq!(
+        public_stdout
+            .lines()
+            .filter(|line| *line == "Exit code: 91")
+            .count(),
+        1
+    );
+    assert!(
+        !public_stdout
+            .lines()
+            .any(|line| line.starts_with("Output:") || line.starts_with("Error output:"))
+    );
+    assert!(public_output.stderr.is_empty());
+
+    for target in ["rocm", "cuda"] {
+        let output_path = workspace.root.join(format!("{target}.ll"));
+        let output = Command::new(env!("CARGO_BIN_EXE_aero"))
+            .args([
+                "build",
+                source_path
+                    .to_str()
+                    .expect("accelerator source path is UTF-8"),
+                "-o",
+                output_path
+                    .to_str()
+                    .expect("accelerator output path is UTF-8"),
+                "--target",
+                target,
+                "--language-profile",
+                PROFILE_NAME,
+            ])
+            .current_dir(&workspace.root)
+            .output()
+            .expect("execute CAP-044 accelerator rejection");
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            !output_path.exists(),
+            "{target} rejection created an artifact"
+        );
+    }
+
+    assert_eq!(
+        kernel_prefix
+            .matches("let mut checked_values: ByteBuffer")
+            .count(),
+        1
+    );
 }
 
 #[test]
-fn tracked_product_executes_every_semantic_status_from_independent_expectations() {
+fn tracked_product_executes_every_semantic_and_checked_status_from_independent_expectations() {
     let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
-        .expect("read tracked CAP-043 product");
+        .expect("read tracked CAP-044 product");
     let (kernel_prefix, _) = product
         .split_once(SELF_TEST_MARKER)
-        .expect("tracked CAP-043 self-test boundary");
+        .expect("tracked CAP-044 self-test boundary");
     let runtime = repository_path(RUNTIME_RELATIVE_PATH);
     let cases = [
         ("success", "1+2*3-4/2"),
@@ -2186,12 +2455,17 @@ fn tracked_product_executes_every_semantic_status_from_independent_expectations(
         ("logical-not", "!1"),
         ("negation", "-(1<2)"),
         ("return", "(1<2)<(3<4)"),
+        ("checked-overflow-add", "2147483647+1"),
+        ("checked-overflow-multiply", "50000*50000"),
+        ("checked-zero-divisor", "4/0"),
+        ("checked-derived-zero-divisor", "4/(2-2)"),
     ];
     for (label, expression) in cases {
         let input = model_source(expression).into_bytes();
         let frontend = reference_frontend(&input);
         let semantic = reference_semantics(&frontend);
-        let program = generated_program(kernel_prefix, &frontend, &semantic, 0, 0);
+        let checked = reference_checked_ir(&frontend, &semantic);
+        let program = generated_program(kernel_prefix, &frontend, &semantic, &checked, 0, 0, 0);
         let llvm = compile_generated(&program);
         let workspace = TestWorkspace::new(label);
         let llvm_path = workspace.write("case.ll", llvm);
@@ -2203,34 +2477,48 @@ fn tracked_product_executes_every_semantic_status_from_independent_expectations(
         );
         assert_silent_exit_91(
             &run_command_with_stdin(&mut Command::new(executable), &input),
-            &format!("CAP-043 semantic case {label}"),
+            &format!("CAP-044 checked case {label}"),
         );
     }
 }
 
 #[test]
-fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
+fn twelve_owner_failures_and_checked_mutations_never_leak_or_return_success() {
     let product = fs::read_to_string(repository_path(PRODUCT_RELATIVE_PATH))
-        .expect("read tracked CAP-043 product");
+        .expect("read tracked CAP-044 product");
     let (kernel_prefix, _) = product
         .split_once(SELF_TEST_MARKER)
-        .expect("tracked CAP-043 self-test boundary");
+        .expect("tracked CAP-044 self-test boundary");
     let input = model_source("1+2").into_bytes();
     let frontend = reference_frontend(&input);
     let semantic = reference_semantics(&frontend);
+    let checked = reference_checked_ir(&frontend, &semantic);
     assert_eq!(
         frontend.nodes.len(),
         5,
         "allocation fixture topology changed"
     );
     assert_eq!(semantic.facts.len(), 5, "allocation fixture facts changed");
-    let program = generated_program(kernel_prefix, &frontend, &semantic, 0, 0);
+    assert_eq!(checked.values.len(), 3, "allocation fixture values changed");
+    assert_eq!(
+        checked.instructions.len(),
+        2,
+        "allocation fixture instructions changed"
+    );
+    assert_eq!(
+        checked.results.len(),
+        1,
+        "allocation fixture results changed"
+    );
+    assert_eq!(checked.words.len(), 53, "allocation fixture words changed");
+    let program = generated_program(kernel_prefix, &frontend, &semantic, &checked, 0, 0, 0);
     let llvm = compile_generated(&program);
     let renamed = llvm.replacen("define i32 @main()", "define i32 @aero_program_main()", 1);
     assert_ne!(renamed, llvm, "allocation product omitted main");
     let workspace = TestWorkspace::new("allocation");
     let llvm_path = workspace.write("program.ll", renamed);
-    let harness_path = workspace.write("harness.c", allocation_harness(&input, &frontend));
+    let harness_path =
+        workspace.write("harness.c", allocation_harness(&input, &frontend, &checked));
     let test_runtime = repository_path(TEST_RUNTIME_RELATIVE_PATH);
     let executable = clang_link(
         "allocation",
@@ -2245,18 +2533,21 @@ fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
     assert_silent_exit_91(
         &Command::new(executable)
             .output()
-            .expect("run CAP-043 allocation harness"),
-        "CAP-043 nine-owner allocation harness",
+            .expect("run CAP-044 allocation harness"),
+        "CAP-044 twelve-owner allocation harness",
     );
 
     let runtime = repository_path(RUNTIME_RELATIVE_PATH);
     let canonical = b"fn score()->int{return 1+2*3-4/2;}".to_vec();
     let canonical_frontend = reference_frontend(&canonical);
     let canonical_semantic = reference_semantics(&canonical_frontend);
+    let canonical_checked = reference_checked_ir(&canonical_frontend, &canonical_semantic);
     let wrong_checksum = generated_program(
         kernel_prefix,
         &canonical_frontend,
         &canonical_semantic,
+        &canonical_checked,
+        0,
         0,
         1,
     );
@@ -2271,6 +2562,8 @@ fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
                 ),
                 &canonical_frontend,
                 &canonical_semantic,
+                &canonical_checked,
+                0,
                 0,
                 0,
             ),
@@ -2285,6 +2578,8 @@ fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
                 ),
                 &canonical_frontend,
                 &canonical_semantic,
+                &canonical_checked,
+                0,
                 0,
                 0,
             ),
@@ -2299,6 +2594,56 @@ fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
                 ),
                 &canonical_frontend,
                 &canonical_semantic,
+                &canonical_checked,
+                0,
+                0,
+                0,
+            ),
+        ),
+        (
+            "checked-value",
+            generated_program(
+                &kernel_prefix.replacen(
+                    "checked_append_word = checked_operand_payload;",
+                    "checked_append_word = checked_operand_payload + 1;",
+                    1,
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                &canonical_checked,
+                0,
+                0,
+                0,
+            ),
+        ),
+        (
+            "checked-instruction",
+            generated_program(
+                &kernel_prefix.replacen(
+                    "checked_append_word = checked_opcode;",
+                    "checked_append_word = checked_opcode + 1;",
+                    1,
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                &canonical_checked,
+                0,
+                0,
+                0,
+            ),
+        ),
+        (
+            "checked-ir",
+            generated_program(
+                &kernel_prefix.replacen(
+                    "checked_append_word = checked_symbol_name;",
+                    "checked_append_word = checked_symbol_name + 1;",
+                    1,
+                ),
+                &canonical_frontend,
+                &canonical_semantic,
+                &canonical_checked,
+                0,
                 0,
                 0,
             ),
@@ -2319,13 +2664,13 @@ fn nine_owner_failures_and_semantic_mutations_never_leak_or_return_success() {
                 .status
                 .code(),
             Some(91),
-            "CAP-043 {label} mutation returned success"
+            "CAP-044 {label} mutation returned success"
         );
     }
 }
 
 #[test]
-fn protected_linux_and_windows_semantic_replays_are_frozen() {
+fn protected_linux_and_windows_semantic_and_checked_replays_are_frozen() {
     let workflow =
         fs::read_to_string(repository_path(WORKFLOW_RELATIVE_PATH)).expect("read Rust workflow");
     let linux = workflow_step(&workflow, "Test runtime ASCII semantics at O0 and O2");
@@ -2365,6 +2710,46 @@ fn protected_linux_and_windows_semantic_replays_are_frozen() {
         assert!(
             windows.contains(anchor),
             "Windows CAP-043 step omitted `{anchor}`"
+        );
+    }
+
+    let checked_linux = workflow_step(&workflow, "Test runtime ASCII checked IR at O0 and O2");
+    for anchor in [
+        "runtime_ascii_checked_ir.aero",
+        "fn score()->int{return 1+2*3-4/2;}",
+        "runtime_ascii_checked_ir.linux.repeat.ll",
+        "cmp -s",
+        "llvm-as-22",
+        "opt-22",
+        "llc-22",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            checked_linux.contains(anchor),
+            "Linux CAP-044 step omitted `{anchor}`"
+        );
+    }
+    let checked_windows = workflow_step(
+        &workflow,
+        "Test runtime ASCII checked IR on Windows at O0 and O2",
+    );
+    for anchor in [
+        "runtime_ascii_checked_ir.aero",
+        "fn score()->int{return 1+2*3-4/2;}",
+        "runtime_ascii_checked_ir.windows.repeat.ll",
+        "SequenceEqual",
+        "llvm-as.exe",
+        "opt.exe",
+        "llc.exe",
+        "-O0",
+        "-O2",
+        "Exit code: 91",
+    ] {
+        assert!(
+            checked_windows.contains(anchor),
+            "Windows CAP-044 step omitted `{anchor}`"
         );
     }
 }

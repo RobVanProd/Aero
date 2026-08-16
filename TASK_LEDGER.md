@@ -2,8 +2,9 @@
 
 ## CAP-044-M1B-FLAT-CHECKED-IR - authenticated facts to bounded checked IR
 
-- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, ledger-first
-  authorization from accepted CAP-043/M1A merge
+- Date/task/status: 2026-08-16, `CAP-044-M1B-FLAT-CHECKED-IR`, locally
+  implemented with focused, predecessor-ring, and complete root gates green;
+  protected publication pending. Work starts from accepted CAP-043/M1A merge
   `2eaa3bdd9de886453d8556d457d49dbb937770ae`, tree
   `35129ad5194354acafe082f3fcd55629ed767f27`, on
   `agent/m1-checked-ir-handoff` in D:-resident worktree
@@ -171,6 +172,20 @@
   requested artifacts; Linux/Windows workflow replay; formatting; correctness
   Clippy; `git diff --check`; exact-scope audit; and D:-redirected
   `./tools/test.sh` from repository root.
+- Local implementation evidence: ledger-only commit `1a09eb7` and red-first
+  test commit `a498efd` remain distinct; the red checkpoint passed 9/10 tests
+  and failed only with the frozen absent-product message. The Aero product now
+  passes its direct selected-profile check and canonical public native run.
+  The complete focused target passes 10/10 in 1227.37 seconds, including the
+  independent M1B oracle, accepted Rust projection, 14-case semantic/checked
+  status matrix, deterministic source/file LLVM, O0/O2 and public CPU replay,
+  ROCm/CUDA artifact hygiene, exact twelve-owner fail-after accounting, zero
+  leaks, and source/origin/symbol/fact/value/instruction/final-IR/checksum
+  mutation rejection. Accepted M1A, F1B, F1A, and D1 targets pass 7/7, 4/4,
+  3/3, and 3/3 respectively from the D:-resident build target. The complete
+  D:-redirected `./tools/test.sh` gate passes formatting, correctness Clippy,
+  309 library tests, 35 binary tests, every integration/native/system target,
+  and doc tests; the CAP-044 target passes 10/10 there in 1221.39 seconds.
 - Allowed files, exactly: `TASK_LEDGER.md`; `AERO_FRONTEND_READINESS.md`;
   `SELF_HOSTING_ROADMAP.md`; `PROJECT_STATE.md`;
   `COMPILER_STORAGE_READINESS.md`; new

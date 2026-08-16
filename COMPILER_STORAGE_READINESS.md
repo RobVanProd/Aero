@@ -129,11 +129,18 @@ that scanner, consumes the retained records without re-lexing, and emits
 one-based lower-child D1 nodes for the frozen single-function expression
 grammar.
 
-CAP-043/M1A is the current local product-only candidate. It copies accepted F1B,
-adds parallel five-word node-origin records, then uses a name prepass and
-iterative node-ID pass to emit one function symbol plus closed Int/Bool/Copy
-facts. Nine direct ByteBuffer owners preserve D1's flat serialized model and
-exact cleanup. See
-[`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's framing remains
-evidence scaffolding rather than a general AST collection; M1A does not replace
-the Rust front end or construct checked IR.
+CAP-043/M1A is accepted as protected merge
+`2eaa3bdd9de886453d8556d457d49dbb937770ae`. It copies accepted F1B, adds
+parallel five-word node-origin records, then uses a name prepass and iterative
+node-ID pass to emit one function symbol plus closed Int/Bool/Copy facts. Nine
+direct ByteBuffer owners preserve D1's flat serialized model and exact cleanup.
+
+CAP-044/M1B is the current local product-only candidate. It consumes those
+retained M1A records without rescanning or retyping and adds value scratch,
+instruction scratch, and one serialized checked-IR owner. The canonical module
+has one function, one reachable block, 5 instructions, 4 results, 104 words,
+and checksum 355067; the 10/10 focused target and accepted M1A/F1B/F1A/D1 ring
+are green. See [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md). D1's
+framing remains evidence scaffolding rather than a general AST collection;
+M1B does not replace the Rust front end, independently verify its module, emit
+LLVM from it, or establish self-hosting.
