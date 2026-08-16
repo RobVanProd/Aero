@@ -132,6 +132,47 @@
   read-only dependencies; no task cache or artifact is intentionally written
   there.
 
+### CAP-041 locally green implementation checkpoint
+
+- Immutable local history: ledger-only authorization
+  `c69299e`, exact intentional-red commit `d608a7e`, and implementation/workflow
+  commit `6290c99` are based directly on accepted D1 merge
+  `104d72dfb78921db68421c7ebd45e30dcbc3d804`. The red target was exactly 2/3:
+  its independent model and accepted-Rust overlap passed, while the sole failure
+  was `CAP-041 intentional product red: tracked runtime ASCII lexer is absent`.
+  No product or workflow code existed at that checkpoint.
+- Implementation: one tracked Aero source owns source, name, and token
+  ByteBuffers; consumes R2 stdin; scans the frozen K1 vocabulary; interns exact
+  first spans; emits six-word located token records; appends EOF only on
+  success; validates retained state; and compares the complete independent
+  checksum. No compiler production, runtime, profile, IR, verifier, backend,
+  driver, dependency, lockfile, or existing test/example changed.
+- Focused evidence: `runtime_ascii_frontend_lexer_tests` is 3/3 green. The
+  independent oracle freezes canonical records/checksum and every boundary;
+  the separate strict-Rust-lexer overlap agrees on supported kinds and
+  locations. Tracked and generated sources check through source/file APIs,
+  produce deterministic externally verified LLVM, and run at O0/O2. Empty,
+  located-comment, unsupported, non-ASCII, 1,025th-token, and 8,193rd-byte
+  models exit 91 only against exact expected state. Wrong checksum and mutated
+  keyword classification do not return 91. The public CPU runner exits 91 with
+  no application output, ROCm/CUDA reject before artifacts, and Linux/Windows
+  workflow steps freeze deterministic LLVM plus LLVM 22 and O0/O2 replay.
+- Ownership/failure evidence: the canonical source uses exactly three direct
+  owners. The independent allocator model and C test runtime cover failure
+  thresholds through the first fully successful event boundary, compare exact
+  allocation/reallocation/deallocation counts, reject size mismatches, and
+  observe zero live allocations after every return.
+- Compatibility evidence: accepted K1, R1C, R2, and D1 focused targets are
+  green (22 tests total). Formatting and diff hygiene are green. The complete
+  root gate, final local identity, exact-scope review, candidate workflows,
+  protected merge, and accepted-head replay remain pending; this is a local
+  candidate, not accepted public capability.
+- Remaining boundary and next action: F1A does not parse or close F1. After the
+  exact root gate and protected CAP-041 acceptance, authorize F1B separately to
+  consume these records into D1 flat nodes for one frozen grammar. Do not stack
+  F1B on a red or unpublished F1A branch and do not claim replacement of the
+  Rust front end, M1/B1/H1/H2, or self-hosting.
+
 ## CAP-040-D1-COMPILER-STORAGE-ARENA - deterministic owned compiler data model
 
 - Date/task/status: 2026-08-15, `CAP-040-D1-COMPILER-STORAGE-ARENA`,
