@@ -91,7 +91,9 @@
   `BYTE_INPUT_READINESS.md`, `SELF_HOSTING_ROADMAP.md`,
   `OWNED_BYTE_BUFFER_READINESS.md`, `PROJECT_STATE.md`, existing
   `src/compiler/tests/source_byte_buffer_profile_tests.rs` only for the new
-  exact accepted runtime/IR/verifier digests, new
+  exact accepted runtime/IR/verifier digests, existing
+  `src/compiler/tests/owned_byte_buffer_checked_resource_tests.rs` only for
+  the same exact production-runtime digest, new
   `src/compiler/tests/stdin_byte_input_profile_tests.rs`, one new tracked product
   beneath `examples/stdin_byte_input_v0/`, and `.github/workflows/rust.yml` for
   final Linux/Windows replay. No other test, example, document, workflow,
@@ -114,6 +116,52 @@
   `D:\Aero-worktrees\r2-whole-stream-input`, `D:\Aero-build-targets\r2`, and
   `D:\Aero-temp\r2`. Installed C: tools are read-only dependencies; no task
   cache or artifact is intentionally written there.
+
+### CAP-039/R2 locally green implementation checkpoint
+
+- Implementation summary: the new selected profile composes R1C and reserves
+  one direct zero-argument stdin intrinsic. Semantic analysis and independent
+  checked admission require its direct explicitly typed `Result<int, int>`
+  binding context and reject inferred, discarded, nested-call, generic,
+  argument-bearing, and source-definition substitutions before checked IR.
+  One operand-free checked scalar instruction is verified as logical `Int` and
+  lowers only under the new profile to a conditional runtime declaration/call.
+  Production C preserves binary bytes and sticky EOF/I/O, and the CPU driver
+  forwards stdin only for the R2 selector while retaining closed stdin for all
+  earlier profiles.
+- Product/evidence summary: the tracked Aero program owns the EOF loop and R1
+  ByteBuffer growth. The focused target passes 8/8, covering source/file parity,
+  deterministic LLVM, exact NUL/CR/LF/`0x1a`/`0xff`, sticky EOF and closed-stdin
+  failure, empty/short/4,097-byte streams, O0/O2, LLVM 22, public CLI forwarding,
+  and accelerator artifact hygiene. A mock-injected prefix then `-2` and a
+  zero-prefix corrupt `-3` prove exact Result mapping, allocation/deallocation
+  counters, no leaks, and no size mismatch. Three private contract tests prove
+  mode-off rejection, one logical-Int checked result, duplicate/nonidentifier
+  SSA rejection, and wrong-profile backend rejection. The accepted R1 source
+  product target remains green after updating only the authorized exact
+  runtime/IR/verifier authority digests.
+- Commands/results so far: formatting, all-target/all-feature check, focused R2
+  and R1C targets, private R2 unit tests, required LLVM verification/native
+  fixtures, and correctness-denying Clippy pass from the D:-resident worktree,
+  target, and temp roots. `git diff --check` passes. The corrected complete
+  repository-root gate passes formatting, correctness Clippy, 309/309 library
+  tests, 35/35 binary tests, every integration/native/system target, and doc
+  tests. Final scope/identity audit, commit, protected exact-head workflows,
+  merge, and post-merge replay remain pending; this is not public acceptance.
+- First root-gate correction: the complete gate passed formatting,
+  correctness Clippy, 309/309 library tests, 35/35 binary tests, and every
+  integration target through the R1B checked-resource suite, where its frozen
+  production-runtime digest still named the pre-R2 C authority. The runtime
+  bytes exactly match the new R2 characterization and R1C compatibility
+  digest `993af1665a4e93249035b149dfc643be`; the ledger now authorizes that one
+  observation-only historical fingerprint update. No assertion, behavior, or
+  test topology was removed or weakened. The fresh full gate then completed
+  successfully on the corrected content with the exact counts recorded above.
+- Remaining exclusions and risk: file/path/text input, general streams,
+  general collections, compiler storage/AST, module graphs, accelerator
+  execution, stable ABI, release, performance, safety, and self-hosting remain
+  absent. Cross-platform workflow declarations replay the binary product on
+  Linux and Windows, but they are evidence only after the exact public head runs.
 
 ## CAP-038-R1C-SOURCE-OWNED-BYTE-BUFFER - bounded source owner and selected profile
 

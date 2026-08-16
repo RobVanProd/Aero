@@ -24,7 +24,7 @@ use compiler::{
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, exit};
+use std::process::{Command, Stdio, exit};
 use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -1489,7 +1489,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
     let usage = || {
         format!(
-            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0>]",
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]",
             args.first().map(String::as_str).unwrap_or("aero")
         )
     };
@@ -1532,13 +1532,13 @@ fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String
 
 fn build_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0>]"
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]"
     )
 }
 
 fn run_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0>]"
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>]"
     )
 }
 
@@ -2000,7 +2000,17 @@ fn run_aero_program_with_artifacts(
                 }
             }
 
-            let run_output = Command::new(&exe_path)
+            let mut run_command = Command::new(&exe_path);
+            run_command.stdin(
+                if build_config.language_profile == LanguageProfile::ExactI32ByteInputV0 {
+                    Stdio::inherit()
+                } else {
+                    // Preserve the accepted pre-R2 `Command::output` stdin behavior for
+                    // every earlier profile.
+                    Stdio::null()
+                },
+            );
+            let run_output = run_command
                 .output()
                 .map_err(|err| format!("Error executing compiled program: {}", err))?;
 
@@ -2164,7 +2174,7 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!(
-        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0>  Select the compiler-enforced source profile"
+        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0>  Select the compiler-enforced source profile"
     );
     println!();
     println!("EXECUTION BOUNDARIES:");
@@ -2399,6 +2409,10 @@ mod tests {
                 "exact-i32-byte-buffer-v0",
                 LanguageProfile::ExactI32ByteBufferV0,
             ),
+            (
+                "exact-i32-byte-input-v0",
+                LanguageProfile::ExactI32ByteInputV0,
+            ),
         ] {
             let check = vec![
                 "aero".to_string(),
@@ -2455,6 +2469,10 @@ mod tests {
             language_profile: LanguageProfile::ExactI32ByteBufferV0,
             ..BuildConfig::default()
         };
+        let exact_byte_input = BuildConfig {
+            language_profile: LanguageProfile::ExactI32ByteInputV0,
+            ..BuildConfig::default()
+        };
         let source = "fn main() -> int { return 0; }";
 
         for modules in [None, Some(b"module-frame".as_slice())] {
@@ -2464,16 +2482,22 @@ mod tests {
             let exact_record_result_key =
                 compilation_cache_key(source, &exact_record_result, modules);
             let exact_byte_buffer_key = compilation_cache_key(source, &exact_byte_buffer, modules);
+            let exact_byte_input_key = compilation_cache_key(source, &exact_byte_input, modules);
             assert_ne!(experimental_key, stable_key);
             assert_ne!(experimental_key, exact_array_key);
             assert_ne!(experimental_key, exact_record_result_key);
             assert_ne!(experimental_key, exact_byte_buffer_key);
+            assert_ne!(experimental_key, exact_byte_input_key);
             assert_ne!(stable_key, exact_array_key);
             assert_ne!(stable_key, exact_record_result_key);
             assert_ne!(stable_key, exact_byte_buffer_key);
+            assert_ne!(stable_key, exact_byte_input_key);
             assert_ne!(exact_array_key, exact_record_result_key);
             assert_ne!(exact_array_key, exact_byte_buffer_key);
+            assert_ne!(exact_array_key, exact_byte_input_key);
             assert_ne!(exact_record_result_key, exact_byte_buffer_key);
+            assert_ne!(exact_record_result_key, exact_byte_input_key);
+            assert_ne!(exact_byte_buffer_key, exact_byte_input_key);
         }
     }
 
@@ -2527,6 +2551,7 @@ mod tests {
             "exact-i32-array-v0",
             "exact-i32-record-result-v0",
             "exact-i32-byte-buffer-v0",
+            "exact-i32-byte-input-v0",
         ] {
             for mut arguments in cases.clone() {
                 let profile_index = arguments

@@ -531,6 +531,9 @@ impl CodeGenerator {
                 | Inst::CheckedByteBufferNew { result: ptr, .. } => {
                     Self::bump_seed_from_value(&mut seed, ptr);
                 }
+                Inst::CheckedStdinReadByte { result } => {
+                    Self::bump_seed_from_value(&mut seed, result);
+                }
                 Inst::CheckedByteBufferMove { result, source, .. }
                 | Inst::CheckedByteBufferImmutableBorrow { result, source }
                 | Inst::CheckedByteBufferMutableBorrow { result, source } => {
@@ -1685,12 +1688,17 @@ impl CodeGenerator {
     fn unsupported_exact_record_result_instruction(
         instructions: &[Inst],
         allow_byte_buffer: bool,
+        allow_byte_input: bool,
     ) -> Option<&'static str> {
         instructions
             .iter()
             .find_map(|instruction| match instruction {
                 Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
-                    Self::unsupported_exact_record_result_instruction(body, allow_byte_buffer)
+                    Self::unsupported_exact_record_result_instruction(
+                        body,
+                        allow_byte_buffer,
+                        allow_byte_input,
+                    )
                 }
                 Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) => {
                     Some("profile-excluded floating-point instruction")
@@ -1723,6 +1731,9 @@ impl CodeGenerator {
                 {
                     Some("profile-excluded byte-buffer resource instruction")
                 }
+                Inst::CheckedStdinReadByte { .. } if !allow_byte_input => {
+                    Some("profile-excluded byte-input instruction")
+                }
                 _ => None,
             })
     }
@@ -1742,6 +1753,7 @@ impl CodeGenerator {
                 reject("missing verifier-authenticated resolved profile token".to_string())
             })?;
             let allow_byte_buffer = self.language_profile.enables_byte_buffer_source();
+            let allow_byte_input = self.language_profile.enables_byte_input_source();
             Self::ensure_exact_record_result_metadata(metadata, allow_byte_buffer)
                 .map_err(&reject)?;
             self.ensure_exact_record_result_authentication(
@@ -1756,6 +1768,7 @@ impl CodeGenerator {
                 if let Some(instruction) = Self::unsupported_exact_record_result_instruction(
                     &ir_functions[function_name].body,
                     allow_byte_buffer,
+                    allow_byte_input,
                 ) {
                     return Err(reject(format!(
                         "function `{function_name}` contains {instruction}"
@@ -1940,6 +1953,7 @@ impl CodeGenerator {
                 | Inst::CheckedEnumPayload { .. }
                 | Inst::CheckedEnumField { .. }
                 | Inst::CheckedEnumDispatch { .. }
+                | Inst::CheckedStdinReadByte { .. }
                 | Inst::CheckedByteBufferNew { .. }
                 | Inst::CheckedByteBufferMove { .. }
                 | Inst::CheckedByteBufferImmutableBorrow { .. }
@@ -2061,6 +2075,16 @@ impl CodeGenerator {
         })
     }
 
+    fn contains_checked_stdin_read(instructions: &[Inst]) -> bool {
+        instructions.iter().any(|instruction| match instruction {
+            Inst::CheckedStdinReadByte { .. } => true,
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                Self::contains_checked_stdin_read(body)
+            }
+            _ => false,
+        })
+    }
+
     /// Verifies private IR and emits LLVM only after the complete program is admitted.
     pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
     where
@@ -2089,6 +2113,16 @@ impl CodeGenerator {
                 profile: self.language_profile,
                 detail: "checked byte-buffer resources require an exact i32 backend lane"
                     .to_string(),
+            });
+        }
+        let contains_checked_stdin_read = checked_ir
+            .raw()
+            .values()
+            .any(|function| Self::contains_checked_stdin_read(&function.body));
+        if contains_checked_stdin_read && !self.language_profile.enables_byte_input_source() {
+            return Err(CodeGenerationError::LanguageProfileContract {
+                profile: self.language_profile,
+                detail: "checked stdin reads require exact-i32-byte-input-v0".to_string(),
             });
         }
         self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw(), authenticated)?;
@@ -2142,6 +2176,9 @@ impl CodeGenerator {
         let requires_byte_buffer_runtime = ir_functions
             .values()
             .any(|function| Self::contains_checked_byte_buffer(&function.body));
+        let requires_byte_input_runtime = ir_functions
+            .values()
+            .any(|function| Self::contains_checked_stdin_read(&function.body));
         let mut generic_enum_identities = BTreeSet::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_generic_enum_identities(metadata, &mut generic_enum_identities);
@@ -2179,6 +2216,9 @@ impl CodeGenerator {
             llvm_ir.push_str("declare ptr @aero_alloc(i64)\n");
             llvm_ir.push_str("declare ptr @aero_realloc(ptr, i64, i64)\n");
             llvm_ir.push_str("declare void @aero_dealloc(ptr, i64)\n\n");
+        }
+        if requires_byte_input_runtime {
+            llvm_ir.push_str("declare i32 @aero_stdin_read_byte()\n\n");
         }
         if requires_array_bounds_trap {
             llvm_ir.push_str("declare void @llvm.trap()\n\n");
@@ -2406,6 +2446,14 @@ impl CodeGenerator {
 
         for inst in instructions {
             match inst {
+                Inst::CheckedStdinReadByte { result } => {
+                    let Value::Reg(result) = result else {
+                        unreachable!("verified stdin read result is a result register")
+                    };
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = call i32 @aero_stdin_read_byte()\n"
+                    ));
+                }
                 Inst::CheckedByteBufferNew { result, .. } => {
                     self.emit_checked_byte_buffer_new(llvm_ir, result);
                 }

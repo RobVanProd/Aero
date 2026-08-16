@@ -299,16 +299,16 @@ fn accepted_profiles_and_owned_byte_substrates_are_frozen_before_r1c() {
     for (relative, expected) in [
         (
             "src/compiler/runtime/aero_runtime.c",
-            "2604780079240d54ebbda84bb205c39d",
+            "993af1665a4e93249035b149dfc643be",
         ),
         (
             "src/compiler/runtime/aero_test_runtime.c",
             "5f1db08f29355e78a1dda31747ec7055",
         ),
-        ("src/compiler/src/ir.rs", "cf45477b10aad24e9a4f0f769910ddfc"),
+        ("src/compiler/src/ir.rs", "e8b0f71c86d3345aa0c6756f609b0f1d"),
         (
             "src/compiler/src/ir_verifier.rs",
-            "8f937004d4b2a3efb262dbacbe5fc474",
+            "ecd6759c4ca5c96e0d3bdad4dc39c5a2",
         ),
     ] {
         assert_eq!(

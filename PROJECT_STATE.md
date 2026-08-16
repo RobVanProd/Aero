@@ -4,7 +4,7 @@ Last updated: 2026-08-15 (America/New_York)
 
 ## Current objective
 
-### R2 authorized: deterministic whole-stream binary stdin
+### R2 locally green candidate: deterministic whole-stream binary stdin
 
 The current accepted public master is bounded R1 merge
 `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
@@ -18,21 +18,30 @@ typed failures, deterministic LLVM, Linux/Windows O0/O2 exit 91, and zero-leak
 controls. Historical Vec remains rejected; this is not a general collection or
 memory-safety claim.
 
-CAP-039/R2 is ledger-authorized from that exact head. The first honest gap is
-host input: no runtime input symbol or checked instruction exists,
-`stdin_read_byte()` is unresolved, emitted LLVM has no input declaration, and
-the public runner currently closes the compiled child's stdin through
-`Command::output`.
+CAP-039/R2 is implemented locally from that exact head. Protected publication,
+candidate-head workflows, merge, and post-merge acceptance remain pending.
 
-The frozen R2 slice adds a separate fail-closed
+The candidate adds a separate fail-closed
 `exact-i32-byte-input-v0` selector and only
 `stdin_read_byte() -> Result<int, int>`. Production C returns one binary byte as
 `0..=255`, sticky EOF as `-1`, and sticky I/O or Windows binary-mode failure as
 `-2`; source maps them to `Ok(byte)`, `Err(1)`, and `Err(2)`. One dedicated
 checked scalar instruction and independent verifier/backend authority prevent a
 raw external call. An Aero-authored loop owns EOF handling and pushes each byte
-through accepted R1. CPU `aero run` forwards stdin; check/compile/cache never
-consume it.
+through accepted R1. CPU `aero run` forwards stdin only under the R2 selector;
+every earlier profile retains closed stdin. Check/compile/cache/build never
+execute the input runtime.
+
+Focused evidence is green: eight public integration tests and three private
+contract/corruption tests cover exact source admission, wrong-profile and SSA
+corruption rejection, binary/sticky runtime behavior, empty/short/large streams,
+injected prefix failure, zero-leak cleanup, required LLVM 22, O0/O2, source/file
+parity, CLI forwarding, accelerator artifact hygiene, deterministic LLVM, and
+Linux/Windows workflow replay declarations. All-target/all-feature check and
+correctness-denying Clippy pass. The complete repository-root gate also passes
+formatting, correctness Clippy, 309 library tests, 35 binary tests, every
+integration/native/system target, and doc tests. Protected candidate-head and
+post-merge public evidence are still required before R2 can be called accepted.
 
 The exact contract, evidence matrix, allowed files, and mandatory stops are in
 [`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md) and the CAP-039 ledger.

@@ -1,6 +1,6 @@
 # Whole-Stream Byte Input Readiness Contract
 
-Status: CAP-039/R2 ledger-authorized from accepted R1 merge
+Status: CAP-039/R2 locally green implementation candidate from accepted R1 merge
 `cc75e2caa888a52f9d1c79bf806bb041b64a0a77`, tree
 `cd03dde4fb14f66d65a193c3600b56e1fd9441c9`, 2026-08-15.
 
@@ -9,6 +9,12 @@ protected merge have that identical tree. Candidate CI, Rust CI, CodeQL, and
 Linux/Windows evidence runs and accepted-head CI `31915409139`, Rust CI
 `31915409157`, CodeQL `31915409048`, and evidence `31915409130` are all
 terminal-success.
+
+The exact local R2 content passes formatting, correctness-denying Clippy, 309
+library tests, 35 binary tests, every integration/native/system target, and doc
+tests from D:-resident worktree, Cargo-target, and temp roots. Protected
+candidate publication, exact-head workflows, merge, and post-merge replay are
+still required; R2 is not yet public acceptance.
 
 ## Decision
 

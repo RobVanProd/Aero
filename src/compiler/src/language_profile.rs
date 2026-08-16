@@ -4,6 +4,7 @@ use crate::byte_buffer_source_contract::{
     BYTES_CAPACITY, BYTES_GET, BYTES_LENGTH, BYTES_NEW, BYTES_PUSH,
     is_reserved_byte_buffer_intrinsic,
 };
+use crate::byte_input_source_contract::{STDIN_READ_BYTE, is_reserved_byte_input_intrinsic};
 use crate::ir::LogicalType;
 use crate::resolved_profile_shape::{
     ResolvedProfileAssignmentProjection, ResolvedProfileAssignmentRoot,
@@ -20,6 +21,7 @@ pub(crate) const STABLE_SCALAR_V0_NAME: &str = "stable-scalar-v0";
 pub(crate) const EXACT_I32_ARRAY_V0_NAME: &str = "exact-i32-array-v0";
 pub(crate) const EXACT_I32_RECORD_RESULT_V0_NAME: &str = "exact-i32-record-result-v0";
 pub(crate) const EXACT_I32_BYTE_BUFFER_V0_NAME: &str = "exact-i32-byte-buffer-v0";
+pub(crate) const EXACT_I32_BYTE_INPUT_V0_NAME: &str = "exact-i32-byte-input-v0";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum LanguageProfile {
@@ -29,6 +31,7 @@ pub enum LanguageProfile {
     ExactI32ArrayV0,
     ExactI32RecordResultV0,
     ExactI32ByteBufferV0,
+    ExactI32ByteInputV0,
 }
 
 impl LanguageProfile {
@@ -39,6 +42,7 @@ impl LanguageProfile {
             Self::ExactI32ArrayV0 => EXACT_I32_ARRAY_V0_NAME,
             Self::ExactI32RecordResultV0 => EXACT_I32_RECORD_RESULT_V0_NAME,
             Self::ExactI32ByteBufferV0 => EXACT_I32_BYTE_BUFFER_V0_NAME,
+            Self::ExactI32ByteInputV0 => EXACT_I32_BYTE_INPUT_V0_NAME,
         }
     }
 
@@ -50,25 +54,33 @@ impl LanguageProfile {
                 | Self::ExactI32ArrayV0
                 | Self::ExactI32RecordResultV0
                 | Self::ExactI32ByteBufferV0
+                | Self::ExactI32ByteInputV0
         )
     }
 
     pub(crate) fn uses_exact_record_result_layout(self) -> bool {
         matches!(
             self,
-            Self::ExactI32RecordResultV0 | Self::ExactI32ByteBufferV0
+            Self::ExactI32RecordResultV0 | Self::ExactI32ByteBufferV0 | Self::ExactI32ByteInputV0
         )
     }
 
     pub(crate) fn enables_byte_buffer_source(self) -> bool {
-        self == Self::ExactI32ByteBufferV0
+        matches!(self, Self::ExactI32ByteBufferV0 | Self::ExactI32ByteInputV0)
+    }
+
+    pub(crate) fn enables_byte_input_source(self) -> bool {
+        self == Self::ExactI32ByteInputV0
     }
 
     /// Whether this profile admits the exact, flat, nonempty i32-array shape.
     pub(crate) fn admits_exact_i32_array(self, logical_type: &LogicalType) -> bool {
         matches!(
             self,
-            Self::ExactI32ArrayV0 | Self::ExactI32RecordResultV0 | Self::ExactI32ByteBufferV0
+            Self::ExactI32ArrayV0
+                | Self::ExactI32RecordResultV0
+                | Self::ExactI32ByteBufferV0
+                | Self::ExactI32ByteInputV0
         ) && matches!(
             classify_profile_logical_type(logical_type),
             ProfileTypeShape::ExactI32Array { .. }
@@ -92,8 +104,9 @@ impl FromStr for LanguageProfile {
             EXACT_I32_ARRAY_V0_NAME => Ok(Self::ExactI32ArrayV0),
             EXACT_I32_RECORD_RESULT_V0_NAME => Ok(Self::ExactI32RecordResultV0),
             EXACT_I32_BYTE_BUFFER_V0_NAME => Ok(Self::ExactI32ByteBufferV0),
+            EXACT_I32_BYTE_INPUT_V0_NAME => Ok(Self::ExactI32ByteInputV0),
             _ => Err(format!(
-                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME}|{EXACT_I32_RECORD_RESULT_V0_NAME}|{EXACT_I32_BYTE_BUFFER_V0_NAME})"
+                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME}|{EXACT_I32_RECORD_RESULT_V0_NAME}|{EXACT_I32_BYTE_BUFFER_V0_NAME}|{EXACT_I32_BYTE_INPUT_V0_NAME})"
             )),
         }
     }
@@ -134,6 +147,7 @@ pub(crate) fn profile_type_shape_is_admitted(
                 LanguageProfile::ExactI32ArrayV0
                     | LanguageProfile::ExactI32RecordResultV0
                     | LanguageProfile::ExactI32ByteBufferV0
+                    | LanguageProfile::ExactI32ByteInputV0
             ) && usage != ProfileTypeUse::OwnedAssignment
         }
         ProfileTypeShape::Unsupported => false,
@@ -209,7 +223,8 @@ pub(crate) fn validate_language_profile(
     match profile {
         LanguageProfile::Experimental
         | LanguageProfile::ExactI32RecordResultV0
-        | LanguageProfile::ExactI32ByteBufferV0 => Ok(()),
+        | LanguageProfile::ExactI32ByteBufferV0
+        | LanguageProfile::ExactI32ByteInputV0 => Ok(()),
         LanguageProfile::StableScalarV0 | LanguageProfile::ExactI32ArrayV0 => {
             ProfileValidator::validate(ast, profile)
         }
@@ -227,22 +242,65 @@ pub(crate) fn validate_resolved_language_profile(
         LanguageProfile::ExactI32RecordResultV0 => {
             ExactRecordResultProfileValidator::validate(program)
         }
-        LanguageProfile::ExactI32ByteBufferV0 => ExactByteBufferProfileValidator::validate(program),
+        LanguageProfile::ExactI32ByteBufferV0 => ExactByteBufferProfileValidator::validate(
+            program,
+            LanguageProfile::ExactI32ByteBufferV0,
+        ),
+        LanguageProfile::ExactI32ByteInputV0 => {
+            ExactByteInputProfileValidator::validate(program)?;
+            ExactByteBufferProfileValidator::validate(program, LanguageProfile::ExactI32ByteInputV0)
+        }
         _ => Ok(()),
+    }
+}
+
+struct ExactByteInputProfileValidator;
+
+impl ExactByteInputProfileValidator {
+    fn validate(program: &ResolvedProfileProgram) -> Result<(), String> {
+        for observation in &program.surface {
+            let ResolvedProfileSurfaceObservation::Expression {
+                context,
+                kind: ResolvedProfileExpressionKind::FunctionCall { name, arguments },
+            } = observation
+            else {
+                continue;
+            };
+            if !is_reserved_byte_input_intrinsic(name) {
+                continue;
+            }
+            if !matches!(
+                context,
+                ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source { .. })
+            ) {
+                return Err(profile_named_error(
+                    LanguageProfile::ExactI32ByteInputV0,
+                    "byte-input intrinsic outside a direct source function",
+                ));
+            }
+            if !arguments.is_empty() {
+                return Err(profile_named_error(
+                    LanguageProfile::ExactI32ByteInputV0,
+                    &format!("byte-input intrinsic `{STDIN_READ_BYTE}` argument topology"),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
 struct ExactByteBufferProfileValidator;
 
 impl ExactByteBufferProfileValidator {
-    fn validate(program: &ResolvedProfileProgram) -> Result<(), String> {
-        let byte_shapes = Self::validate_shapes_and_uses(program)?;
+    fn validate(program: &ResolvedProfileProgram, profile: LanguageProfile) -> Result<(), String> {
+        let byte_shapes = Self::validate_shapes_and_uses(program, profile)?;
         let (expected_immutable_borrows, expected_mutable_borrows) =
-            Self::validate_intrinsic_surface(program)?;
+            Self::validate_intrinsic_surface(program, profile)?;
         Self::validate_borrow_surface(
             program,
             expected_immutable_borrows,
             expected_mutable_borrows,
+            profile,
         )?;
 
         let mut sanitized = program.clone();
@@ -259,17 +317,12 @@ impl ExactByteBufferProfileValidator {
                 }
             )
         });
-        ExactRecordResultProfileValidator::validate(&sanitized).map_err(|error| {
-            error.replacen(
-                EXACT_I32_RECORD_RESULT_V0_NAME,
-                EXACT_I32_BYTE_BUFFER_V0_NAME,
-                1,
-            )
-        })
+        ExactRecordResultProfileValidator::validate(&sanitized)
+            .map_err(|error| error.replacen(EXACT_I32_RECORD_RESULT_V0_NAME, profile.as_str(), 1))
     }
 
-    fn reject(feature: impl AsRef<str>) -> String {
-        profile_named_error(LanguageProfile::ExactI32ByteBufferV0, feature.as_ref())
+    fn reject(profile: LanguageProfile, feature: impl AsRef<str>) -> String {
+        profile_named_error(profile, feature.as_ref())
     }
 
     fn resolution_shape_id(
@@ -312,15 +365,17 @@ impl ExactByteBufferProfileValidator {
 
     fn validate_shapes_and_uses(
         program: &ResolvedProfileProgram,
+        profile: LanguageProfile,
     ) -> Result<BTreeSet<crate::resolved_profile_shape::ResolvedProfileShapeId>, String> {
         let mut byte_shapes = BTreeSet::new();
         for (index, logical) in program.shapes.iter().enumerate() {
             if logical == &LogicalType::ByteBuffer {
                 byte_shapes.insert(crate::resolved_profile_shape::ResolvedProfileShapeId(index));
             } else if Self::contains_byte_buffer(logical) {
-                return Err(Self::reject(format!(
-                    "nested ByteBuffer logical type `{logical}`"
-                )));
+                return Err(Self::reject(
+                    profile,
+                    format!("nested ByteBuffer logical type `{logical}`"),
+                ));
             }
         }
         for usage in &program.uses {
@@ -339,10 +394,13 @@ impl ExactByteBufferProfileValidator {
                         | ProfileTypeUse::Value
                 )
             {
-                return Err(Self::reject(format!(
-                    "{:?} ByteBuffer use outside a direct source function",
-                    usage.role
-                )));
+                return Err(Self::reject(
+                    profile,
+                    format!(
+                        "{:?} ByteBuffer use outside a direct source function",
+                        usage.role
+                    ),
+                ));
             }
         }
         Ok(byte_shapes)
@@ -350,6 +408,7 @@ impl ExactByteBufferProfileValidator {
 
     fn validate_intrinsic_surface(
         program: &ResolvedProfileProgram,
+        profile: LanguageProfile,
     ) -> Result<(usize, usize), String> {
         let mut immutable_borrows = 0_usize;
         let mut mutable_borrows = 0_usize;
@@ -368,9 +427,10 @@ impl ExactByteBufferProfileValidator {
                 context,
                 ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source { .. })
             ) {
-                return Err(Self::reject(format!(
-                    "byte-buffer intrinsic `{name}` outside a source function"
-                )));
+                return Err(Self::reject(
+                    profile,
+                    format!("byte-buffer intrinsic `{name}` outside a source function"),
+                ));
             }
             let expected = match name.as_str() {
                 BYTES_NEW => &[][..],
@@ -388,9 +448,10 @@ impl ExactByteBufferProfileValidator {
                 _ => unreachable!("reserved byte-buffer intrinsic is closed"),
             };
             if arguments.as_slice() != expected {
-                return Err(Self::reject(format!(
-                    "byte-buffer intrinsic `{name}` argument topology"
-                )));
+                return Err(Self::reject(
+                    profile,
+                    format!("byte-buffer intrinsic `{name}` argument topology"),
+                ));
             }
             immutable_borrows += arguments
                 .iter()
@@ -412,6 +473,7 @@ impl ExactByteBufferProfileValidator {
         program: &ResolvedProfileProgram,
         expected_immutable: usize,
         expected_mutable: usize,
+        profile: LanguageProfile,
     ) -> Result<(), String> {
         let mut immutable = 0_usize;
         let mut mutable = 0_usize;
@@ -430,7 +492,7 @@ impl ExactByteBufferProfileValidator {
                 context,
                 ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source { .. })
             ) {
-                return Err(Self::reject("borrow outside a source function"));
+                return Err(Self::reject(profile, "borrow outside a source function"));
             }
             if *is_mutable {
                 mutable += 1;
@@ -440,6 +502,7 @@ impl ExactByteBufferProfileValidator {
         }
         if immutable != expected_immutable || mutable != expected_mutable {
             return Err(Self::reject(
+                profile,
                 "borrow expression outside an immediate byte-buffer intrinsic argument",
             ));
         }

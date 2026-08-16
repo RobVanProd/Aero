@@ -748,6 +748,16 @@ fn checked_byte_buffer_runtime_symbol(name: &str) -> bool {
     matches!(name, "aero_alloc" | "aero_realloc" | "aero_dealloc")
 }
 
+fn contains_checked_stdin_read(instructions: &[Inst]) -> bool {
+    instructions.iter().any(|instruction| match instruction {
+        Inst::CheckedStdinReadByte { .. } => true,
+        Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+            contains_checked_stdin_read(body)
+        }
+        _ => false,
+    })
+}
+
 fn collect_bodies<'a>(
     ir: &'a RawIr,
 ) -> Result<(Vec<Body<'a>>, BTreeMap<String, FunctionSignature>), IrVerificationError> {
@@ -758,6 +768,9 @@ fn collect_bodies<'a>(
     let reserves_byte_buffer_runtime = functions
         .iter()
         .any(|(_, function)| contains_checked_byte_buffer(&function.body));
+    let reserves_byte_input_runtime = functions
+        .iter()
+        .any(|(_, function)| contains_checked_stdin_read(&function.body));
 
     for (map_key, function) in &functions {
         if map_key.as_str() != function.name {
@@ -799,6 +812,16 @@ fn collect_bodies<'a>(
                 )),
             ));
         }
+        if reserves_byte_input_runtime && function.name == "aero_stdin_read_byte" {
+            return Err(IrVerificationError::new(
+                &function.name,
+                None,
+                IrVerificationErrorKind::MetadataMismatch(
+                    "`aero_stdin_read_byte` is reserved by the checked byte-input runtime ABI"
+                        .to_string(),
+                ),
+            ));
+        }
         for instruction in &function.body {
             let definition = match instruction {
                 Inst::FunctionDef {
@@ -823,6 +846,16 @@ fn collect_bodies<'a>(
                         IrVerificationErrorKind::MetadataMismatch(format!(
                             "`{name}` is reserved by the checked byte-buffer runtime ABI"
                         )),
+                    ));
+                }
+                if reserves_byte_input_runtime && name == "aero_stdin_read_byte" {
+                    return Err(IrVerificationError::new(
+                        name,
+                        None,
+                        IrVerificationErrorKind::MetadataMismatch(
+                            "`aero_stdin_read_byte` is reserved by the checked byte-input runtime ABI"
+                                .to_string(),
+                        ),
                     ));
                 }
                 if definitions
@@ -1095,6 +1128,7 @@ fn result_definition(instruction: &Inst) -> Option<&Value> {
         | Inst::CheckedEnumField { result, .. }
         | Inst::CheckedImmutableEnumMatchRead { result, .. }
         | Inst::CheckedMutableEnumMatchRead { result, .. }
+        | Inst::CheckedStdinReadByte { result }
         | Inst::CheckedByteBufferPush { result, .. }
         | Inst::CheckedByteBufferLength { result, .. }
         | Inst::CheckedByteBufferCapacity { result, .. }
@@ -1149,6 +1183,7 @@ fn definition_type(
         | Inst::Mul(..)
         | Inst::Div(..)
         | Inst::FPToSI(..)
+        | Inst::CheckedStdinReadByte { .. }
         | Inst::CheckedByteBufferPush { .. }
         | Inst::CheckedByteBufferLength { .. }
         | Inst::CheckedByteBufferCapacity { .. }
@@ -4228,6 +4263,7 @@ impl<'a> FunctionVerifier<'a> {
                     | Inst::AllocaArray { .. }
                     | Inst::CheckedStructAlloca { .. }
                     | Inst::CheckedTupleAlloca { .. }
+                    | Inst::CheckedStdinReadByte { .. }
                     | Inst::Label(_) => {}
                     Inst::Store(place, value) => {
                         let id = self.require_place(place, "store", block_index, position)?;

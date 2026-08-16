@@ -3,6 +3,14 @@
 Status: CAP-035 route plus R1A/R1B/R1C and bounded R1 accepted,
 2026-08-15.
 
+CAP-039/R2 is now a locally green, not-yet-public candidate layered above this
+accepted storage contract. It feeds one verified scalar byte at a time through
+the existing `bytes_push` API; input never receives a buffer pointer and does
+not alter R1 ownership, allocation, initialized-range, growth, loan, move, or
+drop rules. Its complete local root gate passes 309 library tests, 35 binary
+tests, every integration/native/system target, and doc tests. See
+[`BYTE_INPUT_READINESS.md`](BYTE_INPUT_READINESS.md).
+
 Accepted analysis base: CAP-032 merge
 `ce70f795e17a2da10253048c587cb475582c3f50`, tree
 `0464664982d90c5f76dc44001007b2ac7ffeee1c`.

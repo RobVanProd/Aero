@@ -9,6 +9,11 @@ use crate::byte_buffer_source_contract::{
     classify_byte_buffer_intrinsic_call, contains_byte_buffer_annotation,
     is_byte_buffer_annotation, is_reserved_byte_buffer_intrinsic, result_context_diagnostic,
 };
+use crate::byte_input_source_contract::{
+    STDIN_READ_BYTE, classify_byte_input_intrinsic_call, is_direct_byte_input_result_initializer,
+    is_reserved_byte_input_intrinsic,
+    result_context_diagnostic as byte_input_result_context_diagnostic,
+};
 use crate::closure_contract::unsupported_closure_diagnostic;
 use crate::const_contract::normalize_primitive_consts;
 use crate::enum_match_contract::{
@@ -121,6 +126,7 @@ struct AdmissionProgram {
     structs: StructRegistry,
     enums: EnumRegistry,
     byte_buffer_source_enabled: bool,
+    byte_input_source_enabled: bool,
 }
 
 #[derive(Clone)]
@@ -136,6 +142,7 @@ const STRUCT_ADMISSION_BINDING: &str = "\0aero.checked.struct.context";
 enum ExpressionUse {
     Value,
     Binding,
+    ByteInputResultBinding,
     PrintArgument,
     Discarded,
     MatchArm,
@@ -199,6 +206,7 @@ pub struct IrGenerator {
     struct_registry: StructRegistry,
     enum_registry: EnumRegistry,
     byte_buffer_source_enabled: bool,
+    byte_input_source_enabled: bool,
     generated_byte_buffer_owners: Vec<GeneratedByteBufferOwner>,
 }
 
@@ -225,6 +233,7 @@ impl IrGenerator {
             struct_registry: StructRegistry::default(),
             enum_registry: EnumRegistry::default(),
             byte_buffer_source_enabled: false,
+            byte_input_source_enabled: false,
             generated_byte_buffer_owners: Vec::new(),
         }
     }
@@ -232,6 +241,12 @@ impl IrGenerator {
     pub(crate) fn new_with_byte_buffer_source() -> Self {
         let mut generator = Self::new();
         generator.byte_buffer_source_enabled = true;
+        generator
+    }
+
+    pub(crate) fn new_with_byte_input_source() -> Self {
+        let mut generator = Self::new_with_byte_buffer_source();
+        generator.byte_input_source_enabled = true;
         generator
     }
 }
@@ -279,7 +294,11 @@ impl IrGenerator {
         let ast = normalize_primitive_consts(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_copydata_specializations(ast).map_err(IrGenerationError::Admission)?;
         let ast = normalize_builtin_carriers(ast).map_err(IrGenerationError::Admission)?;
-        Self::validate_checked_ast(&ast, self.byte_buffer_source_enabled)?;
+        Self::validate_checked_ast(
+            &ast,
+            self.byte_buffer_source_enabled,
+            self.byte_input_source_enabled,
+        )?;
         self.struct_registry = StructRegistry::from_top_level_ast(&ast);
         self.enum_registry = EnumRegistry::from_top_level_ast(&ast, &self.struct_registry);
         self.functions.clear();
@@ -738,6 +757,37 @@ impl IrGenerator {
         }))
     }
 
+    fn validate_byte_input_intrinsic(
+        name: &str,
+        arguments: &[Expression],
+        program: &AdmissionProgram,
+        expression_use: ExpressionUse,
+        inside_impl: bool,
+    ) -> Result<Option<Ty>, IrGenerationError> {
+        if !program.byte_input_source_enabled
+            || !classify_byte_input_intrinsic_call(name, arguments)
+                .map_err(IrGenerationError::Admission)?
+        {
+            return Ok(None);
+        }
+        if inside_impl {
+            return Err(IrGenerationError::Admission(format!(
+                "byte-input intrinsic `{STDIN_READ_BYTE}` requires a direct nongeneric source function body"
+            )));
+        }
+        if expression_use != ExpressionUse::ByteInputResultBinding {
+            return Err(IrGenerationError::Admission(
+                byte_input_result_context_diagnostic(),
+            ));
+        }
+        let result = private_result_int_int_name();
+        program
+            .enums
+            .owned_place_logical_type(&result)
+            .map_err(|_| IrGenerationError::Admission(byte_input_result_context_diagnostic()))?;
+        Ok(Some(Ty::Enum(result)))
+    }
+
     fn validate_byte_buffer_binding(
         name: &str,
         mutable: bool,
@@ -825,6 +875,7 @@ impl IrGenerator {
     fn validate_checked_ast(
         ast: &[AstNode],
         byte_buffer_source_enabled: bool,
+        byte_input_source_enabled: bool,
     ) -> Result<(), IrGenerationError> {
         if byte_buffer_source_enabled {
             for node in ast {
@@ -866,6 +917,11 @@ impl IrGenerator {
                             "function `{name}` cannot transport ByteBuffer in a parameter or result"
                         )));
                     }
+                }
+                if byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
+                    return Err(IrGenerationError::Admission(format!(
+                        "byte-input intrinsic name `{name}` is reserved by exact-i32-byte-input-v0"
+                    )));
                 }
                 let reference_contract = match classify_reference_function_with_enums(
                     name,
@@ -991,6 +1047,7 @@ impl IrGenerator {
             structs,
             enums,
             byte_buffer_source_enabled,
+            byte_input_source_enabled,
         };
         let mut bindings = HashMap::new();
         let mut loop_controls = Vec::<AdmissionLoopControl>::new();
@@ -1372,6 +1429,20 @@ impl IrGenerator {
                 type_annotation,
                 value,
             } => {
+                let byte_input_result_initializer = value.as_ref().is_some_and(|value| {
+                    is_direct_byte_input_result_initializer(value, type_annotation.as_ref())
+                });
+                if program.byte_input_source_enabled
+                    && value.as_ref().is_some_and(|value| {
+                        matches!(value, Expression::FunctionCall { name, arguments }
+                            if is_reserved_byte_input_intrinsic(name) && arguments.is_empty())
+                    })
+                    && !byte_input_result_initializer
+                {
+                    return Err(IrGenerationError::Admission(
+                        byte_input_result_context_diagnostic(),
+                    ));
+                }
                 if Self::validate_byte_buffer_binding(
                     name,
                     *mutable,
@@ -1409,7 +1480,11 @@ impl IrGenerator {
                             value,
                             bindings,
                             program,
-                            ExpressionUse::Binding,
+                            if byte_input_result_initializer {
+                                ExpressionUse::ByteInputResultBinding
+                            } else {
+                                ExpressionUse::Binding
+                            },
                             inside_impl,
                             !inside_impl,
                         )?
@@ -1427,7 +1502,11 @@ impl IrGenerator {
                             value,
                             bindings,
                             program,
-                            ExpressionUse::Binding,
+                            if byte_input_result_initializer {
+                                ExpressionUse::ByteInputResultBinding
+                            } else {
+                                ExpressionUse::Binding
+                            },
                             inside_impl,
                             !inside_impl,
                         )?
@@ -2541,6 +2620,15 @@ impl IrGenerator {
                 Ok(derived_ty)
             }
             Expression::FunctionCall { name, arguments } => {
+                if let Some(result) = Self::validate_byte_input_intrinsic(
+                    name,
+                    arguments,
+                    program,
+                    expression_use,
+                    inside_impl,
+                )? {
+                    return Ok(result);
+                }
                 if let Some(result) = Self::validate_byte_buffer_intrinsic(
                     name,
                     arguments,
@@ -4440,6 +4528,27 @@ impl IrGenerator {
         (result, Ty::Enum(schema.name))
     }
 
+    fn generate_byte_input_intrinsic(
+        &mut self,
+        name: &str,
+        arguments: &[Expression],
+        function: &mut Function,
+    ) -> Option<(Value, Ty)> {
+        if !self.checked_mode
+            || !self.byte_input_source_enabled
+            || !classify_byte_input_intrinsic_call(name, arguments)
+                .expect("checked byte-input intrinsic has exact syntax")
+        {
+            return None;
+        }
+        let raw = Value::Reg(self.next_reg);
+        self.next_reg += 1;
+        function.body.push(Inst::CheckedStdinReadByte {
+            result: raw.clone(),
+        });
+        Some(self.wrap_byte_buffer_status_result(raw, function))
+    }
+
     fn generate_byte_buffer_intrinsic(
         &mut self,
         name: &str,
@@ -5152,6 +5261,11 @@ impl IrGenerator {
                 (result_reg, result_type)
             }
             Expression::FunctionCall { name, arguments } => {
+                if let Some(result) =
+                    self.generate_byte_input_intrinsic(&name, &arguments, function)
+                {
+                    return result;
+                }
                 if let Some(result) =
                     self.generate_byte_buffer_intrinsic(&name, &arguments, function)
                 {

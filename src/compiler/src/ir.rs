@@ -153,6 +153,10 @@ pub enum Inst {
         pointee: LogicalType,
         mutable: bool,
     },
+    /// Read one raw binary byte or a negative sticky runtime sentinel from stdin.
+    CheckedStdinReadByte {
+        result: Value,
+    },
     /// Verified creation of one allocation-free local byte-buffer owner.
     CheckedByteBufferNew {
         result: Value,
