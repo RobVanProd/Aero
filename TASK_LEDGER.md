@@ -1,5 +1,152 @@
 # Aero Task Ledger
 
+## CAP-048-H1-BOOTSTRAP-CONVERGENCE-CONTRACT - freeze the self-hosting boundary and stage protocol
+
+- Date/task/status: 2026-08-16,
+  `CAP-048-H1-BOOTSTRAP-CONVERGENCE-CONTRACT`, authorized documentation-only and
+  ledger-first from accepted CAP-047/B1C merge
+  `0365e5c91bd503b198855b97b7f16054488d6dff`, tree
+  `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`, after documentation-only B1C
+  acceptance sync `7231b4e`. Reviewed B1C candidate
+  `18a507c8fabfc79e24167c79bef516b531506914` has the accepted tree; protected
+  PR #89, all 13 candidate checks, and accepted-head CI `31975615300`, Rust CI
+  `31975615304`, CodeQL `31975614982`, and evidence `31975615309` are
+  terminal-green. This record authorizes no compiler behavior yet.
+- D:-only task storage: the worktree, Cargo target, and temporary root are
+  respectively `D:\Aero-worktrees\h1-convergence`,
+  `D:\Aero-build-targets\h1`, and `D:\Aero-temp\h1`. Every task-created source
+  copy, source bundle, stage executable, Cargo artifact, runtime object, LLVM,
+  bitcode, object, manifest, log, native harness, and temporary path must remain
+  on `D:`. Installed tools on `C:` may be read or executed, but no task cache,
+  build tree, temporary directory, or generated artifact may be placed there.
+- Observed behavior and first honest boundary: accepted B1C is a bounded
+  compiler pipeline, not a self-compiling compiler. Its tracked Aero source
+  `examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero` is 241,941
+  bytes, 5,564 LF-delimited lines, and 23 top-level functions. The compiler it
+  implements admits at most 8,192 source bytes, 1,024 token records, 1,024
+  names, 512 syntax nodes, and one frozen function/expression grammar. The B1C
+  host driver supplies exactly 34 fixed bytes and accepts exactly one 144-byte
+  LLVM module; it cannot pass the compiler's own source. Feeding the accepted
+  compiler source to that stage therefore reaches the source-size boundary
+  before a complete token stream, while raising only that limit would next
+  expose the token and grammar boundaries. A fixed demo, copied expected bytes,
+  host-side parse, or hardcoded self-image is the wrong H1 result.
+- Hypothesis and decomposition: reproducible self-hosting can be reached only by
+  expanding the Aero-authored compiler until it accepts and compiles its exact
+  own source through the already accepted byte-owner, frontend, semantic,
+  checked-IR, verifier, LLVM-emission, and raw-output authorities. H1 is an
+  umbrella gate, not one oversized mutation. Each prerequisite must be a
+  separate ledger-first, red-first, at-most-two-phase checkpoint that preserves
+  the accepted predecessor ring. Planned gates are: H1A complete canonical
+  source ingestion/tokenization; H1B self-source grammar and flat-AST coverage;
+  H1C self-source semantic facts and checked IR; H1D independent verification
+  plus full required LLVM lowering; H1E exact compiler process interface and
+  convergence driver; then the final immutable H1 stage replay. A gate may be
+  split further when two compiler authorities would otherwise be exceeded.
+- Frozen canonical source-bundle rule: the final H1 compiler source is one
+  tracked, ordinary 7-bit-ASCII, LF-only file at
+  `examples/aero_self_host_v0/compiler.aero`. A new file preserves every
+  accepted predecessor product unchanged. It may evolve only through the
+  separately authorized H1 prerequisite checkpoints; before the final H1 stage
+  replay, its exact byte length and SHA-256 are frozen in the convergence
+  manifest. No generated code, include expansion, conditional host source,
+  semantic bundler, file lookup, module graph, symlink, path-dependent content,
+  timestamp, or network input is permitted. Positive maintainable modules remain
+  G1 work; the single file is the complete declared bootstrap bundle.
+- Frozen compiler process interface: the final H1 compiler executable consumes
+  exactly one complete compiler-source byte stream from binary stdin and closes
+  that input at EOF. On success it writes only canonical ASCII/LF LLVM to binary
+  stdout, writes nothing to stderr, and exits zero. On source or compiler failure
+  it writes no LLVM bytes, emits the exact frozen ASCII diagnostic to stderr,
+  exits nonzero, and leaves no artifact. It accepts no file path, environment
+  fallback, command shell, hidden source, expected-value parameter, Rust helper,
+  or process-spawn operation. The existing scalar stdin/stdout and owned buffer
+  contracts remain the only source and output transports until separately
+  widened.
+- Frozen stage protocol: stage 0 is the exact accepted Rust `aero` compiler at
+  the H1 base, used once to compile the canonical Aero source under the exact
+  selected CPU profile and link the stage-1 executable. Stage 1 receives the
+  identical canonical source bytes and emits `stage2.ll`; explicit LLVM 22.1.8
+  verification/lowering plus the frozen runtime link produce stage 2. Stage 2
+  receives the identical source bytes and emits `comparison.ll`. No Rust lexer,
+  parser, semantic analyzer, IR generator, verifier, or code generator may run
+  after stage 1 starts. The orchestration layer may only hash/capture bytes,
+  enforce transactions, invoke the explicitly declared tools, and compare
+  artifacts; it may not parse Aero or manufacture/repair LLVM.
+- Frozen convergence comparison: `stage2.ll` and `comparison.ll` must be
+  byte-for-byte identical before either is published. Both must independently
+  verify with `llvm-as` 22.1.8. Repeated clean stage-1 and stage-2 runs must emit
+  the same raw LLVM hashes and empty stderr. Each identical LLVM file is lowered
+  and linked with the same exact commands, runtime object, Clang 22.1.8, and
+  LLVM lld 22.1.8. Per-platform linked executables must be byte-identical across
+  repeated builds under deterministic linker flags; Linux and Windows binary
+  hashes may differ, but their canonical manifests, compiler corpus results,
+  exit/stdout/stderr behavior, and compiler-emitted LLVM must agree. If a host
+  artifact contains unavoidable metadata, its exact field, extractor, value,
+  and exclusion must be frozen and independently checked before implementation;
+  silently ignoring whole files, sections, timestamps, paths, or tool output is
+  forbidden.
+- Frozen environment/toolchain manifest: every final run records schema version,
+  accepted commit/tree/ordered parents and clean status, compiler-source path,
+  length and SHA-256, runtime source/object hashes, stage-0 executable hash and
+  reported version, OS/architecture, exact Rust/Cargo identity used only for
+  stage 0, exact LLVM/Clang/lld 22.1.8 executable paths/hashes/banners, every
+  command/argv and deterministic flag, allowed environment variables, input and
+  output hashes/sizes, process exit/stdout/stderr, and transaction-relative
+  artifact names. Absolute task paths are represented only by declared role and
+  are never compiler input. Locale/timezone/code-page behavior and Windows
+  binary streams must be fixed. Network access and undeclared tools are absent.
+- Frozen compiler conformance boundary: H1 must run stage 1 and stage 2 over the
+  same independently frozen valid, invalid, allocation-failure, malformed-input,
+  checked-IR-corruption, LLVM-verification, and source-to-native corpus. The
+  minimum positive corpus includes the compiler's own source and the accepted
+  F1/M1/B1 canonical program. Negative programs must fail before LLVM and both
+  stages must produce the same exact diagnostic/exit behavior. The H1 corpus is
+  a bootstrap-subset proof, not the entire experimental language or a stability,
+  memory-safety, optimization, performance, package, release, ROCm, or CUDA
+  claim.
+- Transaction and failure rules: every stage builds in a new absent child of
+  the D:-resident task root. Capture and authenticate complete stdout/stderr
+  before publishing the next artifact. On a source, digest, environment, tool,
+  process, verifier, comparison, corpus, or cleanup failure, remove only the
+  newly created transaction and return failure; never overwrite or reuse a
+  stage directory. A partial stream, source truncation, capacity stop, fallback
+  type, skipped diagnostic, noncanonical line ending, different repeated hash,
+  undeclared child process, PATH-selected tool, dirty source, or stage-specific
+  source byte is a hard failure, not an ignored difference.
+- Allowed documentation files for CAP-048, exactly: this `TASK_LEDGER.md`; new
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`;
+  `BOOTSTRAP_DRIVER_READINESS.md`; `AERO_FRONTEND_READINESS.md`; and
+  `PROJECT_STATE.md`. No compiler/runtime source, test, example, workflow,
+  manifest, dependency, lockfile, claim evidence, benchmark, release, package,
+  cache, or accepted product may change in CAP-048.
+- CAP-048 acceptance: the new readiness record must contain the exact current
+  first failure, canonical bundle rule, stage protocol, trust base, manifest
+  schema, comparison, subgate order, conformance requirements, D:-only storage,
+  explicit non-claims, and exact next red-first checkpoint. All local Markdown
+  links must resolve; version/claim tests, repository governance checks,
+  `git diff --check`, formatting, correctness Clippy, and `./tools/test.sh` must
+  pass with one Cargo job/thread and all task outputs redirected to D:. An
+  independent audit must find no route that calls Rust compiler logic after
+  stage 1, treats expected bytes as authority, or labels readiness as H1/H2.
+- Risks and mandatory stops: stop rather than weaken the self-hosting definition
+  if the final source is not the bytes compiled by both stages; a stage needs
+  host parsing, hidden code generation, dynamic source substitution, a second
+  source bundle, or a Rust compiler decision; comparison cannot be exact and its
+  exclusions cannot be field-level and deterministic; tool identity cannot be
+  pinned; an implementation checkpoint crosses more than two compiler phases;
+  a current accepted byte, diagnostic, owner, cleanup count, profile, runtime
+  ABI, serialized schema, verifier, LLVM product, or workflow changes outside
+  its prior ledger; or any generated state would be written to C:. H1 does not
+  authorize H2 or any self-hosting claim.
+- Recommended next action after CAP-048: authorize H1A separately and red-first.
+  Add the new canonical source as an exact copy-derived successor of accepted
+  B1C, then prove its entire byte stream and token stream are consumed under
+  independent oracles before the parser reports the first genuine unsupported
+  self-source construct. Do not change grammar, semantics, checked IR, verifier,
+  emitter, or stage driver in H1A; stop if source/token scaling itself requires
+  a new language/runtime authority.
+
 ## CAP-047-B1C-BOUNDED-STDOUT-TOOLCHAIN-DRIVER - authenticated LLVM stream and external driver
 
 - Date/task/status: 2026-08-16,
