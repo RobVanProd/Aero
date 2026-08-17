@@ -1,14 +1,15 @@
 # Bootstrap Convergence Readiness
 
-Status: CAP-048/H1 locally green contract candidate from accepted CAP-047/B1C merge
+Status: CAP-049/H1A is a locally green ingestion candidate on top of the
+CAP-048/H1 contract, from accepted CAP-047/B1C merge
 `0365e5c91bd503b198855b97b7f16054488d6dff`, tree
-`e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`, on 2026-08-16. Reviewed B1C
-candidate `18a507c8fabfc79e24167c79bef516b531506914` has the identical tree;
-protected PR #89 and all candidate and accepted-head workflows are green.
-CAP-048 changes documentation only. Its focused claim/governance checks and
-complete D:-redirected repository gate are green. It freezes what H1 must prove
-before the first convergence implementation is accepted; it does not claim H1
-or H2.
+`e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`. CAP-048 froze what H1 must prove and
+changed documentation only. CAP-049 is the first H1 prerequisite to execute: the
+Aero-authored compiler now consumes its own complete source, name, and token
+streams and stops at one independently predicted parser construct. Reaching that
+required one separately scoped code-generator fix, CORE-093. Neither is H1B, H1,
+H2, stage convergence, or any self-hosting claim, and neither is published or
+accepted yet.
 
 ## Decision
 
@@ -26,7 +27,32 @@ as convergence.
 
 ## Current executable boundary
 
-Accepted B1C proves a real but bounded pipeline:
+CAP-049/H1A moved the first boundary. The canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+— 241,918 bytes, 5,563 LF bytes, SHA-256
+`977a1f3e0562f2b6507873febcdf8fd3f59b2f3a1370327c500e0bdd7e6232ad` — is a
+copy-derived successor of accepted B1C differing only in three ingestion bounds,
+one new lexical token kind for a lone `&`, the matching token-record validator
+bound, and one quadratic-to-linear rewrite of the located-token re-derivation.
+Fed its own exact bytes it now consumes all 241,918, interns 571 names, records
+31,062 located token records, and then stops at the independently predicted first
+unsupported parser construct: `status = 10` at offset 16, line 1, column 17,
+expecting `)` and finding an identifier. That is the `result` parameter of
+`fn result_value(result: Result<int, int>)` — the first construct outside the
+frozen `fn NAME ( ) -> int { return` skeleton. Every downstream phase reports
+not-attempted, no LLVM byte is written, and no artifact is created.
+
+Reaching that exposed one genuine compiler defect, fixed separately as CORE-093:
+the code generator emitted each value's storage slot inline, so every checked
+`ByteBuffer` result temporary inside a loop became a non-entry `alloca` that LLVM
+never reclaims. A loop over a `ByteBuffer` therefore grew the stack once per
+iteration, and self-input terminated with `STATUS_STACK_OVERFLOW` before any
+diagnostic. Every static `alloca` is now emitted in the entry block.
+
+The next boundary is therefore the self-source grammar, not capacity: the parser
+stops at its fourth token, and the whole of H1B remains.
+
+The accepted B1C predecessor remains a real but bounded pipeline:
 
 - the Aero source
   [`runtime_ascii_toolchain_driver.aero`](examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero)
@@ -193,7 +219,7 @@ whole experimental Rust compiler grammar or any public stable language.
 
 | Gate | Required result | Frozen exclusions |
 |---|---|---|
-| H1A — canonical source ingestion | The new compiler source's complete bytes, names, and token records are consumed under independent oracles before one exact unsupported-parser diagnostic | No grammar, semantic, IR, verifier, emitter, process, or convergence change |
+| H1A — canonical source ingestion — **locally green (CAP-049)** | The new compiler source's complete bytes, names, and token records are consumed under independent oracles before one exact unsupported-parser diagnostic | No grammar, semantic, IR, verifier, emitter, process, or convergence change |
 | H1B — self-source syntax | The iterative Aero parser emits a validated flat AST for every construct actually present in `compiler.aero` | No type/ownership inference, checked IR, or backend widening in the parser task |
 | H1C — self-source meaning | Aero semantic facts and authenticated checked IR cover the exact self-source AST with fail-before-IR negatives | Split the task whenever semantic and checked-IR authorities cannot fit in two phases |
 | H1D — self-source verification and emission | Independent Aero verification accepts only the exact checked module; Aero emission produces canonical LLVM for the compiler | No host verifier or expected LLVM as admission authority |
@@ -205,22 +231,83 @@ third compiler phase to preserve the table's name.
 
 ## Exact next checkpoint
 
-Authorize H1A from accepted B1C plus this reviewed contract. Add
-`examples/aero_self_host_v0/compiler.aero` as a copy-derived successor, an
-independent source/token oracle, and one focused test. The red checkpoint must
-show the accepted 8,192-byte boundary is the first failure when the compiler is
-given the canonical self-source candidate. The green result must prove complete
-source and token ingestion and then stop at the same independently predicted
-first unsupported parser construct.
+Authorize H1B separately and red-first from the exact construct H1A stops at.
+The compiler's iterative parser must emit a validated flat AST for every
+construct actually present in `compiler.aero`, beginning with the typed
+parameter list of `fn result_value(result: Result<int, int>) -> int`. Because the
+self-source grammar is far wider than the frozen one-function skeleton — it
+contains parameters, typed bindings, `if`/`else`, `while`, `match`, references,
+`ByteBuffer` intrinsics, and multi-function modules — H1B must itself be split
+into separately authorized red-first checkpoints, each crossing at most two
+compiler authorities and each stopping at an independently predicted next
+construct.
 
-H1A may change only the new successor Aero source, its focused test, workflow
-replay, ledger, and directly affected readiness documents. It must not modify
-the Rust compiler, runtime ABI, accepted B1C product, grammar, semantic facts,
-checked IR, verifier, LLVM emitter, host driver, manifest format, or claims.
+H1B may change the canonical Aero source, its focused tests, workflow replay,
+ledger, and directly affected readiness documents. It must not widen type,
+ownership, checked-IR, verifier, or backend authority inside the parser task, and
+it must not modify the accepted B1C product or the frozen compiler process
+interface.
+
+### The self-source grammar is closed and measured
+
+H1A's token census makes H1B's target finite rather than open-ended. The complete
+canonical source uses 571 distinct names and exactly these constructs:
+
+| Construct | Occurrences in `compiler.aero` |
+|---|---|
+| `fn` items | 23 |
+| `let` bindings (`mut` on 473 of them) | 469 |
+| `if` / `else` | 935 / 248 |
+| `while` | 82 |
+| `return` | 221 |
+| assignment `=` | 2,756 |
+| call or grouping `(` | 1,109 |
+| reference `&` | 417 |
+| `match` with `=>` arms | 1 (2 arms, in `result_value`) |
+| declared types | `int`, `ByteBuffer`, `Result<int, int>` |
+
+Equally important is what is absent. The source contains no `[`, `]`, `.`, `%`,
+or `!` token at all, so H1B needs no array syntax, no field access, no modulo,
+and no logical negation. Anything outside the table above must stay rejected.
+
+### Ordered H1B checkpoints
+
+The order below is the order `compiler.aero` itself forces. Each checkpoint is
+named by the construct at which the previous one stops, so no checkpoint may be
+selected for convenience.
+
+| Checkpoint | Required result | Frozen exclusions |
+|---|---|---|
+| H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the closed type set `int`, `ByteBuffer`, `&ByteBuffer`, `&mut ByteBuffer`, `Result<int, int>`, including the kind-37 `&` token H1A introduced. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
+| H1B-2 — `match` over `Result<int, int>` | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body | No general patterns, guards, enums, or match anywhere but a return expression |
+| H1B-3 — statement blocks | `let`, `let mut`, assignment, and multi-statement function bodies | No control flow and no calls |
+| H1B-4 — control flow | `if` / `else if` / `else` and `while` over the existing expression grammar | No new expression forms |
+| H1B-5 — calls and references | Call expressions with argument lists and `&`/`&mut` operands | No intrinsic knowledge; a call is a syntax node |
+| H1B-6 — arena capacity | Node, value, and operator record bounds raised from 512 to the measured self-source requirement, under the same independent-oracle proof H1A used for tokens | No grammar change; capacity only |
+
+Each checkpoint is separately authorized and red-first, crosses at most two
+compiler authorities, and must stop at an independently predicted next construct.
+H1B-6 is listed last but must be pulled earlier the moment a checkpoint's AST
+exceeds 512 records; capacity is never allowed to masquerade as a grammar
+failure.
+
+### The single-function coupling must be split out, not absorbed
+
+One boundary in this table is not the parser's alone. The accepted semantic,
+checked-IR, verifier, and emitter phases all assume exactly one function: they
+require `root == node_count`, one symbol, one fact per node, and one emitted
+module body. The canonical source has 23 functions. Admitting a second `fn` item
+therefore changes four downstream authorities at once and must not be smuggled
+into a parser checkpoint. It gets its own ordered gate — module shape before
+meaning — authorized only after H1B-1 through H1B-5 have proven the parser can
+describe a single function completely. Until then, every checkpoint stops at the
+second `fn` item, and that stop is the expected result rather than a defect.
 
 ## Explicit non-claims
 
-CAP-048 is a contract. H1A will be ingestion capacity. Neither is stage
-convergence, replacement of the Rust compiler, H1 completion, H2 self-hosting,
-general modules, stable syntax/ABI, memory safety, optimization correctness,
-performance, packaging, release readiness, or CPU/ROCm/CUDA parity.
+CAP-048 is a contract. CAP-049/H1A is ingestion and tokenization capacity only —
+the compiler reads its own source, it does not understand it. CORE-093 is a
+code-generator stack-use fix. None of them is stage convergence, replacement of
+the Rust compiler, H1 completion, H2 self-hosting, general modules, stable
+syntax/ABI, memory safety, optimization correctness, performance, packaging,
+release readiness, or CPU/ROCm/CUDA parity.

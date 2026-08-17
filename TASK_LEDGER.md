@@ -1,5 +1,320 @@
 # Aero Task Ledger
 
+## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
+
+- Date/task/status: 2026-08-17, `CORE-093`, authorized ledger-first and red-first
+  as a mandatory CAP-049/H1A unblocker, from the same H1 base. CAP-049 stopped at
+  its frozen stop condition rather than working around this defect; CORE-093 is
+  the separately scoped compiler fix it uncovered. This is a code-generator
+  correctness task. It is not H1A, H1, or any self-hosting claim.
+- Observed behavior: with CAP-049's ingestion bounds raised, the Aero compiler
+  product fed its own 241,918-byte source terminated with Windows
+  `STATUS_STACK_OVERFLOW` (`0xC00000FD`) at `-O0` before producing any
+  diagnostic. The emitted module for `run_runtime_ascii_llvm_emitter` contains
+  1,116 `alloca` instructions, 1,035 of them outside the entry block, and a CFG
+  analysis of its 6,357 basic blocks and 75 backedges places **423 allocas inside
+  loop bodies**. Every one of those is the result temporary of a checked
+  `ByteBuffer` intrinsic - the `{ i32, i32, i1 }` `Result<int, int>` slot emitted
+  in each `aero.bytes.push.*.done` / `aero.bytes.get.*.done` block.
+- Root cause: `CodeGenerator::generate_function_body` emits each value's storage
+  slot inline at the point the value is produced. An `alloca` outside the entry
+  block is a dynamic allocation in LLVM: it is not reclaimed until the function
+  returns and it is not promotable by `mem2reg`. An Aero `while` loop that touches
+  a `ByteBuffer` therefore grows the stack once per iteration. The accepted B1C
+  corpus never exposed this because its canonical input is 34 bytes; at 241,918
+  bytes the ingestion loop alone requests roughly 3.8 MB against a 1 MB default
+  stack, and the name-interning loop requests far more.
+- Hypothesis: every `alloca` this generator emits has a static type, a constant
+  alignment, and no dynamic element-count operand. Lifting all of them to the top
+  of the entry block therefore preserves meaning exactly - each SSA slot name
+  still denotes one storage location for its uses, which dominance already
+  confines to the region the alloca dominated - while making a loop's stack use
+  constant instead of linear in its trip count.
+- Frozen semantics: for every emitted function, all static `alloca` instructions
+  move to the beginning of the entry block in their original relative order; no
+  other instruction moves; no instruction text changes; no alloca is added,
+  removed, merged, or retyped; and any alloca carrying a dynamic element count
+  stays exactly where it is. Emitted LLVM must remain deterministic and must
+  still verify. No IR, verifier, semantic, parser, runtime ABI, allocator
+  accounting, profile, diagnostic, or CLI behavior may change.
+- Red-first proof: before the fix, a focused target must show (a) a tracked Aero
+  program that pushes and reads far more `ByteBuffer` bytes than the stack can
+  absorb terminates abnormally rather than returning its checked result, and (b)
+  the emitted module for that program and for the accepted B1C product places
+  allocas outside the entry block. After the fix both must be green, with the
+  structural check applied to every accepted `.aero` product in the corpus.
+- Allowed files, exactly: `src/compiler/src/code_generator.rs`; new
+  `src/compiler/tests/entry_block_alloca_tests.rs`; a new tracked
+  `examples/loop_stack_stability/` specimen; this `TASK_LEDGER.md`; and only those
+  existing test expectations whose text depends on alloca placement, each recorded
+  individually. A complete `--no-fail-fast` sweep identified those as exactly five
+  digest assertions in five files: `copy_data_layout_authority_tests.rs`,
+  `exact_record_result_profile_tests.rs`, `resolved_profile_authentication_tests.rs`,
+  `resolved_profile_shape_authority_tests.rs`, and
+  `resolved_profile_surface_witness_tests.rs`. No test may be weakened, skipped,
+  or deleted.
+- Risks and mandatory stops: stop rather than approximate if any emitted alloca
+  turns out to carry a dynamic operand, if hoisting changes a verified module's
+  meaning, if an existing test depends on per-iteration slot identity, if the
+  change would alter allocator accounting or diagnostics, or if the full gate
+  cannot be brought green.
+- Recommended next action after CORE-093: resume CAP-049/H1A unchanged; its
+  frozen ingestion semantics and independent oracle already stand.
+
+### CORE-093 exact red checkpoint
+
+- Before any code-generator mutation, the focused command
+  `cargo test --locked --test entry_block_alloca_tests -- --test-threads=1` runs
+  1/3 green. The tracked specimen
+  [`examples/loop_stack_stability/main.aero`](examples/loop_stack_stability/main.aero)
+  (877 bytes, SHA-256
+  `a58c3b251987e3e206140c872bbdbcfe741082e5a76ecf5e2548aa506cbcd16b`) checks
+  under `exact-i32-byte-buffer-v0`, so `the_loop_stack_specimen_is_tracked_and_checks`
+  passes.
+- `every_emitted_module_places_allocas_in_the_entry_block` fails: the specimen's
+  own module already emits 8 allocas outside the entry block, the first being
+  `main::aero.bytes.push.5.done -> %ptr61 = alloca { i32, i32, i1 }, align 8`.
+- `a_long_checked_bytebuffer_loop_keeps_stack_use_constant` fails: linked at
+  `-O0`, the specimen terminates with `-1073741571` (`0xC00000FD`,
+  `STATUS_STACK_OVERFLOW`) instead of returning 91, with empty stderr. No
+  compiler production, existing test expectation, accepted product, workflow,
+  dependency, or record changed at this checkpoint.
+
+### CORE-093 local green checkpoint
+
+- Implementation: `CodeGenerator::generate_hoisted_function_body` now generates
+  each body into its own buffer and `hoist_entry_allocas` lifts every static
+  `alloca` line to the front of that buffer, which is always the entry block.
+  `is_static_alloca` matches only `%name = alloca <type>, align <n>` and refuses
+  any allocation carrying an `, i32 %`/`, i64 %` dynamic element count, so a
+  dynamic alloca could never move. Relative order is preserved for both the moved
+  and the remaining instructions; no instruction text changes; no alloca is
+  added, removed, merged, or retyped. All three body-generation call sites -
+  the checked/legacy definition path and both parameterless paths, including the
+  deprecated compatibility API - use the hoisting wrapper.
+- Focused result: `entry_block_alloca_tests` passes 3/3. The specimen returns 91
+  at both `-O0` and `-O2` after 400,000 checked `bytes_push` and 400,000 checked
+  `bytes_get` operations, with empty stdout and stderr. The structural rule holds
+  for the specimen and for all eight accepted `.aero` products - the owned
+  byte-buffer specimen, the six `aero_frontend_v0` products, and the accepted B1C
+  toolchain driver - and every one of those modules still passes required LLVM
+  verification.
+- Effect on the blocked gate: with the fix in place the CAP-049 canonical source
+  ingests its own 241,918 bytes without abnormal termination, which is what
+  CORE-093 was authorized to unblock.
+- Remaining uncertainty and risk: alloca placement is the only emitted-LLVM
+  change, but it changes the text of every generated module, so any expectation
+  that depended on placement had to be re-examined. No allocator accounting,
+  diagnostic, profile, verifier, IR, or CLI behavior changed. This is a local
+  checkpoint, not a published or accepted one.
+
+### CORE-093 re-frozen digest expectations
+
+- A complete `--no-fail-fast` sweep of all 117 test targets isolates the blast
+  radius exactly: 113 targets pass unchanged and exactly four fail, all of them
+  digest sentinels that pin MD5 hashes of emitted LLVM rather than behavior.
+  They are `copy_data_layout_authority_tests::accepted_profile_llvm_bytes_are_frozen_before_layout_consolidation`,
+  `exact_record_result_profile_tests::accepted_profiles_are_frozen_before_cap032`,
+  `resolved_profile_authentication_tests::accepted_behavior_is_frozen_before_resolved_profile_authentication`,
+  `resolved_profile_shape_authority_tests::accepted_behavior_is_frozen_before_resolved_profile_authority`,
+  and `resolved_profile_surface_witness_tests::accepted_behavior_is_frozen_before_resolved_profile_surface_witness`.
+  Alloca placement is part of those bytes, so the digests moved. No behavioral,
+  diagnostic, allocation, verifier, or native expectation moved anywhere in the
+  suite.
+- The re-freeze was justified before it was applied, not after. Each of the four
+  distinct programs those sentinels cover - two experimental recursive variants,
+  the stable-scalar program, and the exact CAP-023 inference program - was
+  compiled by a binary built from the exact pre-change `code_generator.rs` and
+  again by the fixed binary, and the two modules were compared structurally. For
+  all four, the multiset of all lines is identical, the relative order of every
+  non-`alloca` line is identical, and the multiset of `alloca` lines is identical
+  (18, 17, 2, and 95 allocas respectively). The only difference is where the
+  allocas sit. The digests were then replaced with the new values and the reason
+  recorded beside them in each file. No assertion was removed, relaxed, or
+  skipped.
+
+## CAP-049-H1A-CANONICAL-SOURCE-INGESTION - consume the complete self-source byte, name, and token streams
+
+- Date/task/status: 2026-08-17, `CAP-049-H1A-CANONICAL-SOURCE-INGESTION`,
+  authorized ledger-first and red-first from the CAP-048/H1 convergence contract
+  on accepted CAP-047/B1C merge `0365e5c91bd503b198855b97b7f16054488d6dff`, tree
+  `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`, with documentation heads `e1434dd`,
+  `2314cf2`, and `c110c5b`. This is the first H1 prerequisite. It authorizes
+  ingestion capacity and lexical coverage only. It is not H1B, H1, H2, self-hosting,
+  stage convergence, or any claim that the Aero compiler parses, checks, or compiles
+  its own source.
+- D:-only task storage: worktree `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`,
+  Cargo target `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, and
+  LLVM/Clang 22.1.8 read from `D:\AeroToolchains\llvm-22.1.8\bin`. No task cache,
+  build tree, temporary directory, stage artifact, or generated file may be written
+  to `C:`.
+- Observed behavior (independent oracle, before any product change): the accepted
+  B1C product `examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero` is
+  241,941 bytes and 5,563 LF bytes. Fed its own bytes on binary stdin, the compiler
+  it implements stops at `status = 2`, `error_offset = 8192` with zero tokens and
+  zero names, because its stdin ingestion loop rejects the 8,193rd source byte.
+  Raising only that bound moves the first failure to `status = 4` at offset 17,681,
+  line 596, column 26 — the single `&` of `bytes_len(&source)` — after 3,357 tokens
+  and 162 names, because `single_token_kind` maps `&` (38) to no kind and only the
+  `&&` pair (33) exists. Admitting that one lexical form, then raising the token and
+  name bounds, lexes the complete accepted B1C source into 31,065 token records
+  (8,719 identifiers, 4,174 numbers, 417 `&`) and 571 interned names, after which
+  the frozen parser skeleton stops at its fourth token.
+- Hypothesis: H1A is exactly two authorities — stdin ingestion capacity and lexical
+  tokenization coverage — over one new copy-derived source. No parser rule, semantic
+  fact, checked-IR record, verifier predicate, LLVM fragment, driver step, runtime
+  ABI symbol, or Rust compiler behavior needs to change for the complete self-source
+  byte, name, and token streams to be consumed.
+- Frozen canonical successor: the new tracked file
+  `examples/aero_self_host_v0/compiler.aero` is a copy of accepted B1C with exactly
+  these differences, each independently justified above:
+  1. `single_token_kind` maps byte 38 (`&`) to new token kind 37. `&&` (33) and every
+     existing kind are unchanged.
+  2. The token-record validator admits `validate_kind <= 37` instead of `<= 36`.
+     The origin-record validator keeps `origin_token_kind <= 36` because the frozen
+     grammar produces no node from a `&` token; a kind-37 origin remains fail-closed.
+  3. The stdin ingestion bound and its reported overflow offset become 1,048,576.
+  4. The interned-name bound becomes 16,384.
+  5. The token-record bound becomes 262,144 at all four lexer sites.
+  6. The token-record location re-derivation carries its scan position forward
+     instead of rescanning the source from offset 0 for every token. Token starts are
+     already required to be non-decreasing by the adjacent `validate_start <
+     previous_end` rejection, so the derived line/column and every rejection verdict
+     are identical; only the 3,564,843,433-iteration quadratic rescan is removed.
+  No other byte of the accepted B1C product changes. The accepted F1/M1/B1 sections,
+  their markers, `main`, and its canonical expected-value vector are preserved.
+- Frozen exclusions: H1A does not change the frozen parser skeleton, expression
+  grammar, node kinds, semantic facts, checked IR, verifier, LLVM emitter, stdout
+  driver, `bootstrap-drive-b1c` host driver, runtime ABI, allocator accounting,
+  language profiles, manifest format, workflow contracts for accepted products, or
+  any Rust compiler source. It adds no new intrinsic, transport, module, or
+  diagnostic string. It does not claim that a kind-37 token can be parsed.
+- Frozen acceptance semantics: fed the exact bytes of `compiler.aero` on binary
+  stdin, the new product must report complete ingestion —
+  `source_length` equal to the tracked file length, `token_count` and `name_count`
+  equal to the independent oracle's counts, and the exact parse checksum over every
+  source byte, name word, and token word — and must then stop at the independently
+  predicted first unsupported parser construct: `status = 10`, `error_offset = 16`,
+  `error_line = 1`, `error_column = 17`, `diagnostic_code = 11` (expected `)`),
+  `diagnostic_actual = 1` (identifier), with `node_count = 0` and `root = 0`. That
+  is the `result` parameter name in `fn result_value(result: Result<int, int>)`,
+  the first construct in the canonical source outside the frozen
+  `fn NAME ( ) -> int { return` skeleton. Every downstream phase must report
+  not-attempted: semantic, checked, verified, emitted, and driven groups all zero
+  with their exact independently derived checksums, so the product returns 91.
+- Red-first proof: before the product exists, the focused target
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` must fail with
+  `CAP-049 intentional product red: canonical self-host compiler source is absent`,
+  while its independent oracle and its accepted-B1C control already pass. The
+  control links the accepted B1C product and proves the current first self-input
+  failure is exactly `status = 2` at offset 8,192 with zero tokens and zero names.
+- Acceptance tests: the focused target must prove, in order, (a) the accepted B1C
+  product is byte-identical and still emits its exact 144-byte canonical module,
+  (b) the accepted B1C product stops at the 8,192-byte boundary on self-input,
+  (c) `compiler.aero` differs from B1C only in the six frozen ways, (d) the Rust
+  stage-0 compiler checks, compiles, and deterministically re-compiles it and the
+  LLVM verifies, (e) the canonical 34-byte program through the new product still
+  returns 91 and writes the identical 144 LLVM bytes at O0 and O2, (f) fed its own
+  exact bytes the new product returns 91 against the complete independently derived
+  67-value expectation vector at O0 and O2, and (g) allocation accounting still
+  balances with zero live allocations after the self-source run.
+- Allowed files, exactly: new `examples/aero_self_host_v0/compiler.aero`; new
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`;
+  `.github/workflows/rust.yml` for one added replay step; this `TASK_LEDGER.md`;
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+  `PROJECT_STATE.md`. No Rust compiler source, runtime source, accepted example,
+  accepted test, dependency, lockfile, claim evidence, benchmark, release, or
+  package file may change.
+- Risks and mandatory stops: stop rather than approximate if complete ingestion
+  requires a parser, semantic, checked-IR, verifier, emitter, driver, runtime, or
+  Rust compiler change; if the accepted B1C product's bytes, canonical LLVM,
+  diagnostics, or allocation counts move; if an ingestion bound cannot be stated as
+  one exact constant; if the location re-derivation cannot be shown equivalent; if
+  the first parser stop is not independently predictable; or if any capacity change
+  would silently reclassify a source byte, token, or name.
+- Recommended next action after CAP-049: authorize H1B separately and red-first for
+  self-source grammar coverage, starting from the exact construct this gate stops
+  at. Do not stack H1B on unpublished H1A work.
+
+### CAP-049 exact red checkpoint
+
+- Before `examples/aero_self_host_v0/compiler.aero` existed, the focused command
+  `cargo test --locked --test self_host_source_ingestion_tests -- --test-threads=1`
+  ran 2/8 green. `canonical_self_host_compiler_source_is_present` failed with
+  `CAP-049 intentional product red: canonical self-host compiler source is
+  absent`; the four tests that read the new source failed as `NotFound`.
+- The two passing tests are the controls that make the red honest.
+  `accepted_b1c_product_is_unchanged_before_h1a` confirms the accepted product is
+  241,941 bytes, MD5 `08a2fd5ec8c0093b56e05c2ae5608371`, LF-only, 7-bit ASCII,
+  with all four accepted markers present, still checking and still verifying.
+  `independent_oracle_predicts_the_accepted_eight_kilobyte_self_input_boundary`
+  establishes the three honest boundaries in order without consulting the Aero
+  product: `status = 2` at offset 8,192 with zero tokens and zero names; then,
+  with only the source bound lifted, `status = 4` at the first lone `&`; then,
+  with that one lexical form admitted, a complete stream.
+- `accepted_b1c_stops_at_the_eight_kilobyte_boundary_on_self_input` then linked
+  the accepted B1C product and confirmed the prediction natively: fed its own
+  241,941 bytes, it consumed exactly 8,193 of them and matched all 67
+  independently derived expectation values, returning 91. That is the exact
+  first self-input failure CAP-048 predicted, now measured rather than asserted.
+- No compiler production, accepted product, runtime, workflow, dependency, or
+  record changed at this checkpoint.
+
+### CAP-049 local green checkpoint
+
+- Product identity: `examples/aero_self_host_v0/compiler.aero` is 241,918 bytes,
+  5,563 LF bytes, zero CR bytes, 7-bit ASCII, SHA-256
+  `977a1f3e0562f2b6507873febcdf8fd3f59b2f3a1370327c500e0bdd7e6232ad`, MD5
+  `2e6de91ed233a851823d5ba68a1503e9`. `canonical_self_host_source_is_a_copy_derived_successor`
+  reconstructs it mechanically by applying exactly the six frozen differences to
+  the accepted B1C bytes and asserts byte equality, so the diff cannot silently
+  widen. Both accepted section bodies - the CAP-046 B1B emitter and the CAP-047
+  B1C driver - are still byte-identical to the accepted product.
+- Ingestion result: fed its own exact bytes, the compiler consumes all 241,918,
+  interns 571 names, and records 31,062 located token records (31,061 real plus
+  the end-of-input record), including 417 records for the newly admitted lone
+  `&`. Every source byte, name word, and token word is folded into the parse
+  checksum that the independent oracle derives separately.
+- Stop result: the compiler then stops at the independently predicted first
+  unsupported parser construct - `status = 10`, `error_offset = 16`,
+  `error_line = 1`, `error_column = 17`, `diagnostic_code = 11` (expected `)`),
+  `diagnostic_actual = 1` (identifier), `node_count = 0`, `root = 0`. That is the
+  `result` parameter of `fn result_value(result: Result<int, int>)`, the first
+  construct outside the frozen `fn NAME ( ) -> int { return` skeleton. Every
+  downstream phase reports not-attempted with its exact derived checksum, so all
+  67 values match and the product returns 91 at both `-O0` and `-O2`. The harness
+  independently confirms the product wrote no output byte, consumed exactly the
+  whole stream, left zero live allocations, recorded zero size mismatches, and
+  balanced its allocation and deallocation counts.
+- Preservation result: the accepted F1/M1/B1 canonical program is unchanged. The
+  new product still checks, compiles deterministically, verifies, and - fed the
+  34-byte `fn score()->int{return 1+2*3-4/2;}` - returns 91 and writes exactly
+  the accepted 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`, at both
+  `-O0` and `-O2`. Fed its own source instead, the same executable reaches its
+  parse comparison and returns 80 with zero stdout and zero stderr bytes, so no
+  LLVM and no artifact is produced.
+- Focused result: `self_host_source_ingestion_tests` passes 8/8. The added
+  `Test canonical self-host source ingestion at O0 and O2` workflow step replays
+  the ASCII/LF source check, deterministic build, required LLVM verification,
+  both native runs, and both focused targets on Linux.
+- Complete gate: repository-root `./tools/test.sh` exits zero from the
+  D:-redirected environment. Formatting, all-target/all-feature checks,
+  correctness-denying Clippy, 312 library tests, 36 binary tests, all 117
+  integration/native/system targets, and doc tests pass with zero failures. The
+  complete accepted bootstrap ring stays green alongside the two new targets. No
+  test was skipped, weakened, or deleted, and `git diff --check` passes.
+- Blocked-and-unblocked history: the first green attempt terminated with
+  `STATUS_STACK_OVERFLOW` on self-input. CAP-049 stopped at its frozen stop
+  condition rather than working around it; the cause was a code-generator defect
+  outside this task's file list, fixed separately as CORE-093. No CAP-049 frozen
+  semantics, bound, or oracle changed as a result.
+- Remaining uncertainty and risk: H1A is ingestion and tokenization only. The
+  compiler still cannot parse, type, check, verify, or lower its own source, and
+  the parser stops at its fourth token. A kind-37 token has no parser rule and
+  remains fail-closed in the origin validator. This is a local checkpoint, not a
+  published or accepted one, and it is not H1B, H1, H2, stage convergence, or any
+  self-hosting claim.
+
 ## CAP-048-H1-BOOTSTRAP-CONVERGENCE-CONTRACT - freeze the self-hosting boundary and stage protocol
 
 - Date/task/status: 2026-08-16,

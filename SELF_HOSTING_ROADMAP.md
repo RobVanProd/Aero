@@ -333,7 +333,7 @@ compiler project rather than only a bootstrap bundle.
 | F1 — Aero front end | **Accepted bounded bootstrap slice** | F1A lexer and F1B parser consume R2 bytes and produce D1 located tokens/flat AST for one frozen grammar | Protected F1A/F1B differential oracles, malformed/boundary corpora, exact cleanup, deterministic LLVM, and Linux/Windows replay | This is not the full experimental grammar or replacement of the production Rust front end |
 | M1 — semantic compiler core | **M1A and M1B accepted** | M1A emits bounded node origins, symbol, logical types, and ownership facts; M1B authenticates them and constructs one bounded flat checked IR while preserving fail-before-IR behavior | Independent valid/invalid semantic and checked-IR corpora, accepted-Rust projection, corruption controls, exact allocation cleanup, deterministic LLVM, and protected replay | The bounded flat module is not general semantics/IR, an Aero backend, or an ownership-safety proof |
 | B1 — trusted Aero backend path | **Accepted through B1C** | B1A independently verifies the serialized bounded module; B1B emits deterministic LLVM from a successful seal; B1C emits authenticated raw bytes and invokes the declared LLVM/link trust base through a transactional host driver | Invalid IR rejection, independent seal, exact emitted bytes, all output-failure boundaries, LLVM verifier, O0/O2 object lowering, native system corpus, artifact hygiene | One bounded verifier/emitter/driver is not a general backend or a self-compiling compiler |
-| H1 — bootstrap convergence | **Locally green contract candidate; implementation prerequisites open** | Stage 0 builds stage 1; stage 1 builds stage 2 from the same canonical Aero compiler source | Clean isolated builds, frozen environment/toolchain manifest, raw LLVM comparison, canonical linked-artifact comparison, repeated-build equality | A single successful stage-1 build is not convergence |
+| H1 — bootstrap convergence | **Contract frozen; H1A locally green; H1B–H1E open** | Stage 0 builds stage 1; stage 1 builds stage 2 from the same canonical Aero compiler source | Clean isolated builds, frozen environment/toolchain manifest, raw LLVM comparison, canonical linked-artifact comparison, repeated-build equality | Reading the canonical source is not parsing it, and a single successful stage-1 build is not convergence |
 | H2 — accepted self-hosting | **Future** | Protected, reproducible H1 result plus the complete declared platform and conformance surface | Immutable manifests/artifacts, independent replay, exact candidate/merge identity, post-merge replay, truthful documentation | No stability, memory-safety, performance, accelerator, or release claim follows automatically |
 
 ## Current gaps and their owners
@@ -351,6 +351,8 @@ compiler project rather than only a bootstrap bundle.
 | Semantic and ownership fidelity | Accepted CAP-043/M1A records exact node provenance, one function symbol, and iterative Int/Bool/Copy facts for the frozen grammar. Accepted CAP-044/M1B authenticates those facts into one bounded checked module. The Rust analyzer still owns general scopes, registries, maps, fixed-point ownership state, and normalization. | Preserve the exact M1A/M1B handoff; broader semantics remain separate ledger-first work |
 | Checked IR and verification | Accepted CAP-044/M1B constructs one bounded flat module with explicit function/block/instruction/result records. Accepted CAP-045/B1A independently decodes and rejects malformed forms of that exact serialized module. | Preserve B1A; broader IR forms and the production Rust verifier remain outside this bounded gate |
 | Code emission and driver | Accepted CAP-046/B1B emits exact in-memory LLVM text only after B1A success. Accepted CAP-047/B1C emits the authenticated bytes and a narrow Rust command validates the complete stream before invoking explicit LLVM/Clang 22.1.8 tools transactionally. | Preserve B1C unchanged. LLVM, Clang, the linker, operating-system streams, and the bounded host transaction remain declared trust-base components |
+| Self-source ingestion | Accepted CAP-049/H1A: the canonical `examples/aero_self_host_v0/compiler.aero` consumes all 241,918 of its own bytes, 571 names, and 31,062 located token records under an independent oracle, then stops at the first construct outside the frozen skeleton. | H1B must widen the parser to the self-source grammar; capacity is no longer the limiting boundary |
+| Loop stack use | Accepted CORE-093: every emitted `alloca` now lands in the entry block, so a loop over a checked `ByteBuffer` no longer grows the stack once per iteration. Before the fix, self-input terminated with `STATUS_STACK_OVERFLOW` at O0. | Keep the structural rule green for every emitted module as the compiler source grows |
 | Bootstrap reproducibility | Product and claim evidence are reproducible, but no stage compiler or convergence manifest exists. | Freeze H1 comparison inputs, environment, ignored metadata, and failure rules before the first stage build |
 | Cross-platform trust | Existing Linux and Windows gates cover bounded accepted programs, not an Aero compiler executable. | Every bootstrap stage must run the same corpus on each claimed host; CPU self-hosting does not imply ROCm/CUDA execution |
 
@@ -390,17 +392,30 @@ slice still requires its own ledger and failing regression first.
 
 ## Exact next task
 
-Review and protect the documentation-only **CAP-048/H1 convergence contract**
-from accepted CAP-047/B1C merge `0365e5c91bd503b198855b97b7f16054488d6dff`.
-It freezes the canonical single-file source rule, stage interfaces,
-environment/toolchain manifest, stage-1/stage-2 comparison, prerequisite order,
-and failure rules in
-[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
-After CAP-048 acceptance, authorize H1A red-first for complete canonical source
-and token ingestion only. All H1 worktrees, targets, temporary files, and
+**CAP-049/H1A is locally green.** The Aero-authored compiler now reads its own
+source end to end. The canonical
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+— 241,918 bytes, SHA-256
+`977a1f3e0562f2b6507873febcdf8fd3f59b2f3a1370327c500e0bdd7e6232ad` — consumes
+every one of its own bytes, interns 571 names, records 31,062 located token
+records, and then stops at the independently predicted first unsupported parser
+construct: expecting `)` and finding the identifier `result` at offset 16, line
+1, column 17. Its accepted 34-byte canonical program still returns 91 with the
+exact 144-byte module at O0 and O2. Reaching this required one separately scoped
+compiler fix, **CORE-093**, which stopped every emitted `alloca` from landing
+inside a loop body and growing the stack once per iteration.
+
+Review and protect CAP-048, CORE-093, and CAP-049 in that order, then authorize
+**H1B** red-first: self-source grammar and flat-AST coverage, starting from the
+typed parameter list the parser now stops at. H1B must be split into several
+red-first checkpoints — parameters, typed bindings, `if`/`else`, `while`,
+`match`, references, `ByteBuffer` intrinsics, multi-function modules — each
+crossing at most two compiler authorities and each stopping at an independently
+predicted next construct. All H1 worktrees, targets, temporary files, and
 artifacts stay on `D:`.
-Do not call the Rust front end replaced—or the project self-hosted—before H1
-and H2 independently close.
+
+Reading a source is not understanding it. Do not call the Rust front end
+replaced—or the project self-hosted—before H1 and H2 independently close.
 
 ## Deliberately absent schedule
 

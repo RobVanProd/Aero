@@ -1,6 +1,6 @@
 # Aero Project State
 
-Last updated: 2026-08-16 (America/New_York)
+Last updated: 2026-08-17 (America/New_York)
 
 ## Current objective
 
@@ -63,11 +63,48 @@ artifact, and log remains on D:. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md), and
 [`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md).
 
-CAP-048 is the current locally green documentation-only H1 contract candidate. It records the
+CAP-048 is the locally green documentation-only H1 contract candidate. It records the
 accepted compiler's exact 241,941-byte self-source versus 8,192-byte input
 boundary, freezes a new single-file canonical source path, defines the stage
 process and comparison protocol, and orders H1A through final replay. See
 [`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
+
+CAP-049/H1A is the first H1 prerequisite to execute and is locally green. The new
+canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+is 241,918 bytes, 5,563 LF bytes, 7-bit ASCII, SHA-256
+`977a1f3e0562f2b6507873febcdf8fd3f59b2f3a1370327c500e0bdd7e6232ad`. It is a
+copy-derived successor of accepted B1C differing only in six mechanically
+reconstructed ways: three raised ingestion bounds (1,048,576 source bytes,
+262,144 token records, 16,384 names), one new lexical token kind 37 for a lone
+`&`, the matching token-record validator bound, and one quadratic-to-linear
+rewrite of the located-token re-derivation. Fed its own exact bytes it consumes
+all 241,918, interns 571 names, records 31,062 located token records, and then
+stops at the independently predicted first unsupported parser construct —
+`status = 10`, offset 16, line 1, column 17, expecting `)` and finding an
+identifier, with zero nodes. All 67 independently derived expectation values
+match at O0 and O2, no output byte is written, and allocation accounting
+balances with zero live allocations. The accepted 34-byte canonical program is
+preserved exactly: exit 91 and the identical 144-byte module, MD5
+`fd2390d17d448d4539a72bf1991314dc`. The focused target
+`self_host_source_ingestion_tests` is 8/8 green.
+
+CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
+generator emitted each value's storage slot inline, so every checked `ByteBuffer`
+result temporary inside a loop became a non-entry `alloca` that LLVM never
+reclaims — 423 of them inside loop bodies in the compiler's own module. A loop
+over a `ByteBuffer` therefore grew the stack once per iteration, and self-input
+terminated with `STATUS_STACK_OVERFLOW` before any diagnostic. Every static
+`alloca` now moves to the entry block in original relative order; dynamic
+allocas never move. The focused target `entry_block_alloca_tests` is 3/3 green:
+the tracked `examples/loop_stack_stability/main.aero` specimen survives 800,000
+checked `ByteBuffer` operations at O0 and O2, and all eight accepted `.aero`
+products plus the specimen emit no `alloca` outside an entry block while still
+passing required LLVM verification.
+
+H1A is ingestion and tokenization only. The compiler reads its own source; it
+does not parse, type, check, verify, or lower it. H1B through H1E and the final
+stage replay remain open, and no self-hosting claim follows.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
