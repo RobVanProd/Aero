@@ -84,6 +84,48 @@
   `Result<int, int>` that forms `result_value`'s whole body, starting from the
   exact construct this checkpoint stops at.
 
+### CAP-050 first implementation attempt - reverted, findings recorded
+
+- Status: an implementation was written, exercised, and then reverted rather than
+  committed. The repository stays at the accepted CAP-049 product. Nothing below
+  is a green result; it is a record of what was proven and what remains, so the
+  next attempt does not repeat the work.
+- What the attempt did: added one `parameters` ByteBuffer owner and a
+  `param_mode` sub-machine inside the existing `skeleton_step == 3` slot, so the
+  signature grammar needs no new token-read state pair. Modes cover
+  `IDENT : int`, `IDENT : Result < int , int >`, `,` separation, and the closing
+  `)`, with two alternation points (an immediate `)` versus a first parameter,
+  and `,` versus `)` after a completed type). Type identifiers are checked
+  byte-for-byte against `int` and `Result`; anything else is an exact located
+  `status = 12` / code 102 rejection. Each completed type appends one two-word
+  record. The store is length-checked, range-validated against `name_count`, and
+  folded into the parse checksum behind a new `989` separator followed by the
+  parameter count. A 68th `expected_parameters` value was added to the compiler
+  entry point and compared in the parse group.
+- What was proven: the modified source checks under `exact-i32-byte-io-v0`,
+  compiles, verifies, and links. Fed the accepted 34-byte canonical program it
+  returns 91 and writes the identical 144-byte module, MD5
+  `fd2390d17d448d4539a72bf1991314dc`. That result is stronger than it looks: it
+  confirms the new `989` separator, the parameter-region fold, the recomputed
+  canonical checksum `810191` derived as `step(step(586661, 989), 0)`, and the
+  68-value entry point are all exactly right, because a single wrong word there
+  would have produced 80 rather than 91.
+- What remains: fed its own source the product returns 80, a parse-group
+  mismatch against the independently derived vector. Because the canonical run
+  passes, the divergence is confined to values that only self-input produces -
+  the node record the leading `match` identifier appends, the resulting
+  `node_count`, or the located closing-sequence diagnostic - not to the
+  parameter store or the checksum layout. The oracle predicts one node
+  `[kind 2, payload = name id of `match`, left 0, right 0]`, `node_count = 1`,
+  `parameter_count = 1`, and a stop at offset 68, line 2, column 18 with
+  `diagnostic_code = 18` and `diagnostic_actual = 1`.
+- Recommended next step: before touching the parser again, add a diagnostic
+  harness that calls the compiler entry point several times in one linked binary
+  with candidate parse-group vectors, so the differing field is identified in a
+  single compile rather than by repeated whole-suite runs. The 80/90/92/93/94/95
+  return codes already separate the phase groups; what is missing is field-level
+  resolution inside the parse group.
+
 ## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
 
 - Date/task/status: 2026-08-17, `CORE-093`, authorized ledger-first and red-first
