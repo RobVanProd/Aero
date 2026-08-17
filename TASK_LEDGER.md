@@ -156,15 +156,32 @@
   not modified. The canonical program is too small to expose it, and the CAP-049
   product-level ingestion check - the one test that would have caught it - was
   the test replaced during the attempt.
-- Recommended next step, in order: (1) restore the CAP-049 product-level
-  ingestion assertion and run it against the modified source, with the parse
-  group reduced to ingestion fields only, so `name_count`, `token_count`, and the
-  parse checksum are compared directly; (2) if those differ, bisect the source
-  change - re-apply the six CAP-050 edits one at a time and re-run, since one of
-  them (most likely the new `parameters` owner, which shifts every subsequent
-  owner's identity) may perturb something the oracle does not model; (3) only
-  then return to the parser. Do not re-attempt the grammar until ingestion parity
-  on the modified source is re-established.
+- That bisection was then run, and **it corrects the inference above**. A
+  store-only variant was built: the `parameters` owner, the 68th
+  `expected_parameters` value, the `989` checksum region with its length and
+  range validation, and the parse-group comparison - but none of the parser
+  sub-machine. Against that variant the product ingests its own modified 243,693
+  bytes, stops at the unchanged H1A construct, and matches all 68 expectation
+  values, returning 91. The canonical 34-byte program also still returns 91 with
+  its exact module.
+- Therefore ingestion, token-record production, the parameter store, its
+  validation, the checksum region, the widened entry point, and the recomputed
+  canonical constant `810191` are all **proven correct**. The earlier conclusion
+  that ingestion diverged was wrong. The defect is confined to the parser
+  sub-machine - the roughly sixty lines of `param_mode` dispatch, alternation,
+  type matching, and advance added to `skeleton_step == 3`.
+- That also explains the null cross-product result. The grid covered stop
+  positions only through token 20. If the sub-machine mis-advances it does not
+  stop early at all; it accepts tokens it should reject and runs deep into the
+  body before failing, far outside the grid. The next probe must cover a much
+  wider token range, or better, bisect the sub-machine itself.
+- Recommended next step, in order: (1) land the store-only variant as CAP-050a,
+  which is already green apart from `canonical_self_host_source_is_a_copy_derived_successor`
+  - that test asserts exact equality against a Rust-side derivation, so it needs
+  the six store transformations added to `expected_h1a_source()`; (2) then add
+  the sub-machine alone on top of that proven base, so any failure is
+  unambiguously the grammar; (3) widen the probe's token range past the signature
+  before interpreting a null result again.
 
 ## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
 
