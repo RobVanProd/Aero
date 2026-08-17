@@ -212,6 +212,12 @@
   bypass, the reuse of the lexer scratch registers `b0`-`b5` and `word` /
   `push_result` inside a parser state, or the changed `skeleton_step` advance
   condition. Instrument those three before re-reading the transition table.
+- Follow-on evidence: the sub-machine was re-applied on top of the accepted
+  CAP-050a base rather than all at once, and the canonical 34-byte program still
+  returns 91 with its exact 144-byte module at O2. The empty-parameter path -
+  `fn score ( )`, mode 0 seeing `)` and completing the list - therefore works with
+  the sub-machine present. What remains unverified is the nonempty path. That
+  isolation was the point of splitting CAP-050a out, and it holds.
 
 - Superseded next steps, retained for the record: (1) land the store-only
   variant as CAP-050a,
