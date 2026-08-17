@@ -138,15 +138,33 @@
   stop position, status, node count, and parameter count largely independently.
   The most likely pairing is a stop position the grid does not describe combined
   with a node or parameter count the grid pairs with the wrong position.
-- Recommended next step: extend the probe to a genuine cross product rather than
-  one-at-a-time families - stop position x status x node count x parameter count
-  x parameter type code - which is roughly 2,000 candidates and still one
-  compile. If that also returns nothing, the divergence is in a value every
-  candidate holds fixed, and the next probe should vary `name_count`,
-  `token_count`, and the parameter record's name id, which would mean the
-  product's ingestion of the enlarged source itself diverges from the oracle.
-  Re-run the CAP-049 product-level ingestion check against the modified source
-  first, since that check was the one replaced during the attempt.
+- The cross product was then built and run: stop position over tokens 3 through
+  20, `status` in 10/12/16, `node_count` 0 and 1, `parameter_count` 0 and 1,
+  parameter type code 1 and 2, and five diagnostic codes at each position -
+  roughly 2,000 internally consistent candidates in a single compile. **It also
+  matched nothing.**
+- That is the decisive narrowing. Among the ~2,000 candidates was the exact
+  shape of "the parameter sub-machine never engaged": stop at token 3, status 10,
+  code 11, zero nodes, zero parameters - the accepted H1A behavior. Its failure
+  rules out the whole family of parser-stop explanations. Every candidate held
+  `name_count`, `token_count`, `root`, the parameter record's name id, and the
+  source/name/token word streams fixed, so **the divergence is in one of those**,
+  not in where the parser stops.
+- Read together with the canonical 34-byte run returning 91, that points at one
+  place: the product's ingestion or token-record production for the enlarged
+  250,370-byte source differs from the oracle's, even though the lexer itself was
+  not modified. The canonical program is too small to expose it, and the CAP-049
+  product-level ingestion check - the one test that would have caught it - was
+  the test replaced during the attempt.
+- Recommended next step, in order: (1) restore the CAP-049 product-level
+  ingestion assertion and run it against the modified source, with the parse
+  group reduced to ingestion fields only, so `name_count`, `token_count`, and the
+  parse checksum are compared directly; (2) if those differ, bisect the source
+  change - re-apply the six CAP-050 edits one at a time and re-run, since one of
+  them (most likely the new `parameters` owner, which shifts every subsequent
+  owner's identity) may perturb something the oracle does not model; (3) only
+  then return to the parser. Do not re-attempt the grammar until ingestion parity
+  on the modified source is re-established.
 
 ## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
 
