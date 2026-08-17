@@ -265,6 +265,11 @@ fn accepted_profiles_are_frozen_before_cap032() {
     let stable = llvm(STABLE_SCALAR_SOURCE, LanguageProfile::StableScalarV0);
     let exact = llvm(EXACT_CAP023_SOURCE, LanguageProfile::ExactI32ArrayV0);
 
+    // Re-frozen by CORE-093, which moves every static `alloca` into the entry
+    // block so a loop body cannot grow the stack once per iteration. For each of
+    // these three programs the change was verified to move nothing else: the
+    // line multiset, the alloca line multiset, and the relative order of every
+    // non-alloca line are all identical to the previous digests' modules.
     assert_eq!(
         [
             md5_hex(experimental.as_bytes()),
@@ -272,9 +277,9 @@ fn accepted_profiles_are_frozen_before_cap032() {
             md5_hex(exact.as_bytes()),
         ],
         [
-            "724bac62708812d4302224fec1047be6",
-            "cbb7a6446d27119d50f70868bc2b6a96",
-            "54bbfe8dc403ba00ff0587fd3b99e14a",
+            "d14b7acdaf81c4cab55cd100d4430201",
+            "9aa9981631c60de5058c928bc8ac060f",
+            "f74b8b67d5c10c9ef18cd67a07c90e23",
         ],
         "accepted profile LLVM bytes drifted before CAP-032"
     );

@@ -143,12 +143,17 @@ fn accepted_profile_llvm_bytes_are_frozen_before_layout_consolidation() {
         md5_hex(exact.as_bytes()),
     ];
 
+    // Re-frozen by CORE-093, which moves every static `alloca` into the entry
+    // block so a loop body cannot grow the stack once per iteration. For each of
+    // these three programs the change was verified to move nothing else: the
+    // line multiset, the alloca line multiset, and the relative order of every
+    // non-alloca line are all identical to the previous digests' modules.
     assert_eq!(
         actual,
         [
-            "57d513c46fe7a650b189941bf6c37e28",
-            "cbb7a6446d27119d50f70868bc2b6a96",
-            "54bbfe8dc403ba00ff0587fd3b99e14a",
+            "e36e43b4d14b99332a47cf23b1de1784",
+            "9aa9981631c60de5058c928bc8ac060f",
+            "f74b8b67d5c10c9ef18cd67a07c90e23",
         ],
         "freeze these accepted-head LLVM byte digests before production mutation"
     );

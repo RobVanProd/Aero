@@ -2318,7 +2318,7 @@ impl CodeGenerator {
                 let llvm_name = Self::llvm_function_symbol(&function_name);
                 llvm_ir.push_str(&format!("define i32 @{llvm_name}() {{\nentry:\n"));
                 let empty_param_types: HashMap<String, String> = HashMap::new();
-                self.generate_function_body(
+                self.generate_hoisted_function_body(
                     &mut llvm_ir,
                     &function.body,
                     &empty_param_types,
@@ -2384,7 +2384,7 @@ impl CodeGenerator {
                 let llvm_name = Self::llvm_function_symbol(&func_name);
                 llvm_ir.push_str(&format!("define i32 @{llvm_name}() {{\nentry:\n"));
                 let empty_param_types: HashMap<String, String> = HashMap::new();
-                self.generate_function_body(
+                self.generate_hoisted_function_body(
                     &mut llvm_ir,
                     &func.body,
                     &empty_param_types,
@@ -2459,7 +2459,7 @@ impl CodeGenerator {
             param_types.insert(param_name.clone(), param_type.clone());
         }
 
-        self.generate_function_body(
+        self.generate_hoisted_function_body(
             llvm_ir,
             definition.body(),
             &param_types,
@@ -2468,6 +2468,73 @@ impl CodeGenerator {
             next_reg_seed,
         );
         llvm_ir.push_str("}\n\n");
+    }
+
+    /// Generate one function body with every static `alloca` lifted into the
+    /// entry block.
+    ///
+    /// LLVM never reclaims an `alloca` outside the entry block before the
+    /// function returns, and `mem2reg` cannot promote one, so a loop body that
+    /// emits its own slot grows the stack once per iteration. Every `alloca`
+    /// this generator emits has a static type, a constant alignment, and no
+    /// dynamic element-count operand, so lifting them all preserves meaning -
+    /// each slot name still denotes one storage location for the uses its
+    /// original position dominated - and makes a loop's stack use constant.
+    fn generate_hoisted_function_body(
+        &mut self,
+        llvm_ir: &mut String,
+        instructions: &[Inst],
+        param_types: &HashMap<String, String>,
+        return_llvm_type: &str,
+        function_defs: &HashMap<String, FunctionDef>,
+        next_reg_seed: u32,
+    ) {
+        let mut body = String::new();
+        self.generate_function_body(
+            &mut body,
+            instructions,
+            param_types,
+            return_llvm_type,
+            function_defs,
+            next_reg_seed,
+        );
+        llvm_ir.push_str(&Self::hoist_entry_allocas(&body));
+    }
+
+    /// Move every static `alloca` line to the front of a generated body,
+    /// preserving the original relative order of both the moved and the
+    /// remaining instructions. The body always begins inside the entry block.
+    fn hoist_entry_allocas(body: &str) -> String {
+        let mut hoisted = String::with_capacity(body.len());
+        let mut remaining = String::with_capacity(body.len());
+        for line in body.split_inclusive('\n') {
+            if Self::is_static_alloca(line) {
+                hoisted.push_str(line);
+            } else {
+                remaining.push_str(line);
+            }
+        }
+        hoisted.push_str(&remaining);
+        hoisted
+    }
+
+    /// Recognize `%name = alloca <type>, align <n>`. An `alloca` carrying a
+    /// dynamic element count is not hoistable and is never matched.
+    fn is_static_alloca(line: &str) -> bool {
+        let trimmed = line.trim();
+        let Some(rest) = trimmed.strip_prefix('%') else {
+            return false;
+        };
+        let Some((_, allocation)) = rest.split_once(" = alloca ") else {
+            return false;
+        };
+        let Some((allocated_type, alignment)) = allocation.rsplit_once(", align ") else {
+            return false;
+        };
+        if allocated_type.contains(", i32 %") || allocated_type.contains(", i64 %") {
+            return false;
+        }
+        !alignment.is_empty() && alignment.bytes().all(|byte| byte.is_ascii_digit())
     }
 
     fn generate_function_body(
