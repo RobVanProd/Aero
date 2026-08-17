@@ -2222,6 +2222,68 @@ jobs:
           test -x "${output_dir}/probe"
         done
 
+    - name: Test canonical self-host source ingestion at O0 and O2
+      if: matrix.rust == 'stable'
+      shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="/usr/lib/llvm-22/bin:${PATH}"
+        source="examples/aero_self_host_v0/compiler.aero"
+        runtime="src/compiler/runtime/aero_runtime.c"
+        canonical="${RUNNER_TEMP}/self_host_canonical.source"
+        llvm="${RUNNER_TEMP}/self_host_compiler.linux.ll"
+        repeat_llvm="${RUNNER_TEMP}/self_host_compiler.linux.repeat.ll"
+        printf '%s' 'fn score()->int{return 1+2*3-4/2;}' >"${canonical}"
+
+        # The canonical bootstrap source is one tracked 7-bit-ASCII, LF-only file.
+        test "$(wc -c <"${source}")" -gt 200000
+        test -z "$(tr -d '\0-\177' <"${source}")"
+        test "$(grep -c $'\r' "${source}" || true)" -eq 0
+
+        cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+          check "${source}" --language-profile exact-i32-byte-io-v0
+        for output in "${llvm}" "${repeat_llvm}"; do
+          cargo run --locked --quiet --manifest-path src/compiler/Cargo.toml -- \
+            build "${source}" -o "${output}" --require-llvm-verifier \
+            --language-profile exact-i32-byte-io-v0
+        done
+        cmp -s "${llvm}" "${repeat_llvm}"
+
+        for level in 0 2; do
+          executable="${RUNNER_TEMP}/self_host_compiler.o${level}"
+          clang-22 "-O${level}" "${llvm}" "${runtime}" -o "${executable}"
+
+          # The accepted F1/M1/B1 canonical program is preserved exactly.
+          stdout="${executable}.canonical.stdout"
+          stderr="${executable}.canonical.stderr"
+          set +e
+          "${executable}" <"${canonical}" >"${stdout}" 2>"${stderr}"
+          native_status=$?
+          set -e
+          test "${native_status}" -eq 91
+          test ! -s "${stderr}"
+          test "$(wc -c <"${stdout}")" -eq 144
+          test "$(md5sum "${stdout}" | awk '{print $1}')" = fd2390d17d448d4539a72bf1991314dc
+
+          # Fed its own complete source the compiler reaches its parse
+          # comparison instead of a capacity stop, emits no LLVM, and creates no
+          # artifact. H1A is ingestion only: this is not convergence.
+          self_stdout="${executable}.self.stdout"
+          self_stderr="${executable}.self.stderr"
+          set +e
+          "${executable}" <"${source}" >"${self_stdout}" 2>"${self_stderr}"
+          self_status=$?
+          set -e
+          test "${self_status}" -eq 80
+          test ! -s "${self_stdout}"
+          test ! -s "${self_stderr}"
+        done
+
+        cargo test --locked --manifest-path src/compiler/Cargo.toml \
+          --test self_host_source_ingestion_tests
+        cargo test --locked --manifest-path src/compiler/Cargo.toml \
+          --test entry_block_alloca_tests
+
     - name: Test representative telemetry application at O0 and O2
       if: matrix.rust == 'stable'
       shell: bash
