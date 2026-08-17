@@ -119,12 +119,34 @@
   `[kind 2, payload = name id of `match`, left 0, right 0]`, `node_count = 1`,
   `parameter_count = 1`, and a stop at offset 68, line 2, column 18 with
   `diagnostic_code = 18` and `diagnostic_actual = 1`.
-- Recommended next step: before touching the parser again, add a diagnostic
-  harness that calls the compiler entry point several times in one linked binary
-  with candidate parse-group vectors, so the differing field is identified in a
-  single compile rather than by repeated whole-suite runs. The 80/90/92/93/94/95
-  return codes already separate the phase groups; what is missing is field-level
-  resolution inside the parse group.
+- The recommended diagnostic was then built and run. A probe harness embeds many
+  complete, self-consistent expectation vectors in one linked binary, calls the
+  compiler entry point once per candidate with the stream reset between calls,
+  and returns the index of the first that yields 91. One compile covers the whole
+  grid, and a run over 46 candidates takes about a minute.
+- Probe result: **none of 46 hypotheses matched.** The grid covered every stop
+  position from token 3 through token 18 with the diagnostic code the frozen
+  grammar expects at each, `status` 10 and 12 at each position, the four internal
+  statuses 16/14/8/13 with their unlocated diagnostics, `node_count` 0 and 1,
+  `parameter_count` 0 and 1, and the parameter typed as both `int` and
+  `Result<int, int>`. Every candidate held `name_count`, `token_count`, `root`,
+  and the parameter record's name id fixed.
+- What that isolates: because the canonical 34-byte run returns 91, the checksum
+  layout, the `989` separator, the parameter fold, and the 68-value entry point
+  are all correct. Because no single-field variation of the self-input prediction
+  matches, **at least two parse-group fields differ at once** - the grids varied
+  stop position, status, node count, and parameter count largely independently.
+  The most likely pairing is a stop position the grid does not describe combined
+  with a node or parameter count the grid pairs with the wrong position.
+- Recommended next step: extend the probe to a genuine cross product rather than
+  one-at-a-time families - stop position x status x node count x parameter count
+  x parameter type code - which is roughly 2,000 candidates and still one
+  compile. If that also returns nothing, the divergence is in a value every
+  candidate holds fixed, and the next probe should vary `name_count`,
+  `token_count`, and the parameter record's name id, which would mean the
+  product's ingestion of the enlarged source itself diverges from the oracle.
+  Re-run the CAP-049 product-level ingestion check against the modified source
+  first, since that check was the one replaced during the attempt.
 
 ## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
 
