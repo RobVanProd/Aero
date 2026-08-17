@@ -270,6 +270,13 @@ Equally important is what is absent. The source contains no `[`, `]`, `.`, `%`,
 or `!` token at all, so H1B needs no array syntax, no field access, no modulo,
 and no logical negation. Anything outside the table above must stay rejected.
 
+The 23 signatures are narrower still. Every one of them returns `int`. They
+declare 99 parameters in total, of which 98 are `int` and exactly one is
+`Result<int, int>`; two functions take none, and the widest takes 67. No
+parameter is a `ByteBuffer` or a reference — `ByteBuffer` appears only as a
+local binding type, and `&`/`&mut` only as call arguments — so reference syntax
+belongs to the call checkpoint, not the signature checkpoint.
+
 ### Ordered H1B checkpoints
 
 The order below is the order `compiler.aero` itself forces. Each checkpoint is
@@ -278,7 +285,7 @@ selected for convenience.
 
 | Checkpoint | Required result | Frozen exclusions |
 |---|---|---|
-| H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the closed type set `int`, `ByteBuffer`, `&ByteBuffer`, `&mut ByteBuffer`, `Result<int, int>`, including the kind-37 `&` token H1A introduced. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
+| H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the measured closed type set `int` and `Result<int, int>`. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
 | H1B-2 — `match` over `Result<int, int>` | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body | No general patterns, guards, enums, or match anywhere but a return expression |
 | H1B-3 — statement blocks | `let`, `let mut`, assignment, and multi-statement function bodies | No control flow and no calls |
 | H1B-4 — control flow | `if` / `else if` / `else` and `while` over the existing expression grammar | No new expression forms |

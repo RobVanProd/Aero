@@ -1,5 +1,89 @@
 # Aero Task Ledger
 
+## CAP-050-H1B1-SELF-SOURCE-PARAMETER-LISTS - admit the canonical signature grammar
+
+- Date/task/status: 2026-08-17, `CAP-050-H1B1-SELF-SOURCE-PARAMETER-LISTS`,
+  authorized ledger-first and red-first from locally green CAP-049/H1A. This is
+  the first H1B checkpoint. It authorizes signature grammar only. It is not H1B
+  completion, H1, H2, stage convergence, or any self-hosting claim, and it does
+  not make a parameter mean anything to the type, ownership, checked-IR,
+  verifier, or backend authorities.
+- D:-only task storage is unchanged from CAP-049: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`.
+- Observed behavior: with CAP-049 accepted, the compiler consumes its own
+  complete 241,918-byte source, 571 names, and 31,062 token records, and then
+  stops at token index 3 - the identifier `result` at offset 16, line 1, column
+  17 - because the frozen skeleton expects `)` immediately after `(`. Tokens 3
+  through 11 of its own source are `result : Result < int , int >` followed by
+  `)`, which is a parameter list the skeleton has no rule for.
+- Measured target grammar: the canonical source declares 23 functions. All 23
+  return `int`. They declare 99 parameters in total: 98 of type `int` and
+  exactly one of type `Result<int, int>`. Two functions declare none and the
+  widest declares 67. No parameter is a `ByteBuffer` or a reference; those forms
+  appear only as local binding types and call arguments, so they belong to later
+  checkpoints. The parameter grammar this checkpoint must admit is therefore
+  closed and small.
+- Frozen semantics: between the `(` at skeleton step 2 and the `->` at skeleton
+  step 4, the parser accepts either an immediate `)` or a nonempty list
+  `IDENT : TYPE ( , IDENT : TYPE )*` followed by `)`, where TYPE is exactly the
+  identifier `int` or the exact token sequence `Result < int , int >`. Each
+  admitted parameter appends one record to a new bounded parameter store owned
+  by the compiler, carrying at least its name id, its type code, and its located
+  start. The store is validated and folded into the parse checksum behind its own
+  separator, exactly as names, tokens, and nodes already are. Any other token,
+  type identifier, trailing comma, missing colon, or unbalanced generic form is
+  an exact located rejection.
+- Frozen exclusions: no syntax node may be created for a parameter. The node
+  arena is what the semantic, checked-IR, and verifier phases count - they
+  require `root == node_count`, one symbol, and one fact per node - so a
+  parameter node would silently cross four downstream authorities. Parameters
+  carry no type, ownership, storage, or checked meaning in this checkpoint. The
+  body grammar, expression grammar, node kinds, semantic facts, checked IR,
+  verifier, LLVM emitter, stdout driver, host driver, runtime ABI, language
+  profiles, and Rust compiler are all untouched. A second `fn` item stays
+  rejected.
+- Frozen acceptance semantics: fed its own exact bytes, the new product must
+  ingest them exactly as CAP-049 proved, admit the `result : Result < int , int >`
+  parameter list and the `int` return type, enter the body, reduce the single
+  leading `match` identifier into one name-reference node, and then stop at the
+  independently predicted next construct - the identifier `result` at offset 68,
+  line 2, column 18, with `status = 10`, `diagnostic_code = 18` (expected `;`),
+  `diagnostic_actual = 1` (identifier), `node_count = 1`, and `root = 0`. That is
+  the second token of `return match result {`, where the frozen closing sequence
+  `; } EOF` begins. One parameter must be recorded. Every downstream phase must
+  still report not-attempted.
+- Red-first proof: before any product change, the focused target must show the
+  current product stops at the CAP-049 boundary - offset 16, expecting `)` - and
+  must state the exact H1B-1 target above, derived by the oracle rather than
+  observed. The oracle must be extended to model the signature grammar, the first
+  expression operand, and the closing sequence, and must be exercised on the
+  canonical source before the Aero parser changes.
+- Acceptance tests: the accepted canonical 34-byte program must still return 91
+  with the identical 144-byte module at O0 and O2; its `main` expectation vector
+  may change only in the parse checksum and parameter count, and that change must
+  be derived, recorded, and explained. Negative coverage must include a missing
+  colon, a missing type, an unknown type identifier, a trailing comma, a missing
+  closing parenthesis, and a malformed `Result` generic, each with an exact
+  located first diagnostic. The complete repository-root gate must stay green.
+- Allowed files, exactly: `examples/aero_self_host_v0/compiler.aero`;
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`;
+  `.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+  `PROJECT_STATE.md`. No Rust compiler source, runtime source, accepted example,
+  accepted test, dependency, lockfile, claim evidence, benchmark, release, or
+  package file may change.
+- Risks and mandatory stops: stop rather than approximate if admitting a
+  parameter requires a syntax node, a semantic fact, a checked record, or any
+  downstream change; if the parameter store cannot be validated independently of
+  the parser that filled it; if the predicted stop cannot be derived before the
+  parser changes; if the canonical program's emitted 144 bytes move; or if the
+  parameter store's capacity would silently reclassify a parameter.
+- Recommended next action after CAP-050: H1B-2, the single `match` over
+  `Result<int, int>` that forms `result_value`'s whole body, starting from the
+  exact construct this checkpoint stops at.
+
 ## CORE-093 - keep loop stack use constant by emitting every alloca in the entry block
 
 - Date/task/status: 2026-08-17, `CORE-093`, authorized ledger-first and red-first
