@@ -511,11 +511,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         expected_emitted_checksum: int, expected_driven_attempted: int,
         expected_driven_status: int, expected_driven_runtime_code: int,
         expected_driven_byte_index: int, expected_driven_length: int,
-        expected_driven_checksum: int) -> int {
+        expected_driven_checksum: int, expected_parameters: int) -> int {
     let mut source: ByteBuffer = bytes_new();
     let mut names: ByteBuffer = bytes_new();
     let mut tokens: ByteBuffer = bytes_new();
     let mut nodes: ByteBuffer = bytes_new();
+    let mut parameters: ByteBuffer = bytes_new();
     let mut values: ByteBuffer = bytes_new();
     let mut operators: ByteBuffer = bytes_new();
     let mut origins: ByteBuffer = bytes_new();
@@ -570,7 +571,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     if expected_driven_attempted < 0 || expected_driven_status < 0
         || expected_driven_runtime_code < 0
         || expected_driven_byte_index < -1 || expected_driven_length < 0
-        || expected_driven_checksum < 0 {
+        || expected_driven_checksum < 0 || expected_parameters < 0 {
         return 40;
     }
 
@@ -1160,6 +1161,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut return_column: int = 0;
     let mut closing_step: int = 0;
     let mut int_matches: int = 0;
+    let mut parameter_count: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -2514,11 +2516,48 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     checksum = checksum_step(checksum, node_count);
     checksum = checksum_step(checksum, root);
 
+    checksum = checksum_step(checksum, 989);
+    let mut validate_parameter: int = 0;
+    let mut validate_param_field: int = 0;
+    let mut validate_param_name: int = 0;
+    let mut validate_param_type: int = 0;
+    if bytes_len(&parameters) != parameter_count * 8 {
+        return 69;
+    }
+    while validate_parameter < parameter_count {
+        validate_param_field = 0;
+        while validate_param_field < 2 {
+            word_offset = validate_parameter * 8 + validate_param_field * 4;
+            byte_0 = result_value(bytes_get(&parameters, word_offset));
+            byte_1 = result_value(bytes_get(&parameters, word_offset + 1));
+            byte_2 = result_value(bytes_get(&parameters, word_offset + 2));
+            byte_3 = result_value(bytes_get(&parameters, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 69;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            checksum = checksum_step(checksum, word);
+            if validate_param_field == 0 {
+                validate_param_name = word;
+            } else {
+                validate_param_type = word;
+            }
+            validate_param_field = validate_param_field + 1;
+        }
+        if validate_param_name <= 0 || validate_param_name > name_count
+            || validate_param_type < 1 || validate_param_type > 2 {
+            return 69;
+        }
+        validate_parameter = validate_parameter + 1;
+    }
+    checksum = checksum_step(checksum, parameter_count);
+
     if status != expected_status || error_offset != expected_offset
         || error_line != expected_line || error_column != expected_column
         || diagnostic_code != expected_code || diagnostic_actual != expected_actual
         || name_count != expected_names || token_count != expected_tokens
         || node_count != expected_nodes || root != expected_root
+        || parameter_count != expected_parameters
         || checksum != expected_checksum {
         return 80;
     }
@@ -5550,7 +5589,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
 
 fn main() -> int {
     return run_runtime_ascii_llvm_emitter(0, -1, 0, 0, 0, 0,
-        2, 20, 11, 11, 586661,
+        2, 20, 11, 11, 810191,
         0, 0, -1, 0, 0, 0, 0, 0,
         11, 1, 11, 1, 827574,
         1, 0, 0, -1, 0, 0, 0, 0, 0,
@@ -5559,5 +5598,5 @@ fn main() -> int {
         1, 0, -1, 0, 0, 0, 0,
         5, 4, 5, 4, 592819,
         1, 0, -1, 0, 144, 611963,
-        1, 0, 0, -1, 144, 506643);
+        1, 0, 0, -1, 144, 506643, 0);
 }

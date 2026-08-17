@@ -153,6 +153,9 @@ mod oracle {
         pub diagnostic_actual: i32,
         pub names: Vec<(i32, i32)>,
         pub tokens: Vec<TokenRecord>,
+        /// Whether the product folds a CAP-050 parameter region into its parse
+        /// checksum. The store-only bisection records zero parameters.
+        pub signature_grammar: bool,
     }
 
     pub struct Bounds {
@@ -181,6 +184,7 @@ mod oracle {
                     diagnostic_actual: 0,
                     names: Vec::new(),
                     tokens: Vec::new(),
+                    signature_grammar: false,
                 };
             }
             if *byte == b'\n' {
@@ -214,6 +218,7 @@ mod oracle {
                     diagnostic_actual: 0,
                     names,
                     tokens,
+                    signature_grammar: false,
                 }
             };
         }
@@ -393,6 +398,7 @@ mod oracle {
             diagnostic_actual: 0,
             names,
             tokens,
+            signature_grammar: false,
         }
     }
 
@@ -582,6 +588,10 @@ mod oracle {
         ] {
             checksum = checksum_step(checksum, word);
         }
+        if stopped.signature_grammar {
+            checksum = checksum_step(checksum, 989);
+            checksum = checksum_step(checksum, 0);
+        }
         checksum
     }
 
@@ -621,11 +631,11 @@ mod oracle {
 
     /// The complete 67-value expectation vector `run_runtime_ascii_llvm_emitter`
     /// must match for a run that stops before the semantic phase.
-    pub fn expectation_vector(source: &[u8], stopped: &Ingestion) -> [i32; 67] {
+    pub fn expectation_vector(source: &[u8], stopped: &Ingestion) -> Vec<i32> {
         let semantic = unattempted_semantic_checksum();
         let checked = unattempted_checked_checksum(semantic);
         let verified = unattempted_verified_checksum();
-        [
+        let mut vector = vec![
             // parse group
             stopped.status,
             stopped.error_offset,
@@ -700,7 +710,11 @@ mod oracle {
             -1,
             0,
             0,
-        ]
+        ];
+        if stopped.signature_grammar {
+            vector.push(0);
+        }
+        vector
     }
 }
 
@@ -870,7 +884,7 @@ fn renamed_product(llvm: &str) -> String {
 /// into the harness, streamed into the product's stdin intrinsic, and the
 /// compiler entry point is called with the exact expectation vector. Exit 91
 /// means every one of the 67 values matched.
-fn expectation_harness(expected: &[i32; 67], source: &[u8], consumed: i32) -> String {
+fn expectation_harness(expected: &[i32], source: &[u8], consumed: i32) -> String {
     let mut arguments = String::new();
     for (index, value) in expected.iter().enumerate() {
         if index % 6 == 0 {
@@ -932,7 +946,7 @@ int main(void) {{
     return result;
 }}
 "#,
-        signature = ["int32_t"; 67].join(", "),
+        signature = vec!["int32_t"; expected.len()].join(", "),
         arguments = arguments,
         bytes = bytes,
         length = source.len(),
@@ -972,6 +986,48 @@ fn run_expectation(
     );
     output.status.code().expect("CAP-049 harness exit code")
 }
+
+/// The CAP-050a parameter-store validation and checksum region, inserted
+/// after the parse group's `root` fold.
+const PARAMETER_FOLD: &str = r#"    checksum = checksum_step(checksum, root);
+
+    checksum = checksum_step(checksum, 989);
+    let mut validate_parameter: int = 0;
+    let mut validate_param_field: int = 0;
+    let mut validate_param_name: int = 0;
+    let mut validate_param_type: int = 0;
+    if bytes_len(&parameters) != parameter_count * 8 {
+        return 69;
+    }
+    while validate_parameter < parameter_count {
+        validate_param_field = 0;
+        while validate_param_field < 2 {
+            word_offset = validate_parameter * 8 + validate_param_field * 4;
+            byte_0 = result_value(bytes_get(&parameters, word_offset));
+            byte_1 = result_value(bytes_get(&parameters, word_offset + 1));
+            byte_2 = result_value(bytes_get(&parameters, word_offset + 2));
+            byte_3 = result_value(bytes_get(&parameters, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 69;
+            }
+            word = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            checksum = checksum_step(checksum, word);
+            if validate_param_field == 0 {
+                validate_param_name = word;
+            } else {
+                validate_param_type = word;
+            }
+            validate_param_field = validate_param_field + 1;
+        }
+        if validate_param_name <= 0 || validate_param_name > name_count
+            || validate_param_type < 1 || validate_param_type > 2 {
+            return 69;
+        }
+        validate_parameter = validate_parameter + 1;
+    }
+    checksum = checksum_step(checksum, parameter_count);
+
+    if status != expected_status"#;
 
 /// Apply the six frozen CAP-049 ingestion differences to the accepted B1C
 /// source. `compiler.aero` must equal this byte for byte.
@@ -1025,10 +1081,62 @@ fn expected_h1a_source() -> String {
     // 6. The located-token re-derivation carries its scan position forward.
     let rescan_anchor = "            return 75;\n        }\n        location_index = 0;\n        location_line = 1;\n        location_column = 1;\n        while location_index < validate_start {";
     assert_eq!(derived.matches(rescan_anchor).count(), 1);
-    derived.replace(
+    let derived = derived.replace(
         rescan_anchor,
         "            return 75;\n        }\n        while location_index < validate_start {",
-    )
+    );
+
+    // CAP-050a adds the parameter store: one owner, one counter, the 68th
+    // expectation, the validated `989` checksum region, and the parse-group
+    // comparison. No parser rule changes.
+    let owner_anchor = "    let mut nodes: ByteBuffer = bytes_new();\n";
+    assert_eq!(derived.matches(owner_anchor).count(), 1);
+    let derived = derived.replace(
+        owner_anchor,
+        "    let mut nodes: ByteBuffer = bytes_new();\n    let mut parameters: ByteBuffer = bytes_new();\n",
+    );
+
+    let signature_anchor = "        expected_driven_checksum: int) -> int {";
+    assert_eq!(derived.matches(signature_anchor).count(), 1);
+    let derived = derived.replace(
+        signature_anchor,
+        "        expected_driven_checksum: int, expected_parameters: int) -> int {",
+    );
+
+    let guard_anchor = "        || expected_driven_checksum < 0 {";
+    assert_eq!(derived.matches(guard_anchor).count(), 1);
+    let derived = derived.replace(
+        guard_anchor,
+        "        || expected_driven_checksum < 0 || expected_parameters < 0 {",
+    );
+
+    let counter_anchor = "    let mut int_matches: int = 0;\n";
+    assert_eq!(derived.matches(counter_anchor).count(), 1);
+    let derived = derived.replace(
+        counter_anchor,
+        "    let mut int_matches: int = 0;\n    let mut parameter_count: int = 0;\n",
+    );
+
+    let fold_anchor =
+        "    checksum = checksum_step(checksum, root);\n\n    if status != expected_status";
+    assert_eq!(derived.matches(fold_anchor).count(), 1);
+    let derived = derived.replace(fold_anchor, PARAMETER_FOLD);
+
+    let compare_anchor = "        || node_count != expected_nodes || root != expected_root\n        || checksum != expected_checksum {";
+    assert_eq!(derived.matches(compare_anchor).count(), 1);
+    let derived = derived.replace(
+        compare_anchor,
+        "        || node_count != expected_nodes || root != expected_root\n        || parameter_count != expected_parameters\n        || checksum != expected_checksum {",
+    );
+
+    // The canonical program records no parameter, so its self-test vector moves
+    // only by the new `989` region: step(step(586661, 989), 0) == 810191.
+    let vector_anchor = "        2, 20, 11, 11, 586661,";
+    assert_eq!(derived.matches(vector_anchor).count(), 1);
+    let derived = derived.replace(vector_anchor, "        2, 20, 11, 11, 810191,");
+    let tail_anchor = "        1, 0, 0, -1, 144, 506643);";
+    assert_eq!(derived.matches(tail_anchor).count(), 1);
+    derived.replace(tail_anchor, "        1, 0, 0, -1, 144, 506643, 0);")
 }
 
 // ---------------------------------------------------------------------------
@@ -1288,7 +1396,8 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
         "every source byte must be ingested"
     );
 
-    let stopped = oracle::first_parser_stop(&ingested, &source);
+    let mut stopped = oracle::first_parser_stop(&ingested, &source);
+    stopped.signature_grammar = true;
     // The first construct outside the frozen `fn NAME ( ) -> int { return`
     // skeleton is the `result` parameter of `fn result_value(...)`.
     assert_eq!(stopped.status, 10);

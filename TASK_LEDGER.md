@@ -175,7 +175,32 @@
   stop early at all; it accepts tokens it should reject and runs deep into the
   body before failing, far outside the grid. The next probe must cover a much
   wider token range, or better, bisect the sub-machine itself.
-- Recommended next step, in order: (1) land the store-only variant as CAP-050a,
+### CAP-050a accepted locally - the parameter store without the grammar
+
+- Status: the store-only variant is now landed and locally green. The canonical
+  source is 243,693 bytes and remains exactly reconstructible from accepted B1C:
+  the six CAP-049 ingestion differences plus seven CAP-050a store differences -
+  the `parameters` owner, the `parameter_count` counter, the 68th
+  `expected_parameters` value and its guard, the validated `989` checksum region,
+  the parse-group comparison, and the canonical vector's two constants. The
+  reconstruction is asserted byte-for-byte, so the diff still cannot widen
+  silently.
+- Evidence: `self_host_source_ingestion_tests` passes 9/9. The product ingests
+  its own complete source and matches all 68 expectation values at O0 and O2; the
+  accepted 34-byte canonical program still returns 91 and writes the identical
+  144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`. The recomputed
+  canonical checksum `810191` is exactly `step(step(586661, 989), 0)`, derived
+  rather than observed.
+- What this is and is not: CAP-050a is proven infrastructure, not a capability.
+  The store exists, validates, and folds, but records zero parameters because no
+  parser rule produces one yet. It is deliberately separated so that when the
+  sub-machine is added, any failure is unambiguously the grammar.
+- Remaining CAP-050 work: only the parser sub-machine - the `param_mode`
+  dispatch, the two alternation points, the closed type matching, and the
+  advance - on top of this proven base.
+
+- Superseded next steps, retained for the record: (1) land the store-only
+  variant as CAP-050a,
   which is already green apart from `canonical_self_host_source_is_a_copy_derived_successor`
   - that test asserts exact equality against a Rust-side derivation, so it needs
   the six store transformations added to `expected_h1a_source()`; (2) then add
