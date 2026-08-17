@@ -63,7 +63,7 @@ artifact, and log remains on D:. See
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md), and
 [`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md).
 
-CAP-048 is the current documentation-only H1 contract candidate. It records the
+CAP-048 is the current locally green documentation-only H1 contract candidate. It records the
 accepted compiler's exact 241,941-byte self-source versus 8,192-byte input
 boundary, freezes a new single-file canonical source path, defines the stage
 process and comparison protocol, and orders H1A through final replay. See

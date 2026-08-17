@@ -1,12 +1,14 @@
 # Bootstrap Convergence Readiness
 
-Status: CAP-048/H1 contract candidate from accepted CAP-047/B1C merge
+Status: CAP-048/H1 locally green contract candidate from accepted CAP-047/B1C merge
 `0365e5c91bd503b198855b97b7f16054488d6dff`, tree
 `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`, on 2026-08-16. Reviewed B1C
 candidate `18a507c8fabfc79e24167c79bef516b531506914` has the identical tree;
 protected PR #89 and all candidate and accepted-head workflows are green.
-CAP-048 changes documentation only. It freezes what H1 must prove before the
-first convergence implementation is accepted; it does not claim H1 or H2.
+CAP-048 changes documentation only. Its focused claim/governance checks and
+complete D:-redirected repository gate are green. It freezes what H1 must prove
+before the first convergence implementation is accepted; it does not claim H1
+or H2.
 
 ## Decision
 

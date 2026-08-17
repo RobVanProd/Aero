@@ -147,6 +147,42 @@
   emitter, or stage driver in H1A; stop if source/token scaling itself requires
   a new language/runtime authority.
 
+### CAP-048 local contract and complete-gate checkpoint
+
+- Checkpoint history and scope: B1C acceptance truth was synchronized in
+  documentation-only commit `7231b4e`; ledger-only H1 authorization is
+  `e1434dd`; and the convergence contract/readiness document is `2314cf2`.
+  The cumulative CAP-048 diff changes only the six authorized documentation
+  files. No compiler, runtime, test, example, workflow, manifest, dependency,
+  lockfile, accepted product, claim evidence, benchmark, release, or package
+  file changed.
+- Result: `BOOTSTRAP_CONVERGENCE_READINESS.md` freezes one canonical
+  `examples/aero_self_host_v0/compiler.aero` bundle, the binary compiler process
+  interface, exact stage-0/stage-1/stage-2 protocol, stage-output and repeated
+  artifact comparison, environment/toolchain manifest, declared trust base,
+  shared compiler corpus, fail-closed transaction rules, and ordered H1A-H1E
+  prerequisites. It states the exact first boundary—241,941 accepted B1C source
+  bytes against the compiler's own 8,192-byte input cap—and makes no H1/H2 claim.
+- Focused evidence: every local Markdown link resolves; the required readiness
+  headings are present; version/claim tests pass 8/8; repository governance
+  passes 1/1; and `git diff --check` passes. All commands used the H1 D:-resident
+  target/temp roots with one Cargo job and one test thread.
+- Complete gate: `./tools/test.sh` exits zero from the D:-redirected environment.
+  Formatting, all-target/all-feature checks, correctness-denying Clippy, 312
+  library tests, 36 binary tests, every integration/native/system target, and
+  doc tests pass. The complete accepted bootstrap ring is green: F1A 3/3, F1B
+  4/4, M1A 7/7, M1B 10/10, B1A 5/5, B1B 5/5, and B1C 8/8. B1C's real external
+  LLVM/Clang driver passes at O0/O2; no test was skipped or weakened.
+- Remaining uncertainty and risk: CAP-048 is locally green documentation, not a
+  published protected checkpoint and not compiler behavior. H1A must still
+  prove that scaling source/tokens does not change accepted owner, runtime,
+  grammar, semantic, IR, verifier, emitter, or cleanup behavior. Later H1 gates
+  remain substantial; their existence is not evidence of completion.
+- Recommended next action: publish CAP-048 only after exact scope/tree review and
+  protected checks. Do not stack accepted-state claims on an unpublished
+  contract. H1A may be prepared red-first on this branch but cannot be described
+  as accepted or merged until CAP-048 publication completes.
+
 ## CAP-047-B1C-BOUNDED-STDOUT-TOOLCHAIN-DRIVER - authenticated LLVM stream and external driver
 
 - Date/task/status: 2026-08-16,
