@@ -1,12 +1,12 @@
 # Bounded Bootstrap Driver Readiness
 
-Status: CAP-047/B1C is implemented locally from accepted CAP-046/B1B merge
-`3219d7f08a92f9d18334a37315e10cfde6fba931`, tree
-`055dfe065ada29b62f22864d879a9c3e18e17c93`, on 2026-08-16. The focused
-8/8 product boundary and the complete accepted B1B/B1A/M1B/M1A/F1B/F1A/D1
-predecessor ring are green. The complete D:-redirected root gate is also green.
-Candidate publication and protected accepted-head replay are still pending, so
-this is not yet an accepted public capability.
+Status: CAP-047/B1C is accepted at protected merge
+`0365e5c91bd503b198855b97b7f16054488d6dff`, tree
+`e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`, on 2026-08-16. Reviewed candidate
+`18a507c8fabfc79e24167c79bef516b531506914` has the identical tree. Protected
+PR #89 and all 13 candidate checks passed. Accepted-head CI `31975615300`, Rust
+CI `31975615304` (stable, nightly, and Windows LLVM 22), CodeQL `31975614982`,
+and evidence `31975615309` are terminal-success.
 
 ## Decision
 
@@ -119,7 +119,7 @@ Clang, compiles a fixed C observer, links, and runs the probe. Success requires
 the directory it created. It never overwrites a path or publishes a partial
 module/object/executable.
 
-## Evidence at the local implementation checkpoint
+## Evidence at the accepted checkpoint
 
 - The source/IR/verifier unit boundary is 3/3 green.
 - The focused B1C target is 8/8 green in 315.37 seconds; its exact root-gate
@@ -139,12 +139,14 @@ module/object/executable.
 - The complete repository-root gate exits zero with 312 library tests, 36
   binary tests, every integration/native/system target, and doc tests green.
   Formatting, correctness-denying Clippy, and `git diff --check` are green.
-- Protected Linux and Windows workflow replay is present but has not yet run on
-  a published candidate.
+- The reviewed candidate and merge have identical tree
+  `e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`; all 13 candidate checks and all
+  accepted-head Linux/Windows, stable/nightly, CodeQL, and evidence workflows
+  are terminal-green.
 
 ## What B1C closes—and what it does not
 
-B1C closes the bounded B1 backend path once protected acceptance completes:
+B1C closes the bounded B1 backend path:
 authenticated Aero-emitted LLVM can cross a raw-byte boundary into an explicit
 LLVM/link toolchain and produce a verified native artifact without asking the
 Rust frontend, semantic analyzer, IR generator, verifier, or backend to make a
@@ -162,11 +164,15 @@ release claims remain excluded.
 
 ## Next dependency
 
-Freeze the exact CAP-047 candidate and complete protected
-candidate/merge/accepted-head replay. After acceptance, freeze H1 before adding
-behavior: define the canonical Aero compiler source bundle, exact stage-0 to
-stage-1 interface, stage-1 to stage-2 invocation, comparison manifest,
-environment/toolchain identity, diagnostics, and stop rules. Any expansion of
+Freeze H1 ledger-first from accepted CAP-047 merge `0365e5c`. Define the
+canonical Aero compiler source bundle, exact stage-0 to stage-1 interface,
+stage-1 to stage-2 invocation, comparison manifest, environment/toolchain
+identity, diagnostics, and stop rules before adding convergence behavior. Any expansion of
 the bounded grammar, module topology, semantic universe, serialized checked IR,
 or LLVM emitter must remain a separate red-first checkpoint rather than being
 hidden inside the convergence driver.
+
+CAP-048 now records that documentation-only contract in
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
+Its first separately authorized implementation gate is complete canonical
+self-source ingestion, not a wider B1C host driver.

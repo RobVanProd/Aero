@@ -4,19 +4,17 @@ Last updated: 2026-08-16 (America/New_York)
 
 ## Current objective
 
-### B1C local candidate: authenticated output and bounded LLVM driver
+### H1 objective from accepted B1C: bootstrap convergence contract
 
-The current accepted public master is CAP-046/B1B merge
-`3219d7f08a92f9d18334a37315e10cfde6fba931`, tree
-`055dfe065ada29b62f22864d879a9c3e18e17c93`. Reviewed candidate
-`fe9c6bfdf40dfe707ef31955d17292d15ea93252` has the identical tree. Protected
-PR #88 and all 13 candidate checks passed; accepted-head CI, stable/nightly
-Rust, Windows LLVM 22 native, CodeQL, and evidence workflows are terminal-green.
-B1B independently verifies its bounded module, emits exactly 144 LF-only LLVM
-bytes with MD5 `fd2390d17d448d4539a72bf1991314dc`, seals them as 611963, and
-does not itself cross a process or filesystem boundary.
+The current accepted public master is CAP-047/B1C merge
+`0365e5c91bd503b198855b97b7f16054488d6dff`, tree
+`e13bcc92f04e0f1aec44eafcfdccbe638c1405ad`. Reviewed candidate
+`18a507c8fabfc79e24167c79bef516b531506914` has the identical tree. Protected
+PR #89 and all 13 candidate checks passed. Accepted-head CI `31975615300`, Rust
+CI `31975615304` (stable, nightly, and Windows LLVM 22), CodeQL `31975614982`,
+and evidence `31975615309` are terminal-success.
 
-CAP-047/B1C is implemented locally from that exact accepted head. Ledger-only
+CAP-047/B1C preserves ledger-only
 commit `4c88952` freezes output/driver semantics, red-first commit `8f9d472`
 passed the independent stream and LLVM/toolchain oracles before failing only
 because the bounded product/driver was absent, and red record `6246d87`
@@ -49,18 +47,27 @@ root-gate replay is 8/8 green in 442.60 seconds. The complete accepted
 B1B/B1A/M1B/M1A/F1B/F1A/D1 ring is green. Formatting, correctness Clippy,
 `git diff --check`, and the complete D:-redirected root gate are green at 312
 library tests, 36 binary tests, every integration/native/system target, and doc
-tests. Exact candidate freeze, protected publication, and accepted-head replay
-remain pending.
+tests. Candidate `18a507c` merged normally as `0365e5c` with identical tree
+`e13bcc9`; candidate and accepted-head replay are complete and green.
 
 B1C is still one bounded backend handoff, not a self-compiling compiler. The
 Rust stage-0 compiler is required to build the Aero emitter; the grammar,
 semantic universe, serialized checked IR, and LLVM mapping remain deliberately
 small. H1 stage-0/stage-1/stage-2 convergence and H2 reproducible self-hosting
-remain open. Every task-created worktree, Cargo target, temporary file, native
-harness, LLVM artifact, and log remains on D:. See
+remain open. H1 is now the active ledger-first task: freeze the canonical Aero
+compiler source bundle, stage interfaces, environment/toolchain manifest,
+comparison contract, and failure rules before convergence behavior. Every
+task-created worktree, Cargo target, temporary file, native harness, LLVM
+artifact, and log remains on D:. See
 [`BOOTSTRAP_DRIVER_READINESS.md`](BOOTSTRAP_DRIVER_READINESS.md),
 [`AERO_FRONTEND_READINESS.md`](AERO_FRONTEND_READINESS.md), and
 [`SELF_HOSTING_ROADMAP.md`](SELF_HOSTING_ROADMAP.md).
+
+CAP-048 is the current locally green documentation-only H1 contract candidate. It records the
+accepted compiler's exact 241,941-byte self-source versus 8,192-byte input
+boundary, freezes a new single-file canonical source path, defines the stage
+process and comparison protocol, and orders H1A through final replay. See
+[`BOOTSTRAP_CONVERGENCE_READINESS.md`](BOOTSTRAP_CONVERGENCE_READINESS.md).
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
@@ -3397,18 +3404,17 @@ Initial audit classification; see `CURRENT_CAPABILITY_AUDIT.md` and
 
 ## Exact next action
 
-Freeze and protect CAP-047/B1C from accepted CAP-046 merge `3219d7f`. Its 3/3
-source/IR/verifier unit boundary, 8/8 focused product/driver proof, accepted
-B1B/B1A/M1B/M1A/F1B/F1A/D1 predecessor ring, exact ledger-authorized scope,
-and complete D:-redirected root gate are green. Freeze the candidate identity,
-publish through one protected PR, merge without history rewrites, and verify
-accepted-head CI, Rust CI, Windows LLVM 22, CodeQL, and evidence.
-
-After protected B1C, freeze H1 separately and ledger-first. H1 must define the
+Freeze H1 separately and ledger-first from accepted CAP-047/B1C merge
+`0365e5c91bd503b198855b97b7f16054488d6dff`. H1 must define the
 canonical Aero compiler source bundle, exact stage-0/stage-1/stage-2
 interfaces, environment and toolchain manifest, comparison contract, and
 failure rules before any convergence implementation. Do not treat the bounded
 B1C product as a general compiler or a self-hosting claim.
+
+CAP-048 freezes that contract without changing behavior. After its protected
+acceptance, authorize H1A red-first for complete canonical source/token
+ingestion and stop at the independently predicted first unsupported parser
+construct.
 
 ## Historical post-CAP-024 ranking
 
