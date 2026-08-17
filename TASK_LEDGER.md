@@ -198,6 +198,20 @@
 - Remaining CAP-050 work: only the parser sub-machine - the `param_mode`
   dispatch, the two alternation points, the closed type matching, and the
   advance - on top of this proven base.
+- Hand-trace narrowing, recorded so the next attempt does not repeat it: the
+  mode transitions were traced token by token against the canonical source's
+  first signature and are correct. `fn result_value (` reaches mode 0; `result`
+  sets the name id and mode 1; `:` gives mode 2; `Result` matches six bytes and
+  gives type code 2 and mode 3; `<` gives 4; `int` matches and gives 5; `,` gives
+  7; `int` gives 8; `>` gives 6 and arms the record append; `)` falls to the
+  default branch and completes the list, setting `skeleton_step` to 4. The
+  expected-kind table matches that sequence at every mode, and the empty case
+  `fn score ( )` is already proven by the canonical program. The defect is
+  therefore most likely **not** in the mode transitions but in their interaction
+  with the surrounding skeleton block - the shared `param_alternate` rejection
+  bypass, the reuse of the lexer scratch registers `b0`-`b5` and `word` /
+  `push_result` inside a parser state, or the changed `skeleton_step` advance
+  condition. Instrument those three before re-reading the transition table.
 
 - Superseded next steps, retained for the record: (1) land the store-only
   variant as CAP-050a,
