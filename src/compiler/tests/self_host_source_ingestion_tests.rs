@@ -438,6 +438,115 @@ mod oracle {
         panic!("CAP-049 requires the self-source to stop inside the frozen skeleton");
     }
 
+    /// Where the parser stops once CAP-050 / H1B-1 admits the signature grammar.
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct SignatureStop {
+        pub status: i32,
+        pub error_offset: i32,
+        pub error_line: i32,
+        pub error_column: i32,
+        pub diagnostic_code: i32,
+        pub diagnostic_actual: i32,
+        pub node_count: i32,
+        pub parameters: i32,
+    }
+
+    /// Model the parser CAP-050 authorizes and report its first stop.
+    ///
+    /// The frozen signature grammar is `fn NAME ( params? ) -> int {` where a
+    /// parameter is `IDENT : TYPE`, `TYPE` is the identifier `int` or the exact
+    /// sequence `Result < int , int >`, and parameters are separated by `,`.
+    /// After `return`, only enough of the accepted expression grammar is modelled
+    /// to reach the frozen `; } EOF` closing sequence: a leading identifier
+    /// reduces to one name-reference node, and the following token must be `;`.
+    ///
+    /// Parameters deliberately produce no syntax node, because the node arena is
+    /// what the semantic, checked-IR, and verifier phases count.
+    pub fn signature_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+        assert_eq!(ingested.status, 0, "ingestion must succeed first");
+        let mut index = 0usize;
+        let mut parameters = 0i32;
+        let mut node_count = 0i32;
+
+        let text = |record: &TokenRecord| {
+            let from = usize::try_from(record[1]).expect("bounded start");
+            let to = from + usize::try_from(record[2]).expect("bounded length");
+            &source[from..to]
+        };
+        let stop = |record: &TokenRecord, expected: i32, nodes: i32, params: i32| SignatureStop {
+            status: 10,
+            error_offset: record[1],
+            error_line: record[3],
+            error_column: record[4],
+            diagnostic_code: expected,
+            diagnostic_actual: record[0],
+            node_count: nodes,
+            parameters: params,
+        };
+        macro_rules! take {
+            ($expected:expr) => {{
+                let record = &ingested.tokens[index];
+                if record[0] != $expected {
+                    return stop(record, $expected, node_count, parameters);
+                }
+                index += 1;
+                record
+            }};
+        }
+
+        take!(3); // fn
+        take!(1); // function name
+        take!(10); // (
+
+        // Parameter list: either an immediate `)` or `IDENT : TYPE` repeated.
+        if ingested.tokens[index][0] != 11 {
+            loop {
+                take!(1); // parameter name
+                take!(17); // :
+                let ty = take!(1);
+                match text(ty) {
+                    b"int" => {}
+                    b"Result" => {
+                        take!(29); // <
+                        let first = take!(1);
+                        if text(first) != b"int" {
+                            return stop(first, 102, node_count, parameters);
+                        }
+                        take!(16); // ,
+                        let second = take!(1);
+                        if text(second) != b"int" {
+                            return stop(second, 102, node_count, parameters);
+                        }
+                        take!(31); // >
+                    }
+                    _ => return stop(ty, 102, node_count, parameters),
+                }
+                parameters += 1;
+                if ingested.tokens[index][0] != 16 {
+                    break;
+                }
+                index += 1; // ,
+            }
+        }
+        take!(11); // )
+        take!(35); // ->
+        let result_type = take!(1);
+        if text(result_type) != b"int" {
+            return stop(result_type, 102, node_count, parameters);
+        }
+        take!(12); // {
+        take!(6); // return
+
+        // One leading identifier operand becomes a name-reference node; the
+        // frozen closing sequence then requires `;`.
+        if ingested.tokens[index][0] == 1 {
+            node_count += 1;
+            index += 1;
+        }
+        take!(18); // ;
+        panic!("CAP-050 requires the self-source to stop before the closing `;`");
+    }
+
     /// The parse-group checksum over every source byte, name word, token word,
     /// node word, and located diagnostic field.
     pub fn parse_checksum(source: &[u8], stopped: &Ingestion) -> i32 {
@@ -1203,4 +1312,56 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
             "CAP-049 self-ingestion diverged from the independent oracle at {optimization}"
         );
     }
+}
+
+/// CAP-050 / H1B-1 target, derived here before the parser changes.
+///
+/// This is not a claim that the parser admits signatures today - the test above
+/// proves it still stops at the CAP-049 boundary. It freezes, from the canonical
+/// token stream alone, exactly where the next checkpoint must stop, so the
+/// implementation cannot be graded against its own output.
+#[test]
+fn the_signature_grammar_checkpoint_has_an_independently_derived_target() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = oracle::ingest(
+        &source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0);
+
+    // Today's frozen skeleton stops at the parameter list.
+    let today = oracle::first_parser_stop(&ingested, &source);
+    assert_eq!((today.error_offset, today.diagnostic_code), (16, 11));
+
+    // With the signature grammar admitted, the first stop moves into the body:
+    // `return match result {` reduces the `match` identifier to one
+    // name-reference node, and the frozen `; } EOF` closing sequence rejects the
+    // identifier `result` that follows it.
+    let target = oracle::signature_grammar_stop(&ingested, &source);
+    assert_eq!(
+        target,
+        oracle::SignatureStop {
+            status: 10,
+            error_offset: 68,
+            error_line: 2,
+            error_column: 18,
+            diagnostic_code: 18,
+            diagnostic_actual: 1,
+            node_count: 1,
+            parameters: 1,
+        },
+        "CAP-050's frozen target moved"
+    );
+    assert_eq!(&source[68..74], b"result");
+    assert_eq!(&source[55..61], b"return");
+
+    // The one parameter is `result: Result<int, int>`, the only non-`int`
+    // parameter anywhere in the canonical source.
+    assert_eq!(&source[16..22], b"result");
+    assert_eq!(&source[24..40], b"Result<int, int>");
 }
