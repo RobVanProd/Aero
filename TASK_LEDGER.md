@@ -1,5 +1,284 @@
 # Aero Task Ledger
 
+## CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS - admit typed bindings, assignment, and multi-statement bodies
+
+- Date/task/status: 2026-08-18, `CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS`,
+  authored ledger-first from locally green CAP-051/H1B-2 at `6a2278e`. **Not
+  started.** This entry is the contract only; no product change is authorized
+  until the red-first probe derivation below has been performed and recorded.
+  It is the third H1B checkpoint, per
+  `BOOTSTRAP_CONVERGENCE_READINESS.md:290`. It authorizes a statement grammar.
+  It is not H1B completion, H1, H2, stage convergence, or any self-hosting
+  claim.
+- D:-only task storage is unchanged from CAP-051: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`.
+- Observed behavior: with CAP-051 accepted, the compiler consumes its own
+  257,242-byte source, parses the whole body of its first function, and stops at
+  the second `fn` item at offset 146, line 8, column 1, with `status = 10`,
+  `diagnostic_code = 0` (expected end of input), `diagnostic_actual = 3`, four
+  nodes, one parameter, and `root = 0`.
+
+### Decision 1, derived: the statement grammar owns the return statement
+
+This is the decision CAP-051 left open, and it is settled here by derivation
+rather than preference, because the alternatives are what determine the shape of
+the whole checkpoint.
+
+The frozen `; } EOF` closing sequence (`compiler.aero:2300`, state 21) runs one
+linear `closing_step` counter over three tokens that belong to three different
+levels: `;` terminates the **return statement**, `}` closes the **function
+body**, and end-of-input ends the **module**. CAP-051 left that sequence entered
+from two places - state 43 step 14 when the match construct closes
+(`compiler.aero:1719`) and state 18 when an ordinary return expression completes
+(`compiler.aero:2282`). Three designs were considered.
+
+(a) *Return stays outside the statement grammar.* The frozen skeleton hard
+expects token kind 6 at step 7 (`compiler.aero:1390`). A body whose first
+statement is a `let` binding reaches that step with token kind 4, so step 7 can
+no longer be a fixed expectation. Dissolving it is exactly the work (a) was
+meant to avoid, so (a) saves nothing and only hides the change.
+
+(b) *Return becomes one statement among several and the statement grammar owns
+it.* The body is `{` followed by a statement loop that ends at `}`. `;` becomes
+the return statement's own terminator rather than a closing token, so the two
+entry points CAP-051 created collapse into one rule inside the loop, and the
+closing sequence shrinks to `}` plus end-of-input, entered once.
+
+(c) *Statements are a prefix loop before an otherwise unchanged terminal
+return.* This is the smallest edit and it fits every one of the 23 canonical
+functions, all of which end in `return`. It is nevertheless wrong, and the
+canonical source says so one function later: `is_identifier_start` is
+`if ... { return 1; } return 0;`, so a `return` appears inside an `if` with a
+further statement after the `if`. (c) hard-codes "return is last" and would have
+to be undone at H1B-4.
+
+**(b) is adopted.** The skeleton's fixed `return` step is dissolved into the
+statement loop, `;` is demoted from a closing token to the return statement's
+terminator, and the closing sequence becomes `}` then end-of-input with exactly
+one entry point. CAP-051's two entry points are the concrete debt this pays.
+
+### Measured target grammar, from the canonical bytes
+
+The statement grammar the source actually uses is closed and small.
+
+| Measured fact | Value |
+|---|---|
+| `let` bindings | 502 - 471 `let mut`, 31 immutable `let` |
+| bindings without a type annotation | 0 |
+| bindings without an initializer | 0 |
+| binding types | 485 `int`, 15 `ByteBuffer`, 2 `Result<int, int>` |
+| bindings whose initializer is call-free | 462, all of them `int` |
+| bindings whose initializer contains a call | 40 - every `ByteBuffer` and both `Result<int, int>` bindings |
+| assignments | 2,298, of which 2,000 are call-free |
+| assignment targets that are not a bare identifier | 0 |
+
+Two consequences follow and both narrow this checkpoint. First, the type set for
+an H1B-3 binding is **`int` only**: every `ByteBuffer` and `Result<int, int>`
+binding in the source is initialized by a call, so the type and the call are
+inseparable in the measured evidence and both belong to H1B-5. Admitting those
+two binding types here would be admitting a form the source never writes.
+Second, every assignment target is a bare identifier, so no place expression,
+field, or index form is needed.
+
+### Frozen semantics
+
+Inside a function body, a statement is one of exactly four forms:
+
+- `let IDENT : int = EXPR ;`
+- `let mut IDENT : int = EXPR ;`
+- `IDENT = EXPR ;`
+- `return EXPR ;`
+
+`EXPR` is the already-accepted expression grammar, including the CAP-051 match
+construct in the return statement's position only. A body is `{` followed by one
+or more statements followed by `}`. Any other shape - a missing type annotation,
+a missing initializer, a binding type other than `int`, an assignment target
+that is not a bare identifier, a missing `;`, an empty body, or `mut` without
+`let` - is an exact located rejection.
+
+No lexer change is required: `let` is already token kind 4, `mut` kind 5, `:`
+kind 17, `;` kind 18, and `=` kind 25, all produced by the accepted tokenizer.
+
+### Frozen exclusions
+
+No control flow and no calls, per `BOOTSTRAP_CONVERGENCE_READINESS.md:290`. No
+`ByteBuffer` or `Result<int, int>` binding type, for the reason measured above.
+No reference operand. A binding carries no type, ownership, mutability, scope,
+shadowing, initialization-order, or checked meaning; `mut` is a token that is
+matched and recorded, not a property that is enforced. The parameter store, the
+signature grammar, the match construct, the expression grammar, the semantic,
+checked-IR, verifier, emitter, stdout driver, host driver, runtime ABI, language
+profiles, and Rust compiler are all untouched. A second `fn` item stays
+rejected.
+
+### Ambiguity 1, resolved: this checkpoint cannot move the canonical stop, and must not pretend to
+
+The ordering rule at `BOOTSTRAP_CONVERGENCE_READINESS.md:283-284` names each
+checkpoint by the construct at which the previous one stops. That rule runs out
+here, and the next session must not spend time trying to satisfy it.
+
+CAP-051 stops at the **second `fn` item**. Admitting a second `fn` changes four
+downstream authorities at once and is explicitly excluded from every parser
+checkpoint (`BOOTSTRAP_CONVERGENCE_READINESS.md:309-311`). Function 1 is now
+parsed completely. Therefore no construct that H1B-3, H1B-4, or H1B-5 admits is
+reachable in the canonical source at all, and **the canonical self-ingestion
+stop stays at offset 146 for all three checkpoints**.
+
+The consequences are binding on this checkpoint:
+
+1. H1B-3's forward evidence is **entirely focused probes**. There is no
+   canonical movement to derive, and none may be manufactured.
+2. The canonical self-ingestion target is asserted **unchanged** - offset 146,
+   line 8, column 1, code 0, actual 3, four nodes, one parameter - as a
+   regression guard. It must stay green throughout, and it must **not** be cited
+   as evidence of forward progress, because at this checkpoint it is not.
+3. Red-first therefore means: the probe expectations are hand-derived from this
+   contract, confirmed against the independent oracle by a test that touches no
+   product, and observed returning `80` from the linked product before
+   `compiler.aero` is edited. That is the CAP-051 pattern, and it is the only
+   red available here.
+
+### Ambiguity 2, resolved: the documented checkpoint order is right, for a reason the document does not give
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:282` asserts the H1B order is "the order
+`compiler.aero` itself forces". Measured against the source, that justification
+is false, though the order it produces is still correct:
+
+- Function 2, `is_identifier_start`, opens its body with `if`. The construct the
+  source forces next is control flow (H1B-4), not statements (H1B-3).
+- **No function in the source has statements without control flow or a call.**
+  All 23 were scanned; the count is zero. The first `let` in the file is at line
+  155, in `quotient_256`, whose body is two bindings, a `while` loop, and a
+  return. H1B-3's own frozen exclusions therefore make it impossible for any
+  canonical function to parse at H1B-3, in isolation or otherwise.
+
+The order nevertheless stands, on grammar dependency rather than on source
+order: an `if` or `while` body is a statement block, so H1B-4 cannot be
+specified without H1B-3, and H1B-5's call arguments are expressions inside
+statements. This paragraph replaces the document's justification for the H1B-3
+position; it does not reorder the table. If a later session finds the document's
+"order the source forces" wording load-bearing somewhere else, the wording is
+what is wrong, not this contract.
+
+### Ambiguity 3, open: a statement sequence probably does need a new node kind
+
+This is the CAP-051 node-kind question returning with the opposite likely
+answer, and it must be settled with evidence before implementation, exactly as
+CAP-051 settled its own.
+
+Today a body is one return node (kind 18) hanging off the function node (kind
+19) as its single `left` child, with `root == node_count` and the root's kind
+required to be exactly 19 (`compiler.aero:2815`). A body of N statements needs
+some representation of a sequence. The validator admits kinds `1..=19` only and
+all twenty values are allocated, so the contract must settle:
+
+1. Whether statements can chain without a new node kind - for example by
+   right-linking through an existing binary shape (kinds 5 through 17 require
+   payload 0 and both children positive). Evaluate this first, as CAP-051's
+   contract required and as CAP-051's implementation vindicated.
+2. If it cannot, whether the `kind > 19` bound is raised, and to what. Note that
+   overloading an arithmetic kind to mean "sequence" is **not** the cheap
+   option: the origin sidecar records the token kind that produced each node
+   (`compiler.aero:2907` onward) and the semantic phase consumes it, so a
+   sequence node wearing an arithmetic kind would be a lie that surfaces at H1C
+   rather than a saving.
+3. Whether a binding or an assignment produces a node at all. CAP-050's
+   precedent is that a parameter does not and lives in a side store; CAP-051's
+   is that a construct with no downstream consumer at its own checkpoint need
+   not have one. But unlike a parameter, a binding's initializer is an
+   expression that already produces nodes, so those nodes need an owner or they
+   become orphans - see the debt below.
+
+The authority reasoning is the same as CAP-051's and reaches the same place: the
+`> 19` bound lives in the parse group and reports through `return 78`, so
+raising it is inside the parser's own authority, but a new kind must also be
+given an origin token-kind mapping, and it will be consumed downstream at H1C.
+Raising it is admissible under this checkpoint's stop and creates a debt H1C must
+pay. **The contract must state which of the two it chose before any parser
+edit**, and if it raises the bound it must say so in those words rather than
+describing it as a validator update.
+
+### Debt carried forward from CAP-051, which this checkpoint must not silently adopt
+
+CAP-051 left **four orphan nodes** in the canonical parse: the two match arm
+bodies, `value` as one name reference and `0 - code` as a literal, a name
+reference, and a difference. Nothing references them, because the match
+construct itself produces no node. That is invisible today only because the
+parse stops with `status = 10` and `root = 0` before any consumer runs.
+
+H1B-3 must keep them orphans and keep them visible. Concretely: any statement
+chaining that walks the node arena by index rather than by explicit child links
+would sweep those four nodes into the sequence and silently invent structure
+that was never parsed. The canonical regression assertion must continue to state
+`node_count == 4` exactly, so their number cannot drift unnoticed, and this
+contract is the record that they are unowned rather than merely uncounted. H1C
+adopts them; H1B-3 does not.
+
+### Red-first proof and acceptance tests
+
+- Before any product change, extend the oracle to model the statement loop, the
+  three statement forms, the demoted `;`, and the one-entry closing sequence.
+  Add a `STATEMENT_PROBES` table to
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` whose expectations
+  are hand-derived from this contract, and a product-free test that requires the
+  oracle to agree with every one of them, on the
+  `every_match_probe_expectation_is_derived_twice` pattern. Record how many
+  hand derivations needed correction; that number is the anti-fitting signal and
+  CAP-051's was zero.
+- Then observe the red: the statement probes must return `80` from the real
+  linked product before `compiler.aero` is edited.
+- Negative coverage must include a missing type annotation, a missing
+  initializer, a `ByteBuffer` binding, a `Result<int, int>` binding, an
+  assignment to a non-identifier, a missing `;`, an empty body, and `mut`
+  without `let`, each with an exact located first diagnostic.
+- Positive coverage must include a single-statement body that is only a return
+  (the CAP-051 shape, which must not regress), a `let` before a return, a
+  `let mut` before a return, an assignment between them, and a body whose return
+  expression is the CAP-051 match construct, proving the two grammars compose.
+- The canonical self-ingestion target must stay exactly at offset 146, line 8,
+  column 1, code 0, actual 3, four nodes, one parameter. The ten CAP-050
+  signature probes and the thirteen CAP-051 match probes must all stay green
+  unchanged.
+- The accepted 34-byte canonical program must still return 91 with the identical
+  144-byte module at O0 and O2, its byte-for-byte reconstruction from accepted
+  B1C must still hold, and the complete repository-root gate must stay green.
+
+### Allowed files, exactly
+
+`examples/aero_self_host_v0/compiler.aero`;
+`src/compiler/tests/self_host_source_ingestion_tests.rs`;
+`.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
+`BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+`PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:245-249`.
+
+### Risks and mandatory stops
+
+Stop rather than approximate if admitting a statement requires a semantic fact,
+a symbol table, a scope, a checked record, or any downstream change; if
+dissolving the skeleton's fixed `return` step cannot be done without changing the
+accepted expression grammar; if a statement sequence cannot be represented
+without either a new node kind or a dishonest reuse of an existing one, in which
+case record the finding and stop rather than pick the dishonest one; if the node
+arena would exceed 512 records, in which case H1B-6 must be pulled forward per
+`BOOTSTRAP_CONVERGENCE_READINESS.md:297-299` rather than treated as a grammar
+failure; or if the probe expectations cannot be derived before the parser
+changes.
+
+The specific regression to watch is CAP-051's. The match construct is entered
+from the return expression's leading-token dispatch, which today is reached from
+the skeleton's step 8. Dissolving that step moves the dispatch, and the thirteen
+match probes are what will catch it if it moves wrongly. Run them at every
+iteration, not only at the end.
+
+### Recommended next action after CAP-052
+
+H1B-4, control flow - `if` / `else if` / `else` and `while` over the existing
+expression grammar - per `BOOTSTRAP_CONVERGENCE_READINESS.md:291`. Note before
+starting it that H1B-4 inherits Ambiguity 1 unchanged: it too cannot move the
+canonical stop, and its evidence will also be probes only.
+
 ## CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN - admit the single `match` over `Result<int, int>`
 
 - Date/task/status: 2026-08-17, `CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN`,
