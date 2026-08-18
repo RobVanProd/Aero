@@ -422,6 +422,36 @@ commit message will find the discrepancy, and should find the explanation beside
 it rather than have to re-derive it. `084cb1a` is left unrewritten: it is
 pushed, and rewriting published history is forbidden here.
 
+### Independent re-verification of the gate figure, 2026-08-18 09:35
+
+A fourth session re-ran the complete repository-root gate on the accepted tree
+at `1066e83`, from a clean working tree byte-identical to the pushed commit,
+without reusing the earlier session's run. It reproduces the figure recorded
+above exactly: **117 `test result:` lines, 969 passed, 0 failed, 16 ignored,
+process exit 0**, in 32 minutes. `cargo fmt --check` and
+`cargo clippy --all-targets --all-features -- -D clippy::correctness` both
+passed ahead of it. `self_host_source_ingestion_tests` is 16/16 green with 0
+ignored, including `canonical_self_host_source_is_a_copy_derived_successor`
+(the byte-for-byte reconstruction from accepted B1C),
+`the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved`, and both the
+CAP-050 and CAP-051 derived targets unchanged. The 16 ignored results are the
+pre-existing quarantine in a single 22-passed retention suite, not anything this
+checkpoint introduced; `src/compiler/tests/*.rs` is 114 files at both `25fa375`
+and `1066e83`, the range deletes no file, and the diff removes no `#[test]` and
+adds no `#[ignore]`.
+
+The adopted tree was also checked for damage from the concurrent-edit window
+before the gate was spent: parser states 44 through 49 are each defined exactly
+once, no test function name is duplicated, the source carries 23 `fn` items as
+the measured grammar requires, and the file terminates cleanly rather than
+mid-construct. The source's `{`/`}` count is unbalanced by two, which is not
+damage: three comment lines quote a brace character (`compiler.aero:1424`,
+`:1660`, `:2466`), and accepted `25fa375` carries the same imbalance of one from
+the same cause.
+
+The recorded figure is therefore reproduced rather than trusted. No product,
+test, or record content was changed to obtain it.
+
 ### Provenance: implemented by one session, verified and committed by another
 
 This checkpoint was produced by more than one session, and the history does not
