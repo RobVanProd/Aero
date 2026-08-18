@@ -89,8 +89,8 @@ preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
 `self_host_source_ingestion_tests` is 8/8 green.
 
-CAP-050a and CAP-050/H1B-1 are the next two H1 prerequisites to execute and are
-locally green. CAP-050a added the bounded parameter store - one owner, its
+CAP-050a, CAP-050/H1B-1, and CAP-051/H1B-2 are the next three H1 prerequisites
+to execute and are locally green. CAP-050a added the bounded parameter store - one owner, its
 counter, a 68th expectation value, and a validated `989` checksum region -
 without any parser rule, so that a later grammar failure would be unambiguous.
 CAP-050 then added the parameter sub-machine itself. Between the `(` and the
@@ -117,8 +117,36 @@ accounting balances with zero live allocations. The accepted 34-byte canonical
 program is preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. Ten focused signature probes - three
 positive shapes, six mandated negatives, and one body probe - are run against the
-real linked product. The focused target `self_host_source_ingestion_tests` is
-10/10 green.
+real linked product.
+
+CAP-051/H1B-2 then admitted the single `match` form the canonical source
+actually uses, in return-expression position only. When the leading token of a
+return expression is the identifier `match`, the parser enters
+`match IDENT { IDENT ( IDENT ) => EXPR , IDENT ( IDENT ) => EXPR , }` instead of
+reducing that identifier to an operand; the decision is made before the operand
+reduction runs, so nothing is appended to the append-only node arena and nothing
+has to be retracted. Each arm body is the already-accepted expression grammar.
+The construct itself creates no syntax node and needs no new node kind, so the
+`1..=19` node-kind validator bound is unchanged. Any other shape - a missing
+arrow, a missing or extra arm, a missing trailing comma, a nested or
+non-identifier pattern, a guard, or a scrutinee that is not a single identifier -
+is an exact located rejection. The canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+is now 257,242 bytes, 5,918 LF bytes, 7-bit ASCII, SHA-256
+`cf8ad0b72d01ba98dfac3a5f79ee1f3e34700b7208a744c9daf39e56c54c7e57`, and remains a
+copy-derived successor of accepted B1C asserted byte for byte, now with five
+further CAP-051 differences. Fed its own exact bytes it now parses the whole body
+of its first function and stops at the independently predicted next construct -
+`status = 10`, offset 146, line 8, column 1, expecting end of input and finding
+the second `fn` item, with four nodes and one parameter. The four nodes are the
+two arm bodies: one name reference for `value`, and a literal, a name reference,
+and a difference for `0 - code`. All 68 independently derived expectation values
+match at O0 and O2. Admitting a second `fn` item is not a parser checkpoint, so
+that stop is the expected result rather than a defect. Thirteen further focused
+match probes - two positive shapes and eleven negatives, each hand-derived and
+independently confirmed by the oracle before the parser changed - are run against
+the real linked product. The focused target `self_host_source_ingestion_tests` is
+13/13 green.
 
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
@@ -133,11 +161,13 @@ checked `ByteBuffer` operations at O0 and O2, and all eight accepted `.aero`
 products plus the specimen emit no `alloca` outside an entry block while still
 passing required LLVM verification.
 
-H1A is ingestion and tokenization only, and CAP-050/H1B-1 adds signature syntax
-only. The compiler reads its own source and now admits its function signatures;
-a parameter still means nothing to the type, ownership, checked-IR, verifier, or
-backend authorities, and no body, expression, or item beyond the first function's
-signature parses. The rest of H1B, H1C through H1E, and the final stage replay
+H1A is ingestion and tokenization only, CAP-050/H1B-1 adds signature syntax
+only, and CAP-051/H1B-2 adds one match form in one position only. The compiler
+reads its own source and now admits its function signatures and the whole body of
+its first function; a parameter still means nothing to the type, ownership,
+checked-IR, verifier, or backend authorities, `Ok` and `Err` are identifiers
+matched byte for byte and carry no enum, variant, or pattern meaning, and no
+statement, control-flow, call, or item beyond that first function parses. The rest of H1B, H1C through H1E, and the final stage replay
 remain open, and no self-hosting claim follows.
 
 The checkpoint sections below are retained chronological records. Any

@@ -286,7 +286,7 @@ selected for convenience.
 | Checkpoint | Required result | Frozen exclusions |
 |---|---|---|
 | H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the measured closed type set `int` and `Result<int, int>`. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
-| H1B-2 — `match` over `Result<int, int>` | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body | No general patterns, guards, enums, or match anywhere but a return expression |
+| H1B-2 — `match` over `Result<int, int>` (locally green, CAP-051) | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body. Dispatched on the leading token of the return expression, before the operand reduction runs, so the append-only node arena never has to retract a name-reference node. The construct creates no node and needs no new node kind, so the `1..=19` node-kind bound is unchanged | No general patterns, guards, enums, or match anywhere but a return expression |
 | H1B-3 — statement blocks | `let`, `let mut`, assignment, and multi-statement function bodies | No control flow and no calls |
 | H1B-4 — control flow | `if` / `else if` / `else` and `while` over the existing expression grammar | No new expression forms |
 | H1B-5 — calls and references | Call expressions with argument lists and `&`/`&mut` operands | No intrinsic knowledge; a call is a syntax node |

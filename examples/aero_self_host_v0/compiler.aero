@@ -1179,6 +1179,16 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut param_b3: int = 0;
     let mut param_b4: int = 0;
     let mut param_b5: int = 0;
+    let mut match_active: int = 0;
+    let mut match_step: int = 0;
+    let mut match_cycle_step: int = 0;
+    let mut match_expected: int = 0;
+    let mut match_is_match: int = 0;
+    let mut match_b0: int = 0;
+    let mut match_b1: int = 0;
+    let mut match_b2: int = 0;
+    let mut match_b3: int = 0;
+    let mut match_b4: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -1270,6 +1280,22 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         }
         if parser_cycle_state == 20 {
             parser_token_after = 21;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        // CAP-051 requests the leading token of the return expression, and then
+        // one token per step of the admitted match construct.
+        if parser_cycle_state == 40 {
+            parser_token_after = 41;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 42 {
+            parser_token_after = 43;
             parser_token_field = 0;
             parser_token_byte = 0;
             parser_token_word = 0;
@@ -1598,7 +1624,102 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 parser_state = 1;
                 if skeleton_step == 8 {
+                    parser_state = 40;
+                }
+            }
+        }
+
+        // CAP-051 decides the return expression on its leading token, before
+        // the operand classifier runs. The identifier 'match' opens the admitted
+        // construct; every other token falls through to state 4 with the same
+        // decoded record, so no node is appended for 'match' and the
+        // append-only node arena never has to retract one.
+        if parser_cycle_state == 41 {
+            if current_kind < 0 || current_start < 0 || current_length < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (current_line <= 0 || current_column <= 0
+                || current_name_id < 0) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                match_is_match = 0;
+                if current_kind == 1 && current_length == 5 {
+                    match_b0 = result_value(bytes_get(&source, current_start));
+                    match_b1 = result_value(bytes_get(&source, current_start + 1));
+                    match_b2 = result_value(bytes_get(&source, current_start + 2));
+                    match_b3 = result_value(bytes_get(&source, current_start + 3));
+                    match_b4 = result_value(bytes_get(&source, current_start + 4));
+                    if match_b0 == 109 && match_b1 == 97 && match_b2 == 116
+                        && match_b3 == 99 && match_b4 == 104 {
+                        match_is_match = 1;
+                    }
+                }
+                if match_is_match == 1 {
+                    match_active = 1;
+                    match_step = 0;
+                    parse_index = parse_index + 1;
+                    parser_state = 42;
+                } else {
+                    parser_state = 4;
+                }
+            }
+        }
+
+        // The one admitted match construct:
+        // 'match IDENT { IDENT ( IDENT ) => EXPR , IDENT ( IDENT ) => EXPR , }'.
+        // Every step is one exact token except 6 and 12, which hand the arm body
+        // to the accepted expression grammar; state 18 returns here. The
+        // construct itself appends no node and needs no new node kind.
+        if parser_cycle_state == 43 {
+            match_cycle_step = match_step;
+            match_expected = 1;
+            if match_cycle_step == 1 {
+                match_expected = 12;
+            }
+            if match_cycle_step == 3 || match_cycle_step == 9 {
+                match_expected = 10;
+            }
+            if match_cycle_step == 5 || match_cycle_step == 11 {
+                match_expected = 11;
+            }
+            if match_cycle_step == 6 || match_cycle_step == 12 {
+                match_expected = 36;
+            }
+            if match_cycle_step == 7 || match_cycle_step == 13 {
+                match_expected = 16;
+            }
+            if match_cycle_step == 14 {
+                match_expected = 13;
+            }
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != match_expected {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = match_expected;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                match_step = match_cycle_step + 1;
+                parser_state = 42;
+                if match_cycle_step == 6 || match_cycle_step == 12 {
+                    expecting_operand = 1;
                     parser_state = 3;
+                }
+                if match_cycle_step == 14 {
+                    match_active = 0;
+                    closing_step = 0;
+                    parser_state = 20;
                 }
             }
         }
@@ -2165,7 +2286,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 {
+            if parser_running == 1 && match_active == 1 {
+                value_top = 0;
+                value_depth = 0;
+                parser_state = 42;
+            }
+            if parser_running == 1 && match_active == 0 {
                 closing_step = 0;
                 parser_state = 20;
             }

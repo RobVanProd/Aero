@@ -3,9 +3,10 @@
 ## CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN - admit the single `match` over `Result<int, int>`
 
 - Date/task/status: 2026-08-17, `CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN`,
-  authored ledger-first from locally green CAP-050/H1B-1 at `ed3bbaa`. **Not
-  started.** This entry is the contract only; no product change is authorized
-  until the red-first oracle derivation below has been performed and recorded.
+  authored ledger-first from locally green CAP-050/H1B-1 at `ed3bbaa`.
+  **Implemented and locally green** at base commit `25bba6f`; the contract text
+  below is unchanged from the entry authored before any product change, and the
+  results are recorded in the three subsections that follow it.
   It is the second H1B checkpoint, per
   `BOOTSTRAP_CONVERGENCE_READINESS.md:289`. It authorizes one match form in one
   position. It is not H1B completion, H1, H2, stage convergence, or any
@@ -153,6 +154,118 @@ derivation contradicts it, the derivation wins and this paragraph is wrong.
 - Recommended next action after CAP-051: H1B-3, statement blocks - `let`,
   `let mut`, assignment, and multi-statement function bodies - per
   `BOOTSTRAP_CONVERGENCE_READINESS.md:290`.
+
+### Ambiguity 2, resolved: no new node kind, and the `> 19` bound is untouched
+
+The cheapest option the contract required to be evaluated first is the one that
+works, so it is taken. The match construct appends **no node of its own**. Each
+arm body is handed to the already-accepted expression grammar, which appends
+ordinary nodes of existing kinds. On the canonical source that is exactly four
+nodes: `value` reduces to one name reference (kind 2); `0 - code` reduces to one
+literal (kind 1), one name reference (kind 2), and one difference (kind 9, from
+`binary_node_kind(21)`). Every one lies inside the validator's `1..=19` window
+(`compiler.aero:2777` after this checkpoint's insertions; the contract above
+cites `:2651`, which was correct against the pre-CAP-051 file), each satisfies
+its per-kind structural constraint, and each is mirrored by exactly one origin
+record, so `origin_count == node_count` holds. The `kind <= 0 || kind > 19` bound is therefore **not raised**, no
+authority is widened, and `BOOTSTRAP_CONVERGENCE_READINESS.md:246-248` is not
+engaged. The three questions the contract posed answer as: (1) the construct
+produces no node, the arm bodies produce four; (2) no new kind, so no bound
+moves; (3) nothing is widened.
+
+One debt is created and is recorded here rather than paid: the four arm-body
+nodes are **orphans**. Nothing references them, because the construct that would
+own them has no node. That is the same shape as CAP-050's parameters, which are
+stored and unreferenced, and it is invisible at this checkpoint because the
+parse stops with `status = 10` and `root = 0` before any downstream phase runs.
+H1C must give the match construct a representation and adopt those nodes; it
+must not assume they are already reachable from a root.
+
+### Red-first proof and the derived target
+
+The oracle was extended and exercised **before** `compiler.aero` was touched,
+and the red was observed rather than assumed. With the oracle in place and the
+product unchanged, the focused target ran 11 passed / 2 failed: every
+derivation-only test passed, and exactly the two product-graded CAP-051 tests
+returned `80` instead of `91` - the linked product disagreeing with the derived
+target. That is the intended red.
+
+The derived stop confirms the contract's prediction, including the value the
+contract deliberately left open:
+
+    status = 10, offset 146, line 8, column 1,
+    diagnostic_code = 0 (expected EOF), diagnostic_actual = 3 (`fn`),
+    node_count = 4, parameter_count = 1, root = 0.
+
+Offset 146 is the second `fn` item, and the stop there is the expected result
+per `BOOTSTRAP_CONVERGENCE_READINESS.md:309-311`, not a defect. The Ambiguity 1
+reasoning is confirmed by the movement itself: the stop moves from 68 to 146
+exactly because `match` stops being an identifier operand.
+
+Thirteen focused probes were hand-derived from the frozen grammar and then
+checked against the oracle by a test that touches no product
+(`every_match_probe_expectation_is_derived_twice`). All thirteen agreed on the
+first attempt; none was corrected. Negative coverage is the six the contract
+mandated - missing `=>`, one arm, three arms, missing trailing comma, a literal
+pattern, a call scrutinee - plus a missing scrutinee, empty arms, a nested
+pattern, a wildcard arm, and a guard. `match-not-leading` is the probe that
+proves the dispatch is position-scoped: in `return a match;` the identifier
+`match` is still an ordinary operand and the closing sequence rejects it while
+expecting `;`.
+
+### Mechanism: dispatch before append, in four new parser states
+
+`skeleton_step == 8` now enters state 40 instead of state 3. State 40 requests
+the leading token of the return expression; state 41 compares its five bytes to
+`match` and either enters the construct or hands the **already-decoded** record
+to state 4 unchanged, so the operand classifier is not modified and no
+name-reference node is ever appended for `match`. State 42 requests one token
+per construct step and state 43 is the construct's fixed step table, in which
+steps 6 and 12 hand the arm body to the accepted expression grammar. State 18 -
+the expression grammar's completion state - is the one existing state that
+moves: it now returns into state 42 while an arm is open, resetting the value
+stack, and reaches the frozen `; } EOF` closing sequence only when the construct
+is closed. Because `parser_cycle_state` is latched once per iteration, the new
+flat branches cannot cascade within one iteration, exactly as CAP-050's
+parameter modes cannot.
+
+All five differences are patched into the product and into its byte-for-byte
+reconstruction from one shared definition, so the admitted grammar and its
+derivation cannot drift.
+
+### CAP-051 results
+
+- The complete repository gate `./tools/test.sh` is green.
+- The focused target `self_host_source_ingestion_tests` is 13/13 green: the ten
+  CAP-050 signature probes and both CAP-050 targets still pass unchanged, the
+  thirteen CAP-051 probes pass against the real linked product at `-O0`, and the
+  self-ingestion target passes at `-O0` and `-O2`.
+- The accepted 34-byte canonical program still returns 91 with the identical
+  144-byte module at `-O0` and `-O2`, and the canonical source is still exactly
+  reconstructible from accepted B1C, asserted byte for byte.
+- `compiler.aero` is now 257,242 bytes, 5,918 LF bytes, 7-bit ASCII, SHA-256
+  `cf8ad0b72d01ba98dfac3a5f79ee1f3e34700b7208a744c9daf39e56c54c7e57`.
+- Not claimed: H1B completion, H1, H2, stage convergence, or any self-hosting
+  claim. `Ok` and `Err` still carry no enum, variant, type, ownership, or checked
+  meaning. No body construct beyond this one match form parses, a second `fn`
+  item stays rejected, and no downstream authority was touched.
+
+### Recommended next action
+
+H1B-3, statement blocks - `let`, `let mut`, assignment, and multi-statement
+function bodies - per `BOOTSTRAP_CONVERGENCE_READINESS.md:290`. It should begin
+by deciding whether the statement grammar owns the return statement, because
+CAP-051 left the closing sequence entered from two places (state 43 step 14 and
+state 18) and a third entry point would be the moment to restructure it.
+
+### CAP-051 contract pushed for durability
+
+- 2026-08-17: `claude/self-hosting-analysis-be3f72` was pushed to `origin` again
+  at HEAD `25bba6f`, on the repository owner's explicit instruction, so the
+  contract commit above stopped existing only on local disk and in a bundle. The
+  same scope as the CAP-050 push below applies verbatim: durability only, no
+  pull request, no publication, no acceptance signal, and only
+  `.github/workflows/ci.yml` runs on this branch.
 
 ### CAP-050 branch pushed for durability
 
