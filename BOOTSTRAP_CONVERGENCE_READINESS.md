@@ -229,6 +229,25 @@ whole experimental Rust compiler grammar or any public stable language.
 Any gate may be split into smaller red-first checkpoints. It may not absorb a
 third compiler phase to preserve the table's name.
 
+H1B's required result above is an obligation the H1B checkpoint table at
+`:324-329` does not currently contain a checkpoint able to discharge. Measured
+on 2026-08-18 and recorded in `TASK_LEDGER.md` under "The representation gap H1B
+leaves": five of the six H1B checkpoints admit a construct **without
+representing it** - the parameter, the `match` construct, the binding, the
+assignment, the statement sequence, and, under CAP-053, the conditional and the
+loop. Only H1B-5 is scheduled to create a node. On the complete canonical source
+the accepted accounting produces 13,190 node records of which **154 are
+reachable from a `root`**; 98.8% are orphans, and a representation that
+satisfied the sentence above needs 23,509 nodes. Function 1 parses completely
+and all four of its nodes are orphans.
+
+The sentence above is not wrong and should not be weakened. The checkpoint table
+is missing a row. Until it gets one, "H1B-6 green" means the H1B grammar is
+admitted, **not** that this gate's required result is met, and an explicit
+representation checkpoint should be ordered after H1B-5 and after H1B-6 rather
+than absorbed into H1C - for the same reason `:367` refuses to absorb the
+single-function coupling.
+
 ## Exact next checkpoint
 
 Authorize H1B separately and red-first from the exact construct H1A stops at.
@@ -320,10 +339,10 @@ The self-source requirement H1B-6 raises the bounds *to* was measured on
 measurement". Three results from it belong here because they change how this
 paragraph should be read.
 
-- The requirement is **13,391 node records, 13,144 value records and 4,157
+- The requirement is **13,190 node records, 13,144 value records and 4,157
   operator records** as a measured floor that no design choice can reduce, and
   **23,509 / 14,697 / 5,710** once the shapes H1B-4 and H1B-5 admit are costed;
-  512 is exceeded by between 11x and 51x. A uniform bound of 65,536 is
+  512 is exceeded by between 8x and 51x. A uniform bound of 65,536 is
   recommended, and costs nothing until used, because every record array is
   created by `bytes_new()` and grows by append rather than being preallocated.
 - `value_records` and `operator_records` are **not stack depths**. Neither is

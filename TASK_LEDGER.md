@@ -6,9 +6,9 @@ This section authorizes nothing, changes no product, and asserts no capability.
 It is a measurement, and it is placed above the CAP-053 contract because that
 contract depends on its result.
 
-`BOOTSTRAP_CONVERGENCE_READINESS.md:310` states that H1B-6 raises the node,
+`BOOTSTRAP_CONVERGENCE_READINESS.md:329` states that H1B-6 raises the node,
 value and operator record bounds "from 512 to the measured self-source
-requirement", and `:297-299` requires H1B-6 to be pulled earlier "the moment a
+requirement", and `:333-335` requires H1B-6 to be pulled earlier "the moment a
 checkpoint's AST exceeds 512", so that capacity is never allowed to masquerade
 as a grammar failure. The requirement had never been measured. It is measured
 here, against the 264,163-byte canonical source at `f416067`.
@@ -127,13 +127,24 @@ H1B-3, applied to every expression, return and function item in the whole
 source. Control flow, calls and references are charged **nothing** here, so this
 is a hard lower bound that no design choice can reduce.
 
+One figure here was corrected after this section was first written and is left
+visible rather than quietly restated. The accepted parser appends its kind-18
+return node **once per function**, in the closing sequence at
+`compiler.aero:2507`, over whatever expression `body_root` last latched - not
+once per `return` statement. The floor therefore carries 23 return nodes, not
+the 224 first recorded, and the node floor is **13,190** rather than 13,391. The
+201-node difference is not lost: a representation that discharged
+`BOOTSTRAP_CONVERGENCE_READINESS.md:223` needs one node per `return` statement,
+so those 201 move into the projected column below and the projected total of
+23,509 is unchanged.
+
 | | records |
 |---|---|
 | expression leaf nodes (4,487 identifier + 4,553 integer) | 9,040 |
 | reduction nodes | 4,104 |
-| `return` nodes, kind 18 | 224 |
+| `return` nodes, kind 18 - **one per function, not one per `return` statement** | 23 |
 | function nodes, kind 19 | 23 |
-| **node records** | **13,391** |
+| **node records** | **13,190** |
 | **value records** | **13,144** |
 | **operator records** (4,077 binary + 27 prefix `-` + 53 grouping) | **4,157** |
 
@@ -154,6 +165,7 @@ re-measuring.
 | H1B-4 statement elements for `let` | 512 | +512 | 0 | 0 |
 | H1B-4 statement elements for assignment | 2,505 | +2,505 | 0 | 0 |
 | H1B-4 sequence nodes, one per block member | 4,186 | +4,186 | 0 | 0 |
+| a `return` node per `return` statement rather than per function | 201 | +201 | 0 | 0 |
 | **totals with the floor** | | **23,509** | **14,697** | **5,710** |
 
 The projections are:
@@ -188,9 +200,12 @@ The projections are:
 
 ### The answer, plainly
 
-Over 512, by between 26x and 51x on node records, by 26x to 31x on value
-records, and by 11x to 14x on operator records. The bound is not close, and no
-design choice inside H1B brings it close.
+Over 512, by 26x to 51x on node records (13,190 to 26,332), by 26x to 31x on
+value records (13,144 to 15,803), and by 8x to 11x on operator records (4,157 to
+5,710). The bound is not close, and no design choice inside H1B brings it close.
+
+The operator range is a correction to this section's own first draft, which said
+11x to 14x: 4,157 / 512 is 8.1, not 11.
 
 ### Recommended H1B-6 bound: 65,536, uniform across all three
 
@@ -217,7 +232,7 @@ only".
 
 ### Where the bound actually bites, which is not where the readiness rule expects
 
-`BOOTSTRAP_CONVERGENCE_READINESS.md:314-316` says H1B-6 must be pulled forward
+`BOOTSTRAP_CONVERGENCE_READINESS.md:333-335` says H1B-6 must be pulled forward
 "the moment a checkpoint's AST exceeds 512". Measured against the checkpoints
 that remain, that moment is **not** H1B-4 and **not** H1B-5.
 
@@ -262,19 +277,135 @@ CAP-051's and CAP-052's reasoning: they live in the parse group and report
 through the parse group's own diagnostics (`status 14` and `status 15`, code
 512). The fourth 512, at `:4852`, does not. It constrains
 `verified_function_node` and lives in the verifier group, which
-`BOOTSTRAP_CONVERGENCE_READINESS.md:246-248` forbids H1B to widen. It also does
+`BOOTSTRAP_CONVERGENCE_READINESS.md:265-267` forbids H1B to widen. It also does
 not bite inside H1B at all, because the verifier runs only on a complete
 `status == 0` pipeline that no H1B checkpoint reaches. H1B-6 should therefore
 raise the three parse-group bounds and leave `:4852` alone, recording it as debt
 for whichever checkpoint first drives the verifier over one function - not
 silently raise a fourth number because it shares a literal with the other three.
 
+## The representation gap H1B leaves, and whether `:223` can be true when H1B completes
+
+This section authorizes nothing and changes no checkpoint. It exists because
+the answer is not derivable from any single checkpoint's record - each one is
+locally correct - and because a later session would otherwise have to re-derive
+it from the same measurement twice.
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:223` defines H1B's obligation: "The
+compiler's iterative parser must emit a validated flat AST **for every construct
+actually present in** `compiler.aero`." The question is whether H1B-1 through
+H1B-6 can all go green while that sentence is false. They can, and on the
+current trajectory they will.
+
+### What H1B admits without representing
+
+Each row was decided on its own merits, each decision is defensible on its own
+record, and none of them was a shortcut. The pattern is only visible when they
+are put in one table.
+
+| Construct | Checkpoint | Admitted | Represented in the AST |
+|---|---|---|---|
+| typed parameter | CAP-050 / H1B-1 | yes | **no** - a side store, folded into the checksum |
+| `match` over `Result<int, int>` | CAP-051 / H1B-2 | yes | **no** - arm bodies become orphan expressions |
+| `let` binding, with `mut` | CAP-052 / H1B-3 | yes | **no** - initializer orphaned; `mut` stored nowhere |
+| assignment | CAP-052 / H1B-3 | yes | **no** - right-hand side orphaned; the target is not even a node |
+| statement sequence | CAP-052 / H1B-3 | yes | **no** - no representation of any kind |
+| `if` / `else if` / `else` | CAP-053 / H1B-4 | proposed | **no** - condition orphaned |
+| `while` | CAP-053 / H1B-4 | proposed | **no** - condition orphaned |
+| nested block | CAP-053 / H1B-4 | proposed | **no** - the block record is a parser register, not AST |
+| non-final `return` | CAP-053 / H1B-4 | proposed | **no** - expression orphaned |
+| expression operand and operator | accepted | yes | **yes** - the only construct H1B represents today |
+| call, `&` / `&mut` | H1B-5 | future | **yes**, per the table at `:328` - the first construct scheduled for representation since H1B began |
+| record capacity | H1B-6 | future | n/a - capacity only, by charter |
+
+Five of the six checkpoints admit grammar. One represents. The reasons differ -
+a parameter has no downstream consumer, a match construct would have to retract
+an appended node, a statement sequence would be unreachable product code, a
+conditional cannot be half-represented without lying about its body - but the
+effect is identical and it accumulates.
+
+### The gap, in the numbers already measured
+
+For the complete 264,163-byte source, under the accounting the accepted parser
+actually implements:
+
+- **13,190 node records** are produced.
+- **154 of them are reachable from a `root`.** Per function the arena is one
+  kind-19 function node, whose `left` is one kind-18 return node, whose `left`
+  is the expression the last completed return statement latched. Nothing else
+  is referenced by anything.
+- **13,036 are orphans - 98.8%.** They are counted, validated and folded into
+  the parse checksum, so their number cannot drift unnoticed. Nothing reads
+  them.
+- The single worst case is `run_runtime_ascii_llvm_emitter`, which produces
+  **12,020 nodes of which 3 are reachable**.
+- A representation that discharged `:223` needs **23,509 nodes**. The difference,
+  **10,319 nodes**, is the obligation: 4,186 sequence positions, 2,505
+  assignments, 1,553 calls and references, 1,026 conditionals, 512 bindings, 252
+  `else` arms, 201 further `return` nodes and 84 loops.
+
+Function 1 states the same thing at a scale a person can hold: it parses
+completely, it yields four nodes, and **all four are orphans** - the two match
+arm bodies, decomposed. The accepted regression assertion freezes that four
+precisely so the number cannot move unnoticed. Four reachable nodes for one
+function, 154 for twenty-three, against a floor of 13,190 and a requirement of
+23,509. That is the debt, stated as plainly as the measurement allows.
+
+### Is `:223` wrong?
+
+No. `:223` is a correct statement of what H1B is *for*, and it should not be
+weakened. What is wrong is the **checkpoint table at `:324-329`**, which implies
+that H1B-1 through H1B-6 discharge `:223` and does not contain a checkpoint that
+could. This is the second time the readiness document has been caught asserting
+something the source falsifies - CAP-052 corrected `:301`'s claim that the
+checkpoint order is "the order `compiler.aero` itself forces" - and like that
+one, the error is in a supporting claim rather than in the goal.
+
+Concretely, the table is missing a checkpoint, and the missing one is the
+largest in H1B. Adding node kinds for the sequence, the conditional, the loop,
+the binding and the assignment is not a refinement of H1B-5; it is a distinct
+piece of work that must give each new kind an origin token-kind mapping
+(`compiler.aero:2987` onward), adopt all the orphans that CAP-051, CAP-052 and
+CAP-053 have accumulated, and raise the `1..=19` bound. CAP-052 costed the
+sequence alone at three new kinds rather than one.
+
+### What follows, recommended rather than decided
+
+1. **H1B is not complete when H1B-6 is green.** Any record that says otherwise
+   should be read as "the H1B grammar is admitted", not as `:223`.
+2. **Add an explicit representation checkpoint to the table**, ordered after
+   H1B-5. Do not let representation be absorbed into H1C. H1C consumes the AST;
+   building it is parser authority, and folding both into one checkpoint is
+   exactly the coupling `:367` already refuses for the second `fn` item - "the
+   single-function coupling must be split out, not absorbed" - for the same
+   reason.
+3. **H1B-6 must precede it, not follow it.** A representing parser is the one
+   that produces 23,509 nodes; a capacity checkpoint that lands afterwards
+   arrives after the failure it exists to prevent. Ordered against the capacity
+   measurement above, the sequence is: H1B-4, H1B-5, **H1B-6**, representation,
+   module-shape gate.
+4. **The orphan census is the acceptance criterion for that checkpoint**, and it
+   is already exact: it succeeds when reachable nodes equal node records, on the
+   canonical source and on every probe. Today that ratio is 154 to 13,190; a
+   checkpoint that improves it without closing it should say by how much.
+
+### Why this is recorded here rather than as a finding against any checkpoint
+
+None of CAP-050, CAP-051, CAP-052 or CAP-053 is wrong, and none should be
+reopened. Each deferred representation for a reason that was correct at its own
+stop, and CAP-053's reason - that a conditional carrying only its condition
+would assert at H1C that it has no body - is the strongest of the four. A wrong
+representation is worse than none. The failure mode is not any single decision;
+it is that four correct deferrals compound into an obligation no checkpoint
+owns, and that the readiness table has no row for it. This section is that row's
+placeholder until the table gets one.
+
 ## CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW - admit `if` / `else if` / `else` and `while`
 
 - Date/task/status: 2026-08-18, `CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW`,
   authored ledger-first from locally green CAP-052/H1B-3 at `f416067`.
   **Contract only; no product change is recorded by this entry.** It is the
-  fourth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:308`. It
+  fourth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:327`. It
   authorizes two control-flow forms over the already-accepted expression
   grammar. It is not H1B completion, H1, H2, stage convergence, or any
   self-hosting claim.
@@ -294,7 +425,7 @@ silently raise a fourth number because it shares a literal with the other three.
 CAP-052's Ambiguity 1 applies unchanged: **this checkpoint cannot move the
 canonical self-ingestion stop**, because CAP-051 already parses function 1
 completely and a second `fn` item is excluded from every parser checkpoint
-(`BOOTSTRAP_CONVERGENCE_READINESS.md:353-355`). Offset 146 is a regression
+(`BOOTSTRAP_CONVERGENCE_READINESS.md:372-374`). Offset 146 is a regression
 guard here and must not be cited as progress. All forward evidence is focused
 probes.
 
@@ -331,7 +462,7 @@ eight figures exactly.
 Three consequences follow and all three narrow this checkpoint.
 
 First, **the condition needs no new expression form**, as
-`BOOTSTRAP_CONVERGENCE_READINESS.md:308` requires. A condition is an ordinary
+`BOOTSTRAP_CONVERGENCE_READINESS.md:327` requires. A condition is an ordinary
 expression that ends at `{`: token kind 12 has `binary_precedence` 0 and is not
 `)`, so at `paren_depth == 0` it produces `reduction_mode = 3` and completes the
 expression without being consumed (`compiler.aero:2001-2022`, `:2415-2432`).
@@ -379,7 +510,7 @@ No lexer change is required: `if` is already token kind 7, `else` kind 8, and
 
 ### Frozen exclusions
 
-No new expression form, per `BOOTSTRAP_CONVERGENCE_READINESS.md:308`. No calls
+No new expression form, per `BOOTSTRAP_CONVERGENCE_READINESS.md:327`. No calls
 and no references, which are H1B-5. No `ByteBuffer` or `Result<int, int>`
 binding type, for CAP-052's reason. No `match` outside a return expression. No
 `else` without a preceding `if` body. A block carries no scope, no
@@ -437,7 +568,7 @@ debt rather than split across two checkpoints with the sequence half missing.
 
 **The authority check the readiness document requires, answered even though the
 bound is not raised**, because the question should not have to be re-derived if
-a later checkpoint does raise it. `BOOTSTRAP_CONVERGENCE_READINESS.md:246-248`
+a later checkpoint does raise it. `BOOTSTRAP_CONVERGENCE_READINESS.md:265-267`
 forbids H1B to widen type, ownership, checked-IR, verifier or backend authority
 inside the parser task. Raising the node-kind bound would widen none of them:
 the bound is tested in the parse group and reports through the parse group's own
@@ -445,7 +576,7 @@ the bound is tested in the parse group and reports through the parse group's own
 also require an origin token-kind mapping, and that mapping is *written* by the
 parse group; it is *read* by the semantic phase, which is entered only at
 `status == 0` and which no H1B-4 probe reaches. So raising the bound would have
-been admissible under `:246-248` and would have created H1C debt - a different
+been admissible under `:265-267` and would have created H1C debt - a different
 thing from an authority widening. It is not taken for the representational
 reason above, not for an authority reason.
 
@@ -614,7 +745,7 @@ byte-identical at O0 and O2.
 `src/compiler/tests/self_host_source_ingestion_tests.rs`;
 `.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
 `BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
-`PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:245-249`.
+`PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:264-268`.
 
 ### Risks and mandatory stops
 
