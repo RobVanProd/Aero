@@ -766,6 +766,92 @@ lifting `emitter_fixed_byte` verbatim as a probe - is named in the measurement
 and is not required here.
 
 
+### Session outcome, 2026-08-18: contract authored, implementation not started
+
+This is a deliberate stop, not an exhausted one, and the reason is the one this
+worktree has the most evidence for: three sessions have now been lost mid-edit
+here, and an uncommitted parser change is the failure mode. The H1B-4 product
+edit was not begun, so `examples/aero_self_host_v0/compiler.aero` and
+`src/compiler/tests/self_host_source_ingestion_tests.rs` are byte-identical to
+`f416067` and were verified so by hash immediately before each commit.
+
+**Base commit for the next session: `4767b68`.** Branch
+`claude/self-hosting-analysis-be3f72`, remote confirmed at the same object by
+`git ls-remote` rather than inferred from push output. Two commits were added:
+`95a6aa8` (capacity measurement plus this contract) and `4767b68` (the
+representation gap plus two corrections to the measurement). Both were gated
+green before commit - 117 `test result:` lines, 969 passed, 0 failed, 16
+ignored, exit 0 - in two independent full runs.
+
+**What is proved.** Nothing about control flow: no probe was written and no
+parser line changed. What is established is measurement, and it is exact rather
+than indicative. The arena requirement for the complete source is 13,190 /
+13,144 / 4,157 as a floor and 23,509 / 14,697 / 5,710 projected. `value_records`
+and `operator_records` count pushes rather than depth, and the live depth never
+exceeds 5. Every block-shape fact CAP-053 freezes was measured over all 1,220
+blocks: none empty, none with a `return` that is not last, none with two, and
+all 23 function bodies ending in one. The instrument reproduces seven of
+CAP-052's eight figures exactly and places the second `fn` at offset 146, line
+8, column 1.
+
+**What is ruled out.** Three things, each with its number.
+
+1. **Capacity is not H1B-4's problem and not H1B-5's.** The 512 bound cannot be
+   reached by either, because both stop at offset 146 with four nodes and are
+   proven by probes of a few dozen tokens. Do not pull H1B-6 forward. The one
+   exception is named in the capacity section: a probe that lifts
+   `emitter_fixed_byte` verbatim needs 474 nodes under the current policy.
+2. **No new node kind is needed at H1B-4**, and the authority question it would
+   have raised is answered in advance in Decision 1 above: raising the bound
+   would not have widened anything `:265-267` forbids.
+3. **CAP-052's unreachability argument cannot be reused.** An `if` node would be
+   appended mid-loop where every probe asserts an exact node count, so it would
+   be observed. The reason to decline it is representational, not
+   reachability - see Decision 1.
+
+**What to do first, in order.**
+
+1. Extend the oracle to model the block stack, the two control-flow forms, the
+   statement terminator parameterized by what the expression was for, the
+   per-block return rule, and the function-level return requirement. Confirm the
+   extraction is behaviour-preserving with `compiler.aero` untouched: the ten
+   CAP-050 signature probes, the thirteen CAP-051 match probes and the eighteen
+   CAP-052 statement probes must all stay green against the refactored oracle
+   before a single new probe is written. That ordering is CAP-051's and CAP-052's
+   and it is what makes the anti-fitting count meaningful.
+2. Write `CONTROL_FLOW_PROBES` as independent hand derivations from the frozen
+   contract above, then the product-free
+   `every_control_flow_probe_expectation_is_derived_twice`. Record how many
+   derivations needed correction; CAP-051's was zero of thirteen and CAP-052's
+   zero of eighteen.
+3. Observe the red from the real linked product before editing `compiler.aero`.
+   Note the two probes expected to be red for a *different* reason - the
+   statement after a completed `return`, and the second `return` in one block -
+   because those are rejections the accepted parser does not yet perform. That
+   observation is the empirical confirmation of the CAP-052 correction recorded
+   above, and it is the one claim in this contract still resting on reading
+   rather than on a run.
+4. Then make the five edits listed under "Mechanism", re-running the thirteen
+   match probes and `stmt-match-return-composes` at every iteration.
+
+**Cost information the next session should not have to rediscover.** The focused
+target alone, `cargo test --test self_host_source_ingestion_tests`, is a
+**3.5-minute** cycle on a warm build and is the right loop for steps 1 through 4.
+The complete repository-root gate is **30 to 35 minutes**. Budget one gate per
+commit and do not begin a parser edit without one in reserve. Environment: add
+`$HOME/.cargo/bin` to `PATH`, set `AERO_LLVM_BIN` to
+`D:\AeroToolchains\llvm-22.1.8\bin`, `CARGO_TARGET_DIR` to
+`D:\Aero-build-targets\h1` and `TMPDIR` to `D:\Aero-temp\h1`.
+
+**The two framing facts that will not change.** The canonical self-ingestion
+stop stays at offset 146, line 8, column 1, code 0, actual 3, four nodes, one
+parameter, and that is the correct result rather than a failure. And function 2,
+`is_identifier_start`, does not parse today and will parse once H1B-4 lands - as
+a standalone probe at 21 expression nodes and one parameter, not in situ, since
+the canonical run stops before reaching it. It is the first real canonical
+function to become parseable since CAP-051, and it is required positive
+coverage above.
+
 ## CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS - admit typed bindings, assignment, and multi-statement bodies
 
 - Date/task/status: 2026-08-18, `CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS`,
