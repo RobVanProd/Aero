@@ -525,7 +525,7 @@ mod oracle {
     /// This is the single model. Both the canonical self-source target and the
     /// focused signature probes are graded against it.
     pub fn signature_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, false, false, false)
+        parser_stop(ingested, source, false, false, false, false)
     }
 
     /// Where the parser stops once CAP-051 / H1B-2 additionally admits one
@@ -540,7 +540,7 @@ mod oracle {
     /// shunting-yard so nodes append in the product's order. The construct
     /// itself appends no node and needs no new node kind.
     pub fn match_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, false, false)
+        parser_stop(ingested, source, true, false, false, false)
     }
 
     /// Where the parser stops once CAP-052 / H1B-3 additionally admits the
@@ -548,7 +548,7 @@ mod oracle {
     /// followed by `}`, and `;` terminates the return statement rather than
     /// closing the body.
     pub fn statement_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, false)
+        parser_stop(ingested, source, true, true, false, false)
     }
 
     /// Where the parser stops once CAP-053 / H1B-4 additionally admits the two
@@ -570,7 +570,28 @@ mod oracle {
     /// H1C that the conditional has no body. So the `1..=19` node-kind bound is
     /// untouched, and a nested `return` leaves its expression as an orphan.
     pub fn control_flow_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, true)
+        parser_stop(ingested, source, true, true, true, false)
+    }
+
+    /// Where the parser stops once CAP-054 / H1B-5 additionally admits call
+    /// expressions and `&` / `&mut` operands - and, for the first time in H1B,
+    /// *represents* what it admits.
+    ///
+    /// A call is `IDENT ( ARGS )` where the callee is an operand-position
+    /// identifier immediately followed by `(`, and `ARGS` is empty or one or
+    /// more arguments separated by `,` with no trailing `,`. An argument may
+    /// begin with `&` or `& mut`, and may do so nowhere else, which is the
+    /// measured shape: all 451 references in the canonical source are a whole
+    /// call argument.
+    ///
+    /// Four node kinds are added, taking the node-kind bound to `1..=23`.
+    /// Kind 20 is the call, carrying its callee as `payload` and its argument
+    /// list as `left`; kind 21 is one argument-list cell, `left` the argument
+    /// and `right` the next cell; kinds 22 and 23 are `&` and `&mut` over their
+    /// operand. Every node under a call is reachable from the call node, so a
+    /// call's whole subtree is as reachable as the call itself.
+    pub fn call_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
+        parser_stop(ingested, source, true, true, true, true)
     }
 
     /// The accepted expression grammar, modelled as the product's own
@@ -588,6 +609,7 @@ mod oracle {
         index: &mut usize,
         nodes: &mut Vec<[i32; 4]>,
         origins: &mut Vec<[i32; 5]>,
+        admit_calls: bool,
     ) -> Result<i32, (TokenRecord, i32, i32)> {
         fn append(
             nodes: &mut Vec<[i32; 4]>,
@@ -610,9 +632,17 @@ mod oracle {
             operators: &mut Vec<(i32, [i32; 4])>,
         ) {
             let (marker, at) = operators.pop().expect("modelled operator stack");
-            if marker == 103 || marker == 104 {
+            if marker == 103 || marker == 104 || marker == 106 || marker == 107 {
                 let left = values.pop().expect("modelled operand stack");
-                let kind = if marker == 103 { 3 } else { 4 };
+                // 103 `-`, 104 `!`, 106 `&`, 107 `&mut`. A reference is a
+                // prefix operator of the accepted shunting yard and nothing
+                // else, so it reduces here beside the two that already were.
+                let kind = match marker {
+                    103 => 3,
+                    104 => 4,
+                    106 => 22,
+                    _ => 23,
+                };
                 values.push(append(nodes, origins, kind, 0, left, 0, at));
             } else {
                 let right = values.pop().expect("modelled operand stack");
@@ -629,14 +659,103 @@ mod oracle {
             }
         }
 
+        /// Close the innermost call: turn the values above its base into a
+        /// kind-21 chain, then append the kind-20 call node over it.
+        ///
+        /// The node arena is append-only and has no write-at-index path, so a
+        /// cell cannot be back-patched to point at its successor and the chain
+        /// must be built from its last element. Popping the value stack yields
+        /// the arguments in reverse, which is exactly the order that needs, so
+        /// the finished chain's head is the *first* argument.
+        fn close_call(
+            nodes: &mut Vec<[i32; 4]>,
+            origins: &mut Vec<[i32; 5]>,
+            values: &mut Vec<i32>,
+            operators: &mut Vec<(i32, [i32; 4])>,
+            calls: &mut Vec<(i32, usize)>,
+            paren_depth: &mut i32,
+            close: [i32; 4],
+        ) {
+            let (callee, base) = calls.pop().expect("modelled call stack");
+            let mut chain = 0i32;
+            while values.len() > base {
+                let argument = values.pop().expect("modelled operand stack");
+                chain = append(nodes, origins, 21, 0, argument, chain, close);
+            }
+            let (marker, at) = operators.pop().expect("modelled operator stack");
+            assert_eq!(marker, 105, "a call closes on its own marker");
+            *paren_depth -= 1;
+            // The callee is the call node's payload and never becomes a
+            // name-reference node: `f` in `f(x)` is not a value read of `f`,
+            // and the self-source has no first-class functions.
+            values.push(append(nodes, origins, 20, callee, chain, 0, at));
+        }
+
         let mut values: Vec<i32> = Vec::new();
         let mut operators: Vec<(i32, [i32; 4])> = Vec::new();
+        // CAP-054 / H1B-5. One entry per open call: the callee's name id, and
+        // the value-stack depth its arguments sit above. The base is how the
+        // closing `)` knows how many arguments it has, without a counter that
+        // an append-only record could not carry.
+        let mut calls: Vec<(i32, usize)> = Vec::new();
         let mut paren_depth = 0i32;
         let mut expecting_operand = true;
+        // Set by a call's `(` and by an argument-separating `,`, and cleared by
+        // every other classified token. `&` is admissible only while it is set,
+        // which is the whole of the measured restriction that a reference is
+        // always a whole call argument.
+        let mut arg_leading = false;
         loop {
             let record = ingested.tokens[*index];
             let origin = [record[1], record[3], record[4], record[0]];
+            let leading = arg_leading;
+            arg_leading = false;
             if expecting_operand {
+                // `IDENT (` opens a call. The flat product has no lookahead and
+                // holds the identifier for one iteration instead; the model
+                // reaches the same result by looking at the next record, which
+                // always exists because `record[0] == 1` excludes end of input.
+                if admit_calls && record[0] == 1 && ingested.tokens[*index + 1][0] == 10 {
+                    let open = ingested.tokens[*index + 1];
+                    calls.push((record[5], values.len()));
+                    operators.push((105, [open[1], open[3], open[4], open[0]]));
+                    paren_depth += 1;
+                    *index += 2;
+                    arg_leading = true;
+                    continue;
+                }
+                if admit_calls && record[0] == 37 && leading {
+                    let mut marker = 106;
+                    *index += 1;
+                    if ingested.tokens[*index][0] == 5 {
+                        marker = 107;
+                        *index += 1;
+                    }
+                    operators.push((marker, origin));
+                    continue;
+                }
+                // A `)` is an operand-position token only as a zero-argument
+                // call's close, which is `leading` with nothing yet pushed.
+                // After a `,` the base no longer matches, so `f(a,)` is the
+                // ordinary operand rejection.
+                if admit_calls
+                    && record[0] == 11
+                    && leading
+                    && calls.last().map(|call| call.1) == Some(values.len())
+                {
+                    close_call(
+                        nodes,
+                        origins,
+                        &mut values,
+                        &mut operators,
+                        &mut calls,
+                        &mut paren_depth,
+                        origin,
+                    );
+                    expecting_operand = false;
+                    *index += 1;
+                    continue;
+                }
                 if record[0] == 1 {
                     values.push(append(nodes, origins, 2, record[5], 0, 0, origin));
                 } else if record[0] == 2 {
@@ -670,10 +789,10 @@ mod oracle {
             let precedence = binary_precedence(record[0]);
             if precedence > 0 {
                 while let Some(&(marker, _)) = operators.last() {
-                    if marker == 10 {
+                    if marker == 10 || marker == 105 {
                         break;
                     }
-                    let top = if marker == 103 || marker == 104 {
+                    let top = if marker == 103 || marker == 104 || marker == 106 || marker == 107 {
                         7
                     } else {
                         binary_precedence(marker)
@@ -688,16 +807,47 @@ mod oracle {
                 *index += 1;
                 continue;
             }
+            // An argument separator reduces to the innermost marker and
+            // requires it to be a call's. A `,` inside a grouping keeps the
+            // accepted `diagnostic_code = 11`.
+            if admit_calls && record[0] == 16 && paren_depth > 0 {
+                loop {
+                    let marker = operators.last().expect("modelled operator stack").0;
+                    if marker == 10 {
+                        return Err((record, 10, 11));
+                    }
+                    if marker == 105 {
+                        break;
+                    }
+                    reduce_top(nodes, origins, &mut values, &mut operators);
+                }
+                *index += 1;
+                expecting_operand = true;
+                arg_leading = true;
+                continue;
+            }
             if record[0] == 11 && paren_depth > 0 {
                 loop {
                     let marker = operators.last().expect("modelled operator stack").0;
                     if marker == 10 {
                         operators.pop();
+                        paren_depth -= 1;
+                        break;
+                    }
+                    if marker == 105 {
+                        close_call(
+                            nodes,
+                            origins,
+                            &mut values,
+                            &mut operators,
+                            &mut calls,
+                            &mut paren_depth,
+                            origin,
+                        );
                         break;
                     }
                     reduce_top(nodes, origins, &mut values, &mut operators);
                 }
-                paren_depth -= 1;
                 *index += 1;
                 continue;
             }
@@ -718,6 +868,7 @@ mod oracle {
         admit_match: bool,
         admit_statements: bool,
         admit_control_flow: bool,
+        admit_calls: bool,
     ) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
         let mut stopped = ingested.clone();
@@ -937,6 +1088,7 @@ mod oracle {
                             &mut index,
                             &mut stopped.nodes,
                             &mut stopped.origins,
+                            admit_calls,
                         );
                         match arm {
                             Ok(value) => root = value,
@@ -952,6 +1104,7 @@ mod oracle {
                         &mut index,
                         &mut stopped.nodes,
                         &mut stopped.origins,
+                        admit_calls,
                     );
                     match value {
                         Ok(value) => root = value,
@@ -1051,6 +1204,7 @@ mod oracle {
                     &mut index,
                     &mut stopped.nodes,
                     &mut stopped.origins,
+                    admit_calls,
                 );
                 if let Err((record, status, code)) = arm {
                     reject!(&record, status, code);
@@ -1100,6 +1254,12 @@ mod oracle {
     /// forms, projected out of [`control_flow_parser_stop`].
     pub fn control_flow_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
         project(&control_flow_parser_stop(ingested, source))
+    }
+
+    /// Where the parser stops once CAP-054 / H1B-5 admits and represents calls
+    /// and references, projected out of [`call_parser_stop`].
+    pub fn call_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+        project(&call_parser_stop(ingested, source))
     }
 
     /// Where the parser stops once CAP-050 / H1B-1 admits the signature grammar,
@@ -2755,6 +2915,818 @@ const BLOCK_STORAGE_INVARIANT: &str = r#"    if bytes_len(&nodes) < node_count *
         return 70;
     }"#;
 
+// CAP-054 admits and represents call expressions and `&` / `&mut` operands:
+// a fifth bounded parse-group arena for the open calls, an operand classifier
+// that holds an identifier until it knows whether a `(` follows, an argument
+// separator and a call close in the accepted shunting yard, and four node kinds
+// that take the node-kind bound to `1..=23`. This is the first H1B checkpoint
+// whose construct is represented rather than only admitted.
+const CALL_OWNER_ANCHOR: &str = r#"    let mut blocks: ByteBuffer = bytes_new();"#;
+const CALL_OWNER: &str = r#"    let mut blocks: ByteBuffer = bytes_new();
+    let mut calls: ByteBuffer = bytes_new();"#;
+const CALL_REGISTERS_ANCHOR: &str = r#"    let mut stmt_terminator: int = 0;"#;
+const CALL_REGISTERS: &str = r#"    let mut stmt_terminator: int = 0;
+    let mut expression_dispatch: int = 0;
+    let mut held_active: int = 0;
+    let mut held_name: int = 0;
+    let mut held_start: int = 0;
+    let mut held_line: int = 0;
+    let mut held_column: int = 0;
+    let mut ref_pending: int = 0;
+    let mut ref_marker: int = 0;
+    let mut ref_advance: int = 0;
+    let mut ref_start: int = 0;
+    let mut ref_line: int = 0;
+    let mut ref_column: int = 0;
+    let mut arg_leading: int = 0;
+    let mut arg_open: int = 0;
+    let mut call_top: int = 0;
+    let mut call_base: int = 0;
+    let mut call_records: int = 0;
+    let mut call_callee: int = 0;
+    let mut call_chain: int = 0;
+    let mut call_argument: int = 0;"#;
+const CALL_CLASSIFIER_ANCHOR: &str = r#"            if parser_running == 1 && expecting_operand == 1
+                && (current_kind == 1 || current_kind == 2) {
+                if current_kind == 1 {
+                    literal_value = current_name_id;
+                    reduced_kind = 2;
+                    if literal_value <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 && node_count >= 512 {
+                        status = 14;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = 512;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        pending_node_kind = reduced_kind;
+                        pending_node_payload = literal_value;
+                        pending_node_left = 0;
+                        pending_node_right = 0;
+                        pending_node_after = 12;
+                        pending_node_offset = current_start;
+                        pending_node_line = current_line;
+                        pending_node_column = current_column;
+                        parser_append_target = 4;
+                        parser_append_width = 5;
+                        parser_append_0 = node_count + 1;
+                        parser_append_1 = current_start;
+                        parser_append_2 = current_line;
+                        parser_append_3 = current_column;
+                        parser_append_4 = current_kind;
+                        parser_append_field = 0;
+                        parser_append_byte = 0;
+                        parser_append_after = 33;
+                        parser_append_offset = current_start;
+                        parser_append_line = current_line;
+                        parser_append_column = current_column;
+                        parser_state = 32;
+                    }
+                }
+                if current_kind == 2 {
+                    literal_value = 0;
+                    decimal_index = 0;
+                    reduced_kind = 1;
+                    parser_state = 11;
+                }
+            }
+            if parser_running == 1 && expecting_operand == 1
+                && (current_kind == 21 || current_kind == 27 || current_kind == 10) {"#;
+const CALL_CLASSIFIER: &str = r#"            // CAP-054 resolves two deferrals before the accepted classifier
+            // runs. An identifier operand is *held* rather than appended,
+            // because the flat parser has no lookahead and a callee must not
+            // become a name-reference node; and a '&' is held for one iteration
+            // to see whether 'mut' follows. 'expression_dispatch' records that
+            // one of the new branches decided this token, so every accepted
+            // branch below stays exactly where CAP-050 through CAP-053 put it.
+            if parser_running == 1 {
+                arg_open = arg_leading;
+                arg_leading = 0;
+                expression_dispatch = 0;
+            }
+            if parser_running == 1 && ref_pending == 1 {
+                expression_dispatch = 1;
+                ref_pending = 0;
+                ref_marker = 106;
+                ref_advance = 0;
+                if current_kind == 5 {
+                    ref_marker = 107;
+                    ref_advance = 1;
+                }
+                if operator_records >= 512 {
+                    status = 15;
+                    error_offset = ref_start;
+                    error_line = ref_line;
+                    error_column = ref_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = 37;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parser_append_target = 3;
+                    parser_append_width = 5;
+                    parser_append_0 = ref_marker;
+                    parser_append_1 = ref_start;
+                    parser_append_2 = ref_line;
+                    parser_append_3 = ref_column;
+                    parser_append_4 = operator_top;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 27;
+                    parser_append_offset = ref_start;
+                    parser_append_line = ref_line;
+                    parser_append_column = ref_column;
+                    parser_state = 32;
+                }
+            }
+            if parser_running == 1 && expression_dispatch == 0 && held_active == 1 {
+                expression_dispatch = 1;
+                parser_state = 24;
+                if current_kind == 10 {
+                    if call_records >= 512 || operator_records >= 512 {
+                        status = 15;
+                        error_offset = held_start;
+                        error_line = held_line;
+                        error_column = held_column;
+                        diagnostic_code = 512;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        parser_append_target = 6;
+                        parser_append_width = 3;
+                        parser_append_0 = held_name;
+                        parser_append_1 = call_base;
+                        parser_append_2 = call_top;
+                        parser_append_3 = 0;
+                        parser_append_4 = 0;
+                        parser_append_field = 0;
+                        parser_append_byte = 0;
+                        parser_append_after = 28;
+                        parser_append_offset = current_start;
+                        parser_append_line = current_line;
+                        parser_append_column = current_column;
+                        parser_state = 32;
+                    }
+                }
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 37 && arg_open == 1 {
+                expression_dispatch = 1;
+                ref_pending = 1;
+                ref_start = current_start;
+                ref_line = current_line;
+                ref_column = current_column;
+                parse_index = parse_index + 1;
+                parser_state = 3;
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 11 && arg_open == 1
+                && call_top > 0 && value_top == call_base {
+                expression_dispatch = 1;
+                call_chain = 0;
+                reduction_mode = 2;
+                parser_state = 5;
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 1 {
+                expression_dispatch = 1;
+                if current_name_id <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    held_active = 1;
+                    held_name = current_name_id;
+                    held_start = current_start;
+                    held_line = current_line;
+                    held_column = current_column;
+                    expecting_operand = 0;
+                    parse_index = parse_index + 1;
+                    parser_state = 3;
+                }
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 2 {
+                literal_value = 0;
+                decimal_index = 0;
+                reduced_kind = 1;
+                parser_state = 11;
+            }
+            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 1
+                && (current_kind == 21 || current_kind == 27 || current_kind == 10) {"#;
+const CALL_OPERATOR_POSITION_ANCHOR: &str = r#"            if parser_running == 1 && expecting_operand == 1
+                && current_kind != 1 && current_kind != 2 && current_kind != 21
+                && current_kind != 27 && current_kind != 10 {
+                status = 11;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 100;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && expecting_operand == 0 {
+                current_precedence = binary_precedence(current_kind);
+                reduction_mode = 0;
+                if current_precedence > 0 {
+                    reduction_mode = 1;
+                }
+                if current_kind == 11 && paren_depth > 0 {
+                    reduction_mode = 2;
+                }
+                if current_precedence == 0 && current_kind != 11 && paren_depth > 0 {"#;
+const CALL_OPERATOR_POSITION: &str = r#"            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 1
+                && current_kind != 1 && current_kind != 2 && current_kind != 21
+                && current_kind != 27 && current_kind != 10 {
+                status = 11;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 100;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 0 {
+                current_precedence = binary_precedence(current_kind);
+                reduction_mode = 0;
+                if current_precedence > 0 {
+                    reduction_mode = 1;
+                }
+                if current_kind == 11 && paren_depth > 0 {
+                    reduction_mode = 2;
+                    call_chain = 0;
+                }
+                if current_kind == 16 && paren_depth > 0 {
+                    reduction_mode = 4;
+                }
+                if current_precedence == 0 && current_kind != 11 && current_kind != 16
+                    && paren_depth > 0 {"#;
+const CALL_REDUCE_WALK_ANCHOR: &str = r#"            if parser_running == 1 && top_kind == 10 {
+                parser_state = 6;
+            }
+            if parser_running == 1 && top_kind != 10 {
+                top_precedence = binary_precedence(top_kind);
+                if top_kind == 103 || top_kind == 104 {
+                    top_precedence = 7;
+                }"#;
+const CALL_REDUCE_WALK: &str = r#"            if parser_running == 1 && (top_kind == 10 || top_kind == 105) {
+                parser_state = 6;
+            }
+            if parser_running == 1 && top_kind != 10 && top_kind != 105 {
+                top_precedence = binary_precedence(top_kind);
+                if top_kind == 103 || top_kind == 104 || top_kind == 106
+                    || top_kind == 107 {
+                    top_precedence = 7;
+                }"#;
+const CALL_UNARY_REDUCE_ANCHOR: &str = r#"                if top_kind == 103 || top_kind == 104 {
+                    left_id = right_id;
+                    right_id = 0;
+                    reduced_kind = 3;
+                    if top_kind == 104 {
+                        reduced_kind = 4;
+                    }
+                    parser_state = 9;
+                }
+                if top_kind != 103 && top_kind != 104 {"#;
+const CALL_UNARY_REDUCE: &str = r#"                if top_kind == 103 || top_kind == 104 || top_kind == 106
+                    || top_kind == 107 {
+                    left_id = right_id;
+                    right_id = 0;
+                    reduced_kind = 3;
+                    if top_kind == 104 {
+                        reduced_kind = 4;
+                    }
+                    if top_kind == 106 {
+                        reduced_kind = 22;
+                    }
+                    if top_kind == 107 {
+                        reduced_kind = 23;
+                    }
+                    parser_state = 9;
+                }
+                if top_kind != 103 && top_kind != 104 && top_kind != 106
+                    && top_kind != 107 {"#;
+const CALL_REDUCTION_ACTUAL_ANCHOR: &str = r#"            reduction_actual = top_kind;
+            if top_kind == 103 {
+                reduction_actual = 21;
+            }
+            if top_kind == 104 {
+                reduction_actual = 27;
+            }"#;
+const CALL_REDUCTION_ACTUAL: &str = r#"            reduction_actual = top_kind;
+            if top_kind == 103 {
+                reduction_actual = 21;
+            }
+            if top_kind == 104 {
+                reduction_actual = 27;
+            }
+            if top_kind == 106 || top_kind == 107 {
+                reduction_actual = 37;
+            }"#;
+const CALL_CLOSE_DISPATCH_ANCHOR: &str = r#"            if parser_running == 1 && reduction_mode == 2 {
+                if top_kind != 10 || top_previous < 0 || operator_depth <= 0
+                    || paren_depth <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    operator_top = top_previous;
+                    operator_depth = operator_depth - 1;
+                    paren_depth = paren_depth - 1;
+                    parse_index = parse_index + 1;
+                    parser_state = 3;
+                }
+            }"#;
+const CALL_CLOSE_DISPATCH: &str = r#"            if parser_running == 1 && reduction_mode == 2 {
+                if (top_kind != 10 && top_kind != 105) || top_previous < 0
+                    || operator_depth <= 0 || paren_depth <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 && top_kind == 105 {
+                    parser_state = 34;
+                }
+                if parser_running == 1 && top_kind == 10 {
+                    operator_top = top_previous;
+                    operator_depth = operator_depth - 1;
+                    paren_depth = paren_depth - 1;
+                    parse_index = parse_index + 1;
+                    parser_state = 3;
+                }
+            }
+            // An argument separator reduces to the innermost marker and
+            // requires it to be a call's. A ',' inside a grouping keeps the
+            // accepted diagnostic.
+            if parser_running == 1 && reduction_mode == 4 {
+                if top_kind != 105 {
+                    status = 10;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 11;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parse_index = parse_index + 1;
+                    expecting_operand = 1;
+                    arg_leading = 1;
+                    parser_state = 3;
+                }
+            }"#;
+const CALL_STATES_ANCHOR: &str =
+    r#"        // The origin is complete; append the frozen four-word node next."#;
+const CALL_STATES: &str = r#"        // CAP-054. A held identifier turned out to be an ordinary operand,
+        // so its kind-2 node is appended now, one iteration later than before
+        // and in the same order, with the same payload and the same origin.
+        if parser_cycle_state == 24 {
+            if node_count >= 512 {
+                status = 14;
+                error_offset = held_start;
+                error_line = held_line;
+                error_column = held_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 1;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                pending_node_kind = 2;
+                pending_node_payload = held_name;
+                pending_node_left = 0;
+                pending_node_right = 0;
+                pending_node_after = 25;
+                pending_node_offset = held_start;
+                pending_node_line = held_line;
+                pending_node_column = held_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = held_start;
+                parser_append_2 = held_line;
+                parser_append_3 = held_column;
+                parser_append_4 = 1;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = held_start;
+                parser_append_line = held_line;
+                parser_append_column = held_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 25 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if value_records >= 512 {
+                status = 15;
+                error_offset = held_start;
+                error_line = held_line;
+                error_column = held_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 1;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 26;
+                parser_append_offset = held_start;
+                parser_append_line = held_line;
+                parser_append_column = held_column;
+                parser_state = 32;
+            }
+        }
+        // The hold is discharged. The token that ended it has not been
+        // consumed, so the classifier is re-entered on it rather than the
+        // decoder.
+        if parser_cycle_state == 26 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            held_active = 0;
+            parser_state = 4;
+        }
+        // A reference marker record is complete. When 'mut' was consumed the
+        // operand has not been decoded yet; otherwise it already has been.
+        if parser_cycle_state == 27 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            parser_state = 4;
+            if ref_advance == 1 {
+                parse_index = parse_index + 1;
+                parser_state = 3;
+            }
+        }
+        // A call record is complete; push the call's operator marker at its
+        // '(' so the reduce walk stops there and the call node is located
+        // there.
+        if parser_cycle_state == 28 {
+            call_records = call_records + 1;
+            call_top = call_records;
+            call_base = value_top;
+            held_active = 0;
+            parser_append_target = 3;
+            parser_append_width = 5;
+            parser_append_0 = 105;
+            parser_append_1 = current_start;
+            parser_append_2 = current_line;
+            parser_append_3 = current_column;
+            parser_append_4 = operator_top;
+            parser_append_field = 0;
+            parser_append_byte = 0;
+            parser_append_after = 29;
+            parser_append_offset = current_start;
+            parser_append_line = current_line;
+            parser_append_column = current_column;
+            parser_state = 32;
+        }
+        if parser_cycle_state == 29 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            paren_depth = paren_depth + 1;
+            expecting_operand = 1;
+            arg_leading = 1;
+            parse_index = parse_index + 1;
+            parser_state = 3;
+        }
+        // Close a call. The node arena is append-only and has no write-at-index
+        // path, so a cell cannot be back-patched to point at its successor and
+        // the chain is built from its last element: popping the value stack to
+        // the call's base yields the arguments in reverse, which is exactly the
+        // order that needs, and the finished chain's head is the first
+        // argument.
+        if parser_cycle_state == 34 {
+            if value_top < call_base || value_depth < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && value_top == call_base {
+                parser_state = 37;
+            }
+            if parser_running == 1 && value_top != call_base {
+                parser_record_target = 1;
+                parser_record_width = 2;
+                parser_record_index = value_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_0 = 0;
+                parser_record_1 = 0;
+                parser_record_2 = 0;
+                parser_record_3 = 0;
+                parser_record_4 = 0;
+                parser_record_after = 35;
+                parser_state = 31;
+            }
+        }
+        if parser_cycle_state == 35 {
+            call_argument = parser_record_0;
+            value_previous = parser_record_1;
+            if call_argument <= 0 || value_previous < 0 || value_depth <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && node_count >= 512 {
+                status = 14;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 512;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                value_top = value_previous;
+                value_depth = value_depth - 1;
+                pending_node_kind = 21;
+                pending_node_payload = 0;
+                pending_node_left = call_argument;
+                pending_node_right = call_chain;
+                pending_node_after = 36;
+                pending_node_offset = current_start;
+                pending_node_line = current_line;
+                pending_node_column = current_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = current_start;
+                parser_append_2 = current_line;
+                parser_append_3 = current_column;
+                parser_append_4 = 11;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = current_start;
+                parser_append_line = current_line;
+                parser_append_column = current_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 36 {
+            node_count = node_count + 1;
+            call_chain = node_count;
+            parser_state = 34;
+        }
+        if parser_cycle_state == 37 {
+            if call_top <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_record_target = 4;
+                parser_record_width = 3;
+                parser_record_index = call_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_0 = 0;
+                parser_record_1 = 0;
+                parser_record_2 = 0;
+                parser_record_3 = 0;
+                parser_record_4 = 0;
+                parser_record_after = 38;
+                parser_state = 31;
+            }
+        }
+        // The callee is the call node's payload and never became a
+        // name-reference node: 'f' in 'f(x)' is not a value read of 'f'.
+        if parser_cycle_state == 38 {
+            call_callee = parser_record_0;
+            call_base = parser_record_1;
+            call_top = parser_record_2;
+            if call_callee <= 0 || call_callee > name_count || call_base < 0
+                || call_top < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && node_count >= 512 {
+                status = 14;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 10;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                operator_top = top_previous;
+                operator_depth = operator_depth - 1;
+                paren_depth = paren_depth - 1;
+                pending_node_kind = 20;
+                pending_node_payload = call_callee;
+                pending_node_left = call_chain;
+                pending_node_right = 0;
+                pending_node_after = 39;
+                pending_node_offset = top_start;
+                pending_node_line = top_line;
+                pending_node_column = top_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = top_start;
+                parser_append_2 = top_line;
+                parser_append_3 = top_column;
+                parser_append_4 = 10;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 39 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if value_records >= 512 {
+                status = 15;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 10;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 19;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 19 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            parse_index = parse_index + 1;
+            expecting_operand = 0;
+            parser_state = 3;
+        }
+
+        // The origin is complete; append the frozen four-word node next."#;
+const CALL_RECORD_READ_ANCHOR: &str = r#"                if parser_record_target == 3 {
+                    parser_read_byte_value = result_value(bytes_get(&blocks,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2
+                    && parser_record_target != 3 {
+                    status = 16;
+                    parser_running = 0;
+                }"#;
+const CALL_RECORD_READ: &str = r#"                if parser_record_target == 3 {
+                    parser_read_byte_value = result_value(bytes_get(&blocks,
+                        parser_read_offset));
+                }
+                if parser_record_target == 4 {
+                    parser_read_byte_value = result_value(bytes_get(&calls,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2
+                    && parser_record_target != 3 && parser_record_target != 4 {
+                    status = 16;
+                    parser_running = 0;
+                }"#;
+const CALL_RECORD_APPEND_ANCHOR: &str = r#"            if parser_running == 1 && parser_append_target == 5 {
+                push_result = result_value(bytes_push(&mut blocks,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target != 1
+                && parser_append_target != 2 && parser_append_target != 3
+                && parser_append_target != 4 && parser_append_target != 5 {
+                status = 16;
+                parser_running = 0;
+            }"#;
+const CALL_RECORD_APPEND: &str = r#"            if parser_running == 1 && parser_append_target == 5 {
+                push_result = result_value(bytes_push(&mut blocks,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target == 6 {
+                push_result = result_value(bytes_push(&mut calls,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target != 1
+                && parser_append_target != 2 && parser_append_target != 3
+                && parser_append_target != 4 && parser_append_target != 5
+                && parser_append_target != 6 {
+                status = 16;
+                parser_running = 0;
+            }"#;
+const CALL_STORAGE_INVARIANT_ANCHOR: &str = r#"    if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
+        || bytes_len(&operators) < operator_records * 20
+        || bytes_len(&blocks) < block_records * 12 {
+        return 70;
+    }
+    if status == 0 && (bytes_len(&nodes) != node_count * 16
+        || bytes_len(&values) != value_records * 8
+        || bytes_len(&operators) != operator_records * 20
+        || bytes_len(&blocks) != block_records * 12) {
+        return 70;
+    }"#;
+const CALL_STORAGE_INVARIANT: &str = r#"    if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
+        || bytes_len(&operators) < operator_records * 20
+        || bytes_len(&blocks) < block_records * 12
+        || bytes_len(&calls) < call_records * 12 {
+        return 70;
+    }
+    if status == 0 && (bytes_len(&nodes) != node_count * 16
+        || bytes_len(&values) != value_records * 8
+        || bytes_len(&operators) != operator_records * 20
+        || bytes_len(&blocks) != block_records * 12
+        || bytes_len(&calls) != call_records * 12) {
+        return 70;
+    }"#;
+const CALL_NODE_KINDS_ANCHOR: &str = r#"        if validate_node_kind <= 0 || validate_node_kind > 19 {
+            return 78;
+        }"#;
+const CALL_NODE_KINDS: &str = r#"        if validate_node_kind <= 0 || validate_node_kind > 23 {
+            return 78;
+        }"#;
+const CALL_NODE_SHAPES_ANCHOR: &str = r#"        } else if validate_node_kind == 3 || validate_node_kind == 4
+            || validate_node_kind == 18 {
+            if validate_payload != 0 || validate_left <= 0
+                || validate_left >= node_id || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind >= 5 && validate_node_kind <= 17 {
+            if validate_payload != 0 || validate_left <= 0 || validate_right <= 0
+                || validate_left >= node_id || validate_right >= node_id {
+                return 78;
+            }
+        } else if validate_payload <= 0 || validate_payload > name_count"#;
+const CALL_NODE_SHAPES: &str = r#"        } else if validate_node_kind == 3 || validate_node_kind == 4
+            || validate_node_kind == 18 || validate_node_kind == 22
+            || validate_node_kind == 23 {
+            if validate_payload != 0 || validate_left <= 0
+                || validate_left >= node_id || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind >= 5 && validate_node_kind <= 17 {
+            if validate_payload != 0 || validate_left <= 0 || validate_right <= 0
+                || validate_left >= node_id || validate_right >= node_id {
+                return 78;
+            }
+        } else if validate_node_kind == 20 {
+            if validate_payload <= 0 || validate_payload > name_count
+                || validate_left < 0 || validate_left >= node_id
+                || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind == 21 {
+            if validate_payload != 0 || validate_left <= 0
+                || validate_left >= node_id || validate_right < 0
+                || validate_right >= node_id {
+                return 78;
+            }
+        } else if validate_payload <= 0 || validate_payload > name_count"#;
+const CALL_ORIGIN_BOUND_ANCHOR: &str = r#"                || origin_column <= 0 || origin_token_kind <= 0
+                || origin_token_kind > 36 {"#;
+const CALL_ORIGIN_BOUND: &str = r#"                || origin_column <= 0 || origin_token_kind <= 0
+                || origin_token_kind > 37 {"#;
+const CALL_ORIGIN_MAPPING_ANCHOR: &str = r#"                if origin_node_kind == 19 {
+                    origin_expected_kind = 3;
+                }"#;
+const CALL_ORIGIN_MAPPING: &str = r#"                if origin_node_kind == 19 {
+                    origin_expected_kind = 3;
+                }
+                if origin_node_kind == 20 {
+                    origin_expected_kind = 10;
+                }
+                if origin_node_kind == 21 {
+                    origin_expected_kind = 11;
+                }
+                if origin_node_kind == 22 {
+                    origin_expected_kind = 37;
+                }
+                if origin_node_kind == 23 {
+                    origin_expected_kind = 37;
+                }"#;
 fn expected_h1a_source() -> String {
     let accepted = accepted_b1c_source();
 
@@ -2963,7 +3935,41 @@ fn expected_h1a_source() -> String {
     assert_eq!(derived.matches(BLOCK_RECORD_APPEND_ANCHOR).count(), 1);
     let derived = derived.replace(BLOCK_RECORD_APPEND_ANCHOR, BLOCK_RECORD_APPEND);
     assert_eq!(derived.matches(BLOCK_STORAGE_INVARIANT_ANCHOR).count(), 1);
-    derived.replace(BLOCK_STORAGE_INVARIANT_ANCHOR, BLOCK_STORAGE_INVARIANT)
+    let derived = derived.replace(BLOCK_STORAGE_INVARIANT_ANCHOR, BLOCK_STORAGE_INVARIANT);
+
+    assert_eq!(derived.matches(CALL_OWNER_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_OWNER_ANCHOR, CALL_OWNER);
+    assert_eq!(derived.matches(CALL_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_REGISTERS_ANCHOR, CALL_REGISTERS);
+    assert_eq!(derived.matches(CALL_CLASSIFIER_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_CLASSIFIER_ANCHOR, CALL_CLASSIFIER);
+    assert_eq!(derived.matches(CALL_OPERATOR_POSITION_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_OPERATOR_POSITION_ANCHOR, CALL_OPERATOR_POSITION);
+    assert_eq!(derived.matches(CALL_REDUCE_WALK_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_REDUCE_WALK_ANCHOR, CALL_REDUCE_WALK);
+    assert_eq!(derived.matches(CALL_UNARY_REDUCE_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_UNARY_REDUCE_ANCHOR, CALL_UNARY_REDUCE);
+    assert_eq!(derived.matches(CALL_REDUCTION_ACTUAL_ANCHOR).count(), 2);
+    let derived = derived.replace(CALL_REDUCTION_ACTUAL_ANCHOR, CALL_REDUCTION_ACTUAL);
+    assert_eq!(derived.matches(CALL_CLOSE_DISPATCH_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_CLOSE_DISPATCH_ANCHOR, CALL_CLOSE_DISPATCH);
+    assert_eq!(derived.matches(CALL_STATES_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_STATES_ANCHOR, CALL_STATES);
+    assert_eq!(derived.matches(CALL_RECORD_READ_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_RECORD_READ_ANCHOR, CALL_RECORD_READ);
+    assert_eq!(derived.matches(CALL_RECORD_APPEND_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_RECORD_APPEND_ANCHOR, CALL_RECORD_APPEND);
+    assert_eq!(derived.matches(CALL_STORAGE_INVARIANT_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_STORAGE_INVARIANT_ANCHOR, CALL_STORAGE_INVARIANT);
+    assert_eq!(derived.matches(CALL_NODE_KINDS_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_NODE_KINDS_ANCHOR, CALL_NODE_KINDS);
+    assert_eq!(derived.matches(CALL_NODE_SHAPES_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_NODE_SHAPES_ANCHOR, CALL_NODE_SHAPES);
+    assert_eq!(derived.matches(CALL_ORIGIN_BOUND_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_ORIGIN_BOUND_ANCHOR, CALL_ORIGIN_BOUND);
+    assert_eq!(derived.matches(CALL_ORIGIN_MAPPING_ANCHOR).count(), 1);
+    let derived = derived.replace(CALL_ORIGIN_MAPPING_ANCHOR, CALL_ORIGIN_MAPPING);
+    derived
 }
 
 // ---------------------------------------------------------------------------
@@ -4586,6 +5592,852 @@ fn the_control_flow_checkpoint_leaves_the_canonical_stop_unmoved() {
             ),
             91,
             "CAP-053 self-ingestion diverged from the independent oracle at {optimization}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CAP-054 / H1B-5: calls and references
+// ---------------------------------------------------------------------------
+
+/// Every expectation below is a hand derivation from the frozen CAP-054
+/// contract, written before the oracle was consulted and before
+/// `compiler.aero` was touched.
+///
+/// A probe's trailing `x` forces a stop at a predicted token, so the node count
+/// is the arena at that stop: the kind-18 return node and the kind-19 function
+/// node are appended only after end of input is accepted, which no probe
+/// reaches.
+///
+/// Node accounting for a call: the callee produces **no** node, each argument
+/// produces its own expression nodes, then one kind-21 cell per argument, then
+/// one kind-20 call node. A reference produces one kind-22 or kind-23 node over
+/// its operand.
+const CALL_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
+    // label, source, status, code, actual, token text, parameters, nodes
+    // --- the admitted call shapes ---
+    (
+        "call-zero-arguments",
+        b"fn f() -> int { return g(); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        1,
+    ),
+    (
+        "call-one-identifier-argument",
+        b"fn f() -> int { return g(a); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    (
+        "call-one-integer-argument",
+        b"fn f() -> int { return g(1); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    (
+        "call-two-arguments",
+        b"fn f() -> int { return g(a, b); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-three-arguments",
+        b"fn f() -> int { return g(a, b, c); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        7,
+    ),
+    (
+        "call-nested",
+        b"fn f() -> int { return g(h(a)); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-expression-argument",
+        b"fn f() -> int { return g(a + 1); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-grouped-argument",
+        b"fn f() -> int { return g((a)); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    (
+        "call-prefix-argument",
+        b"fn f() -> int { return g(-a); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "call-in-argument-with-operator",
+        b"fn f() -> int { return g(h(a) + 1); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        7,
+    ),
+    (
+        "call-two-calls-as-arguments",
+        b"fn f() -> int { return g(h(a), k(b)); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        9,
+    ),
+    // --- a call in every position the source puts one ---
+    (
+        "call-in-if-condition",
+        b"fn f() -> int { if g(a) { b = 1; } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-in-while-condition",
+        b"fn f() -> int { while g(a) { b = 1; } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-in-binding",
+        b"fn f() -> int { let a: int = g(b); return a; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "call-in-assignment",
+        b"fn f() -> int { a = g(b); return c; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "call-as-binary-operand",
+        b"fn f() -> int { return g(a) + 1; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "call-in-match-arm",
+        b"fn f(r: Result<int,int>) -> int { return match r { Ok(v) => g(v), Err(c) => c, }; } x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        4,
+    ),
+    // --- the two reference forms ---
+    (
+        "call-reference-argument",
+        b"fn f() -> int { return g(&a); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "call-mutable-reference-argument",
+        b"fn f() -> int { return g(&mut a); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "call-reference-after-comma",
+        b"fn f() -> int { return g(a, &b); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        6,
+    ),
+    (
+        "call-mixed-reference-arguments",
+        b"fn f() -> int { return g(&a, &mut b, c); } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        9,
+    ),
+    // --- rejections: the argument list ---
+    (
+        "call-trailing-comma",
+        b"fn f() -> int { return g(a,); } x",
+        11,
+        100,
+        11,
+        ")",
+        0,
+        1,
+    ),
+    (
+        "call-leading-comma",
+        b"fn f() -> int { return g(,a); } x",
+        11,
+        100,
+        16,
+        ",",
+        0,
+        0,
+    ),
+    (
+        "call-empty-argument",
+        b"fn f() -> int { return g(a,,b); } x",
+        11,
+        100,
+        16,
+        ",",
+        0,
+        1,
+    ),
+    (
+        "call-missing-comma",
+        b"fn f() -> int { return g(a b); } x",
+        10,
+        11,
+        1,
+        "b",
+        0,
+        1,
+    ),
+    (
+        "call-unclosed",
+        b"fn f() -> int { return g(a; } x",
+        10,
+        11,
+        18,
+        ";",
+        0,
+        1,
+    ),
+    (
+        "call-extra-close-paren",
+        b"fn f() -> int { return g(a)); } x",
+        10,
+        18,
+        11,
+        ")",
+        0,
+        3,
+    ),
+    (
+        "call-close-paren-with-no-call",
+        b"fn f() -> int { return ); } x",
+        11,
+        100,
+        11,
+        ")",
+        0,
+        0,
+    ),
+    (
+        "call-comma-inside-grouping",
+        b"fn f() -> int { return (a, b); } x",
+        10,
+        11,
+        16,
+        ",",
+        0,
+        1,
+    ),
+    // --- rejections: the callee must be a bare identifier ---
+    (
+        "call-on-grouped-callee",
+        b"fn f() -> int { return (a)(b); } x",
+        10,
+        18,
+        10,
+        "(",
+        0,
+        1,
+    ),
+    (
+        "call-on-integer-callee",
+        b"fn f() -> int { return 1(a); } x",
+        10,
+        18,
+        10,
+        "(",
+        0,
+        1,
+    ),
+    (
+        "call-on-call-result",
+        b"fn f() -> int { return g(a)(b); } x",
+        10,
+        18,
+        10,
+        "(",
+        0,
+        3,
+    ),
+    (
+        "call-match-in-argument",
+        b"fn f() -> int { return g(match r); } x",
+        10,
+        11,
+        1,
+        "r",
+        0,
+        1,
+    ),
+    // --- rejections: a reference is a whole call argument and nothing else ---
+    (
+        "reference-in-return",
+        b"fn f() -> int { return &a; } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        0,
+    ),
+    (
+        "reference-in-binding",
+        b"fn f() -> int { let a: int = &b; return a; } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        0,
+    ),
+    (
+        "reference-in-condition",
+        b"fn f() -> int { if &a { b = 1; } return 2; } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        0,
+    ),
+    (
+        "reference-after-binary-operator",
+        b"fn f() -> int { return g(a + &b); } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        1,
+    ),
+    (
+        "reference-inside-grouping",
+        b"fn f() -> int { return g((&a)); } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        0,
+    ),
+    (
+        "reference-not-first-in-argument",
+        b"fn f() -> int { return g(&a, b + &c); } x",
+        11,
+        100,
+        37,
+        "&",
+        0,
+        3,
+    ),
+    (
+        "reference-without-operand",
+        b"fn f() -> int { return g(&); } x",
+        11,
+        100,
+        11,
+        ")",
+        0,
+        0,
+    ),
+    (
+        "mutable-reference-without-operand",
+        b"fn f() -> int { return g(& mut); } x",
+        11,
+        100,
+        11,
+        ")",
+        0,
+        0,
+    ),
+    // --- three canonical functions, lifted verbatim ---
+    // `word_byte_1` is a nested call two deep, and its whole seven-node arena
+    // is reachable from its root once the return and function nodes exist.
+    (
+        "call-canonical-word-byte-1",
+        b"fn word_byte_1(value: int) -> int {\n    return word_byte_0(quotient_256(value));\n} x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        5,
+    ),
+    // `is_identifier_continue` puts a call in a condition.
+    (
+        "call-canonical-is-identifier-continue",
+        b"fn is_identifier_continue(value: int) -> int {\n    if is_identifier_start(value) == 1 || (value >= 48 && value <= 57) {\n        return 1;\n    }\n    return 0;\n} x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        15,
+    ),
+];
+
+/// The byte spans of the three canonical functions the CAP-054 probes lift
+/// verbatim. Each range starts at its `fn` and ends at the byte after its
+/// closing `}`; the newline that separates it from the next item is not part
+/// of the function.
+const CANONICAL_WORD_BYTE_1: (usize, usize) = (4539, 4621);
+const CANONICAL_IS_IDENTIFIER_CONTINUE: (usize, usize) = (317, 476);
+
+/// `main` is the last item in the canonical source, so its offset moves
+/// whenever the parser above it changes. It is located by its own unique
+/// opening line rather than frozen as a byte offset; the lift is still
+/// verbatim, because the probe is asserted equal to the bytes found here.
+fn canonical_main_span(source: &[u8]) -> (usize, usize) {
+    let marker = b"fn main() -> int {";
+    let occurrences = source
+        .windows(marker.len())
+        .filter(|window| *window == marker)
+        .count();
+    assert_eq!(occurrences, 1, "the canonical source declares one `main`");
+    let from = source
+        .windows(marker.len())
+        .position(|window| window == marker)
+        .expect("the canonical source declares `main`");
+    assert_eq!(
+        &source[source.len() - 2..],
+        b"}
+"
+    );
+    (from, source.len() - 1)
+}
+
+fn call_probe_targets() -> Vec<oracle::Ingestion> {
+    let mut targets = Vec::new();
+    for (label, source, status, code, actual, text, parameters, nodes) in CALL_PROBES {
+        assert!(
+            source.len() < 200,
+            "probe `{label}` must stay a small complete program"
+        );
+        targets.push(graded_call_probe(
+            label,
+            source,
+            *status,
+            *code,
+            *actual,
+            text,
+            *parameters,
+            *nodes,
+        ));
+    }
+    targets
+}
+
+#[allow(clippy::too_many_arguments)]
+fn graded_call_probe(
+    label: &str,
+    source: &[u8],
+    status: i32,
+    code: i32,
+    actual: i32,
+    text: &str,
+    parameters: usize,
+    nodes: usize,
+) -> oracle::Ingestion {
+    let ingested = oracle::ingest(
+        source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0, "probe `{label}` must lex completely");
+
+    let target = oracle::call_parser_stop(&ingested, source);
+    let from = usize::try_from(target.error_offset).expect("bounded offset");
+    assert_eq!(target.status, status, "probe `{label}` target status");
+    assert_eq!(target.diagnostic_code, code, "probe `{label}` target code");
+    assert_eq!(
+        target.diagnostic_actual, actual,
+        "probe `{label}` target actual"
+    );
+    assert_eq!(
+        &source[from..from + text.len()],
+        text.as_bytes(),
+        "probe `{label}` target token"
+    );
+    assert_eq!(
+        target.parameters.len(),
+        parameters,
+        "probe `{label}` target parameter count"
+    );
+    assert_eq!(
+        target.nodes.len(),
+        nodes,
+        "probe `{label}` target node count"
+    );
+    assert_eq!(
+        target.origins.len(),
+        target.nodes.len(),
+        "probe `{label}` must mirror every node with one origin"
+    );
+    target
+}
+
+/// `main` is the source's widest argument list at 68 arguments, and the only
+/// canonical function whose complete arena becomes reachable from its root. It
+/// is too large for the small-program assertion the other probes carry, so it
+/// is graded on its own.
+fn canonical_main_probe() -> (Vec<u8>, oracle::Ingestion) {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let (from, to) = canonical_main_span(&source);
+    let mut probe = source[from..to].to_vec();
+    probe.extend_from_slice(b" x");
+    let target = graded_call_probe(
+        "call-canonical-main",
+        &probe,
+        10,
+        0,
+        1,
+        "x",
+        0,
+        // 68 integer leaves, 7 prefix `-` nodes over 7 of them, 68 argument
+        // cells and one call node.
+        144,
+    );
+    (probe, target)
+}
+
+/// Every expectation in [`CALL_PROBES`] is a hand derivation from the frozen
+/// CAP-054 contract. This test touches no product: it only requires the oracle
+/// to agree with all of them.
+#[test]
+fn every_call_probe_expectation_is_derived_twice() {
+    assert_eq!(call_probe_targets().len(), CALL_PROBES.len());
+    canonical_main_probe();
+}
+
+/// The three canonical probes are verbatim lifts, not paraphrases.
+#[test]
+fn the_canonical_call_probes_are_the_canonical_bytes() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    for (label, span) in [
+        ("call-canonical-word-byte-1", CANONICAL_WORD_BYTE_1),
+        (
+            "call-canonical-is-identifier-continue",
+            CANONICAL_IS_IDENTIFIER_CONTINUE,
+        ),
+    ] {
+        let (from, to) = span;
+        let probe = CALL_PROBES
+            .iter()
+            .find(|(name, ..)| *name == label)
+            .unwrap_or_else(|| panic!("probe `{label}` is required coverage"))
+            .1;
+        assert_eq!(&source[from..from + 2], b"fn");
+        assert_eq!(
+            &probe[..probe.len() - 2],
+            &source[from..to],
+            "probe `{label}` must be the canonical bytes plus a trailing stop token"
+        );
+        assert_eq!(&probe[probe.len() - 2..], b" x");
+    }
+    let (probe, _) = canonical_main_probe();
+    let (from, to) = canonical_main_span(&source);
+    assert_eq!(&source[from..from + 2], b"fn");
+    assert_eq!(&probe[..probe.len() - 2], &source[from..to]);
+    assert_eq!(
+        to,
+        source.len() - 1,
+        "`main` is the last item in the source"
+    );
+}
+
+#[test]
+fn focused_call_probes_exercise_every_rule_of_the_admitted_grammar() {
+    for ((label, source, _, _, _, _, _, _), target) in CALL_PROBES.iter().zip(call_probe_targets())
+    {
+        assert_eq!(
+            run_expectation("call-probe", compiled_h1a(), source, &target, "-O0"),
+            91,
+            "probe `{label}` diverged from the derived CAP-054 target"
+        );
+    }
+    let (probe, target) = canonical_main_probe();
+    assert_eq!(
+        run_expectation("call-probe", compiled_h1a(), &probe, &target, "-O0"),
+        91,
+        "probe `call-canonical-main` diverged from the derived CAP-054 target"
+    );
+}
+
+/// Shapes that **no** CAP-050, CAP-051, CAP-052 or CAP-053 probe covers, each
+/// hand-derived under both the CAP-053 model and the CAP-054 model.
+///
+/// This table exists because of what CAP-053 found the hard way: its oracle
+/// refactor silently changed the CAP-052 model for a shape no CAP-052 probe
+/// covered, and all 41 inherited probes stayed green and hid it. A probe suite
+/// passing is evidence about the probe suite, not about the extraction. So the
+/// lock grades deliberately out-of-table shapes against the *previous*
+/// checkpoint's model, and two of them - `a(b)` in a return expression and in a
+/// condition - are shapes on which the two models must **disagree**, so that
+/// the lock proves the CAP-053 model is still the CAP-053 model rather than
+/// proving the two models have become the same.
+const MODEL_LOCK_SHAPES: &[(
+    &str,
+    &[u8],
+    (i32, i32, i32, &str, usize),
+    (i32, i32, i32, &str, usize),
+)] = &[
+    // label, source, CAP-053 (status, code, actual, text, nodes), CAP-054 same
+    (
+        "lock-call-in-return",
+        b"fn f() -> int { return a(b); } x",
+        (10, 18, 10, "(", 1),
+        (10, 0, 1, "x", 3),
+    ),
+    (
+        "lock-call-in-condition",
+        b"fn f() -> int { if a(b) { c = 1; } return 2; } x",
+        (10, 12, 10, "(", 1),
+        (10, 0, 1, "x", 5),
+    ),
+    (
+        "lock-reference-in-return",
+        b"fn f() -> int { return &a; } x",
+        (11, 100, 37, "&", 0),
+        (11, 100, 37, "&", 0),
+    ),
+    (
+        "lock-two-identifiers",
+        b"fn f() -> int { return a b; } x",
+        (10, 18, 1, "b", 1),
+        (10, 18, 1, "b", 1),
+    ),
+    (
+        "lock-grouped-operand",
+        b"fn f() -> int { return (a); } x",
+        (10, 0, 1, "x", 1),
+        (10, 0, 1, "x", 1),
+    ),
+    (
+        "lock-prefix-operand",
+        b"fn f() -> int { return -a; } x",
+        (10, 0, 1, "x", 2),
+        (10, 0, 1, "x", 2),
+    ),
+    (
+        "lock-assignment-two-identifiers",
+        b"fn f() -> int { a = b c; } x",
+        (10, 18, 1, "c", 1),
+        (10, 18, 1, "c", 1),
+    ),
+];
+
+fn model_lock_targets() -> Vec<(&'static str, oracle::Ingestion, oracle::Ingestion)> {
+    let mut graded = Vec::new();
+    for (label, source, cap053, cap054) in MODEL_LOCK_SHAPES {
+        let ingested = oracle::ingest(
+            source,
+            &oracle::Bounds {
+                source: H1A_SOURCE_BOUND,
+                token: H1A_TOKEN_BOUND,
+                name: H1A_NAME_BOUND,
+                ampersand: true,
+            },
+        );
+        assert_eq!(ingested.status, 0, "lock `{label}` must lex completely");
+        for (model, stopped) in [
+            (cap053, oracle::control_flow_parser_stop(&ingested, source)),
+            (cap054, oracle::call_parser_stop(&ingested, source)),
+        ] {
+            let (status, code, actual, text, nodes) = *model;
+            let from = usize::try_from(stopped.error_offset).expect("bounded offset");
+            assert_eq!(stopped.status, status, "lock `{label}` status");
+            assert_eq!(stopped.diagnostic_code, code, "lock `{label}` code");
+            assert_eq!(stopped.diagnostic_actual, actual, "lock `{label}` actual");
+            assert_eq!(
+                &source[from..from + text.len()],
+                text.as_bytes(),
+                "lock `{label}` token"
+            );
+            assert_eq!(stopped.nodes.len(), nodes, "lock `{label}` node count");
+        }
+        graded.push((
+            *label,
+            oracle::control_flow_parser_stop(&ingested, source),
+            oracle::call_parser_stop(&ingested, source),
+        ));
+    }
+    graded
+}
+
+/// The anti-fitting lock, product-free: neither model may drift on a shape no
+/// probe table covers, and the two must still disagree where the checkpoint
+/// says they do.
+#[test]
+fn neither_model_drifts_outside_the_probe_tables() {
+    assert_eq!(model_lock_targets().len(), MODEL_LOCK_SHAPES.len());
+    let disagreements = MODEL_LOCK_SHAPES
+        .iter()
+        .filter(|(_, _, cap053, cap054)| cap053 != cap054)
+        .count();
+    assert_eq!(
+        disagreements, 2,
+        "the lock must contain shapes the two models decide differently"
+    );
+}
+
+/// The same out-of-table shapes, run against the real linked product.
+#[test]
+fn the_out_of_table_shapes_run_against_the_product() {
+    for ((label, source, ..), (_, _cap053, target)) in
+        MODEL_LOCK_SHAPES.iter().zip(model_lock_targets())
+    {
+        assert_eq!(
+            run_expectation("model-lock", compiled_h1a(), source, &target, "-O0"),
+            91,
+            "out-of-table shape `{label}` diverged from the CAP-054 model"
+        );
+    }
+}
+
+/// CAP-054 / H1B-5 leaves the canonical self-ingestion stop exactly where
+/// CAP-051 put it, and this is a regression guard rather than evidence of
+/// forward progress.
+///
+/// The canonical source's first function contains no call and no reference, so
+/// the call store is never pushed on the canonical run and all four earlier
+/// models must agree with the call model exactly, including the four orphan
+/// arm-body nodes.
+#[test]
+fn the_call_checkpoint_leaves_the_canonical_stop_unmoved() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = oracle::ingest(
+        &source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0);
+
+    let frozen = oracle::SignatureStop {
+        status: 10,
+        error_offset: 146,
+        error_line: 8,
+        error_column: 1,
+        diagnostic_code: 0,
+        diagnostic_actual: 3,
+        node_count: 4,
+        parameters: 1,
+    };
+    assert_eq!(
+        oracle::control_flow_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-053's frozen target moved"
+    );
+    assert_eq!(
+        oracle::call_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-054 must not move the canonical stop in either direction"
+    );
+    assert_eq!(&source[146..148], b"fn");
+
+    let stopped = oracle::call_parser_stop(&ingested, &source);
+    assert_eq!(stopped.nodes.len(), 4);
+    assert_eq!(stopped.origins.len(), 4);
+
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_expectation(
+                "call-self-ingestion",
+                compiled_h1a(),
+                &source,
+                &stopped,
+                optimization
+            ),
+            91,
+            "CAP-054 self-ingestion diverged from the independent oracle at {optimization}"
         );
     }
 }

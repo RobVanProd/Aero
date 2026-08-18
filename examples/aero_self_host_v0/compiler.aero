@@ -518,6 +518,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut nodes: ByteBuffer = bytes_new();
     let mut parameters: ByteBuffer = bytes_new();
     let mut blocks: ByteBuffer = bytes_new();
+    let mut calls: ByteBuffer = bytes_new();
     let mut values: ByteBuffer = bytes_new();
     let mut operators: ByteBuffer = bytes_new();
     let mut origins: ByteBuffer = bytes_new();
@@ -1212,6 +1213,26 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut stmt_is_else: int = 0;
     let mut stmt_close_expected: int = 0;
     let mut stmt_terminator: int = 0;
+    let mut expression_dispatch: int = 0;
+    let mut held_active: int = 0;
+    let mut held_name: int = 0;
+    let mut held_start: int = 0;
+    let mut held_line: int = 0;
+    let mut held_column: int = 0;
+    let mut ref_pending: int = 0;
+    let mut ref_marker: int = 0;
+    let mut ref_advance: int = 0;
+    let mut ref_start: int = 0;
+    let mut ref_line: int = 0;
+    let mut ref_column: int = 0;
+    let mut arg_leading: int = 0;
+    let mut arg_open: int = 0;
+    let mut call_top: int = 0;
+    let mut call_base: int = 0;
+    let mut call_records: int = 0;
+    let mut call_callee: int = 0;
+    let mut call_chain: int = 0;
+    let mut call_argument: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -2116,57 +2137,128 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && expecting_operand == 1
-                && (current_kind == 1 || current_kind == 2) {
-                if current_kind == 1 {
-                    literal_value = current_name_id;
-                    reduced_kind = 2;
-                    if literal_value <= 0 {
-                        status = 16;
-                        parser_running = 0;
-                    }
-                    if parser_running == 1 && node_count >= 512 {
-                        status = 14;
-                        error_offset = current_start;
-                        error_line = current_line;
-                        error_column = current_column;
+            // CAP-054 resolves two deferrals before the accepted classifier
+            // runs. An identifier operand is *held* rather than appended,
+            // because the flat parser has no lookahead and a callee must not
+            // become a name-reference node; and a '&' is held for one iteration
+            // to see whether 'mut' follows. 'expression_dispatch' records that
+            // one of the new branches decided this token, so every accepted
+            // branch below stays exactly where CAP-050 through CAP-053 put it.
+            if parser_running == 1 {
+                arg_open = arg_leading;
+                arg_leading = 0;
+                expression_dispatch = 0;
+            }
+            if parser_running == 1 && ref_pending == 1 {
+                expression_dispatch = 1;
+                ref_pending = 0;
+                ref_marker = 106;
+                ref_advance = 0;
+                if current_kind == 5 {
+                    ref_marker = 107;
+                    ref_advance = 1;
+                }
+                if operator_records >= 512 {
+                    status = 15;
+                    error_offset = ref_start;
+                    error_line = ref_line;
+                    error_column = ref_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = 37;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parser_append_target = 3;
+                    parser_append_width = 5;
+                    parser_append_0 = ref_marker;
+                    parser_append_1 = ref_start;
+                    parser_append_2 = ref_line;
+                    parser_append_3 = ref_column;
+                    parser_append_4 = operator_top;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 27;
+                    parser_append_offset = ref_start;
+                    parser_append_line = ref_line;
+                    parser_append_column = ref_column;
+                    parser_state = 32;
+                }
+            }
+            if parser_running == 1 && expression_dispatch == 0 && held_active == 1 {
+                expression_dispatch = 1;
+                parser_state = 24;
+                if current_kind == 10 {
+                    if call_records >= 512 || operator_records >= 512 {
+                        status = 15;
+                        error_offset = held_start;
+                        error_line = held_line;
+                        error_column = held_column;
                         diagnostic_code = 512;
                         diagnostic_actual = current_kind;
                         parser_running = 0;
                     }
                     if parser_running == 1 {
-                        pending_node_kind = reduced_kind;
-                        pending_node_payload = literal_value;
-                        pending_node_left = 0;
-                        pending_node_right = 0;
-                        pending_node_after = 12;
-                        pending_node_offset = current_start;
-                        pending_node_line = current_line;
-                        pending_node_column = current_column;
-                        parser_append_target = 4;
-                        parser_append_width = 5;
-                        parser_append_0 = node_count + 1;
-                        parser_append_1 = current_start;
-                        parser_append_2 = current_line;
-                        parser_append_3 = current_column;
-                        parser_append_4 = current_kind;
+                        parser_append_target = 6;
+                        parser_append_width = 3;
+                        parser_append_0 = held_name;
+                        parser_append_1 = call_base;
+                        parser_append_2 = call_top;
+                        parser_append_3 = 0;
+                        parser_append_4 = 0;
                         parser_append_field = 0;
                         parser_append_byte = 0;
-                        parser_append_after = 33;
+                        parser_append_after = 28;
                         parser_append_offset = current_start;
                         parser_append_line = current_line;
                         parser_append_column = current_column;
                         parser_state = 32;
                     }
                 }
-                if current_kind == 2 {
-                    literal_value = 0;
-                    decimal_index = 0;
-                    reduced_kind = 1;
-                    parser_state = 11;
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 37 && arg_open == 1 {
+                expression_dispatch = 1;
+                ref_pending = 1;
+                ref_start = current_start;
+                ref_line = current_line;
+                ref_column = current_column;
+                parse_index = parse_index + 1;
+                parser_state = 3;
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 11 && arg_open == 1
+                && call_top > 0 && value_top == call_base {
+                expression_dispatch = 1;
+                call_chain = 0;
+                reduction_mode = 2;
+                parser_state = 5;
+            }
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 1 {
+                expression_dispatch = 1;
+                if current_name_id <= 0 {
+                    status = 16;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    held_active = 1;
+                    held_name = current_name_id;
+                    held_start = current_start;
+                    held_line = current_line;
+                    held_column = current_column;
+                    expecting_operand = 0;
+                    parse_index = parse_index + 1;
+                    parser_state = 3;
                 }
             }
-            if parser_running == 1 && expecting_operand == 1
+            if parser_running == 1 && expression_dispatch == 0
+                && expecting_operand == 1 && current_kind == 2 {
+                literal_value = 0;
+                decimal_index = 0;
+                reduced_kind = 1;
+                parser_state = 11;
+            }
+            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 1
                 && (current_kind == 21 || current_kind == 27 || current_kind == 10) {
                 if operator_records >= 512 {
                     status = 15;
@@ -2201,7 +2293,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_state = 32;
                 }
             }
-            if parser_running == 1 && expecting_operand == 1
+            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 1
                 && current_kind != 1 && current_kind != 2 && current_kind != 21
                 && current_kind != 27 && current_kind != 10 {
                 status = 11;
@@ -2212,7 +2304,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
-            if parser_running == 1 && expecting_operand == 0 {
+            if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 0 {
                 current_precedence = binary_precedence(current_kind);
                 reduction_mode = 0;
                 if current_precedence > 0 {
@@ -2220,8 +2312,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 if current_kind == 11 && paren_depth > 0 {
                     reduction_mode = 2;
+                    call_chain = 0;
                 }
-                if current_precedence == 0 && current_kind != 11 && paren_depth > 0 {
+                if current_kind == 16 && paren_depth > 0 {
+                    reduction_mode = 4;
+                }
+                if current_precedence == 0 && current_kind != 11 && current_kind != 16
+                    && paren_depth > 0 {
                     status = 10;
                     error_offset = current_start;
                     error_line = current_line;
@@ -2397,12 +2494,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && top_kind == 10 {
+            if parser_running == 1 && (top_kind == 10 || top_kind == 105) {
                 parser_state = 6;
             }
-            if parser_running == 1 && top_kind != 10 {
+            if parser_running == 1 && top_kind != 10 && top_kind != 105 {
                 top_precedence = binary_precedence(top_kind);
-                if top_kind == 103 || top_kind == 104 {
+                if top_kind == 103 || top_kind == 104 || top_kind == 106
+                    || top_kind == 107 {
                     top_precedence = 7;
                 }
                 if top_precedence <= 0 {
@@ -2448,16 +2546,24 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if parser_running == 1 {
                 value_top = value_previous;
                 value_depth = value_depth - 1;
-                if top_kind == 103 || top_kind == 104 {
+                if top_kind == 103 || top_kind == 104 || top_kind == 106
+                    || top_kind == 107 {
                     left_id = right_id;
                     right_id = 0;
                     reduced_kind = 3;
                     if top_kind == 104 {
                         reduced_kind = 4;
                     }
+                    if top_kind == 106 {
+                        reduced_kind = 22;
+                    }
+                    if top_kind == 107 {
+                        reduced_kind = 23;
+                    }
                     parser_state = 9;
                 }
-                if top_kind != 103 && top_kind != 104 {
+                if top_kind != 103 && top_kind != 104 && top_kind != 106
+                    && top_kind != 107 {
                     if value_top <= 0 || value_depth <= 0 {
                         status = 16;
                         parser_running = 0;
@@ -2510,6 +2616,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if top_kind == 104 {
                 reduction_actual = 27;
             }
+            if top_kind == 106 || top_kind == 107 {
+                reduction_actual = 37;
+            }
             if node_count >= 512 {
                 status = 14;
                 error_offset = top_start;
@@ -2553,6 +2662,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if top_kind == 104 {
                 reduction_actual = 27;
+            }
+            if top_kind == 106 || top_kind == 107 {
+                reduction_actual = 37;
             }
             if value_records >= 512 {
                 status = 15;
@@ -2617,16 +2729,39 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
             }
             if parser_running == 1 && reduction_mode == 2 {
-                if top_kind != 10 || top_previous < 0 || operator_depth <= 0
-                    || paren_depth <= 0 {
+                if (top_kind != 10 && top_kind != 105) || top_previous < 0
+                    || operator_depth <= 0 || paren_depth <= 0 {
                     status = 16;
                     parser_running = 0;
                 }
-                if parser_running == 1 {
+                if parser_running == 1 && top_kind == 105 {
+                    parser_state = 34;
+                }
+                if parser_running == 1 && top_kind == 10 {
                     operator_top = top_previous;
                     operator_depth = operator_depth - 1;
                     paren_depth = paren_depth - 1;
                     parse_index = parse_index + 1;
+                    parser_state = 3;
+                }
+            }
+            // An argument separator reduces to the innermost marker and
+            // requires it to be a call's. A ',' inside a grouping keeps the
+            // accepted diagnostic.
+            if parser_running == 1 && reduction_mode == 4 {
+                if top_kind != 105 {
+                    status = 10;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 11;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    parse_index = parse_index + 1;
+                    expecting_operand = 1;
+                    arg_leading = 1;
                     parser_state = 3;
                 }
             }
@@ -2788,6 +2923,313 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             parser_state = 0;
         }
 
+        // CAP-054. A held identifier turned out to be an ordinary operand,
+        // so its kind-2 node is appended now, one iteration later than before
+        // and in the same order, with the same payload and the same origin.
+        if parser_cycle_state == 24 {
+            if node_count >= 512 {
+                status = 14;
+                error_offset = held_start;
+                error_line = held_line;
+                error_column = held_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 1;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                pending_node_kind = 2;
+                pending_node_payload = held_name;
+                pending_node_left = 0;
+                pending_node_right = 0;
+                pending_node_after = 25;
+                pending_node_offset = held_start;
+                pending_node_line = held_line;
+                pending_node_column = held_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = held_start;
+                parser_append_2 = held_line;
+                parser_append_3 = held_column;
+                parser_append_4 = 1;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = held_start;
+                parser_append_line = held_line;
+                parser_append_column = held_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 25 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if value_records >= 512 {
+                status = 15;
+                error_offset = held_start;
+                error_line = held_line;
+                error_column = held_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 1;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 26;
+                parser_append_offset = held_start;
+                parser_append_line = held_line;
+                parser_append_column = held_column;
+                parser_state = 32;
+            }
+        }
+        // The hold is discharged. The token that ended it has not been
+        // consumed, so the classifier is re-entered on it rather than the
+        // decoder.
+        if parser_cycle_state == 26 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            held_active = 0;
+            parser_state = 4;
+        }
+        // A reference marker record is complete. When 'mut' was consumed the
+        // operand has not been decoded yet; otherwise it already has been.
+        if parser_cycle_state == 27 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            parser_state = 4;
+            if ref_advance == 1 {
+                parse_index = parse_index + 1;
+                parser_state = 3;
+            }
+        }
+        // A call record is complete; push the call's operator marker at its
+        // '(' so the reduce walk stops there and the call node is located
+        // there.
+        if parser_cycle_state == 28 {
+            call_records = call_records + 1;
+            call_top = call_records;
+            call_base = value_top;
+            held_active = 0;
+            parser_append_target = 3;
+            parser_append_width = 5;
+            parser_append_0 = 105;
+            parser_append_1 = current_start;
+            parser_append_2 = current_line;
+            parser_append_3 = current_column;
+            parser_append_4 = operator_top;
+            parser_append_field = 0;
+            parser_append_byte = 0;
+            parser_append_after = 29;
+            parser_append_offset = current_start;
+            parser_append_line = current_line;
+            parser_append_column = current_column;
+            parser_state = 32;
+        }
+        if parser_cycle_state == 29 {
+            operator_records = operator_records + 1;
+            operator_top = operator_records;
+            operator_depth = operator_depth + 1;
+            paren_depth = paren_depth + 1;
+            expecting_operand = 1;
+            arg_leading = 1;
+            parse_index = parse_index + 1;
+            parser_state = 3;
+        }
+        // Close a call. The node arena is append-only and has no write-at-index
+        // path, so a cell cannot be back-patched to point at its successor and
+        // the chain is built from its last element: popping the value stack to
+        // the call's base yields the arguments in reverse, which is exactly the
+        // order that needs, and the finished chain's head is the first
+        // argument.
+        if parser_cycle_state == 34 {
+            if value_top < call_base || value_depth < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && value_top == call_base {
+                parser_state = 37;
+            }
+            if parser_running == 1 && value_top != call_base {
+                parser_record_target = 1;
+                parser_record_width = 2;
+                parser_record_index = value_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_0 = 0;
+                parser_record_1 = 0;
+                parser_record_2 = 0;
+                parser_record_3 = 0;
+                parser_record_4 = 0;
+                parser_record_after = 35;
+                parser_state = 31;
+            }
+        }
+        if parser_cycle_state == 35 {
+            call_argument = parser_record_0;
+            value_previous = parser_record_1;
+            if call_argument <= 0 || value_previous < 0 || value_depth <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && node_count >= 512 {
+                status = 14;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 512;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                value_top = value_previous;
+                value_depth = value_depth - 1;
+                pending_node_kind = 21;
+                pending_node_payload = 0;
+                pending_node_left = call_argument;
+                pending_node_right = call_chain;
+                pending_node_after = 36;
+                pending_node_offset = current_start;
+                pending_node_line = current_line;
+                pending_node_column = current_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = current_start;
+                parser_append_2 = current_line;
+                parser_append_3 = current_column;
+                parser_append_4 = 11;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = current_start;
+                parser_append_line = current_line;
+                parser_append_column = current_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 36 {
+            node_count = node_count + 1;
+            call_chain = node_count;
+            parser_state = 34;
+        }
+        if parser_cycle_state == 37 {
+            if call_top <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_record_target = 4;
+                parser_record_width = 3;
+                parser_record_index = call_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_0 = 0;
+                parser_record_1 = 0;
+                parser_record_2 = 0;
+                parser_record_3 = 0;
+                parser_record_4 = 0;
+                parser_record_after = 38;
+                parser_state = 31;
+            }
+        }
+        // The callee is the call node's payload and never became a
+        // name-reference node: 'f' in 'f(x)' is not a value read of 'f'.
+        if parser_cycle_state == 38 {
+            call_callee = parser_record_0;
+            call_base = parser_record_1;
+            call_top = parser_record_2;
+            if call_callee <= 0 || call_callee > name_count || call_base < 0
+                || call_top < 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && node_count >= 512 {
+                status = 14;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 10;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                operator_top = top_previous;
+                operator_depth = operator_depth - 1;
+                paren_depth = paren_depth - 1;
+                pending_node_kind = 20;
+                pending_node_payload = call_callee;
+                pending_node_left = call_chain;
+                pending_node_right = 0;
+                pending_node_after = 39;
+                pending_node_offset = top_start;
+                pending_node_line = top_line;
+                pending_node_column = top_column;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = top_start;
+                parser_append_2 = top_line;
+                parser_append_3 = top_column;
+                parser_append_4 = 10;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 39 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            if value_records >= 512 {
+                status = 15;
+                error_offset = top_start;
+                error_line = top_line;
+                error_column = top_column;
+                diagnostic_code = 512;
+                diagnostic_actual = 10;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 2;
+                parser_append_width = 2;
+                parser_append_0 = node_id;
+                parser_append_1 = value_top;
+                parser_append_2 = 0;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 19;
+                parser_append_offset = top_start;
+                parser_append_line = top_line;
+                parser_append_column = top_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 19 {
+            value_records = value_records + 1;
+            value_top = value_records;
+            value_depth = value_depth + 1;
+            parse_index = parse_index + 1;
+            expecting_operand = 0;
+            parser_state = 3;
+        }
+
         // The origin is complete; append the frozen four-word node next.
         if parser_cycle_state == 33 {
             origin_count = origin_count + 1;
@@ -2832,8 +3274,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_read_byte_value = result_value(bytes_get(&blocks,
                         parser_read_offset));
                 }
+                if parser_record_target == 4 {
+                    parser_read_byte_value = result_value(bytes_get(&calls,
+                        parser_read_offset));
+                }
                 if parser_record_target != 1 && parser_record_target != 2
-                    && parser_record_target != 3 {
+                    && parser_record_target != 3 && parser_record_target != 4 {
                     status = 16;
                     parser_running = 0;
                 }
@@ -2943,9 +3389,14 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 push_result = result_value(bytes_push(&mut blocks,
                     parser_read_byte_value));
             }
+            if parser_running == 1 && parser_append_target == 6 {
+                push_result = result_value(bytes_push(&mut calls,
+                    parser_read_byte_value));
+            }
             if parser_running == 1 && parser_append_target != 1
                 && parser_append_target != 2 && parser_append_target != 3
-                && parser_append_target != 4 && parser_append_target != 5 {
+                && parser_append_target != 4 && parser_append_target != 5
+                && parser_append_target != 6 {
                 status = 16;
                 parser_running = 0;
             }
@@ -2989,13 +3440,15 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     }
     if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
         || bytes_len(&operators) < operator_records * 20
-        || bytes_len(&blocks) < block_records * 12 {
+        || bytes_len(&blocks) < block_records * 12
+        || bytes_len(&calls) < call_records * 12 {
         return 70;
     }
     if status == 0 && (bytes_len(&nodes) != node_count * 16
         || bytes_len(&values) != value_records * 8
         || bytes_len(&operators) != operator_records * 20
-        || bytes_len(&blocks) != block_records * 12) {
+        || bytes_len(&blocks) != block_records * 12
+        || bytes_len(&calls) != call_records * 12) {
         return 70;
     }
 
@@ -3168,7 +3621,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             validate_node_field = validate_node_field + 1;
         }
         node_id = validate_node + 1;
-        if validate_node_kind <= 0 || validate_node_kind > 19 {
+        if validate_node_kind <= 0 || validate_node_kind > 23 {
             return 78;
         }
         if validate_node_kind == 1 {
@@ -3181,7 +3634,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 return 78;
             }
         } else if validate_node_kind == 3 || validate_node_kind == 4
-            || validate_node_kind == 18 {
+            || validate_node_kind == 18 || validate_node_kind == 22
+            || validate_node_kind == 23 {
             if validate_payload != 0 || validate_left <= 0
                 || validate_left >= node_id || validate_right != 0 {
                 return 78;
@@ -3189,6 +3643,18 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         } else if validate_node_kind >= 5 && validate_node_kind <= 17 {
             if validate_payload != 0 || validate_left <= 0 || validate_right <= 0
                 || validate_left >= node_id || validate_right >= node_id {
+                return 78;
+            }
+        } else if validate_node_kind == 20 {
+            if validate_payload <= 0 || validate_payload > name_count
+                || validate_left < 0 || validate_left >= node_id
+                || validate_right != 0 {
+                return 78;
+            }
+        } else if validate_node_kind == 21 {
+            if validate_payload != 0 || validate_left <= 0
+                || validate_left >= node_id || validate_right < 0
+                || validate_right >= node_id {
                 return 78;
             }
         } else if validate_payload <= 0 || validate_payload > name_count
@@ -3341,7 +3807,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if origin_node_id != origin_index + 1 || origin_offset < 0
                 || origin_offset > source_length || origin_line <= 0
                 || origin_column <= 0 || origin_token_kind <= 0
-                || origin_token_kind > 36 {
+                || origin_token_kind > 37 {
                 semantic_status = 27;
             }
         }
@@ -3434,6 +3900,18 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 if origin_node_kind == 19 {
                     origin_expected_kind = 3;
+                }
+                if origin_node_kind == 20 {
+                    origin_expected_kind = 10;
+                }
+                if origin_node_kind == 21 {
+                    origin_expected_kind = 11;
+                }
+                if origin_node_kind == 22 {
+                    origin_expected_kind = 37;
+                }
+                if origin_node_kind == 23 {
+                    origin_expected_kind = 37;
                 }
                 if origin_expected_kind == 0 || origin_token_kind != origin_expected_kind {
                     semantic_status = 27;

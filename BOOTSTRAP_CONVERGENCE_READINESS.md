@@ -325,7 +325,7 @@ later reader takes the original wording as evidence:
 | H1B-2 — `match` over `Result<int, int>` (locally green, CAP-051) | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body. Dispatched on the leading token of the return expression, before the operand reduction runs, so the append-only node arena never has to retract a name-reference node. The construct creates no node and needs no new node kind, so the `1..=19` node-kind bound is unchanged | No general patterns, guards, enums, or match anywhere but a return expression |
 | H1B-3 — statement blocks (locally green, CAP-052) | `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`, `IDENT = EXPR ;`, and `return EXPR ;`, in a body that is `{` followed by one or more statements followed by `}`. The skeleton's fixed `return` step is dissolved into the statement loop and `;` is demoted from a closing token to the return statement's own terminator, so the closing sequence shrinks to `}` then end-of-input with one entry point. A statement creates no syntax node, exactly as a parameter does not, so the `1..=19` node-kind bound is again unchanged | No control flow and no calls; no `ByteBuffer` or `Result<int, int>` binding type, because every one of those in the source is initialized by a call; a binding carries no type, ownership, mutability, scope, or checked meaning, and `mut` is matched and recorded rather than enforced |
 | H1B-4 — control flow (locally green, CAP-053) | `if EXPR BLOCK`, with any number of `else if EXPR BLOCK` arms and an optional final `else BLOCK`, and `while EXPR BLOCK`, over the existing expression grammar. A `BLOCK` is CAP-052's statement sequence with two differences: it closes on `}` and nothing more, and the requirement that a `return` completed moves from the block to the function. Nesting is carried by a fourth bounded parse-group arena, one three-word record per nested block. Neither form creates a syntax node, so the `1..=19` node-kind bound is again unchanged. Within any block a `return` is the last statement and the only one - the rule CAP-052 froze and did not implement | No new expression forms; no `match` in a condition, because the source never writes one; no `else` without a preceding `if` body; a block carries no scope, reachability, liveness, or checked meaning, and a condition is not type-checked and is not required to be boolean |
-| H1B-5 — calls and references | Call expressions with argument lists and `&`/`&mut` operands | No intrinsic knowledge; a call is a syntax node |
+| H1B-5 — calls and references (locally green, CAP-054) | `IDENT ( ARGS )` where the callee is an operand-position identifier immediately followed by `(`, and an argument may begin with `&` or `& mut` and may do so nowhere else. **The first H1B checkpoint that represents rather than only admits**: four node kinds take the node-kind bound from `1..=19` to `1..=23` — kind 20 the call, carrying its callee as `payload` and its argument list as `left`; kind 21 one argument-list cell; kinds 22 and 23 the two references. Open calls are carried by a fifth bounded parse-group arena, one three-word record each | No intrinsic knowledge, arity, type, ownership, borrow, or aliasing meaning; no callee that is not a bare identifier, so `(f)(a)`, `1(a)` and `f(a)(b)` are rejections; no `match` in an argument; no method, field or index syntax; no `ByteBuffer` or `Result<int, int>` binding type — see the gap below |
 | H1B-6 — arena capacity | Node, value, and operator record bounds raised from 512 to the measured self-source requirement, under the same independent-oracle proof H1A used for tokens | No grammar change; capacity only |
 
 Each checkpoint is separately authorized and red-first, crosses at most two
@@ -349,11 +349,14 @@ paragraph should be read.
   ever decremented, so each counts every push over the whole parse. The deepest
   either stack actually gets on the complete canonical source is 5. "512 value
   records" has never been a limit on expression complexity.
-- **H1B-6's bound list is four, not three.** CAP-053 added a block record store
-  with the same never-decremented shape and the same 512 bound, and its
-  canonical requirement is already measured: **1,197 block records** cumulative,
-  at a peak live depth of 10. Like the other three it cannot be reached by any
-  H1B-4 or H1B-5 probe.
+- **H1B-6's bound list is five, not three.** CAP-053 added a block record store
+  and CAP-054 a call record store, each with the same never-decremented shape
+  and the same 512 bound, and both canonical requirements are already measured:
+  **1,289 block records** cumulative at a peak live depth of 10, and **1,120
+  call records** cumulative at a peak live depth of 3. Like the other three
+  neither can be reached by any H1B-4 or H1B-5 probe. Measured on the source
+  CAP-054 left at 293,592 bytes, the five requirements are **17,621 node,
+  15,842 value, 6,030 operator, 1,289 block and 1,120 call records**.
 - The pull-forward rule above does **not** fire at H1B-4 or H1B-5. Both leave
   the canonical stop at offset 146 with four nodes and are proven by focused
   probes of a few dozen tokens, so neither can exceed 512. The rule fires at the
@@ -362,12 +365,42 @@ paragraph should be read.
   inside function 8 at line 154 of 6,085. **H1B-6 should be pulled ahead of the
   module-shape gate, not ahead of H1B-4 or H1B-5.**
 
-One qualification, so it is not discovered mid-checkpoint: of the 23 canonical
-functions, 15 became parseable in isolation when H1B-4 landed, and 14 of those
-need at most 164 nodes. The fifteenth, `emitter_fixed_byte`, needs 474 under the
-current node policy and 734 under a node-producing statement policy, so lifting
-that one function verbatim as a probe is the single way an H1B-4 or H1B-5 probe
-could reach the bound.
+One qualification, so it is not discovered mid-checkpoint, **corrected under
+CAP-054 and left visible rather than quietly restated**. This paragraph used to
+say that `emitter_fixed_byte` needs 474 nodes under the current node policy and
+that lifting it verbatim as a probe is the single way an H1B-4 or H1B-5 probe
+could reach the bound. It needs **394**, and the sentence that followed is
+false. The function is byte-identical between `f416067` and `7b0e929`, so the
+figures are directly comparable, and 394 is derivable in one line from its own
+token histogram without any parser model: 106 identifier tokens less 6 signature
+identifiers, 181 integer leaves, 111 binary operators, no prefix operator, one
+kind-18 return node and one kind-19 function node. Measured per function under
+CAP-054's policy, **the 21 canonical functions with no `ByteBuffer` or
+`Result<int, int>` binding all need at most 394 nodes**, so no canonical
+function lifted verbatim can reach the bound at H1B-4 or H1B-5. The only
+function above it is `run_runtime_ascii_llvm_emitter` at 15,553, and it carries
+17 non-`int` bindings, so it is not parseable at either checkpoint at all.
+
+### A second construct the checkpoint table does not own
+
+Recorded under CAP-054 and placed beside the representation gap above, because
+it has the same shape: a construct the source contains that no row of the table
+admits.
+
+CAP-052 excluded the `ByteBuffer` and `Result<int, int>` binding types with an
+explicit reason — "every one of those in the source is initialized by a call".
+**CAP-054 removed that reason and deliberately did not act on it**, because
+admitting a binding type is statement-grammar work rather than "calls and
+references". So 16 `ByteBuffer` bindings and 2 `Result<int, int>` bindings
+remain inadmissible, they are confined to `read_input_value` and
+`run_runtime_ascii_llvm_emitter`, and no checkpoint in the table admits them.
+
+The consequence is concrete and it costs evidence. All 451 `&` and `&mut`
+operands in the source live in `run_runtime_ascii_llvm_emitter`, so **no
+canonical function containing a reference can be lifted verbatim as a probe at
+H1B-5**; references are proven by hand-written probes only. Admitting the two
+binding types is small, precisely scoped, and is what unlocks the source's
+largest function as canonical evidence.
 
 ### The single-function coupling must be split out, not absorbed
 

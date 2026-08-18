@@ -1033,6 +1033,221 @@ The debt therefore stands almost exactly where the representation-gap section
 left it: statements, sequences, conditionals and loops, unowned by any
 checkpoint in the table.
 
+### Session outcome, 2026-08-18: implemented and locally green
+
+Base commit `7b0e929`; the contract above was committed unmodified at `7a0fd5d`
+before any product change, and the implementation follows it. The four steps
+CAP-053's handoff ordered were followed in that order, and the ordering is again
+what makes the numbers below mean anything.
+
+**The behaviour-preserving extraction was confirmed before one new probe was
+written.** The oracle's `parse_expression` was rewritten around a call stack, an
+argument chain, two reference markers and an argument-leading register, all
+gated on a new `admit_calls` flag, and the focused target was run with
+`examples/aero_self_host_v0/compiler.aero` byte-identical to `7a0fd5d` (SHA-256
+`b866e30c…`, hashed immediately before and after the run). Result: **20/20 green
+in 234 seconds** - the ten CAP-050 signature probes, the thirteen CAP-051 match
+probes, the eighteen CAP-052 statement probes, the twenty-five CAP-053
+control-flow probes and the canonical stop, all unchanged against the refactored
+oracle.
+
+A cheap pre-check made that outcome less of a coincidence than it looks, and is
+recorded because it is reusable. Before the run, every probe body in the file
+was searched for an identifier immediately followed by `(` - the one adjacency
+edit 1 changes. There are 26, and all 26 are match pattern heads (`Ok(`, `Err(`,
+`E(`) or the `match g(a)` scrutinee, none of which goes through
+`parse_expression`. So no inherited probe *could* have observed the classifier
+change, which is exactly why the extraction check needed the out-of-table
+grading below to mean anything.
+
+**Forty-four probes: 43 in `CALL_PROBES` plus `main`, graded separately because
+it is too large for the small-program assertion. Twenty-three positive,
+twenty negative, three canonical lifts.** All forty-four hand derivations agreed
+with the oracle on the first run. **Forty-four of forty-four, no probe
+expectation corrected**; CAP-051's was zero of thirteen, CAP-052's zero of
+eighteen and CAP-053's zero of twenty-five.
+
+**The out-of-table anti-fitting grading, which is the check CAP-053 earned the
+hard way.** A `MODEL_LOCK_SHAPES` table of seven shapes was frozen, each
+hand-derived under *both* the CAP-053 and the CAP-054 model, and each verified
+absent from every existing probe table by direct search of the file. Two of the
+seven - `return a(b);` and `if a(b) { … }` - are shapes the two models must
+decide **differently**, so the lock cannot pass by the two models collapsing
+into one; a permanent product-free test asserts that exactly two disagree.
+
+The grading itself was run twice against the real linked product, and the first
+run is the one that matters:
+
+1. **Before `compiler.aero` was edited**, the seven shapes were graded under the
+   **CAP-053** column against the accepted product at `7a0fd5d`. All seven
+   returned 91. That is the evidence the CAP-053 model still models the CAP-053
+   product on inputs no probe covers - the precise check that would have caught
+   CAP-053's own silent change to the CAP-052 model, and it found nothing this
+   time.
+2. After the edit, the same seven were graded under the CAP-054 column and all
+   seven returned 91. That is the permanent form of the test.
+
+The two runs together say something a probe suite cannot: the extraction moved
+the model exactly where the checkpoint says it moves it, on shapes chosen
+because nothing else looks at them.
+
+**The red, measured rather than asserted.** The contract required the call
+probes to return `80` from the real linked product before `compiler.aero` was
+edited. Rather than stop at the first, every probe was run and its result
+recorded. **Thirty-six of forty-three returned 80. Seven returned 91, correctly**,
+and all seven are shapes whose expectation this checkpoint does not change:
+
+| probe | why it is not red |
+|---|---|
+| `call-close-paren-with-no-call` | `)` is not an operand under either model - same `11` / `100` |
+| `call-comma-inside-grouping` | a `,` inside a grouping keeps the accepted `10` / `11` |
+| `call-on-grouped-callee` | `(a)(b)` completes the expression and fails the terminator, `10` / `18` |
+| `call-on-integer-callee` | `1(a)` likewise |
+| `reference-in-return` | `&` is not an operand under either model - same `11` / `100` / `37` |
+| `reference-in-binding` | likewise |
+| `reference-in-condition` | likewise |
+
+They are locks on rules H1B-5 must not move, not evidence of the change. CAP-053
+found one such probe of twenty-five and kept it for the same reason; at
+seven of forty-three the pattern is worth naming, because a suite where every
+negative probe goes red is a suite that has stopped testing the rules it
+inherited.
+
+**No probe expectation was corrected and no test was weakened, skipped or
+deleted.** Two corrections were needed and neither was to an expectation.
+
+1. **`main`'s byte span cannot be frozen.** `word_byte_1` at `[4539..4621]` and
+   `is_identifier_continue` at `[317..476]` sit above every edit and are frozen
+   as constants. `main` is the last item in the source, so its offset moves by
+   exactly the number of bytes this checkpoint adds above it. Freezing it would
+   have made the probe fail for a reason that has nothing to do with the
+   grammar, and would have to be re-frozen at every future checkpoint. It is
+   located by its own unique opening line instead; the lift is still verbatim,
+   because the probe is asserted equal to the bytes found there and `main` is
+   asserted to be the source's last item. This was caught before the red run
+   rather than by it.
+2. **The recorded environment note was insufficient**, and the first gate of
+   this session died because of it. See the correction in the storage bullet at
+   the head of this entry: `AERO_LLVM_BIN` does not put `opt` and `llvm-as` on
+   `PATH`, and `owned_byte_buffer_contract_test` resolves its verifier by
+   searching `PATH`. The failure reads as a product regression and is not one.
+
+**What the product now is.** Sixteen differences from `7a0fd5d`, each an
+anchor/replacement pair shared byte for byte between the Aero source and its
+reconstruction from accepted B1C:
+
+- a `calls` owner and twenty registers;
+- `parser_append_target = 6` and `parser_record_target = 4`, so the call store is
+  appended and read by the same two byte-at-a-time machines as the value,
+  operator and block stores;
+- a three-word record `[callee name id, enclosing call base, previous]` - the
+  block record's shape, which is what CAP-053's handoff said H1B-5 would
+  inherit;
+- an operand classifier that holds an identifier for one iteration, and holds a
+  `&` for one more to see whether `mut` follows, with an `expression_dispatch`
+  register keeping every accepted branch exactly where CAP-050 through CAP-053
+  put it;
+- operator markers 105, 106 and 107 beside the accepted 10, 103 and 104, an
+  argument separator as `reduction_mode = 4`, and a `)` that dispatches on the
+  marker it stopped at;
+- twelve new parser states, six of which build the argument chain right to left
+  and append the call node over it;
+- four node kinds, their shape rules in the parse-group node validator, and the
+  node-kind bound raised from `1..=19` to `1..=23`;
+- the four origin mappings and the completion of H1A's `36` to `37`.
+
+`call_records` is a fifth monotonic parse-group counter with the same 512 bound
+and the same `status = 15`, `diagnostic_code = 512` exhaustion diagnostic as the
+value, operator and block stores. No new status code. **H1B-6's bound list is
+now five**, and the canonical requirement measured above stands: 1,113 call
+records cumulative, peak live depth 3.
+
+**Calls are represented, and the orphan census barely moves.** This is the first
+H1B checkpoint whose construct is a syntax node, and the census is the honest
+measure of what that bought. Re-measured on the post-edit source, which is
+19,624 bytes larger and contains seven more calls than the source the contract
+measured: **240 reachable nodes of 17,621, 98.64% orphans.** The contract
+predicted 240 of 16,819 and 98.57% on the pre-edit source; the reachable count is
+identical because every node this checkpoint added above sits inside
+`run_runtime_ascii_llvm_emitter`, whose arena is 3 reachable of 15,553 both
+before and after. Representation of calls is real - a call's whole subtree is
+reachable from the call node, and `word_byte_1`, `word_byte_2`, `word_byte_3`
+and `main` now have arenas that are 100% reachable, which no canonical function
+had before - and it does almost nothing to the census, because 98.6% of the
+source's calls sit inside statements that have no representation at all. The
+debt stands where "The representation gap H1B leaves" put it.
+
+**A self-check worth recording.** The post-edit `compiler.aero` was run through
+the measuring instrument before the gate: it consumes all 293,592 bytes under
+the H1B-1..H1B-5 grammar, stays 7-bit ASCII, and still places the second `fn`
+item at offset 146. **The parser this checkpoint wrote is inside the grammar
+this checkpoint admits.** That is not proof of anything the probes do not
+already prove, but it is the cheapest available check that a parser edit has not
+quietly written a construct the parser cannot read, and it costs one run outside
+the repository.
+
+**The canonical self-ingestion stop is unchanged**, which is the correct result:
+`status = 10`, offset 146, line 8, column 1, `diagnostic_code = 0`,
+`diagnostic_actual = 3`, four nodes, one parameter, at O0 and O2. It was not
+moved and no attempt was made to move it. It was also green *before* the product
+edit, since function 1 contains no call and no reference, so the CAP-054 model
+and the CAP-053 model agree on it exactly.
+
+**Three canonical functions parse as probes**, each asserted equal to the
+canonical bytes so it cannot drift into a paraphrase. `word_byte_1` is a nested
+call two deep and stops at 5 nodes with one parameter. `is_identifier_continue`
+puts a call in a condition and stops at 15 nodes with one parameter. `main`
+carries the source's widest argument list at 68 arguments - 68 integer leaves,
+seven prefix `-` nodes, 68 argument cells and one call node - and stops at 144
+nodes with no parameter, exactly the figures this contract predicted. None of
+the three parses in situ, because the canonical run stops at offset 146 first.
+
+**No canonical function containing a reference can be lifted as a probe**, and
+this is a measured negative rather than an omission. All 451 references live in
+`run_runtime_ascii_llvm_emitter`, which carries 17 non-`int` bindings and so is
+not parseable at this checkpoint at all. References are proven by hand-written
+probes only, and there is no canonical evidence for them until the binding-type
+gap Decision 7 records is owned by some checkpoint.
+
+**Evidence.** The focused target `self_host_source_ingestion_tests` is **26/26
+green in 233 seconds**, first try. `./tools/test.sh` from the repository root,
+green: 117 `test result:` lines, 979 passed, 0 failed, 16 ignored, exit 0. The
+979 is six above CAP-053's 973, which is exactly the six tests this checkpoint
+adds. The canonical source is now 293,592 bytes, 6,790 LF bytes, 7-bit ASCII,
+SHA-256 `550972467a2ebd4b30a25960d1e9ff033bb609571ae96102177f13c216450a85`.
+
+**What to do first, next session.** Base commit is recorded in the commit
+message rather than guessed; branch `claude/self-hosting-analysis-be3f72`, remote
+confirmed at the same object by `git ls-remote`. H1B-1 through H1B-5 are now all
+locally green, so the two things that were blocked on them are unblocked and
+neither is the obvious next step.
+
+1. **H1B-6, capacity, before the module-shape gate and not before it.** Its
+   bound list is five - node, value, operator, block, call - and every figure it
+   needs is measured: 17,621 / 15,842 / 6,030 / 1,289 / 1,120 for the post-edit
+   source, against a uniform recommendation of 65,536. It must leave
+   `compiler.aero:4852`'s verifier bound alone and record it as debt.
+2. **The two gaps the checkpoint table does not own**, both recorded above: the
+   representation checkpoint that would make reachable nodes equal node records,
+   and the `ByteBuffer` / `Result<int, int>` binding type whose only blocker -
+   that every one is initialized by a call - this checkpoint removed. The second
+   is small, precisely scoped, and is what unlocks
+   `run_runtime_ascii_llvm_emitter` as canonical evidence.
+3. **The module-shape gate is authorized but should not be next.** It changes
+   four downstream authorities at once, and it is the first place the 512 bound
+   bites - inside function 8 at line 154 of 6,085 under the projected policy. Run
+   H1B-6 first.
+
+**Cost information the next session should not have to rediscover.** The focused
+target alone is a **3.9-minute** cycle on a warm build at 26 tests, and is the
+right loop for the oracle, the probes and the red. The complete repository-root
+gate is **30 to 40 minutes**; this session's first attempt failed in 90 seconds
+for the `PATH` reason above, so budget one gate per commit and check the
+environment before spending one. Environment: add both `$HOME/.cargo/bin` **and**
+`D:\AeroToolchains\llvm-22.1.8\bin` to `PATH`, set `AERO_LLVM_BIN` to the latter,
+`CARGO_TARGET_DIR` to `D:\Aero-build-targets\h1` and `TMPDIR` to
+`D:\Aero-temp\h1`.
+
 ## CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW - admit `if` / `else if` / `else` and `while`
 
 - Date/task/status: 2026-08-18, `CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW`,
