@@ -1216,9 +1216,12 @@ green: 117 `test result:` lines, 979 passed, 0 failed, 16 ignored, exit 0. The
 adds. The canonical source is now 293,592 bytes, 6,790 LF bytes, 7-bit ASCII,
 SHA-256 `550972467a2ebd4b30a25960d1e9ff033bb609571ae96102177f13c216450a85`.
 
-**What to do first, next session.** Base commit is recorded in the commit
-message rather than guessed; branch `claude/self-hosting-analysis-be3f72`, remote
-confirmed at the same object by `git ls-remote`. H1B-1 through H1B-5 are now all
+**What to do first, next session. Base commit `bf4fc97`**, branch
+`claude/self-hosting-analysis-be3f72`, remote confirmed at the same object by
+`git ls-remote` rather than inferred from push output. Two commits were added:
+`7a0fd5d`, the contract, gated green before any product change with
+`compiler.aero` and the focused test file byte-identical to `7b0e929`; and
+`bf4fc97`, the implementation. Both were gated on the exact tree committed. H1B-1 through H1B-5 are now all
 locally green, so the two things that were blocked on them are unblocked and
 neither is the obvious next step.
 
