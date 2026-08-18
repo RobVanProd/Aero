@@ -400,6 +400,639 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-054-H1B5-SELF-SOURCE-CALLS-AND-REFERENCES - represent call expressions, admit `&` / `&mut`
+
+- Date/task/status: 2026-08-18, `CAP-054-H1B5-SELF-SOURCE-CALLS-AND-REFERENCES`,
+  authored ledger-first from locally green CAP-053/H1B-4 at `7b0e929`. It is the
+  fifth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:328`. It
+  authorizes call expressions with argument lists and `&` / `&mut` operands over
+  the already-accepted expression grammar, **and it is the first H1B checkpoint
+  that represents rather than only admits**. It is not H1B completion, H1, H2,
+  stage convergence, or any self-hosting claim. Completing it does not unlock the
+  second `fn` item; that is the module-shape gate's, and it is authorized only
+  after H1B-1 through H1B-5 are all proven.
+- D:-only task storage is unchanged from CAP-053: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`.
+- One correction to the environment note CAP-053 handed forward: setting
+  `AERO_LLVM_BIN` is **not sufficient**. `owned_byte_buffer_contract_test`
+  resolves its LLVM verifier by searching `PATH` for `opt-22`, `llvm-as-22`,
+  `opt` and `llvm-as`, so the toolchain `bin` directory must also be on
+  `PATH`, or the repository gate dies two tests into its first binary with
+  "required LLVM 22 opt/llvm-as verifier was not found" - a failure that
+  reads as a product regression and is not one.
+- Observed behavior at the base commit: the compiler consumes its own
+  273,968-byte source, parses the whole body of its first function, and stops at
+  the second `fn` item at offset 146, line 8, column 1, with `status = 10`,
+  `diagnostic_code = 0`, `diagnostic_actual = 3`, four nodes, one parameter, and
+  `root = 0`. `self_host_source_ingestion_tests` is 20/20 green at `7b0e929`.
+
+### Why this checkpoint is not like the four before it
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:328` states the required result for H1B-5 as
+"Call expressions with argument lists and `&`/`&mut` operands", with the frozen
+note "**a call is a syntax node**". That note is the whole difference. CAP-050,
+CAP-051, CAP-052 and CAP-053 each admitted a construct without representing it,
+each for a reason that was correct at its own stop, and the compound effect is
+recorded above under "The representation gap H1B leaves": of the 13,190 nodes an
+H1B-1..H1B-5 parser produced for the whole source at `f416067`, 154 were
+reachable from a root - 98.8% orphans.
+
+This contract therefore does not reuse any of the four deferral arguments. It
+adds node kinds, it raises the `1..=19` bound, and the decisions below are about
+*which* representation is honest rather than whether to have one.
+
+It also does not overclaim what representing calls buys. The orphan census is
+measured under this contract's own policy at the end of this entry, and the
+answer is that it barely moves: **240 reachable of 16,819**, 98.57% orphans,
+against 154 of 13,190 and 98.83% before. Expressions were already the one thing
+H1B represents; the orphan problem is statements, and this checkpoint does not
+touch statements.
+
+### The instrument, and how it was validated before its output was used
+
+A transcription of the accepted lexer (`keyword_token_kind:29`,
+`pair_token_kind:61`, `single_token_kind:89`) plus a recursive-descent model of
+the H1B-1..H1B-5 grammar, run over the canonical bytes outside the repository.
+It is a counting instrument, not product code; nothing in the repository depends
+on it and no repository file was changed to obtain any number below. It is a
+second, independently written instrument, not the one the H1B-6 capacity section
+used, so where the two disagree that is recorded as a correction rather than
+smoothed.
+
+It consumes the **whole 273,968-byte module** under the H1B-1..H1B-5 grammar
+plus the module shape, with no construct outside that grammar encountered - the
+same result the capacity section obtained at `f416067`, now reconfirmed at
+`7b0e929` by different code.
+
+It reconciles exactly against the raw token histogram, which is the check that
+catches a miscounted role rather than a miscounted token. All four close:
+
+- The 9,628 identifier tokens account for as 23 `fn` names + 625 binding and
+  parameter names + 654 type identifiers + 2,616 assignment targets + 6 `match`
+  construct identifiers + 4,591 expression identifier leaves + 1,113 call
+  callees = 9,628.
+- The 1,192 `(` tokens account for as 1,113 calls + 54 groupings + 23 signatures
+  + 2 match patterns = 1,192.
+- The 3,365 `;` tokens account for as 525 bindings + 224 returns + 2,616
+  assignments = 3,365.
+- The 714 `,` tokens account for as 79 signature separators + 3 `Result<int,
+  int>` separators + 630 argument separators + 2 match arm separators = 714.
+
+And the 451 `&` tokens account for as 407 `&` plus 44 `&mut`, with nothing left
+over.
+
+### Measured target grammar, from the canonical bytes at `7b0e929`
+
+| Measured fact | Value |
+|---|---|
+| call expressions | 1,113 |
+| calls whose callee is not a bare identifier | **0** |
+| zero-argument calls | 18 |
+| call arguments | 1,725 |
+| argument-list widths | 18 lists of 0, 538 of 1, 553 of 2, 2 of 3, 1 of 7, 1 of 68 |
+| widest argument list | 68 - `main`'s single call |
+| deepest call nesting | 3 |
+| calls by position | 521 assignment, 445 argument, 101 binding initializer, 41 condition, 5 return |
+| `&` operands | 407 |
+| `&mut` operands | 44 |
+| references that are not the first token of a call argument | **0** |
+| references whose argument is not exactly `& IDENT` or `& mut IDENT` | **0** |
+| trailing commas in an argument list | 0 |
+
+Five consequences follow and each one narrows this checkpoint.
+
+First, **the callee is always exactly one identifier**, so a call needs no
+general callee expression and the callee can be carried as a name id.
+
+Second, **a reference is always a whole argument and always over a bare
+identifier**. `&` is therefore admitted only in argument-leading position, and
+nowhere else in the expression grammar.
+
+Third, **an argument list is never empty of syntax and never trailing-comma'd**,
+so `(` `)` is the only zero-argument spelling and `f(a,)` is a rejection.
+
+Fourth, **nesting reaches 3 and no further**, so the call store's live depth is
+tiny even though its cumulative record count is 1,113.
+
+Fifth, **no argument list is bounded by any small constant** - widths 0, 1, 2, 3,
+7 and 68 all occur - so a fixed-arity encoding is excluded and the argument list
+needs a general representation.
+
+### Two corrections to the accepted record, and one clarification
+
+Each is recorded because a later session would otherwise build on it.
+
+**1. `emitter_fixed_byte` needs 394 nodes, not 474.** The H1B-6 capacity section
+above, and `BOOTSTRAP_CONVERGENCE_READINESS.md`, both state that lifting
+`emitter_fixed_byte` verbatim as a probe "needs 474 under the current node
+policy" and that this is "the single way an H1B-4 or H1B-5 probe could reach the
+bound". The function is **byte-identical** between `f416067` and `7b0e929`
+(`awk` extraction, same MD5), so the figures are directly comparable, and 394 is
+derivable in one line from that function's own token histogram without any
+parser model: 106 identifier tokens less 6 signature identifiers = 100
+identifier leaves; 181 integer leaves; 111 binary operators (98 `==`, 10 `||`,
+one each of `<=`, `>=`, `&&`) and no prefix operator; one kind-18 return node -
+one per function, not per `return` statement, which is the correction the
+capacity section already made for the whole source; one kind-19 function node.
+100 + 181 + 111 + 1 + 1 = **394**.
+
+The consequence matters and it is favourable: **no canonical function lifted
+verbatim can reach the 512 bound at H1B-5.** Measured per function under this
+contract's policy, the 21 functions with no `ByteBuffer` or `Result<int, int>`
+binding all need at most 394 nodes. The only function above the bound is
+`run_runtime_ascii_llvm_emitter` at 15,553, and it carries 17 non-`int` bindings
+so it is not parseable at this checkpoint at all. The "single way a probe could
+reach the bound" sentence is false and should be struck.
+
+**2. The capacity section's projection 1 for calls is not implementable as
+written, and the upper projection is the real one.** That projection costed a
+call as "one node and one value, its `(` is one operator record, and the callee
+is carried as the call node's payload rather than reduced to a name-reference
+leaf first", noting the other choice "adds 1,106 nodes and 1,106 values". Both
+halves of that are right about cost, but the projection also assumed the
+argument list could live in a side store at zero node cost. Decision 3 below
+rejects the side store on representational grounds, so the real figure is the
+*upper* projection's shape for arguments and the *lower* projection's shape for
+the callee. The measured requirement under this contract's policy, for the whole
+273,968-byte source, is **16,819 node records, 15,048 value records, 5,813
+operator records, 1,230 block records and 1,113 call records** - inside the
+65,536 the capacity section recommends, and 33x the 512 bound now in force.
+
+**3. Where the origin token-kind mapping actually lives.** CAP-053's Decision 1
+wrote that adding a node kind "would also require an origin token-kind mapping,
+and that mapping is *written* by the parse group; it is *read* by the semantic
+phase". The origin *records* are written by the parse group, which is true and is
+what that sentence was reaching for. The origin *mapping table* -
+`compiler.aero:3378-3437`, `origin_node_kind == N` to `origin_expected_kind = M` -
+is textually inside the `if status == 0 && semantic_status == 0` region, so it is
+semantic-group code, not parse-group code. That distinction did not matter to
+CAP-053, which added no kind. It matters here, and Decision 6 answers it.
+
+### Frozen semantics
+
+Two forms are added to the accepted expression grammar. Neither is a statement
+and neither changes any statement rule.
+
+- **A call.** `IDENT ( ARGS )` where `IDENT` is an operand-position identifier
+  immediately followed by `(`, and `ARGS` is either empty or one or more
+  arguments separated by `,` with no trailing `,`.
+- **A reference.** An argument may begin with `&` or `& mut`, in which case the
+  rest of the argument is an ordinary expression. `&` is admissible **only** as
+  the first token of an argument: immediately after a call's `(` or immediately
+  after an argument-separating `,`, and nowhere else.
+
+An argument is the already-accepted expression grammar, with no `match` and with
+`,` and `)` as its terminators. A call may appear wherever an operand may
+appear: in a return expression, a binding initializer, an assignment
+right-hand side, a condition, a match arm body, and inside another call's
+arguments.
+
+Four node kinds are added, taking the node-kind bound from `1..=19` to
+`1..=23`:
+
+| Kind | Shape | Origin token |
+|---|---|---|
+| 20 - call | `payload` = callee name id (`1..=name_count`), `left` = argument-list head or 0 when there are no arguments, `right` = 0 | the `(`, token kind 10 |
+| 21 - argument-list cell | `payload` = 0, `left` = the argument's expression root (`> 0`), `right` = the next cell or 0 for the last | the `)`, token kind 11 |
+| 22 - `&` reference | `payload` = 0, `left` = the operand (`> 0`), `right` = 0 | the `&`, token kind 37 |
+| 23 - `&mut` reference | `payload` = 0, `left` = the operand (`> 0`), `right` = 0 | the `&`, token kind 37 |
+
+Every node in an argument list, and every node under a call, is reachable from
+the call node. A call's whole subtree is therefore as reachable as the call
+itself. That is the representation `:328` requires and it is the only thing in
+H1B that is one.
+
+Any other shape is an exact located rejection: a `(` after anything but an
+operand-position identifier; a `,` outside an argument list; a `,` immediately
+after `(` or after another `,`; a `)` in operand position anywhere but
+immediately after a call's `(`; a `&` anywhere but argument-leading position; a
+`&` or `& mut` with no operand; a call left open at a statement terminator; and
+an argument list deeper or wider than the call store's bound.
+
+No lexer change is required: `&` is already token kind 37, produced by the
+accepted tokenizer and admitted by the accepted token-record validator, both
+since H1A.
+
+### Frozen exclusions
+
+No statement form changes. No `ByteBuffer` or `Result<int, int>` binding type -
+see the finding below, which records that no checkpoint in the table owns them.
+No `match` in an argument or a condition. No callee that is not a bare
+identifier, so `(f)(a)`, `1(a)` and `f(a)(b)` are all rejections. No method,
+field, index or intrinsic syntax - `.` and `[` do not occur in the source and
+are not admitted. No call carries any type, arity, ownership, borrow, aliasing
+or checked meaning; a reference is matched and represented, and is not checked
+against anything, because no type or ownership authority exists in the parser.
+A second `fn` item stays rejected. The parameter store, the signature grammar,
+the match construct, the statement grammar, the control-flow grammar, the block
+store, the semantic, checked-IR, verifier, emitter, stdout driver, host driver,
+runtime ABI, language profiles, and Rust compiler are all untouched, with the
+single exception Decision 6 states and bounds.
+
+One residual over-admission is stated rather than left to be discovered.
+Because `&` is admitted as a prefix operator at argument-leading position and
+then reduced by the ordinary shunting yard, `f(&a + 1)` is admitted although the
+source never writes it - all 451 references are exactly `& IDENT` or
+`& mut IDENT` as a complete argument. Rejecting it would require the argument
+grammar to distinguish a reference argument from an expression argument after
+the operand is complete, which is a lookahead the flat parser does not have.
+The over-admission is a grammar admission, not a representation: `&a + 1`
+represents exactly as `(&a) + 1`, which is what it says.
+
+### Decision 1, resolved before any parser edit: four node kinds are added and the bound becomes `1..=23`
+
+CAP-053 declined to add a kind, and its reason was that a conditional carrying
+only its condition would assert at H1C that it has no body - half a
+representation being worse than none. **That argument does not apply here, and
+the reason it does not is exactly what makes this checkpoint different.** A call
+has no statement-sequence child. Its parts are a callee, which is one name, and
+an argument list, which is a list of expressions; both are already representable
+in the accepted arena. There is no half. A call node that carries its callee and
+its arguments is a complete and honest description of what the source wrote.
+
+So the four kinds above are added and `validate_node_kind <= 0 ||
+validate_node_kind > 19` becomes `> 23` at `compiler.aero:3171`, with a shape
+rule per kind in the same table.
+
+**The authority check.** `BOOTSTRAP_CONVERGENCE_READINESS.md:265-267` forbids
+H1B to widen type, ownership, checked-IR, verifier or backend authority inside
+the parser task. Raising the node-kind bound widens none of them: the bound is
+tested in the parse group's node validator and reports through the parse group's
+own `return 78`, which is CAP-052's finding, restated at CAP-053, and unchanged.
+The four shape rules are likewise parse-group code. Unlike the origin mapping,
+the node validator runs on **every** parse regardless of status - the
+`while validate_node < node_count` loop at `compiler.aero:3146` precedes the
+`if status == 0` root check - so every new kind's shape rule is executed and
+proven by the probes below. That is a materially stronger position than CAP-053
+was in when it analysed the same question hypothetically.
+
+### Decision 2, resolved: the callee is the call node's payload, not a name-reference child
+
+The alternative is that the callee identifier becomes an ordinary kind-2
+name-reference node and the call node's `left` points at it. That costs 1,113
+extra nodes and 1,113 extra values, which capacity does not care about, so the
+decision is representational, as this checkpoint's instructions require.
+
+**It is rejected because a kind-2 node in callee position would be a structural
+falsehood.** Kind 2 means "the value of this name". The self-source has no
+function pointers, no first-class functions and no `.` operator; `f` in `f(x)`
+is not a value read of `f` and never can be. A kind-2 node there would tell H1C
+that the program loads a variable named `f`, which it does not. That is the same
+class of misinformation CAP-052 refused when it declined to let a statement
+sequence wear an arithmetic kind, and it is worse here because it would be
+consumed as an ownership-relevant read.
+
+**The precedent confirms it.** The kind-19 function node already carries its
+name as `payload` (`function_name_id`) and reserves `left` for structure
+(`compiler.aero:2760-2765`). A call node with `payload` = callee name and `left`
+= arguments is the same shape one level down.
+
+**The cost is one mechanism, and it is already in the product.** Carrying the
+callee as a payload means the parser must not append the identifier's node
+before it knows whether `(` follows, and the flat machine has no lookahead. It
+therefore *holds* the identifier - name id and located origin in registers -
+advances, and decides on the next token: `(` opens a call, anything else appends
+the kind-2 node it was holding and re-classifies the current token without
+advancing. This is CAP-050's held-advance pattern (`HELD_ADVANCE`,
+`self_host_source_ingestion_tests.rs:1864`) applied to the operand classifier.
+Append order is unchanged for every call-free expression, because the held node
+is appended before the token that ended the hold is classified.
+
+The rejected alternative that must not be revived is "append the kind-2 node and
+abandon it when `(` arrives". That is worse than retraction: it leaves a node in
+the append-only arena that says the program read a variable, permanently, and it
+would require a node read-back path the parse loop does not have. CAP-051 built
+its whole leading-token dispatch to avoid exactly this.
+
+### Decision 3, resolved: an argument list is a chain of nodes, not a bounded side store
+
+The capacity section offered the CAP-050 parameter precedent - "an argument list
+lives in a bounded side store and costs no node" - and costed the alternative at
++1,717 nodes. Capacity does not bite, so this is decided on representation.
+
+**The side store is rejected, and CAP-053's own words are the reason.** H1B-1's
+frozen exclusion says a parameter creates no syntax node "because the node arena
+is what the semantic, checked-IR, and verifier phases count". If the arguments
+live outside the arena, then a call node has `left = 0`, and `left = 0` on a
+call node asserts to H1C that the call has no arguments - the identical
+falsehood CAP-053 refused when it declined an `if` node with `right = 0`
+asserting that the conditional has no body. The parameter store gets away with
+it because a parameter has no downstream consumer at all; an argument is an
+expression whose value flows into the call, and it has one.
+
+**The chain is built right to left, and that is forced rather than chosen.** The
+node arena is append-only and the parser has no write-at-index path - the H1B-6
+capacity section established this when it rejected reusing abandoned value
+records. So a cell cannot be back-patched to point at its successor, and the
+list must be built from its last element. The arguments are therefore left on
+the value stack until the closing `)`, at which point they are popped
+last-to-first, each becoming a cell whose `right` is the cell built before it,
+so the head of the finished chain is the *first* argument. The call node is
+appended last, over the finished chain.
+
+**A curried encoding was considered and rejected.** `f(a, b)` as
+`App(App(f, a), b)` needs only one new kind and no chain, but it makes `f(a, b)`
+and `f(a)(b)` structurally identical, which is a claim about partial application
+that Aero does not make and the self-source cannot express. A representation
+that cannot tell two different programs apart is not a representation.
+
+**How the parser knows where the arguments start.** The call's own base is the
+`value_top` link at the moment its `(` is accepted, saved in the call store
+record; popping stops when `value_top` returns to it. No argument counter is
+needed and none would work, because the record that would hold it is append-only
+too.
+
+### Decision 4, resolved: `&` and `&mut` are prefix operators in the accepted shunting yard, restricted to argument-leading position
+
+The measured shape is narrow - 451 of 451 references are exactly `& IDENT` or
+`& mut IDENT`, always a whole argument - so three designs were possible.
+
+(a) *Fold reference-ness into the argument cell's kind*, giving three cell kinds
+instead of one and no reference node. It is faithful to the measured grammar and
+it produces no origin whose token kind is 37. It is rejected because the cells
+are built at the `)`, in reverse, so each argument's reference mode would have to
+survive on a per-argument stack until then - a sixth bounded arena, or a widened
+value record, to carry information the operator stack can carry for free.
+
+(b) *A whole-argument form `& [mut] IDENT`*, rejecting `&a + 1`. It is the
+tightest possible admission, but enforcing it needs the argument grammar to
+refuse a binary operator after a reference operand, which is a second expression
+grammar running beside the accepted one.
+
+(c) **Adopted.** `&` pushes an operator record with prefix precedence 7, exactly
+as `-` and `!` do (markers 103 and 104 become 106 and 107), and reduces to node
+kind 22 or 23 exactly as they reduce to kinds 3 and 4. Nothing in the shunting
+yard changes shape; two markers and two kinds are added to tables that already
+have them. `&mut` is two tokens, so the `&` is held for one iteration in the
+same way the callee identifier is, and the `mut` is consumed if present.
+
+The restriction to argument-leading position is one condition, not a second
+grammar: a register is set when a call's `(` or an argument-separating `,` is
+accepted and cleared on every other classified token, and `&` in operand
+position is admitted only while it is set. Every other position rejects `&` with
+the accepted operand diagnostic, `status = 11`, `diagnostic_code = 100`, so
+`let x: int = &a;` and `f((&a))` are located rejections rather than silent
+admissions.
+
+### Decision 5, resolved: the call store is a fifth bounded parse-group arena
+
+Three facts must be remembered per open call and none of them fits in the
+existing stores: the callee's name id, the value-stack base its arguments sit
+above, and the enclosing call's base to restore on close. The operator record is
+five words wide and full, and widening it would change the shared append and
+read machines for every operator in the parser.
+
+**A linked record store is adopted, on the CAP-053 block-store precedent**: one
+three-word record per open call - `[callee name id, enclosing call base,
+previous]` - appended through a new `parser_append_target = 6` and read through a
+new `parser_record_target = 4`, popped by rewinding a `call_top` link. A
+`call_top` of zero means no call is open. This is the same shape, the same
+plumbing and the same bound as the block store CAP-053 proved, which is the
+concrete thing CAP-053's handoff said H1B-5 would inherit.
+
+Two consequences are recorded rather than left implicit:
+
+- **`call_records` is a fifth monotonic counter** with the same
+  never-decremented shape as `value_records`, `operator_records` and
+  `block_records`, so it takes the same 512 bound and the same `status = 15`,
+  `diagnostic_code = 512` exhaustion diagnostic. No new status code is added.
+- **H1B-6's bound list grows from four to five.** The canonical requirement is
+  measured now so H1B-6 does not have to re-measure: **1,113 call records**
+  cumulative for the whole source, at a peak live depth of 3. Like the other
+  four it cannot be reached by any H1B-5 probe.
+- The store is a parser register, not AST, exactly as the block store is. It is
+  folded into no checksum and adds no expectation value; only the parse-group
+  storage invariant learns it, as `bytes_len(&calls)` against `call_records *
+  12`.
+
+### Decision 6, resolved: the origin sidecar learns the four kinds, and the 36 bound is completed to 37
+
+This is the one edit outside the parse group, and it is stated exactly so that it
+can be judged rather than discovered.
+
+The origin sidecar maps every node kind to the token kind that produced it
+(`compiler.aero:3378-3437`) and rejects an origin whose token kind exceeds 36
+(`:3343`). Both live inside `if status == 0 && semantic_status == 0`, which is
+semantic-group code by position, and neither is reached by any H1B probe,
+because no H1B checkpoint reaches `status == 0`. They *are* reached by the
+accepted 34-byte canonical program, which runs the whole pipeline, so the four
+new lines are executed code that is never taken rather than unreachable code.
+
+**Two edits are made and nothing else in the region is touched:** four mappings,
+kind 20 to token kind 10, kind 21 to 11, kind 22 to 37, kind 23 to 37; and
+`origin_token_kind > 36` becomes `> 37`.
+
+The second is **completing H1A's own change, not a new one**. H1A introduced
+token kind 37 for a lone `&` and raised the parse group's token-record validator
+from 36 to 37 (`expected_h1a_source`, step 2,
+`self_host_source_ingestion_tests.rs:2769`). The origin validator's 36 is the
+identical constant for the identical reason and was left alone only because no
+node could then carry a kind-37 origin. This checkpoint is the first that
+produces one.
+
+**The authority argument, stated so it can be refused.** `:265-267` forbids
+widening *type, ownership, checked-IR, verifier or backend* authority. Neither
+edit does any of those: no type is inferred, no ownership fact is created, no
+checked record is written, no verifier rule is relaxed, no backend behaviour
+changes. What is taught is that four parse-group outputs exist and which token
+produced each - a structural cross-check on the parser's own sidecar. The
+alternative, leaving both alone and recording them as debt on the `:4852`
+precedent, was considered and is rejected on one ground: `:4852` is a *capacity*
+limit that is simply not yet reached, while an absent mapping makes the parser
+emit a record its own validator declares invalid. Emitting a known-invalid
+record is not debt, it is a defect with a note attached.
+
+**This decision is authored, not proven.** No H1B-5 probe executes those four
+lines, so nothing below is evidence for them. That is stated here rather than
+implied by their presence in a green run.
+
+### Decision 7, resolved: the `ByteBuffer` and `Result<int, int>` binding types stay excluded, and no checkpoint owns them
+
+CAP-052 excluded both binding types with an explicit reason: "every one of those
+in the source is initialized by a call". **This checkpoint removes that reason
+and deliberately does not act on it.** Admitting a binding type is
+statement-grammar work, it is not "calls and references", and CAP-053's refusal
+to absorb adjacent work is the standing precedent.
+
+The consequence is measured and is a finding against the checkpoint table rather
+than against this contract: 16 `ByteBuffer` bindings and 2 `Result<int, int>`
+bindings remain inadmissible, they are confined to `read_input_value` and
+`run_runtime_ascii_llvm_emitter`, and **the H1B checkpoint table at
+`BOOTSTRAP_CONVERGENCE_READINESS.md:324-329` contains no checkpoint that admits
+them**. This is the second such gap; the first is recorded above as "The
+representation gap H1B leaves". Both belong in the table and neither is in it.
+
+### Mechanism: seven edits, described by role
+
+1. **The operand classifier holds an identifier instead of appending it.** In
+   operand position, token kind 1 latches its name id and located origin, clears
+   `expecting_operand`, advances, and returns to the decoder without producing a
+   node. Every other operand form is untouched.
+2. **The classifier's first act becomes resolving a held identifier.** If the
+   current token is `(`, the hold opens a call: the call record is appended, the
+   call marker is pushed onto the operator stack at the `(`'s location,
+   `paren_depth` rises, and the argument-leading register is set. If it is
+   anything else, the held kind-2 node and its value record are appended and the
+   classifier is re-entered on the same token without advancing. The
+   operator-position branch of the classifier is guarded so that it does not run
+   while a hold is unresolved.
+3. **`&` becomes an operand form, admissible only while the argument-leading
+   register is set.** It latches its location and defers one iteration to see
+   whether `mut` follows, then pushes marker 106 or 107 at the `&`'s location and
+   re-enters the classifier on the operand.
+4. **The reduce path learns three markers.** Markers 106 and 107 take prefix
+   precedence 7 and reduce as unary nodes of kinds 22 and 23 with the `&`'s token
+   kind 37 as their origin, exactly as 103 and 104 do with 21 and 27. Marker 105
+   stops the reduce walk exactly as marker 10 does.
+5. **`,` inside an argument list becomes a reduction mode.** At `paren_depth >
+   0`, a `,` reduces to the innermost marker and requires it to be a call marker;
+   it then sets `expecting_operand` and the argument-leading register without
+   popping the marker. A `,` inside a grouping still reports the accepted
+   `diagnostic_code = 11`.
+6. **`)` closes a call as well as a grouping.** In operator position the accepted
+   reduction mode 2 now dispatches on the marker it stopped at: marker 10 pops a
+   grouping unchanged, marker 105 runs the call close. In operand position, `)` is
+   admitted only while the argument-leading register is set *and* the value stack
+   is still at the call's base, which is true immediately after `(` and false
+   after a `,`, so `f()` is accepted and `f(a,)` is rejected with the accepted
+   operand diagnostic.
+7. **The call close builds the chain and the call node.** Values are popped to
+   the call's base, each becoming a kind-21 cell whose `right` is the cell built
+   before it and whose origin is the `)`; then the call record is read for the
+   callee name and the enclosing base, the marker is popped, `paren_depth` falls,
+   and the kind-20 call node is appended over the chain with the `(`'s location as
+   its origin and pushed as one value.
+
+The canonical 34-byte program and canonical function 1 walk an unchanged path:
+neither contains a `(` in operator position, a `,` inside a call, or a `&`, so
+`call_top` is zero throughout and the only difference on their path is that an
+identifier operand's node is appended one iteration later than before, in the
+same order, with the same payload and the same origin. The module stays
+byte-identical at O0 and O2.
+
+### Red-first proof and acceptance tests
+
+- Before any product change, extend the oracle to model the held identifier, the
+  call store, the argument chain, the two reference markers and the four node
+  kinds, gated on a new `admit_calls` flag. Confirm the extraction is
+  behaviour-preserving with `examples/aero_self_host_v0/compiler.aero`
+  byte-identical and SHA-256-verified before and after: the ten CAP-050
+  signature probes, the thirteen CAP-051 match probes, the eighteen CAP-052
+  statement probes and CAP-053's twenty-five control-flow probes must all stay
+  green against the refactored oracle **before a single new probe is written**.
+- **The anti-fitting check is a deliberate out-of-table grading, and it is
+  required rather than optional.** CAP-053's oracle refactor silently changed the
+  CAP-052 model for a shape no CAP-052 probe covered, and all 41 inherited probes
+  stayed green and hid it; it surfaced only because a shape outside every probe
+  table was graded against the previous checkpoint's model. This contract
+  therefore freezes a `CAP053_MODEL_LOCK` table of shapes that **no** CAP-050,
+  CAP-051, CAP-052 or CAP-053 probe covers, each with a hand-derived expectation
+  under the **CAP-053** model, and requires two things: a product-free test that
+  the CAP-053 model still reproduces every one of them after the refactor, and a
+  one-time run of every one of them against the real linked product at `7b0e929`
+  before `compiler.aero` is edited, with agreement recorded. The table must
+  include at least one shape whose two models *must* disagree - `a(b)` in a
+  return expression is rejected at the `(` with `diagnostic_code = 18` under
+  CAP-053 and parses under CAP-054 - so that the lock proves the CAP-053 model is
+  still the CAP-053 model rather than proving the two models are the same.
+- Then observe the red: the call probes must return `80` from the real linked
+  product before `compiler.aero` is edited, and any probe that does not must be
+  explained rather than adjusted. CAP-053 found one such probe of twenty-five and
+  kept it as a lock.
+- Write `CALL_PROBES` as independent hand derivations from this contract, then
+  the product-free `every_call_probe_expectation_is_derived_twice`. Record how
+  many derivations needed correction; that number is the anti-fitting signal.
+  CAP-051's was zero of thirteen, CAP-052's zero of eighteen and CAP-053's zero
+  of twenty-five.
+- Negative coverage must include: `f(a,)`; `f(,a)`; `f(a b)`; a call left open at
+  the statement terminator; `&` in a binding initializer; `&` after a binary
+  operator inside an argument; `&` inside a grouping inside an argument; `f(&)`;
+  `f(& mut)`; a `,` inside a grouping; `(a)(b)`; `1(a)`; `f(a)(b)`; and a `)` in
+  operand position with no call open - each with an exact located first
+  diagnostic.
+- Positive coverage must include: `f()`; `f(a)`; `f(1)`; `f(a, b)`; `f(a, b, c)`;
+  `f(g(a))`; `f(a + 1)`; `f((a))`; `f(-a)`; a call in a condition, in a binding
+  initializer, in an assignment, in a return expression and in a match arm body;
+  a call as an operand of a binary operator; `f(&a)`; `f(&mut a)`;
+  `f(&a, &mut b, c)`; and `f(a, &b)`.
+- **Canonical coverage must include three functions lifted verbatim**, each
+  asserted equal to its byte range in `compiler.aero` so it cannot drift into a
+  paraphrase: `word_byte_1` at `[4539..4621]`, whose body is a nested call two
+  deep and whose whole seven-node arena is reachable; `is_identifier_continue` at
+  `[317..476]`, whose condition contains a call; and `main` at `[273572..273967]`,
+  whose single call carries the source's widest argument list at 68 arguments and
+  whose whole 146-node arena is reachable. `main` is also the first canonical
+  function whose complete AST is reachable from its root, and this contract
+  predicts its probe stop at 144 nodes and zero parameters.
+- The ten CAP-050 signature probes, the thirteen CAP-051 match probes, the
+  eighteen CAP-052 statement probes and the twenty-five CAP-053 control-flow
+  probes must be run at **every** iteration, not only at the end, because edits 1
+  and 2 move the operand classifier, which every one of them walks.
+- The canonical self-ingestion target must stay exactly at offset 146, line 8,
+  column 1, code 0, actual 3, four nodes, one parameter, at O0 and O2.
+- The accepted 34-byte canonical program must still return 91 with the identical
+  144-byte module at O0 and O2, its byte-for-byte reconstruction from accepted
+  B1C must still hold, and the complete repository-root gate must stay green.
+
+### Allowed files, exactly
+
+`examples/aero_self_host_v0/compiler.aero`;
+`src/compiler/tests/self_host_source_ingestion_tests.rs`;
+`.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
+`BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+`PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:264-268`.
+
+### Risks and mandatory stops
+
+Stop rather than approximate if representing a call requires a semantic fact, an
+arity check, a symbol table, a type, an ownership or borrow judgement, a checked
+record, or any downstream change beyond the two Decision 6 names and bounds; if
+holding the identifier cannot be made to leave every call-free expression's node
+order, payload and origin byte-identical; if the argument chain cannot be built
+without a write-at-index path into the node arena; if the four new kinds cannot
+each be given a shape rule the parse-group node validator enforces on every
+parse; if `&` cannot be restricted to argument-leading position without a second
+expression grammar; or if the probe expectations cannot be derived before the
+parser changes.
+
+Stop and record rather than widen if it turns out that a call node cannot be
+appended without misdescribing its own shape - the CAP-053 rule that a wrong
+representation is worse than none is not suspended by this checkpoint's
+obligation to represent.
+
+The arena bound is **not** a risk for this checkpoint. The canonical run stops at
+four nodes; the largest probe this contract requires is `main` at 144 nodes; and
+the correction above establishes that no canonical function lifted verbatim
+exceeds 394. Do not pull H1B-6 forward.
+
+### The orphan census this checkpoint moves, and how little it moves it
+
+The representation-gap section above names the orphan census as the acceptance
+criterion for the representation checkpoint H1B does not yet have: "it succeeds
+when reachable nodes equal node records". Measured over the whole 273,968-byte
+source under this contract's policy:
+
+| | nodes | reachable from a root | orphans |
+|---|---|---|---|
+| accepted policy at `f416067` | 13,190 | 154 | 13,036 - 98.83% |
+| this contract's policy at `7b0e929` | 16,819 | 240 | 16,579 - 98.57% |
+
+**Representing calls adds 3,289 nodes and 86 reachable ones.** The ratio improves
+by a quarter of one percent. That is the honest result and it should be quoted
+whenever this checkpoint is cited: a call's subtree is reachable only when the
+call is, and 98.6% of the source's calls sit inside statements that have no
+representation at all. Four functions do reach 100%, and all four owe it to this
+checkpoint: `word_byte_1` at 7 of 7, `word_byte_2` and `word_byte_3` at 9 of 9,
+and `main` at 146 of 146. `main` is the largest canonical arena that becomes
+fully reachable, entirely because its whole body is one return of one call. No
+function reached 100% before, `result_value` coming closest at 5 of 6.
+
+The debt therefore stands almost exactly where the representation-gap section
+left it: statements, sequences, conditionals and loops, unowned by any
+checkpoint in the table.
+
 ## CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW - admit `if` / `else if` / `else` and `while`
 
 - Date/task/status: 2026-08-18, `CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW`,
