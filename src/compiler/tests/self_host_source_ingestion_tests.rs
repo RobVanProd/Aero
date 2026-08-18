@@ -525,7 +525,7 @@ mod oracle {
     /// This is the single model. Both the canonical self-source target and the
     /// focused signature probes are graded against it.
     pub fn signature_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, false, false)
+        parser_stop(ingested, source, false, false, false)
     }
 
     /// Where the parser stops once CAP-051 / H1B-2 additionally admits one
@@ -540,7 +540,7 @@ mod oracle {
     /// shunting-yard so nodes append in the product's order. The construct
     /// itself appends no node and needs no new node kind.
     pub fn match_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, false)
+        parser_stop(ingested, source, true, false, false)
     }
 
     /// Where the parser stops once CAP-052 / H1B-3 additionally admits the
@@ -548,7 +548,29 @@ mod oracle {
     /// followed by `}`, and `;` terminates the return statement rather than
     /// closing the body.
     pub fn statement_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true)
+        parser_stop(ingested, source, true, true, false)
+    }
+
+    /// Where the parser stops once CAP-053 / H1B-4 additionally admits the two
+    /// control-flow forms `if EXPR BLOCK`, with any number of `else if EXPR
+    /// BLOCK` arms and an optional final `else BLOCK`, and `while EXPR BLOCK`.
+    ///
+    /// A `BLOCK` is `{` followed by one or more statements followed by `}`, so
+    /// the body rule CAP-052 froze for the function body now nests. Two rules
+    /// move with it. A nested block's closing rule is `}` and nothing more,
+    /// while the function body's remains `}` then end-of-input; and the
+    /// requirement that a completed `return` exist moves from the block to the
+    /// function, so a nested block may close without one. Within any block a
+    /// `return` is the last statement and the only one, which is the rule
+    /// CAP-052 froze and did not implement.
+    ///
+    /// Neither form creates a syntax node: an honest `if` node would have to
+    /// reference its body, a statement sequence has no representation in the
+    /// accepted arena, and a node carrying only its condition would assert at
+    /// H1C that the conditional has no body. So the `1..=19` node-kind bound is
+    /// untouched, and a nested `return` leaves its expression as an orphan.
+    pub fn control_flow_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
+        parser_stop(ingested, source, true, true, true)
     }
 
     /// The accepted expression grammar, modelled as the product's own
@@ -695,6 +717,7 @@ mod oracle {
         source: &[u8],
         admit_match: bool,
         admit_statements: bool,
+        admit_control_flow: bool,
     ) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
         let mut stopped = ingested.clone();
@@ -802,36 +825,103 @@ mod oracle {
         // assignment's initializer nodes are therefore orphans, joining the
         // four CAP-051 left.
         if admit_statements {
+            // CAP-053 / H1B-4 adds the block stack the two control-flow forms
+            // need. A record is pushed for every *nested* block and never for
+            // the function body, so an empty stack means the function body and
+            // its closing rule stays exactly where CAP-052 put it.
+            //
+            // A record holds the block's kind - 1 an `if` body, 2 a `while`
+            // body, 3 an `else` body - and the enclosing block's statement
+            // state, restored on pop. `block_state` is 0 before the block's
+            // first statement, 1 once one has completed, and 2 once a `return`
+            // has, which is the whole of the per-block return rule: a statement
+            // opener at state 2 is rejected, and a `}` at state 0 is an empty
+            // block.
             let mut body_root = 0i32;
+            let mut blocks: Vec<(i32, i32)> = Vec::new();
+            let mut block_state = 0i32;
+            let mut else_admissible = false;
             loop {
                 let leading = ingested.tokens[index];
-                if leading[0] == 4 {
-                    index += 1; // let
-                    if ingested.tokens[index][0] == 5 {
-                        index += 1; // mut
+                let else_opens = admit_control_flow && else_admissible && leading[0] == 8;
+                else_admissible = false;
+                // 1 `let`, 2 assignment, 3 `return`, 4 `if`, 5 `while`.
+                let mut mode = 0i32;
+                if else_opens {
+                    index += 1; // else
+                    let next = ingested.tokens[index];
+                    if next[0] == 7 {
+                        index += 1; // `if`, continuing the chain
+                        mode = 4;
+                    } else if next[0] == 12 {
+                        index += 1; // `{`, opening the final `else` body
+                        blocks.push((3, block_state));
+                        block_state = 0;
+                        continue;
+                    } else {
+                        reject!(&next, 10, 12);
                     }
-                    take!(1); // the bound name
-                    take!(17); // :
-                    let ty = take!(1);
-                    if text(ty) != b"int" {
-                        reject!(ty, 12, 102);
-                    }
-                    take!(25); // =
-                } else if leading[0] == 1 {
-                    index += 1; // the assignment target, a bare identifier
-                    take!(25); // =
-                } else if leading[0] == 6 {
-                    index += 1; // return
                 } else {
-                    break;
+                    if leading[0] == 4 {
+                        mode = 1;
+                    } else if leading[0] == 1 {
+                        mode = 2;
+                    } else if leading[0] == 6 {
+                        mode = 3;
+                    } else if admit_control_flow && leading[0] == 7 {
+                        mode = 4;
+                    } else if admit_control_flow && leading[0] == 9 {
+                        mode = 5;
+                    }
+                    if mode == 0 {
+                        if blocks.is_empty() {
+                            break;
+                        }
+                        // A nested block closes on `}` and nothing more, and
+                        // carries no return requirement. Its one extra rule is
+                        // that it may not be empty, reported the way CAP-052
+                        // reports an empty function body.
+                        let expected_close = if block_state == 0 { 6 } else { 13 };
+                        if leading[0] != expected_close {
+                            reject!(&leading, 10, expected_close);
+                        }
+                        index += 1; // }
+                        let (kind, enclosing) = blocks.pop().expect("modelled block stack");
+                        block_state = enclosing;
+                        else_admissible = kind == 1;
+                        continue;
+                    }
+                    if admit_control_flow && block_state == 2 {
+                        // The rule CAP-052 froze and did not implement: after a
+                        // return statement's `;` the only admissible token is
+                        // that block's `}`.
+                        reject!(&leading, 10, 13);
+                    }
+                    index += 1; // the statement's leading token
+                    if mode == 1 {
+                        if ingested.tokens[index][0] == 5 {
+                            index += 1; // mut
+                        }
+                        take!(1); // the bound name
+                        take!(17); // :
+                        let ty = take!(1);
+                        if text(ty) != b"int" {
+                            reject!(ty, 12, 102);
+                        }
+                        take!(25); // =
+                    } else if mode == 2 {
+                        take!(25); // =
+                    }
                 }
+                block_state = 1;
 
                 // A return expression dispatches on its leading token exactly as
-                // CAP-051 does; a binding's or an assignment's expression does
-                // not, so `match` there is an ordinary identifier operand.
+                // CAP-051 does; a binding's, an assignment's or a condition's
+                // expression does not, so `match` there is an ordinary
+                // identifier operand.
                 let mut root = 0i32;
                 let opening = ingested.tokens[index];
-                if leading[0] == 6 && opening[0] == 1 && text(&opening) == b"match" {
+                if mode == 3 && opening[0] == 1 && text(&opening) == b"match" {
                     index += 1; // match
                     take!(1); // the scrutinee is exactly one identifier
                     take!(12); // {
@@ -868,9 +958,24 @@ mod oracle {
                         Err((record, status, code)) => reject!(&record, status, code),
                     }
                 }
-                take!(18); // the statement's own `;`
-                if leading[0] == 6 {
+                // The statement's terminator is decided by what the expression
+                // was for: `;` for a binding, an assignment or a return, and
+                // `{` for a condition, whose block record is pushed as that `{`
+                // is accepted.
+                let terminator = if mode >= 4 { 12 } else { 18 };
+                take!(terminator);
+                if mode == 3 {
+                    // `body_root` stays one register and the last write wins.
+                    // Every block's `return` is its last statement and every
+                    // function body ends in one, so the last `return` completed
+                    // in token order within a function is always the function
+                    // body's own. A nested `return` leaves an orphan.
                     body_root = root;
+                    block_state = 2;
+                }
+                if mode >= 4 {
+                    blocks.push((if mode == 4 { 1 } else { 2 }, block_state));
+                    block_state = 0;
                 }
             }
 
@@ -878,8 +983,37 @@ mod oracle {
             // that closes without a completed return statement has no root for
             // the function node, so `}` is rejected there with the statement
             // expectation instead - which is also how an empty body is rejected.
+            // The function body's own closing rule is unchanged: `}` then
+            // end-of-input, and the requirement that a `return` completed is
+            // now the *function's* rather than any block's, so a nested block
+            // that returned does not satisfy it.
+            //
+            // `body_root` is the last-write-wins register Decision 3 keeps, and
+            // no probe observes it: the return node is appended only after
+            // end-of-input is accepted, which no probe of this checkpoint
+            // reaches. Its one relationship with the function's requirement is
+            // asserted rather than assumed.
+            assert!(
+                block_state != 2 || body_root > 0,
+                "a function body that returned always has a root"
+            );
+            //
+            // The two spellings of that requirement differ only on inputs
+            // CAP-053 rejects. `block_state == 2` says the *function body*
+            // returned; `body_root > 0` says *some* block did. Under CAP-053
+            // they coincide, because a statement can never follow a completed
+            // `return` and no nested block can be the last thing a function
+            // body does. Under CAP-052 they do not - its product admits a
+            // statement after a return, which clears the block state - so the
+            // CAP-052 model keeps the spelling that models its own product.
             let close = &ingested.tokens[index];
-            let expected_close = if body_root > 0 { 13 } else { 6 };
+            let expected_close = if admit_control_flow {
+                if block_state == 2 { 13 } else { 6 }
+            } else if body_root > 0 {
+                13
+            } else {
+                6
+            };
             if close[0] != expected_close {
                 reject!(close, 10, expected_close);
             }
@@ -960,6 +1094,12 @@ mod oracle {
     /// grammar, projected out of [`statement_parser_stop`].
     pub fn statement_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
         project(&statement_parser_stop(ingested, source))
+    }
+
+    /// Where the parser stops once CAP-053 / H1B-4 admits the two control-flow
+    /// forms, projected out of [`control_flow_parser_stop`].
+    pub fn control_flow_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+        project(&control_flow_parser_stop(ingested, source))
     }
 
     /// Where the parser stops once CAP-050 / H1B-1 admits the signature grammar,
@@ -2194,6 +2334,427 @@ const BODY_ROOT: &str = r#"                        pending_node_left = body_root
 
 /// Apply the six frozen CAP-049 ingestion differences to the accepted B1C
 /// source. `compiler.aero` must equal this byte for byte.
+/// CAP-053 / H1B-4 admits the two control-flow forms. The Aero product and
+/// this reconstruction are patched from one shared definition, so the admitted
+/// grammar and its byte-for-byte derivation cannot drift apart.
+const BLOCK_OWNER_ANCHOR: &str = r#"    let mut parameters: ByteBuffer = bytes_new();"#;
+const BLOCK_OWNER: &str = r#"    let mut parameters: ByteBuffer = bytes_new();
+    let mut blocks: ByteBuffer = bytes_new();"#;
+const BLOCK_REGISTERS_ANCHOR: &str = r#"    let mut body_root: int = 0;"#;
+const BLOCK_REGISTERS: &str = r#"    let mut body_root: int = 0;
+    let mut block_state: int = 0;
+    let mut block_top: int = 0;
+    let mut block_depth: int = 0;
+    let mut block_records: int = 0;
+    let mut block_else: int = 0;
+    let mut block_kind_push: int = 0;
+    let mut block_kind_popped: int = 0;
+    let mut block_state_saved: int = 0;
+    let mut block_previous: int = 0;
+    let mut stmt_is_else: int = 0;
+    let mut stmt_close_expected: int = 0;
+    let mut stmt_terminator: int = 0;"#;
+const ELSE_REQUEST_ANCHOR: &str = r#"        if parser_cycle_state == 48 {
+            parser_token_after = 49;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }"#;
+const ELSE_REQUEST: &str = r#"        if parser_cycle_state == 48 {
+            parser_token_after = 49;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        // CAP-053 requests the one token after an 'else'.
+        if parser_cycle_state == 50 {
+            parser_token_after = 51;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }"#;
+const CONTROL_FLOW_DISPATCH_ANCHOR: &str = r#"            if parser_running == 1 {
+                statement_mode = 0;
+                if current_kind == 4 {
+                    statement_mode = 1;
+                    stmt_step = 0;
+                }
+                if current_kind == 1 {
+                    statement_mode = 2;
+                    stmt_step = 4;
+                }
+                if current_kind == 6 {
+                    statement_mode = 3;
+                    return_start = current_start;
+                    return_line = current_line;
+                    return_column = current_column;
+                }
+                if statement_mode == 0 {
+                    closing_step = 0;
+                    parser_state = 21;
+                } else {
+                    parse_index = parse_index + 1;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 46;
+                    if statement_mode == 3 {
+                        parser_state = 40;
+                    }
+                }
+            }
+        }"#;
+const CONTROL_FLOW_DISPATCH: &str = r#"            // CAP-053 admits 'else' here rather than as a statement: it is
+            // the one token that may follow a nested 'if' body's '}', and
+            // 'block_else' is set only by that pop.
+            if parser_running == 1 {
+                stmt_is_else = 0;
+                if current_kind == 8 && block_else == 1 {
+                    stmt_is_else = 1;
+                }
+                block_else = 0;
+                if stmt_is_else == 1 {
+                    parse_index = parse_index + 1;
+                    parser_state = 50;
+                }
+            }
+            if parser_running == 1 && stmt_is_else == 0 {
+                statement_mode = 0;
+                if current_kind == 4 {
+                    statement_mode = 1;
+                    stmt_step = 0;
+                }
+                if current_kind == 1 {
+                    statement_mode = 2;
+                    stmt_step = 4;
+                }
+                if current_kind == 6 {
+                    statement_mode = 3;
+                    return_start = current_start;
+                    return_line = current_line;
+                    return_column = current_column;
+                }
+                if current_kind == 7 {
+                    statement_mode = 4;
+                }
+                if current_kind == 9 {
+                    statement_mode = 5;
+                }
+                // The rule CAP-052 froze and did not implement: after a return
+                // statement's ';' the only admissible token is this block's
+                // '}'. 'block_state' is 0 before the block's first statement,
+                // 1 once one has completed, and 2 once a 'return' has.
+                if statement_mode > 0 && block_state == 2 {
+                    status = 10;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 13;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 && statement_mode == 0 && block_top == 0 {
+                    closing_step = 0;
+                    parser_state = 21;
+                }
+                // A nested block closes on '}' and nothing more, and carries no
+                // return requirement. Its one extra rule is that it may not be
+                // empty, reported the way an empty function body is.
+                if parser_running == 1 && statement_mode == 0 && block_top > 0 {
+                    stmt_close_expected = 13;
+                    if block_state == 0 {
+                        stmt_close_expected = 6;
+                    }
+                    if current_kind != stmt_close_expected {
+                        status = 10;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = stmt_close_expected;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        parser_record_target = 3;
+                        parser_record_width = 3;
+                        parser_record_index = block_top;
+                        parser_record_field = 0;
+                        parser_record_byte = 0;
+                        parser_record_word = 0;
+                        parser_record_0 = 0;
+                        parser_record_1 = 0;
+                        parser_record_2 = 0;
+                        parser_record_3 = 0;
+                        parser_record_4 = 0;
+                        parser_record_after = 54;
+                        parser_state = 31;
+                    }
+                }
+                if parser_running == 1 && statement_mode > 0 {
+                    block_state = 1;
+                    parse_index = parse_index + 1;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 46;
+                    if statement_mode == 3 {
+                        parser_state = 40;
+                    }
+                    if statement_mode >= 4 {
+                        parser_state = 3;
+                    }
+                }
+            }
+        }"#;
+const STATEMENT_TERMINATOR_ANCHOR: &str = r#"        if parser_cycle_state == 49 {
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != 18 {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 18;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if statement_mode == 3 {
+                    body_root = expression_root;
+                }
+                statement_mode = 0;
+                parser_state = 44;
+            }
+        }"#;
+const STATEMENT_TERMINATOR: &str = r#"        if parser_cycle_state == 49 {
+            stmt_terminator = 18;
+            if statement_mode >= 4 {
+                stmt_terminator = 12;
+            }
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != stmt_terminator {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = stmt_terminator;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                // 'body_root' stays one register and the last write wins. Every
+                // block's 'return' is its last statement and every function
+                // body ends in one, so the last 'return' completed in token
+                // order within a function is always the function body's own.
+                if statement_mode == 3 {
+                    body_root = expression_root;
+                    block_state = 2;
+                }
+                block_kind_push = 0;
+                if statement_mode == 4 {
+                    block_kind_push = 1;
+                }
+                if statement_mode == 5 {
+                    block_kind_push = 2;
+                }
+                statement_mode = 0;
+                parser_state = 44;
+                if block_kind_push > 0 {
+                    parser_state = 52;
+                }
+            }
+        }
+
+        // An 'else' continues the chain with another 'if', or opens the final
+        // 'else' body. Nothing else is admissible after it.
+        if parser_cycle_state == 51 {
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != 12 && current_kind != 7 {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 12;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                block_state = 1;
+                if current_kind == 7 {
+                    statement_mode = 4;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 3;
+                } else {
+                    statement_mode = 0;
+                    block_kind_push = 3;
+                    parser_state = 52;
+                }
+            }
+        }
+
+        // Push one block record: the block's kind - 1 an 'if' body, 2 a 'while'
+        // body, 3 an 'else' body - the enclosing block's statement state, and
+        // the link to the enclosing record. Only a nested block pushes, so a
+        // 'block_top' of zero is the function body and its closing rule is
+        // unchanged. The store is a fourth monotonic parse-group counter and
+        // carries the same bound and the same exhaustion diagnostic as the
+        // value and operator stores.
+        if parser_cycle_state == 52 {
+            if block_records >= 512 {
+                status = 15;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 512;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 5;
+                parser_append_width = 3;
+                parser_append_0 = block_kind_push;
+                parser_append_1 = block_state;
+                parser_append_2 = block_top;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 53;
+                parser_append_offset = current_start;
+                parser_append_line = current_line;
+                parser_append_column = current_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 53 {
+            block_records = block_records + 1;
+            block_top = block_records;
+            block_depth = block_depth + 1;
+            block_state = 0;
+            parser_state = 44;
+        }
+
+        // The block record is decoded; pop it, restore the enclosing block's
+        // statement state, and admit 'else' only after an 'if' body.
+        if parser_cycle_state == 54 {
+            block_kind_popped = parser_record_0;
+            block_state_saved = parser_record_1;
+            block_previous = parser_record_2;
+            if block_kind_popped <= 0 || block_kind_popped > 3
+                || block_state_saved < 0 || block_state_saved > 2 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (block_previous < 0 || block_depth <= 0
+                || block_previous >= block_top) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                block_top = block_previous;
+                block_depth = block_depth - 1;
+                block_state = block_state_saved;
+                block_else = 0;
+                if block_kind_popped == 1 {
+                    block_else = 1;
+                }
+                parse_index = parse_index + 1;
+                parser_state = 44;
+            }
+        }"#;
+const FUNCTION_RETURN_REQUIREMENT_ANCHOR: &str = r#"            expected_kind = 13;
+            if body_root <= 0 {
+                expected_kind = 6;
+            }"#;
+const FUNCTION_RETURN_REQUIREMENT: &str = r#"            expected_kind = 13;
+            if block_state != 2 {
+                expected_kind = 6;
+            }"#;
+const BLOCK_RECORD_READ_ANCHOR: &str = r#"                if parser_record_target == 2 {
+                    parser_read_byte_value = result_value(bytes_get(&operators,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2 {
+                    status = 16;
+                    parser_running = 0;
+                }"#;
+const BLOCK_RECORD_READ: &str = r#"                if parser_record_target == 2 {
+                    parser_read_byte_value = result_value(bytes_get(&operators,
+                        parser_read_offset));
+                }
+                if parser_record_target == 3 {
+                    parser_read_byte_value = result_value(bytes_get(&blocks,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2
+                    && parser_record_target != 3 {
+                    status = 16;
+                    parser_running = 0;
+                }"#;
+const BLOCK_RECORD_APPEND_ANCHOR: &str = r#"            if parser_running == 1 && parser_append_target == 4 {
+                push_result = result_value(bytes_push(&mut origins,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target != 1
+                && parser_append_target != 2 && parser_append_target != 3
+                && parser_append_target != 4 {
+                status = 16;
+                parser_running = 0;
+            }"#;
+const BLOCK_RECORD_APPEND: &str = r#"            if parser_running == 1 && parser_append_target == 4 {
+                push_result = result_value(bytes_push(&mut origins,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target == 5 {
+                push_result = result_value(bytes_push(&mut blocks,
+                    parser_read_byte_value));
+            }
+            if parser_running == 1 && parser_append_target != 1
+                && parser_append_target != 2 && parser_append_target != 3
+                && parser_append_target != 4 && parser_append_target != 5 {
+                status = 16;
+                parser_running = 0;
+            }"#;
+const BLOCK_STORAGE_INVARIANT_ANCHOR: &str = r#"    if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
+        || bytes_len(&operators) < operator_records * 20 {
+        return 70;
+    }
+    if status == 0 && (bytes_len(&nodes) != node_count * 16
+        || bytes_len(&values) != value_records * 8
+        || bytes_len(&operators) != operator_records * 20) {
+        return 70;
+    }"#;
+const BLOCK_STORAGE_INVARIANT: &str = r#"    if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
+        || bytes_len(&operators) < operator_records * 20
+        || bytes_len(&blocks) < block_records * 12 {
+        return 70;
+    }
+    if status == 0 && (bytes_len(&nodes) != node_count * 16
+        || bytes_len(&values) != value_records * 8
+        || bytes_len(&operators) != operator_records * 20
+        || bytes_len(&blocks) != block_records * 12) {
+        return 70;
+    }"#;
+
 fn expected_h1a_source() -> String {
     let accepted = accepted_b1c_source();
 
@@ -2370,7 +2931,39 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(CLOSING_ADVANCE_ANCHOR, CLOSING_ADVANCE);
 
     assert_eq!(derived.matches(BODY_ROOT_ANCHOR).count(), 1);
-    derived.replace(BODY_ROOT_ANCHOR, BODY_ROOT)
+    let derived = derived.replace(BODY_ROOT_ANCHOR, BODY_ROOT);
+
+    // CAP-053 admits `if` / `else if` / `else` and `while` over the accepted
+    // expression grammar: a block record store with its own bound and its own
+    // exhaustion diagnostic, a statement dispatch that admits two more leading
+    // tokens and rejects any statement after a completed `return`, a statement
+    // terminator parameterized by what the expression was for, and the return
+    // requirement moved from the block to the function. Neither form produces a
+    // syntax node, so the `1..=19` node-kind bound is untouched.
+    assert_eq!(derived.matches(BLOCK_OWNER_ANCHOR).count(), 1);
+    let derived = derived.replace(BLOCK_OWNER_ANCHOR, BLOCK_OWNER);
+    assert_eq!(derived.matches(BLOCK_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(BLOCK_REGISTERS_ANCHOR, BLOCK_REGISTERS);
+    assert_eq!(derived.matches(ELSE_REQUEST_ANCHOR).count(), 1);
+    let derived = derived.replace(ELSE_REQUEST_ANCHOR, ELSE_REQUEST);
+    assert_eq!(derived.matches(CONTROL_FLOW_DISPATCH_ANCHOR).count(), 1);
+    let derived = derived.replace(CONTROL_FLOW_DISPATCH_ANCHOR, CONTROL_FLOW_DISPATCH);
+    assert_eq!(derived.matches(STATEMENT_TERMINATOR_ANCHOR).count(), 1);
+    let derived = derived.replace(STATEMENT_TERMINATOR_ANCHOR, STATEMENT_TERMINATOR);
+    assert_eq!(
+        derived.matches(FUNCTION_RETURN_REQUIREMENT_ANCHOR).count(),
+        1
+    );
+    let derived = derived.replace(
+        FUNCTION_RETURN_REQUIREMENT_ANCHOR,
+        FUNCTION_RETURN_REQUIREMENT,
+    );
+    assert_eq!(derived.matches(BLOCK_RECORD_READ_ANCHOR).count(), 1);
+    let derived = derived.replace(BLOCK_RECORD_READ_ANCHOR, BLOCK_RECORD_READ);
+    assert_eq!(derived.matches(BLOCK_RECORD_APPEND_ANCHOR).count(), 1);
+    let derived = derived.replace(BLOCK_RECORD_APPEND_ANCHOR, BLOCK_RECORD_APPEND);
+    assert_eq!(derived.matches(BLOCK_STORAGE_INVARIANT_ANCHOR).count(), 1);
+    derived.replace(BLOCK_STORAGE_INVARIANT_ANCHOR, BLOCK_STORAGE_INVARIANT)
 }
 
 // ---------------------------------------------------------------------------
@@ -3536,6 +4129,463 @@ fn the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved() {
             ),
             91,
             "CAP-052 self-ingestion diverged from the independent oracle at {optimization}"
+        );
+    }
+}
+
+/// CAP-053 / H1B-4 focused control-flow probes.
+///
+/// This checkpoint cannot move the canonical self-ingestion stop either:
+/// CAP-051 already parses function 1 completely, and a second `fn` item is
+/// excluded from every parser checkpoint. So these probes are the checkpoint's
+/// entire forward evidence, and the canonical target below stays a regression
+/// guard.
+///
+/// The admitted forms are `if EXPR BLOCK`, with any number of `else if EXPR
+/// BLOCK` arms and an optional final `else BLOCK`, and `while EXPR BLOCK`.
+/// `EXPR` is the already-accepted expression grammar with no `match`, and
+/// `BLOCK` is CAP-052's statement sequence with two differences: it closes on
+/// `}` and nothing more, and it carries no return requirement, which has moved
+/// from the block to the function. Within any block a `return` is the last
+/// statement and the only one.
+///
+/// Every expectation is stated here as an independent hand derivation from the
+/// frozen contract and is separately derived by the oracle, so the two must
+/// agree.
+const CONTROL_FLOW_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
+    // label, source, status, code, actual, token text, parameters, nodes
+    // --- the two admitted forms, and the shapes they compose into ---
+    (
+        "cf-if-alone",
+        b"fn f() -> int { if a { b = 1; } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    (
+        "cf-if-else",
+        b"fn f() -> int { if a { b = 1; } else { b = 2; } return 3; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "cf-if-else-if-else",
+        b"fn f() -> int { if a { b = 1; } else if c { b = 2; } else { b = 3; } return 4; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        6,
+    ),
+    (
+        "cf-while",
+        b"fn f() -> int { while a { b = 1; } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    // Canonical function 2's shape: a `return` inside an `if` body, and a
+    // further `return` after the `if`. The nested one leaves an orphan and the
+    // last write to `body_root` wins.
+    (
+        "cf-return-in-if-then-return",
+        b"fn f() -> int { if a { return 1; } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    (
+        "cf-nesting-three-deep",
+        b"fn f() -> int { if a { if b { if c { d = 1; } } } return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    (
+        "cf-binding-and-assignment-in-block",
+        b"fn f() -> int { if a { let b: int = 1; b = 2; } return 3; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        4,
+    ),
+    (
+        "cf-nested-if-in-else",
+        b"fn f() -> int { if a { b = 1; } else { if c { b = 2; } } return 3; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        5,
+    ),
+    // A condition is the whole accepted expression grammar: the three literals,
+    // then the product, then the sum.
+    (
+        "cf-condition-expression",
+        b"fn f() -> int { if 1+2*3 { a = 4; } return 5; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        7,
+    ),
+    // The CAP-051 construct still composes: a `match` return inside an `if`
+    // body, whose two arm bodies are orphaned exactly as before.
+    (
+        "cf-match-return-in-if",
+        b"fn f(a: Result<int,int>) -> int { if b { return match a { Ok(v) => v, Err(c) => c, }; } return 1; } x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        4,
+    ),
+    // Canonical function 2, `is_identifier_start`, lifted verbatim. This is the
+    // first real canonical function to become parseable since CAP-051. It does
+    // not parse in situ, because the canonical run stops at the second `fn`
+    // item first. Its condition is 10 operand leaves and 9 reductions, and each
+    // of its two `return` statements adds one literal leaf.
+    (
+        "cf-canonical-function-2",
+        b"fn is_identifier_start(value: int) -> int {\n    if value == 95 || (value >= 65 && value <= 90) || (value >= 97 && value <= 122) {\n        return 1;\n    }\n    return 0;\n} x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        21,
+    ),
+    // --- `else` must follow an `if` body's `}` and nothing else ---
+    (
+        "cf-else-without-if",
+        b"fn f() -> int { else { a = 1; } return 2; } x",
+        10,
+        6,
+        8,
+        "else",
+        0,
+        0,
+    ),
+    (
+        "cf-else-after-while",
+        b"fn f() -> int { while a { b = 1; } else { b = 2; } return 3; } x",
+        10,
+        6,
+        8,
+        "else",
+        0,
+        2,
+    ),
+    (
+        "cf-else-after-else",
+        b"fn f() -> int { if a { b = 1; } else { b = 2; } else { b = 3; } return 4; } x",
+        10,
+        6,
+        8,
+        "else",
+        0,
+        3,
+    ),
+    (
+        "cf-else-without-block",
+        b"fn f() -> int { if a { b = 1; } else c { } return 2; } x",
+        10,
+        12,
+        1,
+        "c",
+        0,
+        2,
+    ),
+    // --- a block is never empty, and never closes with a statement open ---
+    (
+        "cf-empty-if-body",
+        b"fn f() -> int { if a { } return 2; } x",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        1,
+    ),
+    (
+        "cf-empty-while-body",
+        b"fn f() -> int { while a { } return 2; } x",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        1,
+    ),
+    (
+        "cf-non-statement-in-block",
+        b"fn f() -> int { if a { b = 1; 2; } return 3; } x",
+        10,
+        13,
+        2,
+        "2",
+        0,
+        2,
+    ),
+    (
+        "cf-block-without-close",
+        b"fn f() -> int { if a { return 1;",
+        10,
+        13,
+        0,
+        "",
+        0,
+        2,
+    ),
+    // --- the condition ---
+    (
+        "cf-condition-opens-with-brace",
+        b"fn f() -> int { if { a = 1; } return 2; } x",
+        11,
+        100,
+        12,
+        "{",
+        0,
+        0,
+    ),
+    // `match` is admitted in a return expression only, so in a condition it is
+    // an ordinary identifier operand and the scrutinee that follows it ends the
+    // expression where the block's `{` was required.
+    (
+        "cf-match-in-condition",
+        b"fn f(a: Result<int,int>) -> int { if match a { b = 1; } return 2; } x",
+        10,
+        12,
+        1,
+        "a",
+        1,
+        1,
+    ),
+    (
+        "cf-condition-without-block",
+        b"fn f() -> int { if a return 1; } x",
+        10,
+        12,
+        6,
+        "return",
+        0,
+        1,
+    ),
+    // --- the per-block return rule CAP-052 froze and did not implement ---
+    (
+        "cf-statement-after-return",
+        b"fn f() -> int { return 1; let a: int = 2; } x",
+        10,
+        13,
+        4,
+        "let",
+        0,
+        1,
+    ),
+    (
+        "cf-second-return-in-block",
+        b"fn f() -> int { return 1; return 2; } x",
+        10,
+        13,
+        6,
+        "return",
+        0,
+        1,
+    ),
+    // --- the return requirement is the function's, not any block's ---
+    (
+        "cf-function-without-return",
+        b"fn f() -> int { if a { return 1; } } x",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        2,
+    ),
+];
+
+/// The byte span of canonical function 2 in `compiler.aero`, which the
+/// `cf-canonical-function-2` probe must reproduce exactly. 146 is the frozen
+/// canonical stop, and 315 is the byte after the function's closing `}` - the
+/// newline that separates it from function 3 is not part of the function.
+const CANONICAL_FUNCTION_2: (usize, usize) = (146, 315);
+
+fn control_flow_probe_targets() -> Vec<oracle::Ingestion> {
+    let mut targets = Vec::new();
+    for (label, source, status, code, actual, text, parameters, nodes) in CONTROL_FLOW_PROBES {
+        assert!(
+            source.len() < 200,
+            "probe `{label}` must stay a small complete program"
+        );
+        let ingested = oracle::ingest(
+            source,
+            &oracle::Bounds {
+                source: H1A_SOURCE_BOUND,
+                token: H1A_TOKEN_BOUND,
+                name: H1A_NAME_BOUND,
+                ampersand: true,
+            },
+        );
+        assert_eq!(ingested.status, 0, "probe `{label}` must lex completely");
+
+        let target = oracle::control_flow_parser_stop(&ingested, source);
+        let from = usize::try_from(target.error_offset).expect("bounded offset");
+        assert_eq!(target.status, *status, "probe `{label}` target status");
+        assert_eq!(target.diagnostic_code, *code, "probe `{label}` target code");
+        assert_eq!(
+            target.diagnostic_actual, *actual,
+            "probe `{label}` target actual"
+        );
+        assert_eq!(
+            &source[from..from + text.len()],
+            text.as_bytes(),
+            "probe `{label}` target token"
+        );
+        assert_eq!(
+            target.parameters.len(),
+            *parameters,
+            "probe `{label}` target parameter count"
+        );
+        assert_eq!(
+            target.nodes.len(),
+            *nodes,
+            "probe `{label}` target node count"
+        );
+        assert_eq!(
+            target.origins.len(),
+            target.nodes.len(),
+            "probe `{label}` must mirror every node with one origin"
+        );
+        targets.push(target);
+    }
+    targets
+}
+
+/// Every expectation in [`CONTROL_FLOW_PROBES`] is a hand derivation from the
+/// frozen contract. This test touches no product: it only requires the oracle
+/// to agree with all of them.
+#[test]
+fn every_control_flow_probe_expectation_is_derived_twice() {
+    assert_eq!(
+        control_flow_probe_targets().len(),
+        CONTROL_FLOW_PROBES.len()
+    );
+}
+
+/// The `cf-canonical-function-2` probe is a verbatim lift, not a paraphrase.
+#[test]
+fn the_canonical_function_2_probe_is_the_canonical_bytes() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let (from, to) = CANONICAL_FUNCTION_2;
+    let probe = CONTROL_FLOW_PROBES
+        .iter()
+        .find(|(label, ..)| *label == "cf-canonical-function-2")
+        .expect("the canonical function 2 probe is required coverage")
+        .1;
+    assert_eq!(&source[from..from + 2], b"fn");
+    assert_eq!(
+        &probe[..probe.len() - 2],
+        &source[from..to],
+        "the canonical function 2 probe must be the canonical bytes plus a trailing stop token"
+    );
+    assert_eq!(&probe[probe.len() - 2..], b" x");
+}
+
+#[test]
+fn focused_control_flow_probes_exercise_every_rule_of_the_admitted_grammar() {
+    for ((label, source, _, _, _, _, _, _), target) in
+        CONTROL_FLOW_PROBES.iter().zip(control_flow_probe_targets())
+    {
+        assert_eq!(
+            run_expectation("control-flow-probe", compiled_h1a(), source, &target, "-O0"),
+            91,
+            "probe `{label}` diverged from the derived CAP-053 target"
+        );
+    }
+}
+
+/// CAP-053 / H1B-4 leaves the canonical self-ingestion stop exactly where
+/// CAP-051 put it, and this is a regression guard rather than evidence of
+/// forward progress.
+///
+/// The canonical source's first function contains no control-flow token, so
+/// the block stack is never pushed on the canonical run and the three earlier
+/// models must agree with the control-flow model exactly, including the four
+/// orphan arm-body nodes.
+#[test]
+fn the_control_flow_checkpoint_leaves_the_canonical_stop_unmoved() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = oracle::ingest(
+        &source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0);
+
+    let frozen = oracle::SignatureStop {
+        status: 10,
+        error_offset: 146,
+        error_line: 8,
+        error_column: 1,
+        diagnostic_code: 0,
+        diagnostic_actual: 3,
+        node_count: 4,
+        parameters: 1,
+    };
+    assert_eq!(
+        oracle::statement_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-052's frozen target moved"
+    );
+    assert_eq!(
+        oracle::control_flow_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-053 must not move the canonical stop in either direction"
+    );
+    assert_eq!(&source[146..148], b"fn");
+
+    let stopped = oracle::control_flow_parser_stop(&ingested, &source);
+    assert_eq!(stopped.nodes.len(), 4);
+    assert_eq!(stopped.origins.len(), 4);
+
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_expectation(
+                "control-flow-self-ingestion",
+                compiled_h1a(),
+                &source,
+                &stopped,
+                optimization
+            ),
+            91,
+            "CAP-053 self-ingestion diverged from the independent oracle at {optimization}"
         );
     }
 }

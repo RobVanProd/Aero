@@ -517,6 +517,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut tokens: ByteBuffer = bytes_new();
     let mut nodes: ByteBuffer = bytes_new();
     let mut parameters: ByteBuffer = bytes_new();
+    let mut blocks: ByteBuffer = bytes_new();
     let mut values: ByteBuffer = bytes_new();
     let mut operators: ByteBuffer = bytes_new();
     let mut origins: ByteBuffer = bytes_new();
@@ -1199,6 +1200,18 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut stmt_b1: int = 0;
     let mut stmt_b2: int = 0;
     let mut body_root: int = 0;
+    let mut block_state: int = 0;
+    let mut block_top: int = 0;
+    let mut block_depth: int = 0;
+    let mut block_records: int = 0;
+    let mut block_else: int = 0;
+    let mut block_kind_push: int = 0;
+    let mut block_kind_popped: int = 0;
+    let mut block_state_saved: int = 0;
+    let mut block_previous: int = 0;
+    let mut stmt_is_else: int = 0;
+    let mut stmt_close_expected: int = 0;
+    let mut stmt_terminator: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -1329,6 +1342,14 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         }
         if parser_cycle_state == 48 {
             parser_token_after = 49;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        // CAP-053 requests the one token after an 'else'.
+        if parser_cycle_state == 50 {
+            parser_token_after = 51;
             parser_token_field = 0;
             parser_token_byte = 0;
             parser_token_word = 0;
@@ -1669,7 +1690,21 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
+            // CAP-053 admits 'else' here rather than as a statement: it is
+            // the one token that may follow a nested 'if' body's '}', and
+            // 'block_else' is set only by that pop.
             if parser_running == 1 {
+                stmt_is_else = 0;
+                if current_kind == 8 && block_else == 1 {
+                    stmt_is_else = 1;
+                }
+                block_else = 0;
+                if stmt_is_else == 1 {
+                    parse_index = parse_index + 1;
+                    parser_state = 50;
+                }
+            }
+            if parser_running == 1 && stmt_is_else == 0 {
                 statement_mode = 0;
                 if current_kind == 4 {
                     statement_mode = 1;
@@ -1685,10 +1720,64 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     return_line = current_line;
                     return_column = current_column;
                 }
-                if statement_mode == 0 {
+                if current_kind == 7 {
+                    statement_mode = 4;
+                }
+                if current_kind == 9 {
+                    statement_mode = 5;
+                }
+                // The rule CAP-052 froze and did not implement: after a return
+                // statement's ';' the only admissible token is this block's
+                // '}'. 'block_state' is 0 before the block's first statement,
+                // 1 once one has completed, and 2 once a 'return' has.
+                if statement_mode > 0 && block_state == 2 {
+                    status = 10;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 13;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+                if parser_running == 1 && statement_mode == 0 && block_top == 0 {
                     closing_step = 0;
                     parser_state = 21;
-                } else {
+                }
+                // A nested block closes on '}' and nothing more, and carries no
+                // return requirement. Its one extra rule is that it may not be
+                // empty, reported the way an empty function body is.
+                if parser_running == 1 && statement_mode == 0 && block_top > 0 {
+                    stmt_close_expected = 13;
+                    if block_state == 0 {
+                        stmt_close_expected = 6;
+                    }
+                    if current_kind != stmt_close_expected {
+                        status = 10;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = stmt_close_expected;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        parser_record_target = 3;
+                        parser_record_width = 3;
+                        parser_record_index = block_top;
+                        parser_record_field = 0;
+                        parser_record_byte = 0;
+                        parser_record_word = 0;
+                        parser_record_0 = 0;
+                        parser_record_1 = 0;
+                        parser_record_2 = 0;
+                        parser_record_3 = 0;
+                        parser_record_4 = 0;
+                        parser_record_after = 54;
+                        parser_state = 31;
+                    }
+                }
+                if parser_running == 1 && statement_mode > 0 {
+                    block_state = 1;
                     parse_index = parse_index + 1;
                     value_top = 0;
                     value_depth = 0;
@@ -1696,6 +1785,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_state = 46;
                     if statement_mode == 3 {
                         parser_state = 40;
+                    }
+                    if statement_mode >= 4 {
+                        parser_state = 3;
                     }
                 }
             }
@@ -1771,26 +1863,150 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         // construct both return to, so their two entry points into the closing
         // sequence collapse into this one.
         if parser_cycle_state == 49 {
+            stmt_terminator = 18;
+            if statement_mode >= 4 {
+                stmt_terminator = 12;
+            }
             if current_kind < 0 || current_start < 0 || current_line <= 0
                 || current_column <= 0 {
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && current_kind != 18 {
+            if parser_running == 1 && current_kind != stmt_terminator {
                 status = 10;
                 error_offset = current_start;
                 error_line = current_line;
                 error_column = current_column;
-                diagnostic_code = 18;
+                diagnostic_code = stmt_terminator;
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
+                // 'body_root' stays one register and the last write wins. Every
+                // block's 'return' is its last statement and every function
+                // body ends in one, so the last 'return' completed in token
+                // order within a function is always the function body's own.
                 if statement_mode == 3 {
                     body_root = expression_root;
+                    block_state = 2;
+                }
+                block_kind_push = 0;
+                if statement_mode == 4 {
+                    block_kind_push = 1;
+                }
+                if statement_mode == 5 {
+                    block_kind_push = 2;
                 }
                 statement_mode = 0;
+                parser_state = 44;
+                if block_kind_push > 0 {
+                    parser_state = 52;
+                }
+            }
+        }
+
+        // An 'else' continues the chain with another 'if', or opens the final
+        // 'else' body. Nothing else is admissible after it.
+        if parser_cycle_state == 51 {
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != 12 && current_kind != 7 {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 12;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                block_state = 1;
+                if current_kind == 7 {
+                    statement_mode = 4;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 3;
+                } else {
+                    statement_mode = 0;
+                    block_kind_push = 3;
+                    parser_state = 52;
+                }
+            }
+        }
+
+        // Push one block record: the block's kind - 1 an 'if' body, 2 a 'while'
+        // body, 3 an 'else' body - the enclosing block's statement state, and
+        // the link to the enclosing record. Only a nested block pushes, so a
+        // 'block_top' of zero is the function body and its closing rule is
+        // unchanged. The store is a fourth monotonic parse-group counter and
+        // carries the same bound and the same exhaustion diagnostic as the
+        // value and operator stores.
+        if parser_cycle_state == 52 {
+            if block_records >= 512 {
+                status = 15;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 512;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parser_append_target = 5;
+                parser_append_width = 3;
+                parser_append_0 = block_kind_push;
+                parser_append_1 = block_state;
+                parser_append_2 = block_top;
+                parser_append_3 = 0;
+                parser_append_4 = 0;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 53;
+                parser_append_offset = current_start;
+                parser_append_line = current_line;
+                parser_append_column = current_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 53 {
+            block_records = block_records + 1;
+            block_top = block_records;
+            block_depth = block_depth + 1;
+            block_state = 0;
+            parser_state = 44;
+        }
+
+        // The block record is decoded; pop it, restore the enclosing block's
+        // statement state, and admit 'else' only after an 'if' body.
+        if parser_cycle_state == 54 {
+            block_kind_popped = parser_record_0;
+            block_state_saved = parser_record_1;
+            block_previous = parser_record_2;
+            if block_kind_popped <= 0 || block_kind_popped > 3
+                || block_state_saved < 0 || block_state_saved > 2 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && (block_previous < 0 || block_depth <= 0
+                || block_previous >= block_top) {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                block_top = block_previous;
+                block_depth = block_depth - 1;
+                block_state = block_state_saved;
+                block_else = 0;
+                if block_kind_popped == 1 {
+                    block_else = 1;
+                }
+                parse_index = parse_index + 1;
                 parser_state = 44;
             }
         }
@@ -2467,7 +2683,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         // instead - which is also how an empty body is rejected.
         if parser_cycle_state == 21 {
             expected_kind = 13;
-            if body_root <= 0 {
+            if block_state != 2 {
                 expected_kind = 6;
             }
             if closing_step == 1 {
@@ -2612,7 +2828,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_read_byte_value = result_value(bytes_get(&operators,
                         parser_read_offset));
                 }
-                if parser_record_target != 1 && parser_record_target != 2 {
+                if parser_record_target == 3 {
+                    parser_read_byte_value = result_value(bytes_get(&blocks,
+                        parser_read_offset));
+                }
+                if parser_record_target != 1 && parser_record_target != 2
+                    && parser_record_target != 3 {
                     status = 16;
                     parser_running = 0;
                 }
@@ -2718,9 +2939,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 push_result = result_value(bytes_push(&mut origins,
                     parser_read_byte_value));
             }
+            if parser_running == 1 && parser_append_target == 5 {
+                push_result = result_value(bytes_push(&mut blocks,
+                    parser_read_byte_value));
+            }
             if parser_running == 1 && parser_append_target != 1
                 && parser_append_target != 2 && parser_append_target != 3
-                && parser_append_target != 4 {
+                && parser_append_target != 4 && parser_append_target != 5 {
                 status = 16;
                 parser_running = 0;
             }
@@ -2763,12 +2988,14 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         return 70;
     }
     if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
-        || bytes_len(&operators) < operator_records * 20 {
+        || bytes_len(&operators) < operator_records * 20
+        || bytes_len(&blocks) < block_records * 12 {
         return 70;
     }
     if status == 0 && (bytes_len(&nodes) != node_count * 16
         || bytes_len(&values) != value_records * 8
-        || bytes_len(&operators) != operator_records * 20) {
+        || bytes_len(&operators) != operator_records * 20
+        || bytes_len(&blocks) != block_records * 12) {
         return 70;
     }
 
