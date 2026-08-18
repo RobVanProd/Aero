@@ -390,6 +390,69 @@ return node is still appended only after end-of-input is accepted, with the same
 `left`, the same origin, and the same producing token kind, so the module is
 byte-identical at O0 and O2.
 
+
+### Gate result, and why this number differs from the commit message
+
+The complete repository-root gate is green on the accepted tree: **117 test
+results - 114 integration binaries, two unit targets (`src/lib.rs` and
+`src/main.rs`), and one doc-test target - with zero failures.** The focused
+target `self_host_source_ingestion_tests` is 16/16 green within it, including
+the byte-for-byte reconstruction from accepted B1C, both the CAP-050 and CAP-051
+derived targets unchanged, and the identical 144-byte canonical module at O0
+and O2.
+
+Commit `084cb1a`'s own message reports the narrower figure of **114 test
+binaries**. Read that as an addition to this record rather than as a correction
+of it, because **no record here has ever carried a gate count at all**: the
+number 114 exists only in `084cb1a`'s commit message, 117 only in `6a2278e`'s,
+and neither this ledger nor `PROJECT_STATE.md` stated either figure before this
+paragraph. What is being reconciled is two commit messages against each other,
+not a record against a run.
+
+The two describe the same shape of run under different denominators: 114 counts
+only the integration binaries, 117 counts every `test result:` the gate emits -
+114 integration binaries, the `src/lib.rs` and `src/main.rs` unit targets, and
+the doc-test target. The count also did not move between `25fa375` and
+`084cb1a`: `src/compiler/tests/*.rs` is 114 files at both commits, and
+`git diff --diff-filter=D 25fa375..084cb1a` lists no deletion at all, so no test
+was weakened, skipped, or deleted.
+
+This paragraph exists because a later session diffing this record against the
+commit message will find the discrepancy, and should find the explanation beside
+it rather than have to re-derive it. `084cb1a` is left unrewritten: it is
+pushed, and rewriting published history is forbidden here.
+
+### Provenance: implemented by one session, verified and committed by another
+
+This checkpoint was produced by more than one session, and the history does not
+show that on its face.
+
+Three duplicate sessions were accidentally started on this worktree at once. One
+of them wrote the whole CAP-052 implementation - the product edit, the oracle
+statement model, the eighteen probes, and the record updates above - and then
+became permanently blocked before it could commit, as did a second. A third
+session adopted the resulting uncommitted tree, verified it rather than trusting
+it, and committed it as `084cb1a`.
+
+The adoption was checked rather than assumed, and the checks are worth reusing
+if this ever happens again. Structurally: parser states 44 through 49 and each
+new register appear exactly once, all ten CAP-052 patch constants are defined
+once and used once, no superseded marker (`skeleton_step == 8`,
+`closing_step == 3`, `pending_node_left = expression_root`) survives, the file
+still ends cleanly and is still 7-bit ASCII and LF-only, no pre-existing test
+was removed, and `SIGNATURE_PROBES` and `MATCH_PROBES` are byte-identical to
+`25fa375`. Decisively: `canonical_self_host_source_is_a_copy_derived_successor`
+asserts the canonical source is exactly accepted B1C plus the enumerated
+CAP-049, CAP-050a, CAP-050, CAP-051 and CAP-052 deltas, byte for byte, and
+interleaved writes from two concurrent authors cannot pass that assertion. It
+passes.
+
+What a later reader should take from this: the implementing session left no
+report of its own, so the "Red-first proof and the observed red" section above
+is that session's account as recorded at the time, and everything in the "Gate
+result" section is the adopting session's own run. Both are stated as
+observations, and neither is inferred from the other.
+
 ### Recommended next action after CAP-052
 
 H1B-4, control flow - `if` / `else if` / `else` and `while` over the existing

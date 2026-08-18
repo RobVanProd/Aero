@@ -186,7 +186,15 @@ and no hand derivation needing correction - run against the real linked product,
 which returned 80 for them beforehand. The accepted 34-byte canonical program is
 preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
-`self_host_source_ingestion_tests` is 16/16 green.
+`self_host_source_ingestion_tests` is 16/16 green, and the complete
+repository-root gate is green: 117 test results (114 integration binaries, two
+unit targets, one doc-test target), zero failures. This sentence adds a figure
+that was missing rather than correcting a wrong one: no record here has ever
+carried a gate count. The number 114 exists only in commit `084cb1a`'s own
+message and 117 only in commit `6a2278e`'s, and the two describe the same shape
+of run under different denominators - 114 counts integration binaries alone,
+117 counts every `test result:` the gate emits. What is being reconciled is two
+commit messages, not a record and a run.
 
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
