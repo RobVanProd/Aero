@@ -1,5 +1,178 @@
 # Aero Task Ledger
 
+## CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN - admit the single `match` over `Result<int, int>`
+
+- Date/task/status: 2026-08-17, `CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN`,
+  authored ledger-first from locally green CAP-050/H1B-1 at `ed3bbaa`. **Not
+  started.** This entry is the contract only; no product change is authorized
+  until the red-first oracle derivation below has been performed and recorded.
+  It is the second H1B checkpoint, per
+  `BOOTSTRAP_CONVERGENCE_READINESS.md:289`. It authorizes one match form in one
+  position. It is not H1B completion, H1, H2, stage convergence, or any
+  self-hosting claim.
+- D:-only task storage is unchanged from CAP-050: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`.
+- Observed behavior: with CAP-050 accepted, the compiler consumes its own
+  252,044-byte source, admits `fn result_value(result: Result<int, int>) -> int`,
+  records one parameter, reduces the identifier `match` to one name-reference
+  node, and stops at the identifier `result` at offset 68, line 2, column 18, with `diagnostic_code = 18` (expected `;`) and
+  `diagnostic_actual = 1`. The stop is one token past `match` precisely because
+  `match` was consumed as a name reference.
+- Measured target grammar, from the canonical bytes: `result_value`'s whole body
+  is `return match result { Ok(value) => value, Err(code) => 0 - code, };`. The
+  scrutinee is the single identifier `result`. There are exactly two arms, in
+  this order, each `IDENT ( IDENT ) => EXPR ,` with a trailing comma on the last
+  arm. The first arm body is one identifier; the second is `0 - code`, which the
+  accepted binary expression grammar already parses. No guard, no nested
+  pattern, no wildcard, no literal pattern, and no `match` anywhere else in a
+  return position appear in this construct.
+- Frozen semantics: in return-expression position only, when the leading token
+  is the identifier `match`, the parser enters a match construct instead of
+  reducing that identifier to a name-reference operand. The construct is
+  `match IDENT { IDENT ( IDENT ) => EXPR , IDENT ( IDENT ) => EXPR , }`, with
+  the arm-body expression drawn from the already-accepted expression grammar.
+  Any other shape - a missing arrow, a missing or extra arm, a missing trailing
+  comma, a nested or non-identifier pattern, a guard, or a scrutinee that is not
+  a single identifier - is an exact located rejection.
+- Frozen exclusions: no general patterns, guards, enums, or `match` anywhere but
+  a return expression, per `BOOTSTRAP_CONVERGENCE_READINESS.md:289`. `Ok` and
+  `Err` carry no enum, variant, type, ownership, or checked meaning; they are
+  identifiers matched byte-for-byte exactly as `int` and `Result` are in CAP-050.
+  The parameter store, the signature grammar, the statement grammar, control
+  flow, calls, references, the semantic, checked-IR, verifier, emitter, stdout
+  driver, host driver, runtime ABI, language profiles, and Rust compiler are all
+  untouched. A second `fn` item stays rejected, and that rejection is the
+  expected result rather than a defect, per
+  `BOOTSTRAP_CONVERGENCE_READINESS.md:309-311`.
+
+### Ambiguity 1, resolved: the name-reference node is prevented, not retracted
+
+The ordering rule at `BOOTSTRAP_CONVERGENCE_READINESS.md:282-284` says each
+checkpoint is "named by the construct at which the previous one stops", but
+CAP-050 stops at `result` (offset 68), one token past `match` (offset 62). The
+rule holds in substance: `match` is the construct that forces this checkpoint,
+and the stop sits one token later only because `match` was consumed as a name
+reference. Admitting `match` as a keyword construct is exactly what moves the
+stop.
+
+One refinement to that reasoning, recorded because building to the unrefined
+form would produce a wrong design. It is correct that H1B-2 must not **retract**
+the node: the node arena is append-only, every append is mirrored by an origin
+record, and `origin_count != node_count` is a hard failure
+(`compiler.aero:2775`), so there is no pop and none may be invented. But the
+node does **not survive** into H1B-2's parse. Once `match` is a keyword
+construct in this position it is never an operand, so no name-reference node is
+produced for it. The correct mechanism is therefore to **dispatch before
+appending** - decide on the leading token of the return expression, before the
+operand reduction runs - rather than to append and then undo. CAP-050's node was
+correct for CAP-050's grammar and is fully paid-for evidence that the operand
+path and the closing sequence work; it is superseded here, not wasted. The
+`body-operand` probe remains valid because it uses a non-keyword identifier.
+
+### Ambiguity 2, open: node-kind headroom is not settled by any document
+
+This is an observation about the code, not something the documents answer. The
+node validator admits `1..=19` only (`compiler.aero:2651`, `return 78`), and the
+root check requires the root node's kind to be exactly `19`
+(`compiler.aero:2690`). All twenty values are already allocated: 1 literal, 2
+name reference, 3/4/18 single-operand forms, 5 through 17 binary forms, and 19
+the function node. There is no spare kind for a match node or an arm node. The
+contract must settle, before implementation:
+
+1. Whether the match construct produces any node at all, and if so how many.
+2. If it needs a new kind, whether the `> 19` bound is raised, and to what.
+3. Whether raising it widens an authority H1B is forbidden from widening under
+   `BOOTSTRAP_CONVERGENCE_READINESS.md:246-248`.
+
+On (3) the relevant fact, again an observation rather than a citation: the
+`> 19` bound lives in the parse group and reports through `return 78`, so
+raising it is inside the parser's own authority. But node kinds are also
+consumed downstream - the origin sidecar maps kind to expected token kind
+(`compiler.aero:2860` onward), and the semantic, checked-IR and verifier phases
+count and interpret nodes. At this checkpoint those phases report not-attempted
+because the parse stops with `status = 10`, so a new kind is never consumed
+downstream **here**. It will be consumed at H1C. A new node kind is therefore
+admissible under this checkpoint's stop but creates a debt that H1C must pay,
+and the contract must say which of the two it is choosing. The cheapest option
+consistent with CAP-050's precedent - parameters produce no node - is that the
+match arms produce no new node kind and the construct reduces to existing kinds;
+that option must be evaluated first and rejected explicitly if it cannot work.
+
+### Candidate acceptance target - to be derived by the oracle before implementing
+
+The following stop is derived from the canonical bytes and the accepted closing
+sequence, and is offered as the prediction to confirm, **not as a frozen target**.
+Freezing it without the oracle would violate the red-first requirement at
+`BOOTSTRAP_CONVERGENCE_READINESS.md:295-296`.
+
+With the match construct admitted, function 1's body completes, the frozen
+closing sequence consumes `;` and `}`, and the third closing step expects EOF
+(`expected_kind = 0`) and finds the second `fn` item. Computed from the source
+bytes, that token is at **offset 146, line 8, column 1**. The predicted stop is
+therefore `status = 10`, offset 146, line 8, column 1, `diagnostic_code = 0`,
+`diagnostic_actual = 3`, `parameter_count = 1`, and `root = 0` - root because
+the state that assigns `root = node_count` (`compiler.aero:2277`) is
+reached only after the closing sequence fully succeeds, and the arena validator
+requires `root == 0` whenever `status != 0` (`compiler.aero:2693`).
+`node_count` is deliberately left open: it is determined by the answer to
+Ambiguity 2 and must be fixed by the contract before the oracle is written.
+
+This prediction also tests the Ambiguity 1 reasoning: the stop moves from 68 to
+146 exactly because `match` stops being an identifier operand. If the oracle
+derivation contradicts it, the derivation wins and this paragraph is wrong.
+
+- Red-first proof: before any product change, extend the oracle to model the
+  match construct, the arm grammar, and the closing sequence, exercise it on the
+  canonical source, and record the derived stop. The focused target must first
+  show the current product stops at the CAP-050 boundary - offset 68, expecting
+  `;` - and must state the derived H1B-2 target separately.
+- Acceptance tests: extend `SIGNATURE_PROBES` in
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` with match probes
+  before touching `compiler.aero`. Each probe is a complete program under a
+  hundred bytes that stops inside the parse phase. Negative coverage must
+  include a missing `=>`, a single arm, three arms, a missing trailing comma, a
+  non-identifier pattern, and a scrutinee that is not a single identifier, each
+  with an exact located first diagnostic. The accepted 34-byte canonical program
+  must still return 91 with the identical 144-byte module at O0 and O2, its
+  byte-for-byte reconstruction from accepted B1C must still hold, and the
+  complete repository-root gate must stay green.
+- Allowed files, exactly: `examples/aero_self_host_v0/compiler.aero`;
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`;
+  `.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+  `PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:245-249`.
+- Risks and mandatory stops: stop rather than approximate if admitting the match
+  form requires a semantic fact, a checked record, or any downstream change; if
+  the arm grammar cannot be expressed without retracting an appended node; if
+  the node arena would exceed 512 records, in which case H1B-6 must be pulled
+  forward per `BOOTSTRAP_CONVERGENCE_READINESS.md:297-299` rather than treated
+  as a grammar failure; or if the predicted stop cannot be derived before the
+  parser changes.
+- Recommended next action after CAP-051: H1B-3, statement blocks - `let`,
+  `let mut`, assignment, and multi-statement function bodies - per
+  `BOOTSTRAP_CONVERGENCE_READINESS.md:290`.
+
+### CAP-050 branch pushed for durability
+
+- 2026-08-17: `claude/self-hosting-analysis-be3f72` was pushed to `origin` at
+  HEAD `ed3bbaa` on the repository owner's explicit instruction, as a durability
+  copy only. A verified `git bundle` of the same head was written first to
+  `D:\Aero-backups\`, outside the repository.
+- This is **not** a publication, **not** an accepted checkpoint, and **not** a
+  capability claim. No pull request was opened and none may be inferred; no PR
+  body was written or synchronized; no release, package, registry record,
+  benchmark claim, or external artifact was produced. `AGENTS.md:49-52` is
+  therefore not engaged, and `AGENTS.md:9-11` is not violated, because a
+  non-default-branch push is not among the five objects it enumerates.
+- Of the three workflows, only `.github/workflows/ci.yml` runs on this branch:
+  it triggers on `push: branches: [ "**" ]`. `rust.yml` and `cap023-evidence.yml`
+  are master/pull-request scoped and do not run. No acceptance signal is
+  produced by this push, and none may be cited as evidence.
+- The governing documents are silent on pushing a branch without a pull request
+  for durability. The owner decided it; it was not inferred from the documents.
+
 ## CAP-050-H1B1-SELF-SOURCE-PARAMETER-LISTS - admit the canonical signature grammar
 
 - Date/task/status: 2026-08-17, `CAP-050-H1B1-SELF-SOURCE-PARAMETER-LISTS`,
