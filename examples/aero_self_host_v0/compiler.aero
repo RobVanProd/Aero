@@ -1162,6 +1162,23 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut closing_step: int = 0;
     let mut int_matches: int = 0;
     let mut parameter_count: int = 0;
+    let mut param_mode: int = 0;
+    let mut param_cycle_mode: int = 0;
+    let mut param_alternate: int = 0;
+    let mut param_hold: int = 0;
+    let mut param_store: int = 0;
+    let mut param_name_id: int = 0;
+    let mut param_type_code: int = 0;
+    let mut param_is_int: int = 0;
+    let mut param_is_result: int = 0;
+    let mut param_failed: int = 0;
+    let mut param_push: int = 0;
+    let mut param_b0: int = 0;
+    let mut param_b1: int = 0;
+    let mut param_b2: int = 0;
+    let mut param_b3: int = 0;
+    let mut param_b4: int = 0;
+    let mut param_b5: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -1347,6 +1364,37 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if skeleton_step == 7 {
                 expected_kind = 6;
             }
+            // CAP-050 signature grammar. Between the '(' at step 2 and the '->'
+            // at step 4 the parameter sub-machine owns step 3. Its mode is
+            // latched once per token, exactly as parser_state is, so the flat
+            // per-mode branches cannot cascade within one iteration.
+            param_cycle_mode = param_mode;
+            param_alternate = 0;
+            param_hold = 0;
+            param_store = 0;
+            if skeleton_step == 3 {
+                expected_kind = 1;
+                if param_cycle_mode == 0 {
+                    param_alternate = 11;
+                }
+                if param_cycle_mode == 1 {
+                    expected_kind = 17;
+                }
+                if param_cycle_mode == 3 {
+                    expected_kind = 29;
+                }
+                if param_cycle_mode == 5 {
+                    expected_kind = 16;
+                }
+                if param_cycle_mode == 7 {
+                    expected_kind = 31;
+                }
+                if param_cycle_mode == 8 {
+                    expected_kind = 11;
+                    param_alternate = 16;
+                }
+                param_hold = 1;
+            }
             if current_kind < 0 || current_start < 0 || current_length < 0 {
                 status = 16;
                 parser_running = 0;
@@ -1356,7 +1404,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && current_kind != expected_kind {
+            if parser_running == 1 && current_kind != expected_kind
+                && (param_alternate == 0 || current_kind != param_alternate) {
                 status = 10;
                 error_offset = current_start;
                 error_line = current_line;
@@ -1364,6 +1413,145 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 diagnostic_code = expected_kind;
                 diagnostic_actual = current_kind;
                 parser_running = 0;
+            }
+            if parser_running == 1 && skeleton_step == 3 {
+                if param_cycle_mode == 0 && current_kind == 11 {
+                    param_hold = 0;
+                    param_mode = 0;
+                }
+                if param_cycle_mode == 8 && current_kind == 11 {
+                    param_hold = 0;
+                    param_mode = 0;
+                }
+                if param_cycle_mode == 8 && current_kind == 16 {
+                    param_mode = 9;
+                }
+                if (param_cycle_mode == 0 && current_kind == 1)
+                    || param_cycle_mode == 9 {
+                    param_name_id = current_name_id;
+                    param_mode = 1;
+                    if param_name_id <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                }
+                if param_cycle_mode == 1 {
+                    param_mode = 2;
+                }
+                if param_cycle_mode == 3 {
+                    param_mode = 4;
+                }
+                if param_cycle_mode == 5 {
+                    param_mode = 6;
+                }
+                if param_cycle_mode == 7 {
+                    param_type_code = 2;
+                    param_store = 1;
+                    param_mode = 8;
+                }
+                if param_cycle_mode == 2 || param_cycle_mode == 4
+                    || param_cycle_mode == 6 {
+                    param_is_int = 0;
+                    param_is_result = 0;
+                    if current_length == 3 {
+                        param_b0 = result_value(bytes_get(&source, current_start));
+                        param_b1 = result_value(bytes_get(&source, current_start + 1));
+                        param_b2 = result_value(bytes_get(&source, current_start + 2));
+                        if param_b0 == 105 && param_b1 == 110 && param_b2 == 116 {
+                            param_is_int = 1;
+                        }
+                    }
+                    if param_cycle_mode == 2 && current_length == 6 {
+                        param_b0 = result_value(bytes_get(&source, current_start));
+                        param_b1 = result_value(bytes_get(&source, current_start + 1));
+                        param_b2 = result_value(bytes_get(&source, current_start + 2));
+                        param_b3 = result_value(bytes_get(&source, current_start + 3));
+                        param_b4 = result_value(bytes_get(&source, current_start + 4));
+                        param_b5 = result_value(bytes_get(&source, current_start + 5));
+                        if param_b0 == 82 && param_b1 == 101 && param_b2 == 115
+                            && param_b3 == 117 && param_b4 == 108
+                            && param_b5 == 116 {
+                            param_is_result = 1;
+                        }
+                    }
+                    if param_is_int == 0 && param_is_result == 0 {
+                        status = 12;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = 102;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 2
+                        && param_is_int == 1 {
+                        param_type_code = 1;
+                        param_store = 1;
+                        param_mode = 8;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 2
+                        && param_is_result == 1 {
+                        param_mode = 3;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 4 {
+                        param_mode = 5;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 6 {
+                        param_mode = 7;
+                    }
+                }
+                if parser_running == 1 && param_store == 1 {
+                    param_failed = 0;
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_0(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_1(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_2(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_3(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_0(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_1(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_2(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_3(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    if param_failed == 1 {
+                        status = 8;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        parser_running = 0;
+                    } else {
+                        parameter_count = parameter_count + 1;
+                    }
+                }
             }
             int_matches = 1;
             if skeleton_step == 5 && current_length != 3 {
@@ -1405,7 +1593,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
-                skeleton_step = skeleton_step + 1;
+                if param_hold == 0 {
+                    skeleton_step = skeleton_step + 1;
+                }
                 parser_state = 1;
                 if skeleton_step == 8 {
                     parser_state = 3;

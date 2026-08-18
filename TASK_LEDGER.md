@@ -175,6 +175,76 @@
   stop early at all; it accepts tokens it should reject and runs deep into the
   body before failing, far outside the grid. The next probe must cover a much
   wider token range, or better, bisect the sub-machine itself.
+### CAP-050 accepted locally - the signature grammar is admitted
+
+- Status: the parser sub-machine is landed on the proven CAP-050a store and is
+  locally green. CAP-050 / H1B-1 is complete. This is signature grammar only. It
+  is not H1B completion, H1, H2, stage convergence, or any self-hosting claim,
+  and a parameter still means nothing to the type, ownership, checked-IR,
+  verifier, or backend authorities.
+- What was added, exactly four transformations inside the frozen skeleton block:
+  (1) the latched mode `param_cycle_mode` with its own scratch registers, kept
+  separate from the lexer's `b0`-`b5` and from `word` / `push_result`; (2) a
+  mode-driven expected-kind table for `skeleton_step == 3` with a single
+  `param_alternate` second admissible kind, reset to zero on every token so it
+  cannot leak into another skeleton step; (3) the transitions, the closed type
+  matching against `int` and `Result`, and the inline eight-byte store append;
+  and (4) a `param_hold` that suppresses the `skeleton_step` advance while the
+  parameter list is still open. No syntax node is created for a parameter.
+- The three suspects the previous narrowing named were removed by construction
+  rather than instrumented, so none of them was observed failing and none is
+  confirmed as the earlier defect. Two are eliminated outright: the sub-machine
+  uses dedicated registers, and `param_alternate` is cleared on every token
+  before the step-3 block can set it. The third - the advance condition - is now
+  a single explicit hold flag. One further hazard was designed out that the
+  narrowing did not name: in this flat per-mode `if` style a branch that both
+  tests and assigns `param_mode` falls through into the next branch within the
+  same loop iteration, so one token could advance several modes. The mode is
+  therefore latched once per token, exactly as the driver already does with
+  `parser_cycle_state = parser_state`. That hazard is consistent with the
+  observed split between the working empty path and the failing nonempty path -
+  `fn score ( )` never takes two consecutive modes in one iteration - but that
+  remains an inference, not a measurement.
+- One real defect was found and fixed, and it was in the oracle, not the product.
+  Fed input that reaches the body, the run returned 90 - the semantic-group
+  comparison - with the entire parse group already matching, including
+  `node_count = 1`, `parameter_count = 1`, and the full parse checksum. The
+  semantic group is never entered here, but it still folds the parser's parallel
+  origin sidecar and reports `origin_count`, and the oracle modelled that group
+  as twelve zeros because H1A never produced a node. `Ingestion` now carries the
+  origin arena as `[node id, start, line, column, token kind]` records;
+  `unattempted_semantic_checksum` folds them and reports the count. No Aero
+  source changed for this.
+- Evidence: `self_host_source_ingestion_tests` passes 10/10 and the complete
+  repository-root gate is green. Ten focused probes run against the real linked
+  product return 91 against oracle-derived targets: `IDENT : int`,
+  `IDENT : Result < int , int >`, two comma-separated parameters, the six
+  mandated negatives - missing colon, missing type, unknown type identifier,
+  trailing comma, missing closing parenthesis, and a malformed `Result` generic -
+  and one body probe that reproduces the self-input target shape at 34 bytes:
+  one admitted parameter, one name-reference node, and the frozen closing
+  sequence rejecting the identifier after it. Fed its own complete source the
+  product now admits `result : Result < int , int >`, records one parameter,
+  reduces the leading `match` identifier to one node, and stops at offset 68,
+  line 2, column 18 with `diagnostic_code = 18` and `diagnostic_actual = 1`,
+  matching all 68 independently derived values at O0 and O2. The accepted 34-byte
+  canonical program still returns 91 and writes the identical 144-byte module,
+  MD5 `fd2390d17d448d4539a72bf1991314dc`; its expectation vector did not move,
+  because it records no parameter.
+- The canonical source stays exactly reconstructible from accepted B1C: the six
+  CAP-049 ingestion differences, the seven CAP-050a store differences, and the
+  four CAP-050 sub-machine differences, asserted byte for byte. The Aero patch
+  and the Rust reconstruction were generated from one shared definition, so the
+  admitted grammar and its derivation cannot drift apart.
+- Why the probes mattered: the canonical self-source is a single opaque
+  pass/fail, which is why the first attempt could burn 46 and then roughly 2,000
+  candidates and learn only that at least two fields moved. With the probes in
+  place the first failing run named its own cause in one cycle - nine probes
+  green, one body probe red, return code 90 - and the fix followed directly.
+- Recommended next action: H1B-2, the single `match` over `Result<int, int>` that
+  forms `result_value`'s whole body, starting from the exact construct this
+  checkpoint stops at - the identifier `result` at offset 68, line 2, column 18.
+
 ### CAP-050 focused signature probes - the diagnostic the last attempt lacked
 
 - Status: landed and locally green ahead of any parser change. This is red-first

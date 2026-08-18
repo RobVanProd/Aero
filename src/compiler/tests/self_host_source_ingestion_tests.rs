@@ -161,6 +161,11 @@ mod oracle {
         pub parameters: Vec<(i32, i32)>,
         /// Every syntax node as `[kind, payload, left, right]`, in append order.
         pub nodes: Vec<[i32; 4]>,
+        /// The parallel origin sidecar the parser appends beside every node, as
+        /// `[node id, start, line, column, token kind]`. It is a parse-phase
+        /// arena, but `origin_count` is compared and folded with the semantic
+        /// group, so a stopped parse that produced a node still reports it.
+        pub origins: Vec<[i32; 5]>,
     }
 
     pub struct Bounds {
@@ -192,6 +197,7 @@ mod oracle {
                     signature_grammar: false,
                     parameters: Vec::new(),
                     nodes: Vec::new(),
+                    origins: Vec::new(),
                 };
             }
             if *byte == b'\n' {
@@ -228,6 +234,7 @@ mod oracle {
                     signature_grammar: false,
                     parameters: Vec::new(),
                     nodes: Vec::new(),
+                    origins: Vec::new(),
                 }
             };
         }
@@ -410,6 +417,7 @@ mod oracle {
             signature_grammar: false,
             parameters: Vec::new(),
             nodes: Vec::new(),
+            origins: Vec::new(),
         }
     }
 
@@ -489,6 +497,7 @@ mod oracle {
         stopped.signature_grammar = true;
         stopped.parameters = Vec::new();
         stopped.nodes = Vec::new();
+        stopped.origins = Vec::new();
         let mut index = 0usize;
 
         let text = |record: &TokenRecord| {
@@ -566,7 +575,15 @@ mod oracle {
         // One leading identifier operand becomes a name-reference node; the
         // frozen closing sequence then requires `;`.
         if ingested.tokens[index][0] == 1 {
-            stopped.nodes.push([2, ingested.tokens[index][5], 0, 0]);
+            let record = &ingested.tokens[index];
+            stopped.nodes.push([2, record[5], 0, 0]);
+            stopped.origins.push([
+                i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
+                record[1],
+                record[3],
+                record[4],
+                record[0],
+            ]);
             index += 1;
         }
         take!(18); // ;
@@ -645,12 +662,30 @@ mod oracle {
     }
 
     /// The semantic-group checksum when the parser stopped first.
-    pub fn unattempted_semantic_checksum() -> i32 {
+    ///
+    /// The semantic phase is never entered, but the group still folds the
+    /// parser's origin sidecar and reports `origin_count`, so a stopped parse
+    /// that produced a node is not a group of zeros.
+    pub fn unattempted_semantic_checksum(origins: &[[i32; 5]]) -> i32 {
         let mut checksum = 17;
+        for record in origins {
+            for word in record {
+                checksum = checksum_step(checksum, *word);
+            }
+        }
         for word in [994, 995, 996] {
             checksum = checksum_step(checksum, word);
         }
-        for _ in 0..12 {
+        // status, node, offset + 1, line, column, code, expected, actual.
+        for _ in 0..8 {
+            checksum = checksum_step(checksum, 0);
+        }
+        checksum = checksum_step(
+            checksum,
+            i32::try_from(origins.len()).expect("bounded origins"),
+        );
+        // symbol_count, fact_count, semantic_root_type.
+        for _ in 0..3 {
             checksum = checksum_step(checksum, 0);
         }
         checksum
@@ -681,7 +716,7 @@ mod oracle {
     /// The complete 67-value expectation vector `run_runtime_ascii_llvm_emitter`
     /// must match for a run that stops before the semantic phase.
     pub fn expectation_vector(source: &[u8], stopped: &Ingestion) -> Vec<i32> {
-        let semantic = unattempted_semantic_checksum();
+        let semantic = unattempted_semantic_checksum(&stopped.origins);
         let checked = unattempted_checked_checksum(semantic);
         let verified = unattempted_verified_checksum();
         let mut vector = vec![
@@ -697,7 +732,7 @@ mod oracle {
             i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
             0,
             parse_checksum(source, stopped),
-            // semantic group - never entered
+            // semantic group - never entered, but it reports `origin_count`
             0,
             0,
             -1,
@@ -706,7 +741,7 @@ mod oracle {
             0,
             0,
             0,
-            0,
+            i32::try_from(stopped.origins.len()).expect("bounded origins"),
             0,
             0,
             0,
@@ -1078,6 +1113,250 @@ const PARAMETER_FOLD: &str = r#"    checksum = checksum_step(checksum, root);
 
     if status != expected_status"#;
 
+/// CAP-050's parameter sub-machine, inserted into the frozen skeleton block.
+///
+/// The Aero product and this reconstruction are patched from one shared
+/// definition, so the admitted grammar and its byte-for-byte derivation cannot
+/// drift apart.
+const PARAM_REGISTERS_ANCHOR: &str = r#"    let mut parameter_count: int = 0;
+"#;
+const PARAM_REGISTERS: &str = r#"    let mut parameter_count: int = 0;
+    let mut param_mode: int = 0;
+    let mut param_cycle_mode: int = 0;
+    let mut param_alternate: int = 0;
+    let mut param_hold: int = 0;
+    let mut param_store: int = 0;
+    let mut param_name_id: int = 0;
+    let mut param_type_code: int = 0;
+    let mut param_is_int: int = 0;
+    let mut param_is_result: int = 0;
+    let mut param_failed: int = 0;
+    let mut param_push: int = 0;
+    let mut param_b0: int = 0;
+    let mut param_b1: int = 0;
+    let mut param_b2: int = 0;
+    let mut param_b3: int = 0;
+    let mut param_b4: int = 0;
+    let mut param_b5: int = 0;
+"#;
+const SKELETON_TABLE_ANCHOR: &str = r#"            if skeleton_step == 7 {
+                expected_kind = 6;
+            }
+            if current_kind < 0 || current_start < 0 || current_length < 0 {"#;
+const SKELETON_TABLE: &str = r#"            if skeleton_step == 7 {
+                expected_kind = 6;
+            }
+            // CAP-050 signature grammar. Between the '(' at step 2 and the '->'
+            // at step 4 the parameter sub-machine owns step 3. Its mode is
+            // latched once per token, exactly as parser_state is, so the flat
+            // per-mode branches cannot cascade within one iteration.
+            param_cycle_mode = param_mode;
+            param_alternate = 0;
+            param_hold = 0;
+            param_store = 0;
+            if skeleton_step == 3 {
+                expected_kind = 1;
+                if param_cycle_mode == 0 {
+                    param_alternate = 11;
+                }
+                if param_cycle_mode == 1 {
+                    expected_kind = 17;
+                }
+                if param_cycle_mode == 3 {
+                    expected_kind = 29;
+                }
+                if param_cycle_mode == 5 {
+                    expected_kind = 16;
+                }
+                if param_cycle_mode == 7 {
+                    expected_kind = 31;
+                }
+                if param_cycle_mode == 8 {
+                    expected_kind = 11;
+                    param_alternate = 16;
+                }
+                param_hold = 1;
+            }
+            if current_kind < 0 || current_start < 0 || current_length < 0 {"#;
+const SUB_MACHINE_ANCHOR: &str = r#"            if parser_running == 1 && current_kind != expected_kind {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            int_matches = 1;"#;
+const SUB_MACHINE: &str = r#"            if parser_running == 1 && current_kind != expected_kind
+                && (param_alternate == 0 || current_kind != param_alternate) {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && skeleton_step == 3 {
+                if param_cycle_mode == 0 && current_kind == 11 {
+                    param_hold = 0;
+                    param_mode = 0;
+                }
+                if param_cycle_mode == 8 && current_kind == 11 {
+                    param_hold = 0;
+                    param_mode = 0;
+                }
+                if param_cycle_mode == 8 && current_kind == 16 {
+                    param_mode = 9;
+                }
+                if (param_cycle_mode == 0 && current_kind == 1)
+                    || param_cycle_mode == 9 {
+                    param_name_id = current_name_id;
+                    param_mode = 1;
+                    if param_name_id <= 0 {
+                        status = 16;
+                        parser_running = 0;
+                    }
+                }
+                if param_cycle_mode == 1 {
+                    param_mode = 2;
+                }
+                if param_cycle_mode == 3 {
+                    param_mode = 4;
+                }
+                if param_cycle_mode == 5 {
+                    param_mode = 6;
+                }
+                if param_cycle_mode == 7 {
+                    param_type_code = 2;
+                    param_store = 1;
+                    param_mode = 8;
+                }
+                if param_cycle_mode == 2 || param_cycle_mode == 4
+                    || param_cycle_mode == 6 {
+                    param_is_int = 0;
+                    param_is_result = 0;
+                    if current_length == 3 {
+                        param_b0 = result_value(bytes_get(&source, current_start));
+                        param_b1 = result_value(bytes_get(&source, current_start + 1));
+                        param_b2 = result_value(bytes_get(&source, current_start + 2));
+                        if param_b0 == 105 && param_b1 == 110 && param_b2 == 116 {
+                            param_is_int = 1;
+                        }
+                    }
+                    if param_cycle_mode == 2 && current_length == 6 {
+                        param_b0 = result_value(bytes_get(&source, current_start));
+                        param_b1 = result_value(bytes_get(&source, current_start + 1));
+                        param_b2 = result_value(bytes_get(&source, current_start + 2));
+                        param_b3 = result_value(bytes_get(&source, current_start + 3));
+                        param_b4 = result_value(bytes_get(&source, current_start + 4));
+                        param_b5 = result_value(bytes_get(&source, current_start + 5));
+                        if param_b0 == 82 && param_b1 == 101 && param_b2 == 115
+                            && param_b3 == 117 && param_b4 == 108
+                            && param_b5 == 116 {
+                            param_is_result = 1;
+                        }
+                    }
+                    if param_is_int == 0 && param_is_result == 0 {
+                        status = 12;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        diagnostic_code = 102;
+                        diagnostic_actual = current_kind;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 2
+                        && param_is_int == 1 {
+                        param_type_code = 1;
+                        param_store = 1;
+                        param_mode = 8;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 2
+                        && param_is_result == 1 {
+                        param_mode = 3;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 4 {
+                        param_mode = 5;
+                    }
+                    if parser_running == 1 && param_cycle_mode == 6 {
+                        param_mode = 7;
+                    }
+                }
+                if parser_running == 1 && param_store == 1 {
+                    param_failed = 0;
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_0(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_1(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_2(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_3(param_name_id)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_0(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_1(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_2(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    param_push = result_value(bytes_push(&mut parameters,
+                        word_byte_3(param_type_code)));
+                    if param_push < 0 {
+                        param_failed = 1;
+                    }
+                    if param_failed == 1 {
+                        status = 8;
+                        error_offset = current_start;
+                        error_line = current_line;
+                        error_column = current_column;
+                        parser_running = 0;
+                    } else {
+                        parameter_count = parameter_count + 1;
+                    }
+                }
+            }
+            int_matches = 1;"#;
+const ADVANCE_ANCHOR: &str = r#"            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                skeleton_step = skeleton_step + 1;
+                parser_state = 1;
+                if skeleton_step == 8 {
+                    parser_state = 3;
+                }
+            }"#;
+const HELD_ADVANCE: &str = r#"            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if param_hold == 0 {
+                    skeleton_step = skeleton_step + 1;
+                }
+                parser_state = 1;
+                if skeleton_step == 8 {
+                    parser_state = 3;
+                }
+            }"#;
+
 /// Apply the six frozen CAP-049 ingestion differences to the accepted B1C
 /// source. `compiler.aero` must equal this byte for byte.
 fn expected_h1a_source() -> String {
@@ -1185,7 +1464,24 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(vector_anchor, "        2, 20, 11, 11, 810191,");
     let tail_anchor = "        1, 0, 0, -1, 144, 506643);";
     assert_eq!(derived.matches(tail_anchor).count(), 1);
-    derived.replace(tail_anchor, "        1, 0, 0, -1, 144, 506643, 0);")
+    let derived = derived.replace(tail_anchor, "        1, 0, 0, -1, 144, 506643, 0);");
+
+    // CAP-050 adds the signature-grammar sub-machine on top of that proven
+    // store: the latched mode with its scratch registers, the mode-driven
+    // expected-kind table, the transition-and-append block, and the held
+    // `skeleton_step` advance. Nothing else in the parser moves, and no syntax
+    // node is created for a parameter.
+    assert_eq!(derived.matches(PARAM_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(PARAM_REGISTERS_ANCHOR, PARAM_REGISTERS);
+
+    assert_eq!(derived.matches(SKELETON_TABLE_ANCHOR).count(), 1);
+    let derived = derived.replace(SKELETON_TABLE_ANCHOR, SKELETON_TABLE);
+
+    assert_eq!(derived.matches(SUB_MACHINE_ANCHOR).count(), 1);
+    let derived = derived.replace(SUB_MACHINE_ANCHOR, SUB_MACHINE);
+
+    assert_eq!(derived.matches(ADVANCE_ANCHOR).count(), 1);
+    derived.replace(ADVANCE_ANCHOR, HELD_ADVANCE)
 }
 
 // ---------------------------------------------------------------------------
@@ -1445,17 +1741,31 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
         "every source byte must be ingested"
     );
 
-    let mut stopped = oracle::first_parser_stop(&ingested, &source);
-    stopped.signature_grammar = true;
-    // The first construct outside the frozen `fn NAME ( ) -> int { return`
-    // skeleton is the `result` parameter of `fn result_value(...)`.
-    assert_eq!(stopped.status, 10);
-    assert_eq!(stopped.error_offset, 16);
-    assert_eq!(stopped.error_line, 1);
-    assert_eq!(stopped.error_column, 17);
-    assert_eq!(stopped.diagnostic_code, 11);
-    assert_eq!(stopped.diagnostic_actual, 1);
+    // CAP-049 stopped at the `result` parameter of `fn result_value(...)`.
+    // CAP-050 admits that signature, so the first unsupported construct is now
+    // the second token of `return match result {`, where the frozen `; } EOF`
+    // closing sequence begins.
+    let superseded = oracle::first_parser_stop(&ingested, &source);
+    assert_eq!(
+        (superseded.error_offset, superseded.diagnostic_code),
+        (16, 11)
+    );
     assert_eq!(&source[16..22], b"result");
+
+    let stopped = oracle::signature_parser_stop(&ingested, &source);
+    assert_eq!(stopped.status, 10);
+    assert_eq!(stopped.error_offset, 68);
+    assert_eq!(stopped.error_line, 2);
+    assert_eq!(stopped.error_column, 18);
+    assert_eq!(stopped.diagnostic_code, 18);
+    assert_eq!(stopped.diagnostic_actual, 1);
+    assert_eq!(stopped.nodes.len(), 1, "the leading `match` identifier");
+    assert_eq!(stopped.parameters.len(), 1);
+    assert_eq!(
+        stopped.parameters[0].1, 2,
+        "the one parameter is `Result<int, int>`"
+    );
+    assert_eq!(&source[68..74], b"result");
 
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
@@ -1467,7 +1777,7 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
                 optimization
             ),
             91,
-            "CAP-049 self-ingestion diverged from the independent oracle at {optimization}"
+            "CAP-050 self-ingestion diverged from the independent oracle at {optimization}"
         );
     }
 }
@@ -1482,15 +1792,14 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
 /// group stays not-attempted and the expectation vector has the same shape as
 /// the self-ingestion vector.
 ///
-/// Red-first: each probe asserts what the accepted parser does today - it stops
-/// at the first parameter name expecting `)` - as real product evidence, and
-/// separately states the CAP-050 target derived by the oracle. Nothing here is
-/// graded against Aero output.
+/// Every expectation is derived by the oracle from the token stream alone; the
+/// superseded CAP-049 boundary is asserted alongside it so the checkpoint's
+/// movement stays visible.
 ///
 /// The probes link at `-O0` only. `-O0`/`-O2` equivalence for this product is
 /// established by the canonical-module and self-ingestion tests.
-const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
-    // label, source, status, diagnostic code, diagnostic actual, token text, parameters
+const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
+    // label, source, status, code, actual, token text, parameters, nodes
     (
         "one-int",
         b"fn f(a: int) -> q { return 1; }",
@@ -1499,6 +1808,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         1,
         "q",
         1,
+        0,
     ),
     (
         "one-result",
@@ -1508,6 +1818,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         1,
         "q",
         1,
+        0,
     ),
     (
         "two-int",
@@ -1517,6 +1828,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         1,
         "q",
         2,
+        0,
     ),
     (
         "missing-colon",
@@ -1525,6 +1837,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         17,
         1,
         "int",
+        0,
         0,
     ),
     (
@@ -1535,6 +1848,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         11,
         ")",
         0,
+        0,
     ),
     (
         "unknown-type",
@@ -1543,6 +1857,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         102,
         1,
         "byte",
+        0,
         0,
     ),
     (
@@ -1553,6 +1868,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         11,
         ")",
         1,
+        0,
     ),
     (
         "missing-paren",
@@ -1562,6 +1878,7 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         35,
         "->",
         1,
+        0,
     ),
     (
         "malformed-result",
@@ -1571,12 +1888,26 @@ const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
         31,
         ">",
         0,
+        0,
+    ),
+    // The self-input target shape at probe scale: one admitted parameter, one
+    // name-reference node for the body's leading identifier, and the frozen
+    // closing sequence rejecting the identifier that follows it.
+    (
+        "body-operand",
+        b"fn f(a: int) -> int { return z x; }",
+        10,
+        18,
+        1,
+        "x",
+        1,
+        1,
     ),
 ];
 
 #[test]
-fn focused_signature_probes_pin_todays_parser_and_derive_the_checkpoint_targets() {
-    for (label, source, status, code, actual, text, parameters) in SIGNATURE_PROBES {
+fn focused_signature_probes_exercise_every_rule_of_the_admitted_grammar() {
+    for (label, source, status, code, actual, text, parameters, nodes) in SIGNATURE_PROBES {
         let ingested = oracle::ingest(
             source,
             &oracle::Bounds {
@@ -1588,18 +1919,13 @@ fn focused_signature_probes_pin_todays_parser_and_derive_the_checkpoint_targets(
         );
         assert_eq!(ingested.status, 0, "probe `{label}` must lex completely");
 
-        // Today: the accepted parser rejects the first parameter name because
-        // the frozen skeleton expects `)` immediately after `(`.
-        let mut today = oracle::first_parser_stop(&ingested, source);
-        today.signature_grammar = true;
-        assert_eq!(today.status, 10, "probe `{label}` today");
-        assert_eq!(today.diagnostic_code, 11, "probe `{label}` today");
-        assert_eq!(today.diagnostic_actual, 1, "probe `{label}` today");
-        assert_eq!(today.error_offset, 5, "probe `{label}` today");
+        // The superseded CAP-049 boundary: the frozen skeleton rejected the
+        // first parameter name because it expected `)` immediately after `(`.
+        let superseded = oracle::first_parser_stop(&ingested, source);
         assert_eq!(
-            run_expectation("signature-probe", compiled_h1a(), source, &today, "-O0"),
-            91,
-            "probe `{label}` diverged from the accepted parser boundary"
+            (superseded.error_offset, superseded.diagnostic_code),
+            (5, 11),
+            "probe `{label}` superseded boundary"
         );
 
         // The CAP-050 target for the same bytes, derived from the token stream.
@@ -1621,19 +1947,24 @@ fn focused_signature_probes_pin_todays_parser_and_derive_the_checkpoint_targets(
             *parameters,
             "probe `{label}` target parameter count"
         );
-        assert!(
-            target.nodes.is_empty(),
-            "probe `{label}` must stop before the body"
+        assert_eq!(
+            target.nodes.len(),
+            *nodes,
+            "probe `{label}` target node count"
+        );
+        assert_eq!(
+            run_expectation("signature-probe", compiled_h1a(), source, &target, "-O0"),
+            91,
+            "probe `{label}` diverged from the derived CAP-050 target"
         );
     }
 }
 
-/// CAP-050 / H1B-1 target, derived here before the parser changes.
+/// CAP-050 / H1B-1 target, derived from the canonical token stream alone.
 ///
-/// This is not a claim that the parser admits signatures today - the test above
-/// proves it still stops at the CAP-049 boundary. It freezes, from the canonical
-/// token stream alone, exactly where the next checkpoint must stop, so the
-/// implementation cannot be graded against its own output.
+/// This target was frozen before the parser admitted a signature, so the
+/// implementation could not be graded against its own output. It is retained
+/// as the shortest statement of where the checkpoint must stop.
 #[test]
 fn the_signature_grammar_checkpoint_has_an_independently_derived_target() {
     let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");

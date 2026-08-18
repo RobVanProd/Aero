@@ -89,6 +89,37 @@ preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
 `self_host_source_ingestion_tests` is 8/8 green.
 
+CAP-050a and CAP-050/H1B-1 are the next two H1 prerequisites to execute and are
+locally green. CAP-050a added the bounded parameter store - one owner, its
+counter, a 68th expectation value, and a validated `989` checksum region -
+without any parser rule, so that a later grammar failure would be unambiguous.
+CAP-050 then added the parameter sub-machine itself. Between the `(` and the
+`->` the parser now accepts either an immediate `)` or a nonempty list
+`IDENT : TYPE ( , IDENT : TYPE )*`, where `TYPE` is exactly the identifier `int`
+or the exact sequence `Result < int , int >`. Each admitted parameter appends one
+two-word record to the store; no syntax node is created for a parameter, because
+the node arena is what the semantic, checked-IR, and verifier phases count. Any
+other token, type identifier, trailing comma, missing colon, or unbalanced
+generic form is an exact located rejection. The canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+is now 252,044 bytes, 5,792 LF bytes, 7-bit ASCII, SHA-256
+`bc1c6418a86df54ea9e36c8df4f7b2c667a170b6f96510ebd06ba95a48e12d6d`, and remains a
+copy-derived successor of accepted B1C asserted byte for byte: the six CAP-049
+ingestion differences, seven CAP-050a store differences, and four CAP-050
+sub-machine differences. Fed its own exact bytes it now admits the
+`result : Result < int , int >` parameter list and the `int` return type, records
+one parameter, reduces the body's leading `match` identifier to one
+name-reference node, and stops at the independently predicted next construct -
+`status = 10`, offset 68, line 2, column 18, expecting `;` and finding an
+identifier, with one node and one parameter. All 68 independently derived
+expectation values match at O0 and O2, no output byte is written, and allocation
+accounting balances with zero live allocations. The accepted 34-byte canonical
+program is preserved exactly: exit 91 and the identical 144-byte module, MD5
+`fd2390d17d448d4539a72bf1991314dc`. Ten focused signature probes - three
+positive shapes, six mandated negatives, and one body probe - are run against the
+real linked product. The focused target `self_host_source_ingestion_tests` is
+10/10 green.
+
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
 result temporary inside a loop became a non-entry `alloca` that LLVM never
@@ -102,9 +133,12 @@ checked `ByteBuffer` operations at O0 and O2, and all eight accepted `.aero`
 products plus the specimen emit no `alloca` outside an entry block while still
 passing required LLVM verification.
 
-H1A is ingestion and tokenization only. The compiler reads its own source; it
-does not parse, type, check, verify, or lower it. H1B through H1E and the final
-stage replay remain open, and no self-hosting claim follows.
+H1A is ingestion and tokenization only, and CAP-050/H1B-1 adds signature syntax
+only. The compiler reads its own source and now admits its function signatures;
+a parameter still means nothing to the type, ownership, checked-IR, verifier, or
+backend authorities, and no body, expression, or item beyond the first function's
+signature parses. The rest of H1B, H1C through H1E, and the final stage replay
+remain open, and no self-hosting claim follows.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped
