@@ -84,6 +84,79 @@
   `Result<int, int>` that forms `result_value`'s whole body, starting from the
   exact construct this checkpoint stops at.
 
+### CAP-050 session handoff - start here
+
+- Base commit for the next attempt: **`d438287`** on
+  `claude/self-hosting-analysis-be3f72`, plus the docs-only correction above it.
+  Fifteen commits, tree clean, **no upstream and nothing pushed**. Publication is
+  a separately authorized step and this branch has not reached it.
+- Checkpoint status: **CAP-050 / H1B-1 is complete and locally green.** The
+  complete repository-root gate was run and passed - 117 suites, exit 0 - before
+  each of the two functional commits, not after.
+- Next checkpoint: **H1B-2**, the single `match` over `Result<int, int>` that
+  forms `result_value`'s whole body. Its starting construct is exactly where
+  CAP-050 now stops: the identifier `result` at offset 68, line 2, column 18,
+  with one node and one parameter already recorded.
+
+**What the next attempt should instrument first**
+
+Nothing, in the sense the last handoff meant it. Use the probe table instead.
+`SIGNATURE_PROBES` in `self_host_source_ingestion_tests.rs` is ten complete
+programs of 30-45 bytes, each exercising one grammar rule and each stopping
+inside the parse phase, so every downstream group stays not-attempted and the
+expectation vector keeps the self-input shape. Add H1B-2 probes to that table
+before touching `compiler.aero`. The reason is measured, not theoretical: the
+canonical self-source grades as a single opaque 91/80, which is why the first
+CAP-050 attempt could enumerate 46 and then roughly 2,000 candidate expectation
+vectors and learn only that at least two fields moved. With the probes present,
+the first failing run named its own cause in one cycle - nine green, one red,
+return code 90.
+
+Read return codes as a diagnostic channel: 80 is the parse-group comparison, 90
+the semantic group, 69/77/78/79 the parameter, node, node-shape and root
+validators, 81/82/83 the origin, symbol and fact arenas.
+
+**What was proved by running, not inferred**
+
+- Ten probes linked against the real product return 91 against oracle-derived
+  targets: `IDENT : int`, `IDENT : Result < int , int >`, two comma-separated
+  parameters, the six mandated negatives, and one body probe reproducing the
+  self-input target shape at 34 bytes.
+- Fed its own 252,044 bytes the product admits `result : Result < int , int >`,
+  records one parameter, reduces the leading `match` identifier to one
+  name-reference node, and stops at the frozen target, matching all 68 derived
+  values at O0 and O2.
+- The accepted 34-byte canonical program still returns 91 and writes the
+  identical 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`.
+- The canonical source remains exactly reconstructible from accepted B1C: six
+  CAP-049 ingestion differences, seven CAP-050a store differences, four CAP-050
+  sub-machine differences, asserted byte for byte.
+
+**What was ruled out**
+
+- The prior sub-machine is not recoverable from git. All 1,066 dangling blobs
+  were scanned; one holds a pre-CAP-042 ancestor of the parser, none holds
+  `param_mode` or `param_cycle_mode`. Do not go looking again.
+- The cause of the first attempt's divergence is therefore unknown and
+  unrecoverable. Two of the three handed-off suspects - the `param_alternate`
+  rejection bypass and the `skeleton_step` advance - are now separated by
+  probes. The third, reuse of the lexer scratch registers, was removed by
+  construction and is untested rather than refuted.
+
+**One methodological note worth carrying**
+
+The only oracle change made under pressure was the origin sidecar, and the
+reason it is sound is worth repeating because the shape of it is dangerous:
+`compiler.aero:1134` specifies the CAP-043 append order, the product enforces
+`origin_count != node_count` as a hard failure, and the frozen target fixes
+`node_count = 1`, so `origin_count = 1` follows by deduction from artifacts that
+predate the change. The model had to predict five words in a specific fold
+position and matched the product's checksum first try, which expectation-fitting
+cannot do. For zero origins it is bit-identical to what it replaced, so no
+previously covered case moved. The derivation was independent; the trigger was
+not - it was looked at because the product disagreed. Derive the semantic group
+forward next time rather than waiting for a 90.
+
 ### CAP-050 first implementation attempt - reverted, findings recorded
 
 - Status: an implementation was written, exercised, and then reverted rather than
@@ -201,10 +274,14 @@
   tests and assigns `param_mode` falls through into the next branch within the
   same loop iteration, so one token could advance several modes. The mode is
   therefore latched once per token, exactly as the driver already does with
-  `parser_cycle_state = parser_state`. That hazard is consistent with the
-  observed split between the working empty path and the failing nonempty path -
-  `fn score ( )` never takes two consecutive modes in one iteration - but that
-  remains an inference, not a measurement.
+  `parser_cycle_state = parser_state`. That hazard is real in this code style and
+  the latch removes it, but nothing connects it to the earlier failure, and it
+  must not be read as the explanation. The first attempt's sub-machine was
+  applied and reverted twice and never committed, so it survives in no git
+  object: a scan of all 1,066 dangling blobs in this repository found one
+  carrying a pre-CAP-042 ancestor of the parser and none carrying `param_mode`
+  or `param_cycle_mode`. The cause of that divergence is therefore
+  unrecoverable. It is not known, and a later attempt must not narrow toward it.
 - One real defect was found and fixed, and it was in the oracle, not the product.
   Fed input that reaches the body, the run returned 90 - the semantic-group
   comparison - with the entire parse group already matching, including
