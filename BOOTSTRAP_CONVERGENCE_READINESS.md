@@ -315,6 +315,36 @@ H1B-6 is listed last but must be pulled earlier the moment a checkpoint's AST
 exceeds 512 records; capacity is never allowed to masquerade as a grammar
 failure.
 
+The self-source requirement H1B-6 raises the bounds *to* was measured on
+2026-08-18 and is recorded in `TASK_LEDGER.md` under "H1B-6 arena-capacity
+measurement". Three results from it belong here because they change how this
+paragraph should be read.
+
+- The requirement is **13,391 node records, 13,144 value records and 4,157
+  operator records** as a measured floor that no design choice can reduce, and
+  **23,509 / 14,697 / 5,710** once the shapes H1B-4 and H1B-5 admit are costed;
+  512 is exceeded by between 11x and 51x. A uniform bound of 65,536 is
+  recommended, and costs nothing until used, because every record array is
+  created by `bytes_new()` and grows by append rather than being preallocated.
+- `value_records` and `operator_records` are **not stack depths**. Neither is
+  ever decremented, so each counts every push over the whole parse. The deepest
+  either stack actually gets on the complete canonical source is 5. "512 value
+  records" has never been a limit on expression complexity.
+- The pull-forward rule above does **not** fire at H1B-4 or H1B-5. Both leave
+  the canonical stop at offset 146 with four nodes and are proven by focused
+  probes of a few dozen tokens, so neither can exceed 512. The rule fires at the
+  module-shape gate below, and there it fires at once: parsing the canonical
+  source function by function with the bound at 512 exhausts the node arena
+  inside function 8 at line 154 of 6,085. **H1B-6 should be pulled ahead of the
+  module-shape gate, not ahead of H1B-4 or H1B-5.**
+
+One qualification, so it is not discovered mid-checkpoint: of the 23 canonical
+functions, 15 become parseable in isolation once H1B-4 lands, and 14 of those
+need at most 164 nodes. The fifteenth, `emitter_fixed_byte`, needs 474 under the
+current node policy and 734 under a node-producing statement policy, so lifting
+that one function verbatim as a probe is the single way an H1B-4 or H1B-5 probe
+could reach the bound.
+
 ### The single-function coupling must be split out, not absorbed
 
 One boundary in this table is not the parser's alone. The accepted semantic,

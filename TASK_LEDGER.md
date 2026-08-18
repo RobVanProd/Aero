@@ -1,5 +1,640 @@
 # Aero Task Ledger
 
+## H1B-6 arena-capacity measurement, 2026-08-18 - evidence, not an authorization
+
+This section authorizes nothing, changes no product, and asserts no capability.
+It is a measurement, and it is placed above the CAP-053 contract because that
+contract depends on its result.
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:310` states that H1B-6 raises the node,
+value and operator record bounds "from 512 to the measured self-source
+requirement", and `:297-299` requires H1B-6 to be pulled earlier "the moment a
+checkpoint's AST exceeds 512", so that capacity is never allowed to masquerade
+as a grammar failure. The requirement had never been measured. It is measured
+here, against the 264,163-byte canonical source at `f416067`.
+
+### What the three counters actually count, read before anything was counted
+
+The answer changes the question, so it was read out of the accepted parser
+first.
+
+- `node_count` (`compiler.aero:1134`) is an append-only arena. It is never
+  reset and never decremented, so its peak is its total.
+- `value_records` (`:1205`) and `operator_records` (`:1208`) are **not stack
+  depths**. Each is incremented once per push (`:2129`, `:2368` for values;
+  `:2139`, `:2440` for operators) and is **never decremented**. A pop rewinds
+  only the `value_top` / `operator_top` link (`:2233`, `:2275`, `:2201`,
+  `:2410`); the record it abandoned is never reused, because the record arrays
+  are written by `parser_append_target` and there is no write-at-index path.
+  Both stacks are linked lists over append-only arrays, so each counter is the
+  **total number of pushes over the whole parse**, not the deepest the stack
+  ever gets.
+
+That distinction is the most consequential fact in this measurement. The
+deepest the value stack and the operator stack ever get while parsing the entire
+canonical source is **5 records each**. What the 512 bound is actually compared
+against is three orders of magnitude larger. Whoever writes H1B-6 should know
+that "512 value records" has never been a limit on expression complexity.
+
+Three further bounds were checked at the same time and are recorded so H1B-6
+does not have to rediscover them. The parameter store has **no** bound at all
+(`parameter_count`, `:1164`, is compared against nothing). The token bound is
+262,144 (`:907`) and the name bound 16,384 (`:900`), both raised by H1A and both
+still ample: the canonical source is 33,552 tokens. And a **fourth** literal 512
+exists outside the parse group, at `:4852`, where the verifier requires
+`verified_function_node <= 512`; see the authority note at the end of this
+section.
+
+### The instrument, and how it was validated before its output was used
+
+A transcription of the accepted lexer (`keyword_token_kind:29`,
+`pair_token_kind:61`, `single_token_kind:89`, main loop `:684`) plus a
+recursive-descent model of the H1B-1 through H1B-5 grammar, run over the
+canonical bytes outside the repository. It is a counting instrument, not product
+code; nothing in the repository depends on it and no repository file was changed
+to obtain any number below.
+
+It was validated against a prior independent measurement rather than against
+itself. Run over the source at `25fa375` - the 257,242-byte tree CAP-052
+measured - it reproduces CAP-052's "Measured target grammar, from the canonical
+bytes" table:
+
+| CAP-052 figure | this instrument, at `25fa375` |
+|---|---|
+| 502 `let` bindings | 502 |
+| 471 `let mut`, 31 immutable `let` | 471, 31 |
+| 0 bindings without a type annotation | 0 |
+| 0 bindings without an initializer | 0 |
+| 485 `int`, 15 `ByteBuffer`, 2 `Result<int, int>` | 485, 15, 2 |
+| 462 call-free initializers, 40 containing a call | 462, 40 |
+| 0 assignment targets that are not a bare identifier | 0 |
+| 2,298 assignments | **2,432** |
+
+Seven of the eight reproduce exactly. The eighth is recorded as a correction
+rather than smoothed. At `25fa375` the source carries 2,934 `=` tokens - token
+kind 25, with `==`, `!=`, `<=`, `>=` and `=>` all separate kinds - and 502 of
+them are binding initializers, leaving **2,432** assignment statements. The same
+figure is reached three independent ways: `=` tokens minus `let` count;
+occurrences of IDENT immediately followed by `=`; and occurrences of `;`, `{` or
+`}` followed by IDENT followed by `=`. All three agree, so CAP-052's 2,298 is
+134 low. Nothing in CAP-052 depends on the figure - it is cited only to
+establish that no assignment target is a non-identifier, which does reproduce -
+so this is a correction to a stated number, not to a decision. At `f416067` the
+count is 2,505.
+
+The instrument was validated a second way, against the accepted product's own
+frozen result: it places the second `fn` item at offset 146, line 8, column 1,
+which is the canonical stop CAP-051 established and CAP-052 asserts unmoved. It
+also independently reproduces the readiness table's structural facts - 23 `fn`
+items, 23 `->` tokens, one `match` with two arms, and no `[`, `]`, `.`, `%` or
+`!` token anywhere in the source.
+
+Third, the recursive-descent model **consumes the whole 264,163-byte module**
+under the H1B-1..H1B-5 grammar plus a second `fn` item. That is itself a result
+worth recording: the five parser checkpoints plus the module-shape gate are
+between them sufficient for the canonical source, and no construct outside them
+was encountered.
+
+Fourth, the parse reconciles exactly with the raw token histogram, which is the
+check that catches a miscounted role rather than a miscounted token. The 9,380
+identifier tokens account for as 23 `fn` names + 100 parameter names + 102
+parameter type names + 23 return type names + 512 binding names + 516 binding
+type names + 2,505 assignment targets + 6 `match` construct tokens + 4,487
+expression identifier leaves + 1,106 call callees = 9,380. The 1,184 `(` tokens
+account for as 1,106 calls + 53 groupings + 23 signatures + 2 match patterns =
+1,184. The 3,241 `;` tokens account for as 512 bindings + 224 returns + 2,505
+assignments = 3,241. The 712 `,` tokens account for as 79 signature separators +
+3 `Result<int, int>` separators + 628 argument separators + 2 match arm
+separators = 712. Every one closes.
+
+### The accounting rules, transcribed from the accepted parser
+
+| Event | node | value | operator | source |
+|---|---|---|---|---|
+| identifier or integer operand reduced to a leaf | +1 | +1 | - | `:2100`, `:2129` |
+| prefix `-` / `!` accepted in operand position | - | - | +1 | `:2139` |
+| grouping `(` accepted in operand position | - | - | +1 | `:2139` |
+| binary operator accepted in operator position | - | - | +1 | `:2440` |
+| any prefix or binary operator reduced | +1 | +1 | - | `:2332`, `:2368` |
+| grouping `)` popped | - | - | - | `:2404` |
+| `return` statement's node, at the closing sequence | +1 | - | - | `:2532` |
+| function item's node | +1 | - | - | `:2569` |
+
+### The three numbers
+
+**Measured floor.** Only the accounting already implemented and proven at
+H1B-3, applied to every expression, return and function item in the whole
+source. Control flow, calls and references are charged **nothing** here, so this
+is a hard lower bound that no design choice can reduce.
+
+| | records |
+|---|---|
+| expression leaf nodes (4,487 identifier + 4,553 integer) | 9,040 |
+| reduction nodes | 4,104 |
+| `return` nodes, kind 18 | 224 |
+| function nodes, kind 19 | 23 |
+| **node records** | **13,391** |
+| **value records** | **13,144** |
+| **operator records** (4,077 binary + 27 prefix `-` + 53 grouping) | **4,157** |
+
+**Projected requirement.** The measured shapes H1B-4 and H1B-5 will admit,
+costed under the cheapest honest node policy for each. The *shapes* are
+measured; the *cost per shape* is projected from grammar not yet implemented,
+and each projection is named so a later session can re-cost it without
+re-measuring.
+
+| Projected addition | count | node | value | operator |
+|---|---|---|---|---|
+| H1B-5 call expressions | 1,106 | +1,106 | +1,106 | +1,106 |
+| H1B-5 `&` and `&mut` operands | 447 | +447 | +447 | +447 |
+| H1B-5 call arguments | 1,717 | 0 | 0 | 0 |
+| H1B-4 `if` statements | 1,026 | +1,026 | 0 | 0 |
+| H1B-4 `else` / `else if` joins | 252 | +252 | 0 | 0 |
+| H1B-4 `while` statements | 84 | +84 | 0 | 0 |
+| H1B-4 statement elements for `let` | 512 | +512 | 0 | 0 |
+| H1B-4 statement elements for assignment | 2,505 | +2,505 | 0 | 0 |
+| H1B-4 sequence nodes, one per block member | 4,186 | +4,186 | 0 | 0 |
+| **totals with the floor** | | **23,509** | **14,697** | **5,710** |
+
+The projections are:
+
+1. A call is one node and one value, its `(` is one operator record, and the
+   callee is carried as the call node's payload rather than reduced to a
+   name-reference leaf first. That last is the CAP-051 dispatch-before-append
+   discipline applied to `IDENT (`; taking the other choice adds 1,106 nodes and
+   1,106 values.
+2. An argument list lives in a bounded side store, on the CAP-050 parameter
+   precedent, and costs no node. Chaining arguments through nodes instead adds
+   1,717 nodes. Note that either choice needs its own bound: 1,717 argument
+   records, widest single list 68.
+3. `&` and `&mut` are prefix operators in the existing shunting yard, so each
+   costs one operator record and reduces to one node and one value. Folding a
+   reference into the argument record instead removes 447 from all three.
+4. Control flow and statement sequencing cost nodes but no value or operator
+   records, because they are statement-level and never enter the expression
+   stacks.
+5. The sequence encoding charged here is one node per block member plus one node
+   per `let` and per assignment so that each can *be* a sequence element;
+   `return`, `if` and `while` already have nodes of their own under 1 and 4.
+   This is CAP-052's "three new kinds, not one" analysis costed out. **It is the
+   largest single projection here and the least certain**; it is also the one
+   H1B-4's own contract settles, and CAP-053 below settles it as *not taken at
+   H1B-4*, which does not change this projection's role as the capacity figure
+   H1B-6 must cover, because H1C will need the representation even if H1B-4 does
+   not.
+
+**Upper projection**, with choices 1 and 2 taken the other way:
+**26,332 node records**, 15,803 value records, 5,710 operator records.
+
+### The answer, plainly
+
+Over 512, by between 26x and 51x on node records, by 26x to 31x on value
+records, and by 11x to 14x on operator records. The bound is not close, and no
+design choice inside H1B brings it close.
+
+### Recommended H1B-6 bound: 65,536, uniform across all three
+
+Derived rather than picked. The upper projection is 26,332 node records;
+65,536 is 2.5x that. The source has grown 252,044 to 257,242 to 264,163 bytes
+over CAP-051 and CAP-052, roughly 7 KB a checkpoint, and the measured density is
+one projected node per 11.2 source bytes, so each future checkpoint adds roughly
+625 nodes. 65,536 absorbs a source that roughly doubles; 32,768 would leave 24%
+headroom against the upper projection, which is one bad checkpoint of margin.
+
+The choice costs nothing until it is used. Every record array is created by
+`bytes_new()` (`compiler.aero:518-522`) and grows by append, so all four bounds
+are policy ceilings and not preallocations. There is no memory argument for a
+tight bound and no reason for the three to differ, exactly as there is none
+today when all three are 512.
+
+One alternative was considered and is not recommended. Because the live stack
+depth never exceeds 5, value and operator capacity could in principle be solved
+by reusing abandoned records instead of raising the bound. It is rejected:
+reuse requires writing a record at an index, and the parser has only an append
+path (`parser_append_target`) and a read path (`parser_record_*`). Adding a
+write-at-index path is more than a bound change and would not be "capacity
+only".
+
+### Where the bound actually bites, which is not where the readiness rule expects
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:314-316` says H1B-6 must be pulled forward
+"the moment a checkpoint's AST exceeds 512". Measured against the checkpoints
+that remain, that moment is **not** H1B-4 and **not** H1B-5.
+
+Both checkpoints leave the canonical self-ingestion stop at offset 146 with four
+nodes (CAP-052's Ambiguity 1), so the canonical run never approaches the bound.
+Both are proven by focused probes, and a focused probe is a hand-written program
+of a few dozen tokens. The bound bites at the **module-shape gate** - the first
+checkpoint that parses past the second `fn` item - and there it bites almost at
+once. Parsing the canonical source function by function with the bound at 512,
+the node arena is exhausted:
+
+- under the projected policy, inside function 8, `quotient_256`, at line 154 of
+  6,085;
+- under the measured floor policy, inside function 16, `binary_precedence`, at
+  line 236.
+
+The value bound is exhausted inside function 17 and the operator bound inside
+function 22. A single canonical function, `run_runtime_ascii_llvm_emitter` at
+line 483, needs 12,065 floor nodes and 21,566 projected nodes on its own.
+
+**The recommendation that follows is therefore: do not pull H1B-6 ahead of
+H1B-4 or H1B-5. Pull it ahead of the module-shape gate**, which is the first
+place capacity could masquerade as a grammar failure and the place it certainly
+would.
+
+One qualification, because it is the single way H1B-4 or H1B-5 could trip the
+bound and it should not be discovered mid-checkpoint. Of the 23 canonical
+functions, 15 contain no call and no reference and therefore become parseable in
+isolation once H1B-4 lands. Fourteen of them need at most 164 nodes. The
+fifteenth, `emitter_fixed_byte` at line 372, needs **474 nodes under the floor
+policy and 734 under the projected policy**. So if a probe were built by lifting
+that one canonical function verbatim, H1B-4 would exceed 512 under a
+node-producing statement policy and would sit 38 records short of it under the
+current one. No probe is obliged to use it, and CAP-053 does not; the number is
+recorded so that a session that wants a realistic large probe knows the cost
+before it spends a gate on it.
+
+### An authority note H1B-6 must resolve before it starts
+
+Raising the three parse-group bounds is inside the parser's own authority, on
+CAP-051's and CAP-052's reasoning: they live in the parse group and report
+through the parse group's own diagnostics (`status 14` and `status 15`, code
+512). The fourth 512, at `:4852`, does not. It constrains
+`verified_function_node` and lives in the verifier group, which
+`BOOTSTRAP_CONVERGENCE_READINESS.md:246-248` forbids H1B to widen. It also does
+not bite inside H1B at all, because the verifier runs only on a complete
+`status == 0` pipeline that no H1B checkpoint reaches. H1B-6 should therefore
+raise the three parse-group bounds and leave `:4852` alone, recording it as debt
+for whichever checkpoint first drives the verifier over one function - not
+silently raise a fourth number because it shares a literal with the other three.
+
+## CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW - admit `if` / `else if` / `else` and `while`
+
+- Date/task/status: 2026-08-18, `CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW`,
+  authored ledger-first from locally green CAP-052/H1B-3 at `f416067`.
+  **Contract only; no product change is recorded by this entry.** It is the
+  fourth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:308`. It
+  authorizes two control-flow forms over the already-accepted expression
+  grammar. It is not H1B completion, H1, H2, stage convergence, or any
+  self-hosting claim.
+- D:-only task storage is unchanged from CAP-052: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`.
+- Observed behavior at the base commit: the compiler consumes its own
+  264,163-byte source, parses the whole body of its first function, and stops at
+  the second `fn` item at offset 146, line 8, column 1, with `status = 10`,
+  `diagnostic_code = 0`, `diagnostic_actual = 3`, four nodes, one parameter, and
+  `root = 0`. `self_host_source_ingestion_tests` is 16/16 green at `f416067`,
+  re-run for this contract in 212 seconds.
+
+### What this checkpoint inherits, restated so it is not rediscovered
+
+CAP-052's Ambiguity 1 applies unchanged: **this checkpoint cannot move the
+canonical self-ingestion stop**, because CAP-051 already parses function 1
+completely and a second `fn` item is excluded from every parser checkpoint
+(`BOOTSTRAP_CONVERGENCE_READINESS.md:353-355`). Offset 146 is a regression
+guard here and must not be cited as progress. All forward evidence is focused
+probes.
+
+CAP-052 also recorded, and this contract confirms independently, that no
+canonical function can parse at H1B-3 because function 2 opens its body with
+`if`. **H1B-4 is therefore the first checkpoint since CAP-051 at which a real
+canonical function becomes parseable at all** - as a standalone probe, not in
+situ, since the canonical run still stops before reaching function 2. Fifteen of
+the 23 canonical functions contain no call and no reference and so become
+parseable in isolation once this checkpoint lands; fourteen need at most 164
+nodes and the fifteenth needs 474, per the capacity measurement above.
+
+### Measured target grammar, from the canonical bytes
+
+Measured over the 264,163-byte source at `f416067` by the instrument described
+in the capacity-measurement section above, which reproduces seven of CAP-052's
+eight figures exactly.
+
+| Measured fact | Value |
+|---|---|
+| `if` statements, including `else if` arms | 1,026 |
+| `else if` arms among them | 165 |
+| `else` blocks | 87 |
+| `while` statements | 84 |
+| blocks | 1,220 - 23 function bodies, 1,026 `if` bodies, 87 `else` bodies, 84 `while` bodies |
+| empty blocks | 0 |
+| deepest block nesting | 10 |
+| blocks whose `return` is not the last statement | 0 |
+| blocks with more than one `return` | 0 |
+| function bodies whose last statement is a `return` | 23 of 23 |
+| `match` in a condition | 0 - the source's one `match` is in a return expression |
+| condition forms | the already-accepted expression grammar, terminated by `{` |
+
+Three consequences follow and all three narrow this checkpoint.
+
+First, **the condition needs no new expression form**, as
+`BOOTSTRAP_CONVERGENCE_READINESS.md:308` requires. A condition is an ordinary
+expression that ends at `{`: token kind 12 has `binary_precedence` 0 and is not
+`)`, so at `paren_depth == 0` it produces `reduction_mode = 3` and completes the
+expression without being consumed (`compiler.aero:2001-2022`, `:2415-2432`).
+The existing machinery already stops there; only the exit destination changes.
+
+Second, **`match` is not admitted in a condition**, because the source never
+writes one. A condition therefore enters the operand classifier directly rather
+than the CAP-051 leading-token dispatch.
+
+Third, **a nested block is never empty and its `return`, if any, is its last
+and only statement**. That is the same rule CAP-052 derived for the function
+body, now measured to hold for all 1,220 blocks.
+
+### Frozen semantics
+
+Two statement forms are added to CAP-052's four:
+
+- `if EXPR BLOCK`, optionally followed by `else if EXPR BLOCK` any number of
+  times and optionally by a final `else BLOCK`
+- `while EXPR BLOCK`
+
+`EXPR` is the already-accepted expression grammar with no `match`. `BLOCK` is
+`{` followed by one or more statements followed by `}` - the same statement
+sequence CAP-052 admitted, with two differences that are the whole of this
+checkpoint's structural work:
+
+1. **A nested block's closing rule is `}` and nothing more.** The function
+   body's closing rule remains `}` then end-of-input.
+2. **A nested block does not require a completed `return`.** The function body
+   does. This is the requirement moving from "the body" to "the function".
+
+Within any block, function body or nested, a `return` may appear only as that
+block's last statement, and only once. After a return statement's `;` the only
+admissible token is that block's `}`.
+
+Any other shape is an exact located rejection: an `else` that does not follow an
+`if` body's `}`, an empty block, a block that reaches its `}` with a statement
+still open, a condition that begins with a token that is not an operand, a
+`match` in a condition, a body statement after a completed `return`, a second
+`return` in one block, a function body that closes with no completed `return`,
+or nesting deeper than the block bound.
+
+No lexer change is required: `if` is already token kind 7, `else` kind 8, and
+`while` kind 9, all produced by the accepted tokenizer.
+
+### Frozen exclusions
+
+No new expression form, per `BOOTSTRAP_CONVERGENCE_READINESS.md:308`. No calls
+and no references, which are H1B-5. No `ByteBuffer` or `Result<int, int>`
+binding type, for CAP-052's reason. No `match` outside a return expression. No
+`else` without a preceding `if` body. A block carries no scope, no
+initialization order, no reachability, no liveness and no checked meaning; a
+condition is not type-checked and is not required to be boolean, because no type
+authority exists in the parser. A second `fn` item stays rejected. The parameter
+store, the signature grammar, the match construct, the expression grammar, the
+semantic, checked-IR, verifier, emitter, stdout driver, host driver, runtime
+ABI, language profiles, and Rust compiler are all untouched.
+
+### Decision 1, resolved before any parser edit: no new node kind, and the `1..=19` bound is not raised
+
+CAP-052's handoff predicted the opposite - "H1B-4 should expect to need the
+`1..=19` bound raised" - so this decision is derived at length rather than
+asserted, and the prediction's own reasoning is answered.
+
+**CAP-052's unreachability argument does not carry, and must not be reused.**
+CAP-052 could show that every sequence-building line would be unexecutable,
+because a statement's node could only be appended at the module's end and no
+probe reaches it. That is not true here. An `if` or `while` node would be
+appended when its construct closes, in the middle of the statement loop, and
+every focused probe asserts an exact `nodes` count (`STATEMENT_PROBES`,
+`self_host_source_ingestion_tests.rs:3211`, where each probe's trailing `x`
+forces a stop at a predicted token). A control-flow node would be observed. The
+decision therefore rests on other grounds.
+
+**The ground is that half a representation is worse than none.** An honest `if`
+node must reference two things: its condition and its body. Its condition is an
+expression root and is available. Its body is a *statement sequence*, and a
+statement sequence has no representation in the accepted arena and cannot get
+one cheaply - CAP-052 costed it exactly, and the cost is three new node kinds
+rather than one, because an honest sequence node needs both children positive
+and so a binding and an assignment would each need a node of their own to be a
+sequence element. An `if` node that carried only its condition, with `right = 0`,
+would assert at H1C that the conditional has no body. That is a structural
+falsehood of the same kind CAP-052 refused when it declined to let a sequence
+wear an arithmetic kind: the origin sidecar (`compiler.aero:2987` onward) maps
+every node kind to the token kind that produced it, and the semantic phase
+consumes it, so a node that misdescribes its own shape surfaces at H1C as
+misinformation rather than as debt.
+
+**The precedent is now three checkpoints deep and consistent.** A CAP-050
+parameter creates no node; the CAP-051 match construct creates no node and needs
+no kind; a CAP-052 statement creates no node. Each was proven by exact located
+rejection plus an exactly predicted node count rather than by structure. H1B-4
+is the fourth, and the readiness table's required result for it is a grammar
+admission - "`if` / `else if` / `else` and `while` over the existing expression
+grammar" - not a representation.
+
+**Therefore: no node kind is added, the `kind <= 0 || kind > 19` bound is
+untouched, and `if`, `else`, `while` and their blocks create no syntax node.**
+The whole of control-flow representation - the conditional, the loop, and the
+statement sequence they both need - is left to H1C as one coherent piece of
+debt rather than split across two checkpoints with the sequence half missing.
+
+**The authority check the readiness document requires, answered even though the
+bound is not raised**, because the question should not have to be re-derived if
+a later checkpoint does raise it. `BOOTSTRAP_CONVERGENCE_READINESS.md:246-248`
+forbids H1B to widen type, ownership, checked-IR, verifier or backend authority
+inside the parser task. Raising the node-kind bound would widen none of them:
+the bound is tested in the parse group and reports through the parse group's own
+`return 78`, which is CAP-052's finding and is unchanged. Adding a kind would
+also require an origin token-kind mapping, and that mapping is *written* by the
+parse group; it is *read* by the semantic phase, which is entered only at
+`status == 0` and which no H1B-4 probe reaches. So raising the bound would have
+been admissible under `:246-248` and would have created H1C debt - a different
+thing from an authority widening. It is not taken for the representational
+reason above, not for an authority reason.
+
+### Decision 2, resolved: the block stack is a linked record store, and it is a fourth bounded arena
+
+The parser is a flat one-step-per-iteration machine with no call stack, so
+nesting needs an explicit stack. What must be remembered per open block is
+small: which construct opened it, so that `else` is admitted after an `if`
+body's `}` and rejected after an `else`, `while` or function body; and whether a
+`return` has already completed in it, so that the enclosing block's state is
+restored on pop.
+
+Two designs were considered. An integer bit-stack, pushed by doubling and popped
+through the existing `signed_quotient`, needs no new store and no new bound, but
+caps nesting at an arbitrary hidden depth of about 30 that would itself
+masquerade as a grammar failure - the exact failure mode this checkpoint's own
+capacity measurement exists to prevent. **A linked record store is adopted
+instead**: one record per *nested* block holding its kind and the enclosing
+block's return flag, appended through a new `parser_append_target = 5` exactly
+as the value and operator stacks are, popped by rewinding a `block_top` link. A
+`block_top` of zero means the function body, so the function body needs no
+record and its special closing rule stays where it already is.
+
+Two consequences are recorded rather than left implicit:
+
+- **`block_records` is a fourth monotonic counter with the same
+  never-decremented shape as `value_records` and `operator_records`**, so it
+  needs the same 512 bound and the same `status = 15`, `diagnostic_code = 512`
+  exhaustion diagnostic. No new status code is added.
+- **H1B-6's bound list grows from three to four.** The canonical requirement is
+  measured now so H1B-6 does not have to re-measure: **1,197 block records**
+  cumulative for the whole source (1,220 blocks less the 23 function bodies,
+  which push none), at a peak live depth of 10. That is inside the 65,536
+  recommended above and far outside 512, and like the other three it cannot be
+  reached by any H1B-4 probe.
+
+### Decision 3, resolved: `body_root` stays one register, last write wins
+
+The function node's `left` must be a return node, and CAP-052 appends exactly
+one kind-18 node per function, at the closing sequence, over whatever expression
+`body_root` last latched (`compiler.aero:1791`, `:2507`). A `return` inside a
+nested block cannot append its own node: the canonical regression assertion
+freezes `node_count == 4` at the stop, and a return node appended at its own `;`
+would make the count five, which is precisely how CAP-052 excluded the same
+design.
+
+So `body_root` remains a single register written by every return statement's
+`;`, and the last write wins. This is correct rather than merely convenient, and
+the measurement says why: every block's `return` is its last statement, and all
+23 function bodies end in one, so the last `return` completed in token order
+within a function is always the function body's own. A `return` in a nested
+block leaves its expression nodes as **orphans**, joining CAP-051's four arm
+bodies and CAP-052's binding and assignment initializers. They are counted,
+validated and folded into the parse checksum, so their number cannot drift
+unnoticed; nothing references them; H1C adopts all of them together.
+
+### A correction to CAP-052's record: one stated rule was never implemented
+
+CAP-052 froze this narrowing in the section "The arena shape forces one
+narrowing of the frozen semantics": "**the body's last statement is a `return`,
+and it is the only one.** Concretely, after the return statement's `;` the only
+admissible token is `}`."
+
+**That rule is not enforced by the accepted parser.** `body_root` is written at
+`compiler.aero:1791` and read only at `:2470` and `:2507`; the statement
+dispatch at `:1666` branches on `current_kind` alone and consults no
+return-completed state. So at `f416067` the parser admits
+`fn f() -> int { return 1; let a: int = 2; }` and admits
+`fn f() -> int { return 1; return 2; }`, and in the second case only the last
+return's expression reaches the function node while the first return's
+expression becomes an unrecorded orphan - the exact outcome CAP-052 said the
+narrowing prevented. No canonical shape and no CAP-052 probe reaches either
+case, so nothing accepted is wrong today; the divergence is between CAP-052's
+contract text and CAP-052's product, and it is latent.
+
+**H1B-4 implements the rule, per block, because it has to anyway**: a nested
+block's return-completed state must be pushed and restored across nesting, which
+is the block record's second field. The two shapes above become exact located
+rejections at the statement that follows the return, with the `}` expectation.
+This is stated here rather than fixed silently, and it is confirmed red-first
+below rather than asserted from reading alone.
+
+### Mechanism: five edits, described by role
+
+1. **The statement dispatch admits two more leading tokens.** Kind 7 opens an
+   `if` and kind 9 opens a `while`; each latches its own start location, resets
+   the expression stacks, and enters the operand classifier directly rather than
+   the CAP-051 return dispatch, because `match` is excluded from a condition.
+   The return branch is untouched, so the CAP-051 dispatch keeps its position
+   behind the statement dispatch.
+2. **The statement terminator is parameterized by what the expression was
+   for.** CAP-052's state 49 demoted `;` from a closing token to the statement's
+   terminator; it now computes its expected token the way the closing sequence
+   computes its own - `;` for a binding, an assignment or a return, `{` for a
+   condition - so the one place both the ordinary expression exit and the
+   CAP-051 match exit return to stays one place. Accepting a condition's `{`
+   pushes the block record.
+3. **The non-statement branch of the dispatch splits on `block_top`.** At zero
+   it enters the function body's closing sequence unchanged. Above zero it
+   requires `}`, pops the block record, restores the enclosing return flag, and
+   then admits `else` only if the popped record says the block was an `if`
+   body - after which `if` continues the chain as another `if` body and `{`
+   opens an `else` body.
+4. **The return requirement moves from the block to the function.** The closing
+   sequence keeps its `expected_kind = 6` when no return has completed, which is
+   how a return-less body and an empty body are both rejected at the exact `}`;
+   nested blocks never enter it, so they carry no such requirement. This is the
+   concrete edit CAP-052's handoff named.
+5. **The statement dispatch gains a return-completed guard**, rejecting any
+   statement opener that follows a completed `return` in the same block with the
+   `}` expectation. This is the rule CAP-052 stated and did not implement.
+
+The canonical 34-byte program and canonical function 1 walk an unchanged path:
+neither contains a control-flow token, `block_top` is zero throughout, and the
+return node is still appended only after end-of-input is accepted, with the same
+`left`, the same origin and the same producing token kind, so the module stays
+byte-identical at O0 and O2.
+
+### Red-first proof and acceptance tests
+
+- Before any product change, extend the oracle to model the block stack, the
+  two control-flow forms, the parameterized statement terminator, the per-block
+  return rule and the function-level return requirement. Add a
+  `CONTROL_FLOW_PROBES` table to
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` whose expectations
+  are hand-derived from this contract, and a product-free test that requires the
+  oracle to agree with every one of them, on the
+  `every_statement_probe_expectation_is_derived_twice` pattern. Record how many
+  hand derivations needed correction; that number is the anti-fitting signal.
+  CAP-051's was zero of thirteen and CAP-052's was zero of eighteen.
+- Then observe the red: the control-flow probes must return `80` from the real
+  linked product before `compiler.aero` is edited. Two of them - the statement
+  after a completed `return`, and the second `return` in one block - are
+  expected to be red for a different reason than the rest, because they are
+  rejections the accepted parser does not yet perform; that difference is the
+  empirical confirmation of the CAP-052 correction above and must be observed
+  rather than assumed.
+- Negative coverage must include: `else` with no preceding `if`, `else` after a
+  `while` body, `else` after an `else` body, an empty `if` body, an empty
+  `while` body, a condition that starts with `{`, a `match` in a condition, a
+  missing `{` after a condition, a missing `}`, a statement after a completed
+  `return`, a second `return` in one block, and a function body that closes with
+  no `return` while a nested block has one - each with an exact located first
+  diagnostic.
+- Positive coverage must include: `if` alone; `if`/`else`; `if`/`else if`/`else`;
+  `while`; a `return` inside an `if` body with a further `return` after the `if`,
+  which is canonical function 2's shape; nesting at least three deep; a `let`
+  and an assignment inside a nested block; and canonical function 2
+  (`is_identifier_start`) lifted verbatim as a probe, which is this checkpoint's
+  first real canonical evidence and whose node count this contract predicts as
+  21 expression nodes.
+- The thirteen CAP-051 match probes and `stmt-match-return-composes` must be run
+  at **every** iteration, not only at the end, because the return expression's
+  leading-token dispatch sits behind the statement dispatch and edit 1 moves
+  what is in front of it. The ten CAP-050 signature probes and the eighteen
+  CAP-052 statement probes must all stay green unchanged.
+- The canonical self-ingestion target must stay exactly at offset 146, line 8,
+  column 1, code 0, actual 3, four nodes, one parameter.
+- The accepted 34-byte canonical program must still return 91 with the identical
+  144-byte module at O0 and O2, its byte-for-byte reconstruction from accepted
+  B1C must still hold, and the complete repository-root gate must stay green.
+
+### Allowed files, exactly
+
+`examples/aero_self_host_v0/compiler.aero`;
+`src/compiler/tests/self_host_source_ingestion_tests.rs`;
+`.github/workflows/rust.yml`; this `TASK_LEDGER.md`;
+`BOOTSTRAP_CONVERGENCE_READINESS.md`; `SELF_HOSTING_ROADMAP.md`; and
+`PROJECT_STATE.md`, per `BOOTSTRAP_CONVERGENCE_READINESS.md:245-249`.
+
+### Risks and mandatory stops
+
+Stop rather than approximate if admitting control flow requires a semantic
+fact, a scope, a reachability judgement, a checked record or any downstream
+change; if the block stack cannot be pushed and popped without changing the
+accepted expression grammar; if parameterizing the statement terminator moves
+the CAP-051 match dispatch and the thirteen match probes cannot be made green
+again without weakening one; if a control-flow construct cannot be admitted
+without either a new node kind or a node that misdescribes its own shape, in
+which case record the finding and stop rather than take the second; or if the
+probe expectations cannot be derived before the parser changes.
+
+The arena bound is **not** a risk for this checkpoint, and the capacity
+measurement above is the evidence: the canonical run stops at four nodes and no
+probe this contract requires exceeds 30. The one shape that would exceed 512 -
+lifting `emitter_fixed_byte` verbatim as a probe - is named in the measurement
+and is not required here.
+
+
 ## CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS - admit typed bindings, assignment, and multi-statement bodies
 
 - Date/task/status: 2026-08-18, `CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS`,
