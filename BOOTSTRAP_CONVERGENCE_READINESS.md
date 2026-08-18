@@ -279,15 +279,32 @@ belongs to the call checkpoint, not the signature checkpoint.
 
 ### Ordered H1B checkpoints
 
-The order below is the order `compiler.aero` itself forces. Each checkpoint is
-named by the construct at which the previous one stops, so no checkpoint may be
-selected for convenience.
+The order below is the order the self-source *grammar* forces, and each
+checkpoint is named by the construct at which the previous one stops.
+
+Two corrections to that sentence, measured under CAP-052 and recorded here so no
+later reader takes the original wording as evidence:
+
+- It is **not** the order `compiler.aero` itself forces. Function 2 opens its
+  body with `if`, so the construct the source forces after H1B-2 is control flow,
+  not statements; and no function in the source has statements without control
+  flow or a call, so no canonical function can parse at H1B-3 at all. The order
+  still stands, on grammar dependency: an `if` or `while` body is a statement
+  block, so H1B-4 cannot be specified without H1B-3, and H1B-5's call arguments
+  are expressions inside statements.
+- The naming rule runs out after H1B-2. CAP-051 parses function 1 completely and
+  stops at the second `fn` item, which is excluded from every parser checkpoint
+  below. **H1B-3, H1B-4 and H1B-5 therefore all leave the canonical
+  self-ingestion stop exactly where CAP-051 put it** - offset 146, line 8,
+  column 1 - and their forward evidence is focused probes only. That stop is a
+  regression guard for those three checkpoints and must not be cited as progress
+  by any of them.
 
 | Checkpoint | Required result | Frozen exclusions |
 |---|---|---|
 | H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the measured closed type set `int` and `Result<int, int>`. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
 | H1B-2 — `match` over `Result<int, int>` (locally green, CAP-051) | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body. Dispatched on the leading token of the return expression, before the operand reduction runs, so the append-only node arena never has to retract a name-reference node. The construct creates no node and needs no new node kind, so the `1..=19` node-kind bound is unchanged | No general patterns, guards, enums, or match anywhere but a return expression |
-| H1B-3 — statement blocks | `let`, `let mut`, assignment, and multi-statement function bodies | No control flow and no calls |
+| H1B-3 — statement blocks (locally green, CAP-052) | `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`, `IDENT = EXPR ;`, and `return EXPR ;`, in a body that is `{` followed by one or more statements followed by `}`. The skeleton's fixed `return` step is dissolved into the statement loop and `;` is demoted from a closing token to the return statement's own terminator, so the closing sequence shrinks to `}` then end-of-input with one entry point. A statement creates no syntax node, exactly as a parameter does not, so the `1..=19` node-kind bound is again unchanged | No control flow and no calls; no `ByteBuffer` or `Result<int, int>` binding type, because every one of those in the source is initialized by a call; a binding carries no type, ownership, mutability, scope, or checked meaning, and `mut` is matched and recorded rather than enforced |
 | H1B-4 — control flow | `if` / `else if` / `else` and `while` over the existing expression grammar | No new expression forms |
 | H1B-5 — calls and references | Call expressions with argument lists and `&`/`&mut` operands | No intrinsic knowledge; a call is a syntax node |
 | H1B-6 — arena capacity | Node, value, and operator record bounds raised from 512 to the measured self-source requirement, under the same independent-oracle proof H1A used for tokens | No grammar change; capacity only |

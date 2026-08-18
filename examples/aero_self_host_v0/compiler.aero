@@ -1189,6 +1189,16 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut match_b2: int = 0;
     let mut match_b3: int = 0;
     let mut match_b4: int = 0;
+    let mut statement_mode: int = 0;
+    let mut stmt_step: int = 0;
+    let mut stmt_cycle_step: int = 0;
+    let mut stmt_expected: int = 0;
+    let mut stmt_alternate: int = 0;
+    let mut stmt_is_int: int = 0;
+    let mut stmt_b0: int = 0;
+    let mut stmt_b1: int = 0;
+    let mut stmt_b2: int = 0;
+    let mut body_root: int = 0;
 
     let mut value_top: int = 0;
     let mut value_depth: int = 0;
@@ -1301,6 +1311,29 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             parser_token_word = 0;
             parser_state = 30;
         }
+        // CAP-052 requests the leading token of each statement, one token per
+        // step of a binding or an assignment, and the statement's own ';'.
+        if parser_cycle_state == 44 {
+            parser_token_after = 45;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 46 {
+            parser_token_after = 47;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 48 {
+            parser_token_after = 49;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
 
         // Decode one token byte per iteration.
         if parser_cycle_state == 30 {
@@ -1387,9 +1420,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if skeleton_step == 6 {
                 expected_kind = 12;
             }
-            if skeleton_step == 7 {
-                expected_kind = 6;
-            }
+            // CAP-052 dissolves the skeleton's fixed `return` step into the
+            // statement loop, so the skeleton ends at the body's '{'.
             // CAP-050 signature grammar. Between the '(' at step 2 and the '->'
             // at step 4 the parameter sub-machine owns step 3. Its mode is
             // latched once per token, exactly as parser_state is, so the flat
@@ -1612,20 +1644,154 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_running = 0;
                 }
             }
-            if parser_running == 1 && skeleton_step == 7 {
-                return_start = current_start;
-                return_line = current_line;
-                return_column = current_column;
-            }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
                 if param_hold == 0 {
                     skeleton_step = skeleton_step + 1;
                 }
                 parser_state = 1;
-                if skeleton_step == 8 {
-                    parser_state = 40;
+                if skeleton_step == 7 {
+                    parser_state = 44;
                 }
+            }
+        }
+
+        // CAP-052 statement loop. A body is one or more statements followed by
+        // '}'. Each statement is dispatched on its own leading token: 'let'
+        // opens a binding, an identifier opens an assignment, and 'return'
+        // opens a return statement. Any other token hands the same decoded
+        // record to the closing sequence, which is entered from here and only
+        // from here. A statement creates no node, so the arena vocabulary and
+        // the '1..=19' node-kind bound are unchanged.
+        if parser_cycle_state == 45 {
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                statement_mode = 0;
+                if current_kind == 4 {
+                    statement_mode = 1;
+                    stmt_step = 0;
+                }
+                if current_kind == 1 {
+                    statement_mode = 2;
+                    stmt_step = 4;
+                }
+                if current_kind == 6 {
+                    statement_mode = 3;
+                    return_start = current_start;
+                    return_line = current_line;
+                    return_column = current_column;
+                }
+                if statement_mode == 0 {
+                    closing_step = 0;
+                    parser_state = 21;
+                } else {
+                    parse_index = parse_index + 1;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 46;
+                    if statement_mode == 3 {
+                        parser_state = 40;
+                    }
+                }
+            }
+        }
+
+        // One step of 'let [mut] IDENT : int =' or of 'IDENT ='. Step 0 admits
+        // 'mut' as its alternate, step 3 requires the binding type to be exactly
+        // 'int', and step 4 hands the initializer to the accepted expression
+        // grammar. An assignment enters at step 4.
+        if parser_cycle_state == 47 {
+            stmt_cycle_step = stmt_step;
+            stmt_expected = 1;
+            stmt_alternate = 0;
+            if stmt_cycle_step == 0 {
+                stmt_alternate = 5;
+            }
+            if stmt_cycle_step == 2 {
+                stmt_expected = 17;
+            }
+            if stmt_cycle_step == 4 {
+                stmt_expected = 25;
+            }
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != stmt_expected
+                && (stmt_alternate == 0 || current_kind != stmt_alternate) {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = stmt_expected;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && stmt_cycle_step == 3 {
+                stmt_is_int = 0;
+                if current_length == 3 {
+                    stmt_b0 = result_value(bytes_get(&source, current_start));
+                    stmt_b1 = result_value(bytes_get(&source, current_start + 1));
+                    stmt_b2 = result_value(bytes_get(&source, current_start + 2));
+                    if stmt_b0 == 105 && stmt_b1 == 110 && stmt_b2 == 116 {
+                        stmt_is_int = 1;
+                    }
+                }
+                if stmt_is_int == 0 {
+                    status = 12;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 102;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                stmt_step = stmt_cycle_step + 1;
+                if stmt_cycle_step == 0 && current_kind == 1 {
+                    stmt_step = 2;
+                }
+                parser_state = 46;
+                if stmt_cycle_step == 4 {
+                    parser_state = 3;
+                }
+            }
+        }
+
+        // ';' terminates the statement rather than closing the body. It is the
+        // one rule the ordinary return expression and the CAP-051 match
+        // construct both return to, so their two entry points into the closing
+        // sequence collapse into this one.
+        if parser_cycle_state == 49 {
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != 18 {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 18;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if statement_mode == 3 {
+                    body_root = expression_root;
+                }
+                statement_mode = 0;
+                parser_state = 44;
             }
         }
 
@@ -1718,8 +1884,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 if match_cycle_step == 14 {
                     match_active = 0;
-                    closing_step = 0;
-                    parser_state = 20;
+                    parser_state = 48;
                 }
             }
         }
@@ -2292,18 +2457,20 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 parser_state = 42;
             }
             if parser_running == 1 && match_active == 0 {
-                closing_step = 0;
-                parser_state = 20;
+                parser_state = 48;
             }
         }
 
-        // Exact '; } EOF' suffix.
+        // Exact '} EOF' suffix, entered once from the statement loop. A body
+        // that closes without a completed return statement has no root for the
+        // function node, so its '}' is rejected with the statement expectation
+        // instead - which is also how an empty body is rejected.
         if parser_cycle_state == 21 {
-            expected_kind = 18;
-            if closing_step == 1 {
-                expected_kind = 13;
+            expected_kind = 13;
+            if body_root <= 0 {
+                expected_kind = 6;
             }
-            if closing_step == 2 {
+            if closing_step == 1 {
                 expected_kind = 0;
             }
             if current_kind < 0 || current_start < 0 || current_line <= 0
@@ -2324,7 +2491,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 parse_index = parse_index + 1;
                 closing_step = closing_step + 1;
                 parser_state = 20;
-                if closing_step == 3 {
+                if closing_step == 2 {
                     if node_count >= 512 {
                         status = 14;
                         error_offset = return_start;
@@ -2337,7 +2504,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     if parser_running == 1 {
                         pending_node_kind = 18;
                         pending_node_payload = 0;
-                        pending_node_left = expression_root;
+                        pending_node_left = body_root;
                         pending_node_right = 0;
                         pending_node_after = 22;
                         pending_node_offset = return_start;

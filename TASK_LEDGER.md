@@ -3,9 +3,11 @@
 ## CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS - admit typed bindings, assignment, and multi-statement bodies
 
 - Date/task/status: 2026-08-18, `CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS`,
-  authored ledger-first from locally green CAP-051/H1B-2 at `6a2278e`. **Not
-  started.** This entry is the contract only; no product change is authorized
-  until the red-first probe derivation below has been performed and recorded.
+  authored ledger-first from locally green CAP-051/H1B-2 at `6a2278e`.
+  **Implemented and locally green** at base commit `25fa375`. Every section
+  above "Ambiguity 3, resolved" is unchanged from the entry authored before any
+  product change; the resolution of Ambiguity 3 was written before the parser
+  was edited, as that section required, and the results follow it.
   It is the third H1B checkpoint, per
   `BOOTSTRAP_CONVERGENCE_READINESS.md:290`. It authorizes a statement grammar.
   It is not H1B completion, H1, H2, stage convergence, or any self-hosting
@@ -200,6 +202,57 @@ pay. **The contract must state which of the two it chose before any parser
 edit**, and if it raises the bound it must say so in those words rather than
 describing it as a validator update.
 
+### Ambiguity 3, resolved: no new node kind, no raised bound, and no statement node at all
+
+Chosen before any parser edit, in the words the contract asked for: **the
+`1..=19` node-kind bound is not raised, and no node kind is added.** A statement
+produces no syntax node at H1B-3, exactly as a CAP-050 parameter does not. The
+derivation runs through the frozen canonical assertion rather than through
+preference.
+
+1. The canonical regression assertion freezes `node_count == 4` at the stop.
+   Canonical function 1's body is one `return` statement whose expression is the
+   CAP-051 match construct, and its four nodes are the two arm bodies. If a
+   return statement appended a node when its own `;` was accepted, the canonical
+   count would be five. So for the one statement form the canonical source
+   reaches, the node append **must stay deferred** to where it already is:
+   `closing_step` completion, after end-of-input is accepted.
+2. A design in which `let` and assignment append immediately while `return`
+   defers is not a sequence at all, so every statement form must defer with it.
+   Deferral means the parser would have to buffer N statements and replay them
+   into nodes at the module's end.
+3. That replay point is reached only by a **complete** parse. No multi-statement
+   program can complete a parse at this checkpoint: the semantic phase would
+   then consume a node kind it does not know, and semantic authority is outside
+   this checkpoint. Every statement probe therefore stops, exactly as all
+   thirteen CAP-051 match probes do.
+4. Therefore every line of sequence-building product code - the raised bound, the
+   new shape branch, the statement store, the origin token-kind mapping - would
+   be **unreachable by every test this checkpoint can run**. The origin mapping
+   is worse than unreachable: it lives in the semantic group, which is entered
+   only when `status == 0`. Unexecutable product code is a weaker outcome than
+   recorded debt, so the bound stays at 19 and the arena vocabulary is untouched.
+
+The two consequences are recorded rather than hidden:
+
+- **The AST does not represent a binding or an assignment at H1B-3.** A body's
+  tree is still one return node over the last return statement's expression. The
+  statement grammar is proven by exact located rejection - the negative probes -
+  and not by structure, which is precisely the standard CAP-051's match construct
+  was accepted on.
+- **A binding's or an assignment's initializer nodes are orphans**, joining the
+  four CAP-051 already left. They are counted, validated, and folded into the
+  parse checksum, so their number cannot drift unnoticed; nothing references
+  them. H1C adopts all of them together.
+
+One rule follows from having no statement node and is stated here because
+H1B-4 inherits it: since the function node's `left` must be a return
+expression, **a body that closes without a completed `return` statement is an
+exact located rejection at its `}`** (code 6, the statement expectation). That
+subsumes the empty-body rejection. It is correct for all 23 canonical function
+bodies, every one of which returns, but H1B-4's `while` body is a statement
+block that need not return, so H1B-4 must move this rule from the function body
+to the function itself rather than inherit it unchanged.
 ### Debt carried forward from CAP-051, which this checkpoint must not silently adopt
 
 CAP-051 left **four orphan nodes** in the canonical parse: the two match arm
@@ -272,12 +325,187 @@ the skeleton's step 8. Dissolving that step moves the dispatch, and the thirteen
 match probes are what will catch it if it moves wrongly. Run them at every
 iteration, not only at the end.
 
+
+### Red-first proof and the observed red
+
+The order was the CAP-051 order, and it was followed exactly.
+
+1. The oracle was extended first. The arm-body shunting-yard CAP-051 had inlined
+   was lifted into one `parse_expression` model shared by the match arms, a
+   binding's initializer, an assignment's right-hand side, and the return
+   expression, and a statement loop was written above it from the frozen
+   contract. The extraction is behaviour-preserving: with `compiler.aero`
+   untouched, the ten CAP-050 signature probes, the thirteen CAP-051 match
+   probes and CAP-051's canonical target all stayed green against the refactored
+   oracle.
+2. `STATEMENT_PROBES` was then written as eighteen independent hand derivations
+   from this contract - six positive, twelve negative - and
+   `every_statement_probe_expectation_is_derived_twice`, which touches no
+   product, required the oracle to agree with all eighteen.
+   **Eighteen of eighteen agreed on the first run; no hand derivation needed
+   correction.** That is the anti-fitting signal, and CAP-051's was zero out of
+   thirteen.
+3. The red was then observed from the real linked product, before
+   `compiler.aero` was edited: `focused_statement_probes_...` failed at
+   `stmt-let-before-return` with the product returning **80**, the parse-group
+   mismatch. `stmt-return-only` passed at that point, which is the CAP-051 shape
+   the demoted `;` had to preserve.
+4. The regression guard was confirmed to be a guard rather than a target in the
+   same unedited state: `the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved`
+   passed **before** any product change, because the statement model predicts
+   exactly CAP-051's canonical stop - offset 146, line 8, column 1, code 0,
+   actual 3, four nodes, one parameter. Nothing this checkpoint admits is
+   reachable in the canonical source, so this number cannot and does not move.
+
+### Mechanism: the statement loop, in three new parser states
+
+The skeleton loses its eighth step. `fn NAME ( params ) -> int {` is now the
+whole of it, and accepting the body's `{` hands control to the statement loop
+rather than to a fixed `return` expectation.
+
+- **State 45, the statement dispatch.** One decoded record decides the form:
+  token kind 4 opens a binding, kind 1 opens an assignment, kind 6 opens a
+  return statement and latches its location for the deferred return node, and
+  anything else hands the *same* decoded record to the closing sequence. This is
+  the CAP-051 dispatch-before-append discipline reused: no token is consumed
+  speculatively and no node is appended and undone.
+- **State 47, the binding and assignment sub-machine.** Five steps -
+  `IDENT`/`mut`, `IDENT`, `:`, `int`, `=` - with `mut` admitted at step 0 as the
+  CAP-050 `param_alternate` pattern, the type checked byte for byte against
+  `int`, and step 4 handing the initializer to the accepted expression grammar.
+  An assignment enters at step 4, which is the whole of its grammar.
+- **State 49, the statement terminator.** `;` is demoted here from a closing
+  token to the statement's own terminator. It is the single rule that both the
+  ordinary return expression (state 18) and the closed match construct (state 43
+  step 14) return to, which is the concrete debt CAP-051's two entry points
+  left. A return statement latches its expression as the body root here.
+
+The closing sequence shrinks from `; } EOF` to `} EOF` and is entered from state
+45 and nowhere else. Its first step expects `}` when a return statement has
+completed and the statement expectation, kind 6, when none has - which is how a
+body with no return, and an empty body, are rejected at the exact `}`.
+
+The canonical 34-byte program walks a longer path for the identical result: the
+return node is still appended only after end-of-input is accepted, with the same
+`left`, the same origin, and the same producing token kind, so the module is
+byte-identical at O0 and O2.
+
 ### Recommended next action after CAP-052
 
 H1B-4, control flow - `if` / `else if` / `else` and `while` over the existing
 expression grammar - per `BOOTSTRAP_CONVERGENCE_READINESS.md:291`. Note before
 starting it that H1B-4 inherits Ambiguity 1 unchanged: it too cannot move the
 canonical stop, and its evidence will also be probes only.
+
+Three things CAP-052 leaves on H1B-4's desk, in the order they will be hit.
+
+1. **Decide first what a nested statement block is**, because CAP-052's
+   statement loop is written as the *function body's* loop: its closing rule is
+   `}` then end-of-input, and it requires a completed return statement before it
+   will accept that `}` (parser states 44/45/49, `compiler.aero`). An `if` or
+   `while` body is the same statement sequence with a different terminator and
+   no return requirement, so the loop has to be parameterized by its closing
+   rule before any control-flow token is admitted. Moving the return
+   requirement from the body to the function is the concrete first edit.
+2. **The node question comes back harder, and CAP-052's answer will not carry.**
+   A statement produces no node here only because nothing at this checkpoint can
+   observe a sequence: no multi-statement program can complete a parse while the
+   semantic phase is out of authority, so every sequence-building line would
+   have been unreachable. `if` and `while` are different - a conditional cannot
+   be represented by "the last return statement's expression" at all - so H1B-4
+   should expect to need the `1..=19` bound raised, and should settle that in
+   its contract before any parser edit exactly as Ambiguity 3 required here.
+3. **Watch the same regression CAP-052 watched.** The return expression's
+   leading-token dispatch now sits behind the statement dispatch (state 45 into
+   state 40). Anything H1B-4 adds to statement dispatch moves it again, and the
+   thirteen CAP-051 match probes plus `stmt-match-return-composes` are what
+   catch it. Run them at every iteration, not only at the end.
+
+### Ambiguity 3, resolved: no new node kind, and the `> 19` bound is untouched
+
+The contract required option 1 - chaining without a new kind - to be evaluated
+first. It cannot work, and the reason is exact rather than aesthetic. The node
+validator constrains kind 18 to `payload == 0`, `0 < left < node_id`, and
+`right == 0` (`compiler.aero:2789-2794`), so a return node has no free field to
+link a successor through. Kinds 5 through 17 do have two free children, but
+using one as a sequence link is the dishonest reuse the contract names: the
+origin sidecar maps node kind to the token kind that produced it
+(`compiler.aero:2987` onward, kind 8 to token 20, kind 9 to token 21, and so
+on), so a sequence wearing an arithmetic kind would claim a `+` or `-` token
+that the source never wrote.
+
+Option 2 - raising the `> 19` bound - is admissible under this checkpoint's
+stop but is not needed, and taking it would be larger than it looks. An honest
+sequence node requires both children positive, so a sequence element for a
+binding or an assignment would need a node of its own; that is three new kinds,
+not one, each needing an origin token-kind mapping and each consumed downstream
+at H1C. **The bound stays `kind <= 0 || kind > 19`.** No authority is widened
+and `BOOTSTRAP_CONVERGENCE_READINESS.md:246-248` is not engaged.
+
+Option 3 is what is taken, and it answers the contract's three questions:
+
+1. Statements chain through no node at all. A binding and an assignment append
+   **no node of their own**, exactly as a CAP-050 parameter does and as the
+   CAP-051 match construct does.
+2. The return statement appends its kind-18 node unchanged, and the function
+   node's `left` is that node, unchanged.
+3. The initializer of a binding and the right-hand side of an assignment are
+   handed to the already-accepted expression grammar, which appends ordinary
+   nodes of existing kinds. Nothing references them, so they are **orphans** -
+   the same debt shape CAP-051 recorded, enlarged rather than invented here.
+
+### The arena shape forces one narrowing of the frozen semantics, recorded rather than hidden
+
+The frozen semantics above say a body is one or more statements of the four
+forms, and say nothing about where a `return` may sit. The accepted arena does
+say something, and it is binding: the function node has exactly one body field
+(`left`), and kind 18 cannot chain. A body with no return statement leaves that
+field with nothing to name; a body with two of them makes the parser choose
+silently which one the function node means, and the loser becomes a kind-18
+orphan that says "return" to whatever adopts it at H1C. Both are lies the arena
+would carry.
+
+**The admitted grammar is therefore narrowed by one rule: the body's last
+statement is a `return`, and it is the only one.** Concretely, after the return
+statement's `;` the only admissible token is `}`. This is an arena-shape
+consequence, not a semantic fact, and it is recorded here because it is
+narrower than the contract's frozen text.
+
+It is not Decision 1(c) returning. (c) was falsified because it kept `return` as
+a fixed step of the skeleton, so a `return` inside an `if` body could never be
+reached. Here `return` is a statement form inside the statement loop, which is
+exactly what H1B-4 needs; the narrowing is about where a return may sit **within
+one block**, not about whether a block may contain one.
+
+Measured against the canonical bytes so the narrowing is not a guess: all 224
+`return` statements in `compiler.aero` are immediately followed by `}` - every
+one is the last statement of its own block, with none anywhere else. The
+measurement is a brace-depth scan over the comment-stripped source; the count
+differs from the readiness table's 221 because the source has grown since H1A.
+The `is_identifier_start` shape the contract cites,
+`if ... { return 1; } return 0;`, satisfies the narrowing: the inner block's
+only statement is the return, and the outer block's last statement is the
+return. H1B-4 therefore inherits this rule intact rather than having to undo it.
+
+### The `mut` token is matched but stored nowhere
+
+The frozen exclusions call `mut` "a token that is matched and recorded". It is
+matched exactly - `let mut mut a: int = 1;` is an exact located rejection - and
+it is recorded only in a parser register that is cleared at the next statement.
+No binding store is added. A parameter store exists because CAP-050 folded
+`parameter_count` into the checked expectation vector; a binding store would
+widen that vector, and nothing at this checkpoint consumes it. The consequence
+is stated plainly: `let a: int = 1;` and `let mut a: int = 1;` are
+indistinguishable in every value this checkpoint reports.
+
+### Debt carried forward from CAP-051, kept visible
+
+The four CAP-051 arm-body orphans are still orphans and still exactly four. No
+chaining walks the node arena by index; a statement's expression nodes are
+reached only through the expression grammar's own value stack, so nothing can
+sweep an unrelated node into a sequence. The canonical regression assertion
+still states `node_count == 4` exactly.
+
 
 ## CAP-051-H1B2-SELF-SOURCE-MATCH-RETURN - admit the single `match` over `Result<int, int>`
 

@@ -89,8 +89,8 @@ preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
 `self_host_source_ingestion_tests` is 8/8 green.
 
-CAP-050a, CAP-050/H1B-1, and CAP-051/H1B-2 are the next three H1 prerequisites
-to execute and are locally green. CAP-050a added the bounded parameter store - one owner, its
+CAP-050a, CAP-050/H1B-1, CAP-051/H1B-2, and CAP-052/H1B-3 are the next four H1
+prerequisites to execute and are locally green. CAP-050a added the bounded parameter store - one owner, its
 counter, a 68th expectation value, and a validated `989` checksum region -
 without any parser rule, so that a later grammar failure would be unambiguous.
 CAP-050 then added the parameter sub-machine itself. Between the `(` and the
@@ -145,8 +145,48 @@ match at O0 and O2. Admitting a second `fn` item is not a parser checkpoint, so
 that stop is the expected result rather than a defect. Thirteen further focused
 match probes - two positive shapes and eleven negatives, each hand-derived and
 independently confirmed by the oracle before the parser changed - are run against
-the real linked product. The focused target `self_host_source_ingestion_tests` is
-13/13 green.
+the real linked product.
+
+CAP-052/H1B-3 then admitted the statement grammar. A function body is now `{`
+followed by one or more statements followed by `}`, and a statement is exactly
+one of `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`,
+`IDENT = EXPR ;`, or `return EXPR ;`, where `EXPR` is the already-accepted
+expression grammar and the CAP-051 match construct is admitted in the return
+statement's expression only. The skeleton's fixed `return` step is dissolved into
+the statement loop, and `;` is demoted from a closing token to the return
+statement's own terminator, so CAP-051's two entry points into the closing
+sequence collapse into one rule inside the loop and that sequence shrinks to `}`
+then end-of-input. A statement creates no syntax node, exactly as a parameter
+does not, so the `1..=19` node-kind validator bound is again unchanged; a
+binding's or an assignment's initializer nodes are unowned, joining the four
+CAP-051 already left, and H1C adopts them. The binding type set is `int` alone,
+because every `ByteBuffer` and `Result<int, int>` binding in the source is
+initialized by a call and both belong to H1B-5. Any other shape - a missing type
+annotation, a missing initializer, a wider binding type, an assignment target
+that is not a bare identifier, a missing `;`, an empty body, a body that closes
+without a return, or `mut` without `let` - is an exact located rejection.
+
+This checkpoint deliberately does **not** move the canonical self-ingestion stop
+and must not be read as if it did. CAP-051 already parses function 1 completely,
+and admitting a second `fn` item is excluded from every parser checkpoint, so no
+construct CAP-052 admits is reachable in the canonical source at all. The stop
+therefore stays exactly where CAP-051 left it - `status = 10`, offset 146,
+line 8, column 1, expecting end of input and finding the second `fn` item, four
+nodes, one parameter - and it is asserted as a regression guard rather than as
+progress. The canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+is now 264,163 bytes, 6,085 LF bytes, 7-bit ASCII, SHA-256
+`5ccb734feae8e1a55f8eb97422f67d9480f56b403cfa5ce19282882152a9e9f5`, and remains a
+copy-derived successor of accepted B1C asserted byte for byte, now with ten
+further CAP-052 differences. The checkpoint's whole forward evidence is eighteen
+focused statement probes - six positive shapes and twelve negatives, each
+hand-derived from the frozen contract and independently confirmed by the oracle
+before the parser changed, with eighteen of eighteen agreeing on the first run
+and no hand derivation needing correction - run against the real linked product,
+which returned 80 for them beforehand. The accepted 34-byte canonical program is
+preserved exactly: exit 91 and the identical 144-byte module, MD5
+`fd2390d17d448d4539a72bf1991314dc`. The focused target
+`self_host_source_ingestion_tests` is 16/16 green.
 
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
@@ -162,13 +202,17 @@ products plus the specimen emit no `alloca` outside an entry block while still
 passing required LLVM verification.
 
 H1A is ingestion and tokenization only, CAP-050/H1B-1 adds signature syntax
-only, and CAP-051/H1B-2 adds one match form in one position only. The compiler
-reads its own source and now admits its function signatures and the whole body of
-its first function; a parameter still means nothing to the type, ownership,
-checked-IR, verifier, or backend authorities, `Ok` and `Err` are identifiers
-matched byte for byte and carry no enum, variant, or pattern meaning, and no
-statement, control-flow, call, or item beyond that first function parses. The rest of H1B, H1C through H1E, and the final stage replay
-remain open, and no self-hosting claim follows.
+only, CAP-051/H1B-2 adds one match form in one position only, and CAP-052/H1B-3
+adds statement syntax only. The compiler reads its own source and now admits its
+function signatures, the whole body of its first function, and multi-statement
+bodies of typed bindings, assignments and returns; a parameter still means
+nothing to the type, ownership, checked-IR, verifier, or backend authorities, a
+binding carries no type, ownership, mutability, scope, shadowing, or checked
+meaning and `mut` is matched rather than enforced, a statement produces no
+syntax node at all, `Ok` and `Err` are identifiers matched byte for byte and
+carry no enum, variant, or pattern meaning, and no control-flow, call, or item
+beyond that first function parses. The rest of H1B, H1C through H1E, and the
+final stage replay remain open, and no self-hosting claim follows.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped

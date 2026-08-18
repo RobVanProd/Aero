@@ -525,7 +525,7 @@ mod oracle {
     /// This is the single model. Both the canonical self-source target and the
     /// focused signature probes are graded against it.
     pub fn signature_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, false)
+        parser_stop(ingested, source, false, false)
     }
 
     /// Where the parser stops once CAP-051 / H1B-2 additionally admits one
@@ -540,10 +540,162 @@ mod oracle {
     /// shunting-yard so nodes append in the product's order. The construct
     /// itself appends no node and needs no new node kind.
     pub fn match_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true)
+        parser_stop(ingested, source, true, false)
     }
 
-    fn parser_stop(ingested: &Ingestion, source: &[u8], admit_match: bool) -> Ingestion {
+    /// Where the parser stops once CAP-052 / H1B-3 additionally admits the
+    /// statement grammar: a body is `{` followed by one or more statements
+    /// followed by `}`, and `;` terminates the return statement rather than
+    /// closing the body.
+    pub fn statement_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
+        parser_stop(ingested, source, true, true)
+    }
+
+    /// The accepted expression grammar, modelled as the product's own
+    /// shunting-yard so nodes append in the product's order.
+    ///
+    /// `values` holds node ids; the operator stack holds token kinds, with
+    /// 103/104 for the prefix forms and 10 for an open parenthesis, each beside
+    /// its located origin. The scan stops at the first token that cannot
+    /// continue the expression, leaving `index` on it, and returns the root node
+    /// id. An error carries the located token and the product's own
+    /// `(status, diagnostic_code)` for it.
+    fn parse_expression(
+        ingested: &Ingestion,
+        source: &[u8],
+        index: &mut usize,
+        nodes: &mut Vec<[i32; 4]>,
+        origins: &mut Vec<[i32; 5]>,
+    ) -> Result<i32, (TokenRecord, i32, i32)> {
+        fn append(
+            nodes: &mut Vec<[i32; 4]>,
+            origins: &mut Vec<[i32; 5]>,
+            kind: i32,
+            payload: i32,
+            left: i32,
+            right: i32,
+            origin: [i32; 4],
+        ) -> i32 {
+            nodes.push([kind, payload, left, right]);
+            let id = i32::try_from(nodes.len()).expect("bounded nodes");
+            origins.push([id, origin[0], origin[1], origin[2], origin[3]]);
+            id
+        }
+        fn reduce_top(
+            nodes: &mut Vec<[i32; 4]>,
+            origins: &mut Vec<[i32; 5]>,
+            values: &mut Vec<i32>,
+            operators: &mut Vec<(i32, [i32; 4])>,
+        ) {
+            let (marker, at) = operators.pop().expect("modelled operator stack");
+            if marker == 103 || marker == 104 {
+                let left = values.pop().expect("modelled operand stack");
+                let kind = if marker == 103 { 3 } else { 4 };
+                values.push(append(nodes, origins, kind, 0, left, 0, at));
+            } else {
+                let right = values.pop().expect("modelled operand stack");
+                let left = values.pop().expect("modelled operand stack");
+                values.push(append(
+                    nodes,
+                    origins,
+                    binary_node_kind(marker),
+                    0,
+                    left,
+                    right,
+                    at,
+                ));
+            }
+        }
+
+        let mut values: Vec<i32> = Vec::new();
+        let mut operators: Vec<(i32, [i32; 4])> = Vec::new();
+        let mut paren_depth = 0i32;
+        let mut expecting_operand = true;
+        loop {
+            let record = ingested.tokens[*index];
+            let origin = [record[1], record[3], record[4], record[0]];
+            if expecting_operand {
+                if record[0] == 1 {
+                    values.push(append(nodes, origins, 2, record[5], 0, 0, origin));
+                } else if record[0] == 2 {
+                    let from = usize::try_from(record[1]).expect("bounded start");
+                    let to = from + usize::try_from(record[2]).expect("bounded length");
+                    let mut literal = 0i32;
+                    for byte in &source[from..to] {
+                        literal = literal * 10 + i32::from(byte - b'0');
+                    }
+                    values.push(append(nodes, origins, 1, literal, 0, 0, origin));
+                } else if record[0] == 21 || record[0] == 27 || record[0] == 10 {
+                    let marker = match record[0] {
+                        21 => 103,
+                        27 => 104,
+                        _ => 10,
+                    };
+                    if marker == 10 {
+                        paren_depth += 1;
+                    }
+                    operators.push((marker, origin));
+                    *index += 1;
+                    continue;
+                } else {
+                    return Err((record, 11, 100));
+                }
+                expecting_operand = false;
+                *index += 1;
+                continue;
+            }
+
+            let precedence = binary_precedence(record[0]);
+            if precedence > 0 {
+                while let Some(&(marker, _)) = operators.last() {
+                    if marker == 10 {
+                        break;
+                    }
+                    let top = if marker == 103 || marker == 104 {
+                        7
+                    } else {
+                        binary_precedence(marker)
+                    };
+                    if top < precedence {
+                        break;
+                    }
+                    reduce_top(nodes, origins, &mut values, &mut operators);
+                }
+                operators.push((record[0], origin));
+                expecting_operand = true;
+                *index += 1;
+                continue;
+            }
+            if record[0] == 11 && paren_depth > 0 {
+                loop {
+                    let marker = operators.last().expect("modelled operator stack").0;
+                    if marker == 10 {
+                        operators.pop();
+                        break;
+                    }
+                    reduce_top(nodes, origins, &mut values, &mut operators);
+                }
+                paren_depth -= 1;
+                *index += 1;
+                continue;
+            }
+            if paren_depth > 0 {
+                return Err((record, 10, 11));
+            }
+            while !operators.is_empty() {
+                reduce_top(nodes, origins, &mut values, &mut operators);
+            }
+            assert_eq!(values.len(), 1, "one expression reduces to one value");
+            return Ok(values[0]);
+        }
+    }
+
+    fn parser_stop(
+        ingested: &Ingestion,
+        source: &[u8],
+        admit_match: bool,
+        admit_statements: bool,
+    ) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
         let mut stopped = ingested.clone();
         stopped.signature_grammar = true;
@@ -622,7 +774,6 @@ mod oracle {
             reject!(result_type, 12, 102);
         }
         take!(12); // {
-        take!(6); // return
 
         macro_rules! append {
             ($kind:expr, $payload:expr, $left:expr, $right:expr, $origin:expr) => {{
@@ -635,6 +786,112 @@ mod oracle {
                 id
             }};
         }
+
+        // CAP-052 / H1B-3. The body is `{` followed by one or more statements
+        // followed by `}`. The four admitted statement forms are
+        // `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`,
+        // `IDENT = EXPR ;`, and `return EXPR ;`. `;` is the return statement's
+        // own terminator rather than a closing token, so the two entry points
+        // CAP-051 created into the closing sequence collapse into one rule
+        // inside the loop and the closing sequence shrinks to `}` then
+        // end-of-input, entered once.
+        //
+        // A statement produces no syntax node, exactly as a CAP-050 parameter
+        // does not, so the body's tree is still one return node over the last
+        // completed return statement's expression. A binding's or an
+        // assignment's initializer nodes are therefore orphans, joining the
+        // four CAP-051 left.
+        if admit_statements {
+            let mut body_root = 0i32;
+            loop {
+                let leading = ingested.tokens[index];
+                if leading[0] == 4 {
+                    index += 1; // let
+                    if ingested.tokens[index][0] == 5 {
+                        index += 1; // mut
+                    }
+                    take!(1); // the bound name
+                    take!(17); // :
+                    let ty = take!(1);
+                    if text(ty) != b"int" {
+                        reject!(ty, 12, 102);
+                    }
+                    take!(25); // =
+                } else if leading[0] == 1 {
+                    index += 1; // the assignment target, a bare identifier
+                    take!(25); // =
+                } else if leading[0] == 6 {
+                    index += 1; // return
+                } else {
+                    break;
+                }
+
+                // A return expression dispatches on its leading token exactly as
+                // CAP-051 does; a binding's or an assignment's expression does
+                // not, so `match` there is an ordinary identifier operand.
+                let mut root = 0i32;
+                let opening = ingested.tokens[index];
+                if leading[0] == 6 && opening[0] == 1 && text(&opening) == b"match" {
+                    index += 1; // match
+                    take!(1); // the scrutinee is exactly one identifier
+                    take!(12); // {
+                    for _ in 0..2 {
+                        take!(1); // the pattern head
+                        take!(10); // (
+                        take!(1); // the bound identifier
+                        take!(11); // )
+                        take!(36); // =>
+                        let arm = parse_expression(
+                            ingested,
+                            source,
+                            &mut index,
+                            &mut stopped.nodes,
+                            &mut stopped.origins,
+                        );
+                        match arm {
+                            Ok(value) => root = value,
+                            Err((record, status, code)) => reject!(&record, status, code),
+                        }
+                        take!(16); // the arm's trailing `,`
+                    }
+                    take!(13); // the match construct's closing `}`
+                } else {
+                    let value = parse_expression(
+                        ingested,
+                        source,
+                        &mut index,
+                        &mut stopped.nodes,
+                        &mut stopped.origins,
+                    );
+                    match value {
+                        Ok(value) => root = value,
+                        Err((record, status, code)) => reject!(&record, status, code),
+                    }
+                }
+                take!(18); // the statement's own `;`
+                if leading[0] == 6 {
+                    body_root = root;
+                }
+            }
+
+            // The closing sequence: `}` then end-of-input, entered once. A body
+            // that closes without a completed return statement has no root for
+            // the function node, so `}` is rejected there with the statement
+            // expectation instead - which is also how an empty body is rejected.
+            let close = &ingested.tokens[index];
+            let expected_close = if body_root > 0 { 13 } else { 6 };
+            if close[0] != expected_close {
+                reject!(close, 10, expected_close);
+            }
+            index += 1;
+            let end = &ingested.tokens[index];
+            if end[0] != 0 {
+                reject!(end, 10, 0);
+            }
+            panic!("this checkpoint requires the input to stop inside the parse phase");
+        }
+
+        take!(6); // return
 
         // CAP-051 decides on the leading token of the return expression, before
         // any operand reduction runs. `match` opens the admitted construct;
@@ -651,104 +908,18 @@ mod oracle {
                 take!(11); // )
                 take!(36); // =>
 
-                // The arm body: the accepted expression grammar, modelled as the
-                // product's shunting-yard. `values` holds node ids; `operators`
-                // holds token kinds, with 103/104 for the prefix forms and 10
-                // for an open parenthesis, each beside its located origin.
-                let mut values: Vec<i32> = Vec::new();
-                let mut operators: Vec<(i32, [i32; 4])> = Vec::new();
-                let mut paren_depth = 0i32;
-                let mut expecting_operand = true;
-                macro_rules! reduce_top {
-                    () => {{
-                        let (marker, at) = operators.pop().expect("modelled operator stack");
-                        if marker == 103 || marker == 104 {
-                            let left = values.pop().expect("modelled operand stack");
-                            let kind = if marker == 103 { 3 } else { 4 };
-                            values.push(append!(kind, 0, left, 0, at));
-                        } else {
-                            let right = values.pop().expect("modelled operand stack");
-                            let left = values.pop().expect("modelled operand stack");
-                            values.push(append!(binary_node_kind(marker), 0, left, right, at));
-                        }
-                    }};
-                }
-                loop {
-                    let record = ingested.tokens[index];
-                    let origin = [record[1], record[3], record[4], record[0]];
-                    if expecting_operand {
-                        if record[0] == 1 {
-                            values.push(append!(2, record[5], 0, 0, origin));
-                        } else if record[0] == 2 {
-                            let from = usize::try_from(record[1]).expect("bounded start");
-                            let to = from + usize::try_from(record[2]).expect("bounded length");
-                            let mut literal = 0i32;
-                            for byte in &source[from..to] {
-                                literal = literal * 10 + i32::from(byte - b'0');
-                            }
-                            values.push(append!(1, literal, 0, 0, origin));
-                        } else if record[0] == 21 || record[0] == 27 || record[0] == 10 {
-                            let marker = match record[0] {
-                                21 => 103,
-                                27 => 104,
-                                _ => 10,
-                            };
-                            if marker == 10 {
-                                paren_depth += 1;
-                            }
-                            operators.push((marker, origin));
-                            index += 1;
-                            continue;
-                        } else {
-                            reject!(&record, 11, 100);
-                        }
-                        expecting_operand = false;
-                        index += 1;
-                        continue;
-                    }
-
-                    let precedence = binary_precedence(record[0]);
-                    if precedence > 0 {
-                        while let Some(&(marker, _)) = operators.last() {
-                            if marker == 10 {
-                                break;
-                            }
-                            let top = if marker == 103 || marker == 104 {
-                                7
-                            } else {
-                                binary_precedence(marker)
-                            };
-                            if top < precedence {
-                                break;
-                            }
-                            reduce_top!();
-                        }
-                        operators.push((record[0], origin));
-                        expecting_operand = true;
-                        index += 1;
-                        continue;
-                    }
-                    if record[0] == 11 && paren_depth > 0 {
-                        loop {
-                            let marker = operators.last().expect("modelled operator stack").0;
-                            if marker == 10 {
-                                operators.pop();
-                                break;
-                            }
-                            reduce_top!();
-                        }
-                        paren_depth -= 1;
-                        index += 1;
-                        continue;
-                    }
-                    if paren_depth > 0 {
-                        reject!(&record, 10, 11);
-                    }
-                    while !operators.is_empty() {
-                        reduce_top!();
-                    }
-                    assert_eq!(values.len(), 1, "one arm body reduces to one value");
-                    break;
+                // The arm body is the accepted expression grammar, modelled by
+                // `parse_expression` as the product's own shunting-yard so nodes
+                // append in the product's order.
+                let arm = parse_expression(
+                    ingested,
+                    source,
+                    &mut index,
+                    &mut stopped.nodes,
+                    &mut stopped.origins,
+                );
+                if let Err((record, status, code)) = arm {
+                    reject!(&record, status, code);
                 }
 
                 take!(16); // the arm's trailing `,`
@@ -783,6 +954,12 @@ mod oracle {
     /// projected out of [`match_parser_stop`].
     pub fn match_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
         project(&match_parser_stop(ingested, source))
+    }
+
+    /// Where the parser stops once CAP-052 / H1B-3 admits the statement
+    /// grammar, projected out of [`statement_parser_stop`].
+    pub fn statement_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+        project(&statement_parser_stop(ingested, source))
     }
 
     /// Where the parser stops once CAP-050 / H1B-1 admits the signature grammar,
@@ -1741,6 +1918,280 @@ const ARM_RETURN: &str = r#"        if parser_cycle_state == 18 {
             }
         }"#;
 
+/// CAP-052's statement grammar, inserted into the CAP-051 parser.
+///
+/// The Aero product and this reconstruction are patched from one shared
+/// definition, so the admitted grammar and its byte-for-byte derivation cannot
+/// drift apart.
+const SKELETON_RETURN_STEP_ANCHOR: &str = r#"            if skeleton_step == 7 {
+                expected_kind = 6;
+            }
+            // CAP-050 signature grammar."#;
+const SKELETON_RETURN_STEP: &str = r#"            // CAP-052 dissolves the skeleton's fixed `return` step into the
+            // statement loop, so the skeleton ends at the body's '{'.
+            // CAP-050 signature grammar."#;
+const STATEMENT_ENTRY_ANCHOR: &str = r#"            if parser_running == 1 && skeleton_step == 7 {
+                return_start = current_start;
+                return_line = current_line;
+                return_column = current_column;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if param_hold == 0 {
+                    skeleton_step = skeleton_step + 1;
+                }
+                parser_state = 1;
+                if skeleton_step == 8 {
+                    parser_state = 40;
+                }
+            }"#;
+const STATEMENT_ENTRY: &str = r#"            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if param_hold == 0 {
+                    skeleton_step = skeleton_step + 1;
+                }
+                parser_state = 1;
+                if skeleton_step == 7 {
+                    parser_state = 44;
+                }
+            }"#;
+const STATEMENT_REGISTERS_ANCHOR: &str = r#"    let mut match_b4: int = 0;"#;
+const STATEMENT_REGISTERS: &str = r#"    let mut match_b4: int = 0;
+    let mut statement_mode: int = 0;
+    let mut stmt_step: int = 0;
+    let mut stmt_cycle_step: int = 0;
+    let mut stmt_expected: int = 0;
+    let mut stmt_alternate: int = 0;
+    let mut stmt_is_int: int = 0;
+    let mut stmt_b0: int = 0;
+    let mut stmt_b1: int = 0;
+    let mut stmt_b2: int = 0;
+    let mut body_root: int = 0;"#;
+const STATEMENT_REQUESTS_ANCHOR: &str = r#"        if parser_cycle_state == 42 {
+            parser_token_after = 43;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }"#;
+const STATEMENT_REQUESTS: &str = r#"        if parser_cycle_state == 42 {
+            parser_token_after = 43;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        // CAP-052 requests the leading token of each statement, one token per
+        // step of a binding or an assignment, and the statement's own ';'.
+        if parser_cycle_state == 44 {
+            parser_token_after = 45;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 46 {
+            parser_token_after = 47;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 48 {
+            parser_token_after = 49;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }"#;
+const STATEMENT_STATES_ANCHOR: &str =
+    r#"        // CAP-051 decides the return expression on its leading token, before"#;
+const STATEMENT_STATES: &str = r#"        // CAP-052 statement loop. A body is one or more statements followed by
+        // '}'. Each statement is dispatched on its own leading token: 'let'
+        // opens a binding, an identifier opens an assignment, and 'return'
+        // opens a return statement. Any other token hands the same decoded
+        // record to the closing sequence, which is entered from here and only
+        // from here. A statement creates no node, so the arena vocabulary and
+        // the '1..=19' node-kind bound are unchanged.
+        if parser_cycle_state == 45 {
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                statement_mode = 0;
+                if current_kind == 4 {
+                    statement_mode = 1;
+                    stmt_step = 0;
+                }
+                if current_kind == 1 {
+                    statement_mode = 2;
+                    stmt_step = 4;
+                }
+                if current_kind == 6 {
+                    statement_mode = 3;
+                    return_start = current_start;
+                    return_line = current_line;
+                    return_column = current_column;
+                }
+                if statement_mode == 0 {
+                    closing_step = 0;
+                    parser_state = 21;
+                } else {
+                    parse_index = parse_index + 1;
+                    value_top = 0;
+                    value_depth = 0;
+                    expecting_operand = 1;
+                    parser_state = 46;
+                    if statement_mode == 3 {
+                        parser_state = 40;
+                    }
+                }
+            }
+        }
+
+        // One step of 'let [mut] IDENT : int =' or of 'IDENT ='. Step 0 admits
+        // 'mut' as its alternate, step 3 requires the binding type to be exactly
+        // 'int', and step 4 hands the initializer to the accepted expression
+        // grammar. An assignment enters at step 4.
+        if parser_cycle_state == 47 {
+            stmt_cycle_step = stmt_step;
+            stmt_expected = 1;
+            stmt_alternate = 0;
+            if stmt_cycle_step == 0 {
+                stmt_alternate = 5;
+            }
+            if stmt_cycle_step == 2 {
+                stmt_expected = 17;
+            }
+            if stmt_cycle_step == 4 {
+                stmt_expected = 25;
+            }
+            if current_kind < 0 || current_start < 0 || current_length < 0
+                || current_line <= 0 || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != stmt_expected
+                && (stmt_alternate == 0 || current_kind != stmt_alternate) {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = stmt_expected;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 && stmt_cycle_step == 3 {
+                stmt_is_int = 0;
+                if current_length == 3 {
+                    stmt_b0 = result_value(bytes_get(&source, current_start));
+                    stmt_b1 = result_value(bytes_get(&source, current_start + 1));
+                    stmt_b2 = result_value(bytes_get(&source, current_start + 2));
+                    if stmt_b0 == 105 && stmt_b1 == 110 && stmt_b2 == 116 {
+                        stmt_is_int = 1;
+                    }
+                }
+                if stmt_is_int == 0 {
+                    status = 12;
+                    error_offset = current_start;
+                    error_line = current_line;
+                    error_column = current_column;
+                    diagnostic_code = 102;
+                    diagnostic_actual = current_kind;
+                    parser_running = 0;
+                }
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                stmt_step = stmt_cycle_step + 1;
+                if stmt_cycle_step == 0 && current_kind == 1 {
+                    stmt_step = 2;
+                }
+                parser_state = 46;
+                if stmt_cycle_step == 4 {
+                    parser_state = 3;
+                }
+            }
+        }
+
+        // ';' terminates the statement rather than closing the body. It is the
+        // one rule the ordinary return expression and the CAP-051 match
+        // construct both return to, so their two entry points into the closing
+        // sequence collapse into this one.
+        if parser_cycle_state == 49 {
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != 18 {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = 18;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                if statement_mode == 3 {
+                    body_root = expression_root;
+                }
+                statement_mode = 0;
+                parser_state = 44;
+            }
+        }
+
+        // CAP-051 decides the return expression on its leading token, before"#;
+const EXPRESSION_RETURN_ANCHOR: &str = r#"            if parser_running == 1 && match_active == 0 {
+                closing_step = 0;
+                parser_state = 20;
+            }"#;
+const EXPRESSION_RETURN: &str = r#"            if parser_running == 1 && match_active == 0 {
+                parser_state = 48;
+            }"#;
+const MATCH_CLOSE_ANCHOR: &str = r#"                if match_cycle_step == 14 {
+                    match_active = 0;
+                    closing_step = 0;
+                    parser_state = 20;
+                }"#;
+const MATCH_CLOSE: &str = r#"                if match_cycle_step == 14 {
+                    match_active = 0;
+                    parser_state = 48;
+                }"#;
+const CLOSING_SUFFIX_ANCHOR: &str = r#"        // Exact '; } EOF' suffix.
+        if parser_cycle_state == 21 {
+            expected_kind = 18;
+            if closing_step == 1 {
+                expected_kind = 13;
+            }
+            if closing_step == 2 {
+                expected_kind = 0;
+            }"#;
+const CLOSING_SUFFIX: &str = r#"        // Exact '} EOF' suffix, entered once from the statement loop. A body
+        // that closes without a completed return statement has no root for the
+        // function node, so its '}' is rejected with the statement expectation
+        // instead - which is also how an empty body is rejected.
+        if parser_cycle_state == 21 {
+            expected_kind = 13;
+            if body_root <= 0 {
+                expected_kind = 6;
+            }
+            if closing_step == 1 {
+                expected_kind = 0;
+            }"#;
+const CLOSING_ADVANCE_ANCHOR: &str = r#"                closing_step = closing_step + 1;
+                parser_state = 20;
+                if closing_step == 3 {"#;
+const CLOSING_ADVANCE: &str = r#"                closing_step = closing_step + 1;
+                parser_state = 20;
+                if closing_step == 2 {"#;
+const BODY_ROOT_ANCHOR: &str = r#"                        pending_node_left = expression_root;"#;
+const BODY_ROOT: &str = r#"                        pending_node_left = body_root;"#;
+
 /// Apply the six frozen CAP-049 ingestion differences to the accepted B1C
 /// source. `compiler.aero` must equal this byte for byte.
 fn expected_h1a_source() -> String {
@@ -1884,7 +2335,42 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(MATCH_STATES_ANCHOR, MATCH_STATES);
 
     assert_eq!(derived.matches(ARM_RETURN_ANCHOR).count(), 1);
-    derived.replace(ARM_RETURN_ANCHOR, ARM_RETURN)
+    let derived = derived.replace(ARM_RETURN_ANCHOR, ARM_RETURN);
+
+    // CAP-052 admits the statement grammar: the skeleton's fixed `return` step
+    // is dissolved into a statement loop, `;` is demoted from a closing token to
+    // the return statement's own terminator, and the closing sequence shrinks to
+    // `}` then end-of-input with exactly one entry point. No statement produces
+    // a syntax node, so the `1..=19` node-kind bound is untouched.
+    assert_eq!(derived.matches(STATEMENT_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(STATEMENT_REGISTERS_ANCHOR, STATEMENT_REGISTERS);
+
+    assert_eq!(derived.matches(SKELETON_RETURN_STEP_ANCHOR).count(), 1);
+    let derived = derived.replace(SKELETON_RETURN_STEP_ANCHOR, SKELETON_RETURN_STEP);
+
+    assert_eq!(derived.matches(STATEMENT_ENTRY_ANCHOR).count(), 1);
+    let derived = derived.replace(STATEMENT_ENTRY_ANCHOR, STATEMENT_ENTRY);
+
+    assert_eq!(derived.matches(STATEMENT_REQUESTS_ANCHOR).count(), 1);
+    let derived = derived.replace(STATEMENT_REQUESTS_ANCHOR, STATEMENT_REQUESTS);
+
+    assert_eq!(derived.matches(STATEMENT_STATES_ANCHOR).count(), 1);
+    let derived = derived.replace(STATEMENT_STATES_ANCHOR, STATEMENT_STATES);
+
+    assert_eq!(derived.matches(EXPRESSION_RETURN_ANCHOR).count(), 1);
+    let derived = derived.replace(EXPRESSION_RETURN_ANCHOR, EXPRESSION_RETURN);
+
+    assert_eq!(derived.matches(MATCH_CLOSE_ANCHOR).count(), 1);
+    let derived = derived.replace(MATCH_CLOSE_ANCHOR, MATCH_CLOSE);
+
+    assert_eq!(derived.matches(CLOSING_SUFFIX_ANCHOR).count(), 1);
+    let derived = derived.replace(CLOSING_SUFFIX_ANCHOR, CLOSING_SUFFIX);
+
+    assert_eq!(derived.matches(CLOSING_ADVANCE_ANCHOR).count(), 1);
+    let derived = derived.replace(CLOSING_ADVANCE_ANCHOR, CLOSING_ADVANCE);
+
+    assert_eq!(derived.matches(BODY_ROOT_ANCHOR).count(), 1);
+    derived.replace(BODY_ROOT_ANCHOR, BODY_ROOT)
 }
 
 // ---------------------------------------------------------------------------
@@ -2707,4 +3193,349 @@ fn the_match_return_checkpoint_has_an_independently_derived_target() {
     assert_eq!(&source[123..135], b"=> 0 - code,");
     assert_eq!(&source[140..144], b"};\n}");
     assert_eq!(&source[146..148], b"fn");
+}
+
+/// CAP-052 / H1B-3 focused statement probes.
+///
+/// This checkpoint cannot move the canonical self-ingestion stop: CAP-051
+/// already parses function 1 completely, and admitting a second `fn` item is
+/// excluded from every parser checkpoint. So these probes are the checkpoint's
+/// entire forward evidence, and the canonical target below is a regression
+/// guard rather than a progress measure.
+///
+/// The admitted statement forms are `let IDENT : int = EXPR ;`,
+/// `let mut IDENT : int = EXPR ;`, `IDENT = EXPR ;`, and `return EXPR ;`, in a
+/// body that is `{` followed by one or more statements followed by `}`. Every
+/// expectation is stated here as an independent hand derivation from the frozen
+/// contract and is separately derived by the oracle, so the two must agree.
+const STATEMENT_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
+    // label, source, status, code, actual, token text, parameters, nodes
+    // The CAP-051 shape, which the demoted `;` must not regress.
+    (
+        "stmt-return-only",
+        b"fn f() -> int { return 1; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        1,
+    ),
+    (
+        "stmt-let-before-return",
+        b"fn f() -> int { let a: int = 1; return a; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        2,
+    ),
+    (
+        "stmt-let-mut-before-return",
+        b"fn f() -> int { let mut a: int = 1; return a; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        2,
+    ),
+    (
+        "stmt-assignment-between",
+        b"fn f() -> int { let mut a: int = 1; a = 2; return a; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        3,
+    ),
+    // The binding's initializer is the whole accepted expression grammar: the
+    // three literals, then the product, then the sum, then `a`.
+    (
+        "stmt-let-expression",
+        b"fn f() -> int { let a: int = 1+2*3; return a; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        6,
+    ),
+    // The two grammars compose: a binding, then the CAP-051 match construct as
+    // the return statement's expression.
+    (
+        "stmt-match-return-composes",
+        b"fn f(a: Result<int,int>) -> int { let b: int = 1; return match a { Ok(v) => v, Err(c) => c, }; } x",
+        10,
+        0,
+        1,
+        "x",
+        1,
+        3,
+    ),
+    // `match` is admitted in the return statement's expression only, so in a
+    // binding's initializer it is an ordinary identifier operand and the
+    // scrutinee that follows it ends the expression.
+    (
+        "stmt-match-not-in-initializer",
+        b"fn f(a: Result<int,int>) -> int { let b: int = match a; return b; } x",
+        10,
+        18,
+        1,
+        "a",
+        1,
+        1,
+    ),
+    (
+        "stmt-missing-type-annotation",
+        b"fn f() -> int { let a = 1; return a; } x",
+        10,
+        17,
+        25,
+        "=",
+        0,
+        0,
+    ),
+    (
+        "stmt-missing-initializer",
+        b"fn f() -> int { let a: int; return a; } x",
+        10,
+        25,
+        18,
+        ";",
+        0,
+        0,
+    ),
+    (
+        "stmt-bytebuffer-binding",
+        b"fn f() -> int { let a: ByteBuffer = b; return a; } x",
+        12,
+        102,
+        1,
+        "ByteBuffer",
+        0,
+        0,
+    ),
+    (
+        "stmt-result-binding",
+        b"fn f() -> int { let a: Result<int,int> = b; return a; } x",
+        12,
+        102,
+        1,
+        "Result",
+        0,
+        0,
+    ),
+    (
+        "stmt-mut-without-name",
+        b"fn f() -> int { let mut: int = 1; return a; } x",
+        10,
+        1,
+        17,
+        ":",
+        0,
+        0,
+    ),
+    (
+        "stmt-non-identifier-target",
+        b"fn f() -> int { a[0] = 1; return a; } x",
+        10,
+        25,
+        14,
+        "[",
+        0,
+        0,
+    ),
+    (
+        "stmt-missing-semicolon",
+        b"fn f() -> int { return 1 } x",
+        10,
+        18,
+        13,
+        "}",
+        0,
+        1,
+    ),
+    (
+        "stmt-empty-body",
+        b"fn f() -> int { } x",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        0,
+    ),
+    (
+        "stmt-mut-without-let",
+        b"fn f() -> int { mut a: int = 1; return a; } x",
+        10,
+        6,
+        5,
+        "mut",
+        0,
+        0,
+    ),
+    // A body that closes without a completed return statement has no root for
+    // the function node, so its `}` is rejected with the statement expectation.
+    (
+        "stmt-body-without-return",
+        b"fn f() -> int { let a: int = 1; } x",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        1,
+    ),
+    (
+        "stmt-non-statement-start",
+        b"fn f() -> int { return 1; 2; } x",
+        10,
+        13,
+        2,
+        "2",
+        0,
+        1,
+    ),
+];
+
+fn statement_probe_targets() -> Vec<oracle::Ingestion> {
+    let mut targets = Vec::new();
+    for (label, source, status, code, actual, text, parameters, nodes) in STATEMENT_PROBES {
+        assert!(
+            source.len() < 100,
+            "probe `{label}` must stay a small complete program"
+        );
+        let ingested = oracle::ingest(
+            source,
+            &oracle::Bounds {
+                source: H1A_SOURCE_BOUND,
+                token: H1A_TOKEN_BOUND,
+                name: H1A_NAME_BOUND,
+                ampersand: true,
+            },
+        );
+        assert_eq!(ingested.status, 0, "probe `{label}` must lex completely");
+
+        let target = oracle::statement_parser_stop(&ingested, source);
+        let from = usize::try_from(target.error_offset).expect("bounded offset");
+        assert_eq!(target.status, *status, "probe `{label}` target status");
+        assert_eq!(target.diagnostic_code, *code, "probe `{label}` target code");
+        assert_eq!(
+            target.diagnostic_actual, *actual,
+            "probe `{label}` target actual"
+        );
+        assert_eq!(
+            &source[from..from + text.len()],
+            text.as_bytes(),
+            "probe `{label}` target token"
+        );
+        assert_eq!(
+            target.parameters.len(),
+            *parameters,
+            "probe `{label}` target parameter count"
+        );
+        assert_eq!(
+            target.nodes.len(),
+            *nodes,
+            "probe `{label}` target node count"
+        );
+        assert_eq!(
+            target.origins.len(),
+            target.nodes.len(),
+            "probe `{label}` must mirror every node with one origin"
+        );
+        targets.push(target);
+    }
+    targets
+}
+
+/// Every expectation in [`STATEMENT_PROBES`] is a hand derivation from the
+/// frozen contract. This test touches no product: it only requires the oracle
+/// to agree with all of them.
+#[test]
+fn every_statement_probe_expectation_is_derived_twice() {
+    assert_eq!(statement_probe_targets().len(), STATEMENT_PROBES.len());
+}
+
+#[test]
+fn focused_statement_probes_exercise_every_rule_of_the_admitted_grammar() {
+    for ((label, source, _, _, _, _, _, _), target) in
+        STATEMENT_PROBES.iter().zip(statement_probe_targets())
+    {
+        assert_eq!(
+            run_expectation("statement-probe", compiled_h1a(), source, &target, "-O0"),
+            91,
+            "probe `{label}` diverged from the derived CAP-052 target"
+        );
+    }
+}
+
+/// CAP-052 / H1B-3 leaves the canonical self-ingestion stop exactly where
+/// CAP-051 put it, and this is a regression guard rather than evidence of
+/// forward progress.
+///
+/// Function 1 is already parsed completely, and admitting a second `fn` item is
+/// excluded from every parser checkpoint, so no construct this checkpoint
+/// admits is reachable in the canonical source at all. The statement model and
+/// the CAP-051 model must therefore agree on it exactly, including the four
+/// orphan arm-body nodes, whose count is asserted so that index-walking
+/// chaining could not sweep them into a statement sequence unnoticed.
+#[test]
+fn the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = oracle::ingest(
+        &source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0);
+
+    let frozen = oracle::SignatureStop {
+        status: 10,
+        error_offset: 146,
+        error_line: 8,
+        error_column: 1,
+        diagnostic_code: 0,
+        diagnostic_actual: 3,
+        node_count: 4,
+        parameters: 1,
+    };
+    assert_eq!(
+        oracle::match_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-051's frozen target moved"
+    );
+    assert_eq!(
+        oracle::statement_grammar_stop(&ingested, &source),
+        frozen,
+        "CAP-052 must not move the canonical stop in either direction"
+    );
+    assert_eq!(&source[146..148], b"fn");
+
+    // The whole node arena at the stop is still the four CAP-051 orphans.
+    let stopped = oracle::statement_parser_stop(&ingested, &source);
+    assert_eq!(stopped.nodes.len(), 4);
+    assert_eq!(stopped.origins.len(), 4);
+
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_expectation(
+                "statement-self-ingestion",
+                compiled_h1a(),
+                &source,
+                &stopped,
+                optimization
+            ),
+            91,
+            "CAP-052 self-ingestion diverged from the independent oracle at {optimization}"
+        );
+    }
 }
