@@ -156,6 +156,11 @@ mod oracle {
         /// Whether the product folds a CAP-050 parameter region into its parse
         /// checksum. The store-only bisection records zero parameters.
         pub signature_grammar: bool,
+        /// Every admitted CAP-050 parameter as `(name id, type code)`, in
+        /// declaration order. Type code 1 is `int` and 2 is `Result<int, int>`.
+        pub parameters: Vec<(i32, i32)>,
+        /// Every syntax node as `[kind, payload, left, right]`, in append order.
+        pub nodes: Vec<[i32; 4]>,
     }
 
     pub struct Bounds {
@@ -185,6 +190,8 @@ mod oracle {
                     names: Vec::new(),
                     tokens: Vec::new(),
                     signature_grammar: false,
+                    parameters: Vec::new(),
+                    nodes: Vec::new(),
                 };
             }
             if *byte == b'\n' {
@@ -219,6 +226,8 @@ mod oracle {
                     names,
                     tokens,
                     signature_grammar: false,
+                    parameters: Vec::new(),
+                    nodes: Vec::new(),
                 }
             };
         }
@@ -399,6 +408,8 @@ mod oracle {
             names,
             tokens,
             signature_grammar: false,
+            parameters: Vec::new(),
+            nodes: Vec::new(),
         }
     }
 
@@ -457,7 +468,8 @@ mod oracle {
         pub parameters: i32,
     }
 
-    /// Model the parser CAP-050 authorizes and report its first stop.
+    /// Model the parser CAP-050 authorizes and report its first stop as a
+    /// complete parse-phase state.
     ///
     /// The frozen signature grammar is `fn NAME ( params? ) -> int {` where a
     /// parameter is `IDENT : TYPE`, `TYPE` is the identifier `int` or the exact
@@ -468,32 +480,39 @@ mod oracle {
     ///
     /// Parameters deliberately produce no syntax node, because the node arena is
     /// what the semantic, checked-IR, and verifier phases count.
-    pub fn signature_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+    ///
+    /// This is the single model. Both the canonical self-source target and the
+    /// focused signature probes are graded against it.
+    pub fn signature_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
+        let mut stopped = ingested.clone();
+        stopped.signature_grammar = true;
+        stopped.parameters = Vec::new();
+        stopped.nodes = Vec::new();
         let mut index = 0usize;
-        let mut parameters = 0i32;
-        let mut node_count = 0i32;
 
         let text = |record: &TokenRecord| {
             let from = usize::try_from(record[1]).expect("bounded start");
             let to = from + usize::try_from(record[2]).expect("bounded length");
             &source[from..to]
         };
-        let stop = |record: &TokenRecord, expected: i32, nodes: i32, params: i32| SignatureStop {
-            status: 10,
-            error_offset: record[1],
-            error_line: record[3],
-            error_column: record[4],
-            diagnostic_code: expected,
-            diagnostic_actual: record[0],
-            node_count: nodes,
-            parameters: params,
-        };
+        macro_rules! reject {
+            ($record:expr, $status:expr, $code:expr) => {{
+                let record: &TokenRecord = $record;
+                stopped.status = $status;
+                stopped.error_offset = record[1];
+                stopped.error_line = record[3];
+                stopped.error_column = record[4];
+                stopped.diagnostic_code = $code;
+                stopped.diagnostic_actual = record[0];
+                return stopped;
+            }};
+        }
         macro_rules! take {
             ($expected:expr) => {{
                 let record = &ingested.tokens[index];
                 if record[0] != $expected {
-                    return stop(record, $expected, node_count, parameters);
+                    reject!(record, 10, $expected);
                 }
                 index += 1;
                 record
@@ -507,27 +526,28 @@ mod oracle {
         // Parameter list: either an immediate `)` or `IDENT : TYPE` repeated.
         if ingested.tokens[index][0] != 11 {
             loop {
-                take!(1); // parameter name
+                let name = take!(1); // parameter name
                 take!(17); // :
                 let ty = take!(1);
-                match text(ty) {
-                    b"int" => {}
+                let code = match text(ty) {
+                    b"int" => 1,
                     b"Result" => {
                         take!(29); // <
                         let first = take!(1);
                         if text(first) != b"int" {
-                            return stop(first, 102, node_count, parameters);
+                            reject!(first, 12, 102);
                         }
                         take!(16); // ,
                         let second = take!(1);
                         if text(second) != b"int" {
-                            return stop(second, 102, node_count, parameters);
+                            reject!(second, 12, 102);
                         }
                         take!(31); // >
+                        2
                     }
-                    _ => return stop(ty, 102, node_count, parameters),
-                }
-                parameters += 1;
+                    _ => reject!(ty, 12, 102),
+                };
+                stopped.parameters.push((name[5], code));
                 if ingested.tokens[index][0] != 16 {
                     break;
                 }
@@ -538,7 +558,7 @@ mod oracle {
         take!(35); // ->
         let result_type = take!(1);
         if text(result_type) != b"int" {
-            return stop(result_type, 102, node_count, parameters);
+            reject!(result_type, 12, 102);
         }
         take!(12); // {
         take!(6); // return
@@ -546,11 +566,27 @@ mod oracle {
         // One leading identifier operand becomes a name-reference node; the
         // frozen closing sequence then requires `;`.
         if ingested.tokens[index][0] == 1 {
-            node_count += 1;
+            stopped.nodes.push([2, ingested.tokens[index][5], 0, 0]);
             index += 1;
         }
         take!(18); // ;
-        panic!("CAP-050 requires the self-source to stop before the closing `;`");
+        panic!("CAP-050 requires this input to stop inside the parse phase");
+    }
+
+    /// Where the parser stops once CAP-050 / H1B-1 admits the signature grammar,
+    /// projected out of [`signature_parser_stop`].
+    pub fn signature_grammar_stop(ingested: &Ingestion, source: &[u8]) -> SignatureStop {
+        let stopped = signature_parser_stop(ingested, source);
+        SignatureStop {
+            status: stopped.status,
+            error_offset: stopped.error_offset,
+            error_line: stopped.error_line,
+            error_column: stopped.error_column,
+            diagnostic_code: stopped.diagnostic_code,
+            diagnostic_actual: stopped.diagnostic_actual,
+            node_count: i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
+            parameters: i32::try_from(stopped.parameters.len()).expect("bounded parameters"),
+        }
     }
 
     /// The parse-group checksum over every source byte, name word, token word,
@@ -572,7 +608,12 @@ mod oracle {
             }
         }
         checksum = checksum_step(checksum, 992);
-        // H1A produces no syntax node.
+        // H1A produces no syntax node; CAP-050 reaches the body's first operand.
+        for record in &stopped.nodes {
+            for word in record {
+                checksum = checksum_step(checksum, *word);
+            }
+        }
         checksum = checksum_step(checksum, 993);
         for word in [
             stopped.status,
@@ -583,14 +624,22 @@ mod oracle {
             stopped.diagnostic_actual,
             i32::try_from(stopped.names.len()).expect("bounded names"),
             i32::try_from(stopped.tokens.len()).expect("bounded tokens"),
-            0,
+            i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
+            // A stopped parse never has a root.
             0,
         ] {
             checksum = checksum_step(checksum, word);
         }
         if stopped.signature_grammar {
             checksum = checksum_step(checksum, 989);
-            checksum = checksum_step(checksum, 0);
+            for (name, code) in &stopped.parameters {
+                checksum = checksum_step(checksum, *name);
+                checksum = checksum_step(checksum, *code);
+            }
+            checksum = checksum_step(
+                checksum,
+                i32::try_from(stopped.parameters.len()).expect("bounded parameters"),
+            );
         }
         checksum
     }
@@ -645,7 +694,7 @@ mod oracle {
             stopped.diagnostic_actual,
             i32::try_from(stopped.names.len()).expect("bounded names"),
             i32::try_from(stopped.tokens.len()).expect("bounded tokens"),
-            0,
+            i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
             0,
             parse_checksum(source, stopped),
             // semantic group - never entered
@@ -712,7 +761,7 @@ mod oracle {
             0,
         ];
         if stopped.signature_grammar {
-            vector.push(0);
+            vector.push(i32::try_from(stopped.parameters.len()).expect("bounded parameters"));
         }
         vector
     }
@@ -1419,6 +1468,162 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
             ),
             91,
             "CAP-049 self-ingestion diverged from the independent oracle at {optimization}"
+        );
+    }
+}
+
+/// CAP-050 / H1B-1 focused signature probes.
+///
+/// The canonical self-source is a single opaque pass/fail: the entry point
+/// returns 91 or 80 and says nothing about which of the 68 values moved. These
+/// probes are the smallest complete programs that exercise one signature-grammar
+/// rule each, so a sub-machine defect localises to one rule instead of to the
+/// whole checkpoint. Each stops inside the parse phase, so every downstream
+/// group stays not-attempted and the expectation vector has the same shape as
+/// the self-ingestion vector.
+///
+/// Red-first: each probe asserts what the accepted parser does today - it stops
+/// at the first parameter name expecting `)` - as real product evidence, and
+/// separately states the CAP-050 target derived by the oracle. Nothing here is
+/// graded against Aero output.
+///
+/// The probes link at `-O0` only. `-O0`/`-O2` equivalence for this product is
+/// established by the canonical-module and self-ingestion tests.
+const SIGNATURE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize)] = &[
+    // label, source, status, diagnostic code, diagnostic actual, token text, parameters
+    (
+        "one-int",
+        b"fn f(a: int) -> q { return 1; }",
+        12,
+        102,
+        1,
+        "q",
+        1,
+    ),
+    (
+        "one-result",
+        b"fn f(r: Result<int, int>) -> q { return 1; }",
+        12,
+        102,
+        1,
+        "q",
+        1,
+    ),
+    (
+        "two-int",
+        b"fn f(a: int, b: int) -> q { return 1; }",
+        12,
+        102,
+        1,
+        "q",
+        2,
+    ),
+    (
+        "missing-colon",
+        b"fn f(a int) -> int { return 1; }",
+        10,
+        17,
+        1,
+        "int",
+        0,
+    ),
+    (
+        "missing-type",
+        b"fn f(a: ) -> int { return 1; }",
+        10,
+        1,
+        11,
+        ")",
+        0,
+    ),
+    (
+        "unknown-type",
+        b"fn f(a: byte) -> int { return 1; }",
+        12,
+        102,
+        1,
+        "byte",
+        0,
+    ),
+    (
+        "trailing-comma",
+        b"fn f(a: int, ) -> int { return 1; }",
+        10,
+        1,
+        11,
+        ")",
+        1,
+    ),
+    (
+        "missing-paren",
+        b"fn f(a: int -> int { return 1; }",
+        10,
+        11,
+        35,
+        "->",
+        1,
+    ),
+    (
+        "malformed-result",
+        b"fn f(r: Result<int>) -> int { return 1; }",
+        10,
+        16,
+        31,
+        ">",
+        0,
+    ),
+];
+
+#[test]
+fn focused_signature_probes_pin_todays_parser_and_derive_the_checkpoint_targets() {
+    for (label, source, status, code, actual, text, parameters) in SIGNATURE_PROBES {
+        let ingested = oracle::ingest(
+            source,
+            &oracle::Bounds {
+                source: H1A_SOURCE_BOUND,
+                token: H1A_TOKEN_BOUND,
+                name: H1A_NAME_BOUND,
+                ampersand: true,
+            },
+        );
+        assert_eq!(ingested.status, 0, "probe `{label}` must lex completely");
+
+        // Today: the accepted parser rejects the first parameter name because
+        // the frozen skeleton expects `)` immediately after `(`.
+        let mut today = oracle::first_parser_stop(&ingested, source);
+        today.signature_grammar = true;
+        assert_eq!(today.status, 10, "probe `{label}` today");
+        assert_eq!(today.diagnostic_code, 11, "probe `{label}` today");
+        assert_eq!(today.diagnostic_actual, 1, "probe `{label}` today");
+        assert_eq!(today.error_offset, 5, "probe `{label}` today");
+        assert_eq!(
+            run_expectation("signature-probe", compiled_h1a(), source, &today, "-O0"),
+            91,
+            "probe `{label}` diverged from the accepted parser boundary"
+        );
+
+        // The CAP-050 target for the same bytes, derived from the token stream.
+        let target = oracle::signature_parser_stop(&ingested, source);
+        let from = usize::try_from(target.error_offset).expect("bounded offset");
+        assert_eq!(target.status, *status, "probe `{label}` target status");
+        assert_eq!(target.diagnostic_code, *code, "probe `{label}` target code");
+        assert_eq!(
+            target.diagnostic_actual, *actual,
+            "probe `{label}` target actual"
+        );
+        assert_eq!(
+            &source[from..from + text.len()],
+            text.as_bytes(),
+            "probe `{label}` target token"
+        );
+        assert_eq!(
+            target.parameters.len(),
+            *parameters,
+            "probe `{label}` target parameter count"
+        );
+        assert!(
+            target.nodes.is_empty(),
+            "probe `{label}` must stop before the body"
         );
     }
 }

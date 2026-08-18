@@ -175,6 +175,37 @@
   stop early at all; it accepts tokens it should reject and runs deep into the
   body before failing, far outside the grid. The next probe must cover a much
   wider token range, or better, bisect the sub-machine itself.
+### CAP-050 focused signature probes - the diagnostic the last attempt lacked
+
+- Status: landed and locally green ahead of any parser change. This is red-first
+  infrastructure, not the checkpoint.
+- The problem it solves: the canonical self-source is a single opaque pass/fail.
+  The entry point returns 91 or 80 and says nothing about which of the 68 values
+  moved, which is why the first attempt burned two probe grids - 46 candidates
+  and then roughly 2,000 - and matched nothing. Nine focused probe programs now
+  exercise one signature-grammar rule each: `IDENT : int`, `IDENT : Result <
+  int , int >`, two comma-separated parameters, and the six mandated negatives -
+  missing colon, missing type, unknown type identifier, trailing comma, missing
+  closing parenthesis, and a malformed `Result` generic. Each is a complete
+  program of well under a hundred bytes that stops inside the parse phase, so
+  every downstream group stays not-attempted and the expectation vector keeps the
+  same shape as the self-ingestion vector. A sub-machine defect now localises to
+  one grammar rule instead of to the whole checkpoint.
+- The oracle was extended rather than duplicated. `Ingestion` now carries the
+  parameter store as `(name id, type code)` pairs and the node arena as
+  `[kind, payload, left, right]` records; `parse_checksum` folds both - the node
+  region into `992` and the parameter region behind `989` followed by the count -
+  and `expectation_vector` reports both counts. `signature_parser_stop` is the
+  single model of the parser CAP-050 authorizes, and the accepted
+  `signature_grammar_stop` is now a projection of it, so the frozen self-input
+  target is re-derived from the same code the probes are graded against.
+- Evidence: `self_host_source_ingestion_tests` passes 10/10 and the complete
+  repository-root gate is green. All nine probes were run against the real linked
+  product at `-O0` and returned 91 against the accepted CAP-049 boundary - the
+  parser stops at the first parameter name at offset 5 expecting `)`. That is
+  product evidence for today's behavior, and the CAP-050 target for the same
+  bytes is stated separately, derived by the oracle rather than observed.
+
 ### CAP-050a accepted locally - the parameter store without the grammar
 
 - Status: the store-only variant is now landed and locally green. The canonical
