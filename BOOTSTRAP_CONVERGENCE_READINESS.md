@@ -324,7 +324,7 @@ later reader takes the original wording as evidence:
 | H1B-1 — typed parameter lists | The signature grammar accepts `fn NAME(p: T, ...) -> int` over the measured closed type set `int` and `Result<int, int>`. Parameters are recorded in their own bounded store and folded into the parse checksum | No syntax node is created for a parameter, because the node arena is what the semantic, checked-IR, and verifier phases count; parameters carry no type, ownership, or checked meaning; the body grammar is untouched |
 | H1B-2 — `match` over `Result<int, int>` (locally green, CAP-051) | The single `Ok(...) => ..., Err(...) => ...` form the source actually uses, as `result_value`'s whole body. Dispatched on the leading token of the return expression, before the operand reduction runs, so the append-only node arena never has to retract a name-reference node. The construct creates no node and needs no new node kind, so the `1..=19` node-kind bound is unchanged | No general patterns, guards, enums, or match anywhere but a return expression |
 | H1B-3 — statement blocks (locally green, CAP-052) | `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`, `IDENT = EXPR ;`, and `return EXPR ;`, in a body that is `{` followed by one or more statements followed by `}`. The skeleton's fixed `return` step is dissolved into the statement loop and `;` is demoted from a closing token to the return statement's own terminator, so the closing sequence shrinks to `}` then end-of-input with one entry point. A statement creates no syntax node, exactly as a parameter does not, so the `1..=19` node-kind bound is again unchanged | No control flow and no calls; no `ByteBuffer` or `Result<int, int>` binding type, because every one of those in the source is initialized by a call; a binding carries no type, ownership, mutability, scope, or checked meaning, and `mut` is matched and recorded rather than enforced |
-| H1B-4 — control flow | `if` / `else if` / `else` and `while` over the existing expression grammar | No new expression forms |
+| H1B-4 — control flow (locally green, CAP-053) | `if EXPR BLOCK`, with any number of `else if EXPR BLOCK` arms and an optional final `else BLOCK`, and `while EXPR BLOCK`, over the existing expression grammar. A `BLOCK` is CAP-052's statement sequence with two differences: it closes on `}` and nothing more, and the requirement that a `return` completed moves from the block to the function. Nesting is carried by a fourth bounded parse-group arena, one three-word record per nested block. Neither form creates a syntax node, so the `1..=19` node-kind bound is again unchanged. Within any block a `return` is the last statement and the only one - the rule CAP-052 froze and did not implement | No new expression forms; no `match` in a condition, because the source never writes one; no `else` without a preceding `if` body; a block carries no scope, reachability, liveness, or checked meaning, and a condition is not type-checked and is not required to be boolean |
 | H1B-5 — calls and references | Call expressions with argument lists and `&`/`&mut` operands | No intrinsic knowledge; a call is a syntax node |
 | H1B-6 — arena capacity | Node, value, and operator record bounds raised from 512 to the measured self-source requirement, under the same independent-oracle proof H1A used for tokens | No grammar change; capacity only |
 
@@ -349,6 +349,11 @@ paragraph should be read.
   ever decremented, so each counts every push over the whole parse. The deepest
   either stack actually gets on the complete canonical source is 5. "512 value
   records" has never been a limit on expression complexity.
+- **H1B-6's bound list is four, not three.** CAP-053 added a block record store
+  with the same never-decremented shape and the same 512 bound, and its
+  canonical requirement is already measured: **1,197 block records** cumulative,
+  at a peak live depth of 10. Like the other three it cannot be reached by any
+  H1B-4 or H1B-5 probe.
 - The pull-forward rule above does **not** fire at H1B-4 or H1B-5. Both leave
   the canonical stop at offset 146 with four nodes and are proven by focused
   probes of a few dozen tokens, so neither can exceed 512. The rule fires at the
@@ -358,7 +363,7 @@ paragraph should be read.
   module-shape gate, not ahead of H1B-4 or H1B-5.**
 
 One qualification, so it is not discovered mid-checkpoint: of the 23 canonical
-functions, 15 become parseable in isolation once H1B-4 lands, and 14 of those
+functions, 15 became parseable in isolation when H1B-4 landed, and 14 of those
 need at most 164 nodes. The fifteenth, `emitter_fixed_byte`, needs 474 under the
 current node policy and 734 under a node-producing statement policy, so lifting
 that one function verbatim as a probe is the single way an H1B-4 or H1B-5 probe

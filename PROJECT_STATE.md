@@ -1,6 +1,6 @@
 # Aero Project State
 
-Last updated: 2026-08-17 (America/New_York)
+Last updated: 2026-08-18 (America/New_York)
 
 ## Current objective
 
@@ -89,8 +89,8 @@ preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
 `self_host_source_ingestion_tests` is 8/8 green.
 
-CAP-050a, CAP-050/H1B-1, CAP-051/H1B-2, and CAP-052/H1B-3 are the next four H1
-prerequisites to execute and are locally green. CAP-050a added the bounded parameter store - one owner, its
+CAP-050a, CAP-050/H1B-1, CAP-051/H1B-2, CAP-052/H1B-3, and CAP-053/H1B-4 are
+the next five H1 prerequisites to execute and are locally green. CAP-050a added the bounded parameter store - one owner, its
 counter, a 68th expectation value, and a validated `989` checksum region -
 without any parser rule, so that a later grammar failure would be unambiguous.
 CAP-050 then added the parameter sub-machine itself. Between the `(` and the
@@ -176,10 +176,10 @@ nodes, one parameter - and it is asserted as a regression guard rather than as
 progress. The canonical source
 [`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
 is now 264,163 bytes, 6,085 LF bytes, 7-bit ASCII, SHA-256
-`5ccb734feae8e1a55f8eb97422f67d9480f56b403cfa5ce19282882152a9e9f5`, and remains a
-copy-derived successor of accepted B1C asserted byte for byte, now with ten
-further CAP-052 differences. The checkpoint's whole forward evidence is eighteen
-focused statement probes - six positive shapes and twelve negatives, each
+`5ccb734feae8e1a55f8eb97422f67d9480f56b403cfa5ce19282882152a9e9f5` at that
+checkpoint, and remains a copy-derived successor of accepted B1C asserted byte
+for byte, then with ten further CAP-052 differences. The checkpoint's whole
+forward evidence is eighteen focused statement probes - six positive shapes and twelve negatives, each
 hand-derived from the frozen contract and independently confirmed by the oracle
 before the parser changed, with eighteen of eighteen agreeing on the first run
 and no hand derivation needing correction - run against the real linked product,
@@ -196,6 +196,75 @@ of run under different denominators - 114 counts integration binaries alone,
 117 counts every `test result:` the gate emits. What is being reconciled is two
 commit messages, not a record and a run.
 
+CAP-053/H1B-4 then admitted two control-flow forms over that statement grammar:
+`if EXPR BLOCK`, with any number of `else if EXPR BLOCK` arms and an optional
+final `else BLOCK`, and `while EXPR BLOCK`. `EXPR` is the already-accepted
+expression grammar with no `match`, because the source never writes one in a
+condition; it ends at the block's `{`, which the existing machinery already
+stops on, so no new expression form was needed. A `BLOCK` is CAP-052's statement
+sequence with two differences that are the whole of this checkpoint's structural
+work: it closes on `}` and nothing more, and the requirement that a `return`
+completed moves from the block to the function, so a nested block may close
+without one while a function body still may not. Nesting is carried by a fourth
+bounded parse-group arena - one three-word record per nested block holding the
+block's kind, the enclosing block's statement state, and the link to the
+enclosing record - with the same 512 bound and the same exhaustion diagnostic as
+the value and operator stores, and no new status code. Neither form creates a
+syntax node, so the `1..=19` node-kind validator bound is again unchanged: an
+`if` node would have to reference a statement sequence that has no
+representation in the accepted arena, and one carrying only its condition would
+assert at H1C that the conditional has no body. A `return` inside a nested block
+therefore leaves its expression unowned beside the CAP-051 and CAP-052 orphans.
+Any other shape - an `else` that does not follow an `if` body, an empty block, a
+condition that begins with a token that is not an operand, a `match` in a
+condition, a missing `{` after a condition, a missing `}`, a statement after a
+completed `return`, a second `return` in one block, or a function body that
+closes with no `return` while a nested block has one - is an exact located
+rejection.
+
+This checkpoint also implements one rule CAP-052 stated and never implemented:
+after a return statement's `;` the only admissible token is that block's `}`.
+That the accepted parser admitted `return 1; return 2;` - parsing both and
+letting only the last return's expression reach the function node - was
+confirmed by running the accepted product against the CAP-052 model before the
+parser changed, rather than by reading the source.
+
+Like the two checkpoints before it, CAP-053 deliberately does **not** move the
+canonical self-ingestion stop, and must not be read as if it did. The stop stays
+exactly where CAP-051 left it - `status = 10`, offset 146, line 8, column 1,
+expecting end of input and finding the second `fn` item, four nodes, one
+parameter, at O0 and O2 - and it is asserted as a regression guard. The
+canonical source
+[`examples/aero_self_host_v0/compiler.aero`](examples/aero_self_host_v0/compiler.aero)
+is now 273,968 bytes, 6,312 LF bytes, 7-bit ASCII, SHA-256
+`b866e30c1fedee4514fea902466b9bfca6ba2c1d48e544928133fc7425dde0b6`, and remains
+a copy-derived successor of accepted B1C asserted byte for byte, now with nine
+further CAP-053 differences. The checkpoint's forward evidence is twenty-five
+focused control-flow probes - eleven positive shapes and fourteen negatives,
+each hand-derived from the frozen contract and independently confirmed by the
+oracle before the parser changed, with twenty-five of twenty-five agreeing on
+the first run and no probe expectation needing correction - run against the real
+linked product, which returned 80 for twenty-four of them beforehand. The
+twenty-fifth, a leading `else` with no preceding `if`, was already 91, because
+CAP-052 rejects it at the same offset with the same expectation; it is kept as a
+lock on a rule this checkpoint must not move rather than cited as evidence of
+the change. Before any of those probes was written, the extension of the
+independent oracle was confirmed behaviour-preserving with the Aero product byte
+for byte unchanged: the ten CAP-050 signature probes, the thirteen CAP-051 match
+probes and the eighteen CAP-052 statement probes all green against the
+refactored oracle first.
+
+Canonical function 2, `is_identifier_start`, is the first real canonical
+function to become parseable since CAP-051. It is lifted verbatim as a probe -
+asserted equal to the canonical bytes so it cannot drift into a paraphrase - and
+parses to 21 nodes and one parameter. It still does not parse in situ, because
+the canonical run stops at the second `fn` item first. The accepted 34-byte
+canonical program is preserved exactly: exit 91 and the identical 144-byte
+module, MD5 `fd2390d17d448d4539a72bf1991314dc`. The focused target
+`self_host_source_ingestion_tests` is 20/20 green, and the complete
+repository-root gate is green: 117 `test result:` lines, 973 passed, zero
+failed, 16 ignored.
+
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
 result temporary inside a loop became a non-entry `alloca` that LLVM never
@@ -210,17 +279,24 @@ products plus the specimen emit no `alloca` outside an entry block while still
 passing required LLVM verification.
 
 H1A is ingestion and tokenization only, CAP-050/H1B-1 adds signature syntax
-only, CAP-051/H1B-2 adds one match form in one position only, and CAP-052/H1B-3
-adds statement syntax only. The compiler reads its own source and now admits its
-function signatures, the whole body of its first function, and multi-statement
-bodies of typed bindings, assignments and returns; a parameter still means
-nothing to the type, ownership, checked-IR, verifier, or backend authorities, a
-binding carries no type, ownership, mutability, scope, shadowing, or checked
-meaning and `mut` is matched rather than enforced, a statement produces no
-syntax node at all, `Ok` and `Err` are identifiers matched byte for byte and
-carry no enum, variant, or pattern meaning, and no control-flow, call, or item
-beyond that first function parses. The rest of H1B, H1C through H1E, and the
-final stage replay remain open, and no self-hosting claim follows.
+only, CAP-051/H1B-2 adds one match form in one position only, CAP-052/H1B-3 adds
+statement syntax only, and CAP-053/H1B-4 adds two control-flow syntax forms
+only. The compiler reads its own source and now admits its function signatures,
+the whole body of its first function, multi-statement bodies of typed bindings,
+assignments and returns, and nested `if` / `else if` / `else` and `while`
+blocks; a parameter still means nothing to the type, ownership, checked-IR,
+verifier, or backend authorities, a binding carries no type, ownership,
+mutability, scope, shadowing, or checked meaning and `mut` is matched rather
+than enforced, a statement produces no syntax node at all, a block carries no
+scope, reachability, liveness or checked meaning and a condition is neither
+type-checked nor required to be boolean, `Ok` and `Err` are identifiers matched
+byte for byte and carry no enum, variant, or pattern meaning, and no call,
+reference, or item beyond that first function parses. Five of the six H1B
+checkpoints admit grammar without representing it - the running count of unowned
+syntax nodes is recorded in `TASK_LEDGER.md` under "The representation gap H1B
+leaves" - so H1B going green is not the same as the flat AST covering every
+construct present in the source. The rest of H1B, H1C through H1E, and the final
+stage replay remain open, and no self-hosting claim follows.
 
 The checkpoint sections below are retained chronological records. Any
 present-tense `current` or `latest` wording inside an older checkpoint is scoped

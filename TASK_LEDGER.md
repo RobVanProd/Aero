@@ -403,9 +403,12 @@ placeholder until the table gets one.
 ## CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW - admit `if` / `else if` / `else` and `while`
 
 - Date/task/status: 2026-08-18, `CAP-053-H1B4-SELF-SOURCE-CONTROL-FLOW`,
-  authored ledger-first from locally green CAP-052/H1B-3 at `f416067`.
-  **Contract only; no product change is recorded by this entry.** It is the
-  fourth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:327`. It
+  authored ledger-first from locally green CAP-052/H1B-3 at `f416067` and
+  **implemented and locally green at `954865b`**, from base `34cc379`. The
+  contract below was frozen before any product change and is unmodified by the
+  implementation; the two session-outcome sections at the end of this entry
+  record the authoring session and the implementing session in that order. It is
+  the fourth H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:327`. It
   authorizes two control-flow forms over the already-accepted expression
   grammar. It is not H1B completion, H1, H2, stage convergence, or any
   self-hosting claim.
@@ -768,6 +771,9 @@ and is not required here.
 
 ### Session outcome, 2026-08-18: contract authored, implementation not started
 
+*(The record of the authoring session. The implementing session's record
+follows it.)*
+
 This is a deliberate stop, not an exhausted one, and the reason is the one this
 worktree has the most evidence for: three sessions have now been lost mid-edit
 here, and an uncommitted parser change is the failure mode. The H1B-4 product
@@ -851,6 +857,169 @@ a standalone probe at 21 expression nodes and one parameter, not in situ, since
 the canonical run stops before reaching it. It is the first real canonical
 function to become parseable since CAP-051, and it is required positive
 coverage above.
+
+### Session outcome, 2026-08-18: implemented and gated green
+
+Base commit `34cc379`, branch `claude/self-hosting-analysis-be3f72`. The four
+steps the previous session ordered were followed in that order, and the ordering
+is what makes the numbers below mean anything.
+
+**The behaviour-preserving extraction was confirmed before one new probe was
+written.** The oracle's statement loop was rewritten around a block stack, a
+`block_state` register and a terminator parameterized by what the expression was
+for, all gated on a new `admit_control_flow` flag, and the focused target was run
+with `examples/aero_self_host_v0/compiler.aero` byte-identical to `34cc379`
+(SHA-256 `5ccb734f…`, hashed immediately before and after the run). Result:
+16/16 green in 218 seconds - the ten CAP-050 signature probes, the thirteen
+CAP-051 match probes, the eighteen CAP-052 statement probes and the canonical
+stop, all unchanged against the refactored oracle.
+
+**Twenty-five control-flow probes: eleven positive, fourteen negative.** All
+twenty-five hand derivations agreed with the oracle on the first run. Twenty-five
+of twenty-five, no probe expectation corrected; CAP-051's was zero of thirteen
+and CAP-052's zero of eighteen.
+
+**Two corrections were needed, and neither was to a probe expectation.** Both are
+recorded rather than smoothed, because where they were found is the point.
+
+1. **The extraction was not behaviour-preserving where no probe looked, and the
+   red run is what caught it.** The rewrite first spelled the function-level
+   return requirement `block_state == 2` under *both* flags. That silently
+   changed what the CAP-052 model predicts for
+   `fn f() -> int { return 1; let a: int = 2; } x`, because a statement after a
+   return clears the block state and CAP-052's product admits that statement.
+   No CAP-052 probe covers the shape, so all eighteen stayed green and hid it;
+   it surfaced only when the accepted product disagreed with the model on the
+   latent-defect observation below. The CAP-052 model now keeps `body_root > 0`
+   and the CAP-053 model uses `block_state == 2`; the two differ only on inputs
+   CAP-053 rejects. **The lesson generalizes: a probe suite passing is evidence
+   about the probe suite, not about the extraction.** The only reason this was
+   caught is that the red observation graded a shape *outside* the probe tables
+   against the old model.
+2. `CANONICAL_FUNCTION_2` was written `(146, 316)` and is `(146, 315)`; the span
+   had swallowed the newline that separates function 2 from function 3. The
+   probe's own bytes were correct and its parse expectations were unaffected.
+
+**A correction to this contract's red-first requirement.** The contract required
+that "the control-flow probes must return `80` from the real linked product
+before `compiler.aero` is edited". Twenty-four of the twenty-five did. The
+twenty-fifth, `cf-else-without-if`, returned **91** - correctly. CAP-052 already
+rejects a leading `else` at exactly the predicted place, with expectation 6 and
+actual 8 at the same offset, because `else` is not a statement opener and the
+closing sequence of a body with no completed return expects `return`. Its
+expectation is genuinely unchanged by this checkpoint, so it cannot be red. It is
+kept as a lock on a rule this checkpoint must not move, not cited as evidence of
+the change.
+
+**The CAP-052 latent defect, confirmed by run rather than by reading.** This was
+the one claim in the contract still resting on reading. Both shapes were graded
+against the CAP-052 model - which has no return-completed rule - and run against
+the accepted product at `34cc379`:
+
+| shape | CAP-052 model | accepted product |
+|---|---|---|
+| `fn f() -> int { return 1; let a: int = 2; } x` | stop at `x`, offset 44, code 0, actual 1, 2 nodes | **91** |
+| `fn f() -> int { return 1; return 2; } x` | stop at `x`, offset 38, code 0, actual 1, 2 nodes | **91** |
+
+Both were admitted. In the second, both returns parse and only the last one's
+expression reaches the function node, so the first return's literal is an
+unrecorded orphan - exactly the outcome CAP-052's text said the narrowing
+prevented. The contract predicted these two would be "red for a different
+reason"; the difference is sharper than that. Under the CAP-053 model they are
+80 and under the CAP-052 model they are 91, and that pair of numbers *is* the
+divergence between CAP-052's contract text and CAP-052's product. CAP-053
+implements the rule, and both shapes are now exact located rejections at the
+offending statement with the `}` expectation.
+
+**Three decisions this session had to make that the contract left open**, each
+resolved narrowly and recorded so a later session need not re-derive them.
+
+1. **An empty nested block is rejected at its `}` with expectation 6.** The
+   contract requires the rejection and does not name the code. Six is the code
+   CAP-052 already reports for an empty function body, and the nested rule is
+   written as the same one-line table: `13`, or `6` when the block has no
+   completed statement. So `if a { }` reports `expected 6, actual 13` at the
+   `}`, and one spelling covers both an empty block and a block that reaches its
+   `}` with nothing in it.
+2. **The block store is folded into no checksum and adds no expectation value.**
+   The contract calls a block record "a parser register, not AST", and the
+   accounting follows: `blocks` is not folded into the parse checksum, the
+   67/68-value expectation vector is unchanged, and the canonical program's own
+   self-test vector is untouched. Only the parse-group storage invariant learns
+   it (`bytes_len(&blocks)` against `block_records * 12`). Had it been folded,
+   every accepted expectation in the file would have moved for a store that no
+   phase downstream of the parser can see.
+3. **`else` is dispatched inside the statement loop, not as a statement.** A
+   `block_else` register is set by, and only by, the pop of an `if`-body record,
+   and is cleared on every entry to the dispatch. So `else` after a `while`
+   body, after an `else` body, or with no preceding `if` all fall through to the
+   ordinary close path and are rejected there, which is why all three report the
+   same located shape rather than three special cases.
+
+**What the product now is.** Nine differences from `34cc379`, each an
+anchor/replacement pair shared byte for byte between the Aero source and its
+reconstruction:
+
+- a `blocks` owner and twelve registers;
+- `parser_append_target = 5` and `parser_record_target = 3`, so the block store
+  is appended and read by the same two byte-at-a-time machines as the value and
+  operator stores;
+- a three-word record `[block kind, enclosing block state, previous]`, where the
+  kind is 1 an `if` body, 2 a `while` body, 3 an `else` body;
+- the statement dispatch admits kinds 7 and 9, admits `else` after an `if`
+  body's `}`, rejects any statement opener that follows a completed `return`
+  with the `}` expectation, and splits its non-statement branch on `block_top`;
+- the statement terminator computes `;` or `{` from what the expression was for,
+  and pushes the block record as it accepts a condition's `{`;
+- the closing sequence's return requirement becomes the function's rather than
+  the block's.
+
+`block_records` is a fourth monotonic parse-group counter with the same 512
+bound and the same `status = 15`, `diagnostic_code = 512` exhaustion diagnostic
+as the value and operator stores. No new status code. **H1B-6's bound list is now
+four**, and the canonical requirement measured above stands: 1,197 block records
+cumulative, peak live depth 10.
+
+**No node kind was added and the `1..=19` bound is untouched**, per Decision 1.
+`if`, `else`, `while` and their blocks create no syntax node, so a nested
+`return` leaves its expression as an orphan beside CAP-051's four arm bodies and
+CAP-052's initializers.
+
+**The canonical self-ingestion stop is unchanged**, which is the correct result:
+`status = 10`, offset 146, line 8, column 1, `diagnostic_code = 0`,
+`diagnostic_actual = 3`, four nodes, one parameter, at O0 and O2. It was not
+moved and no attempt was made to move it.
+
+**Canonical function 2 parses as a probe.** `is_identifier_start` is lifted
+verbatim - asserted equal to `compiler.aero[146..315]` byte for byte, so it
+cannot drift into a paraphrase - and stops at the trailing `x` with 21 nodes and
+one parameter, exactly the figure this contract predicted. Its condition is ten
+operand leaves and nine reductions, and each of its two `return` statements adds
+one literal leaf. It still does not parse in situ, because the canonical run
+stops at offset 146 first.
+
+**Evidence.** `./tools/test.sh` from the repository root, green: 117
+`test result:` lines, 973 passed, 0 failed, 16 ignored, exit 0. The 973 is four
+above CAP-053's authoring session's 969, which is exactly the four tests this
+checkpoint adds. The focused target `self_host_source_ingestion_tests` is 20/20
+green in 234 seconds. The canonical source is now 273,968 bytes, 6,312 LF bytes,
+7-bit ASCII, SHA-256
+`b866e30c1fedee4514fea902466b9bfca6ba2c1d48e544928133fc7425dde0b6`.
+
+**What to do first, next session.** Base commit `954865b`, branch
+`claude/self-hosting-analysis-be3f72`, remote confirmed at the same object by
+`git ls-remote`. H1B-5, calls and references, is next in the readiness table and
+is the first construct scheduled for *representation* since H1B began - a call
+is a syntax node, per `BOOTSTRAP_CONVERGENCE_READINESS.md:328` - so it is not
+another admit-without-representing checkpoint and should not be planned as one.
+Its measured shapes are already costed in the capacity section above: 1,106
+calls, 1,717 arguments with the widest single list at 68, and 447 `&` / `&mut`
+operands. Two things this checkpoint proved that H1B-5 inherits. The block stack
+and its `parser_append_target = 5` are in place, so a nested construct no longer
+needs new plumbing. And the anti-fitting check that actually caught something was
+grading a shape *outside* the probe tables against the previous checkpoint's
+model; H1B-5 should plan one of those deliberately rather than rely on its probe
+suite passing.
 
 ## CAP-052-H1B3-SELF-SOURCE-STATEMENT-BLOCKS - admit typed bindings, assignment, and multi-statement bodies
 
