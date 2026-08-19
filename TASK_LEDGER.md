@@ -1207,11 +1207,42 @@ restructure: a shape sitting within two records of the bound cannot also pay for
 the item it belongs to. Stop condition 6 exists to catch a restructure that
 reached a probe it should not have; this is a probe that was always two records
 from the edge. **The session continued rather than stopping, and records the
-judgement here so it can be overruled.** Nothing was relaxed: `node-under` keeps
-its input and its expectation is re-derived, and a new probe
-`node-under-with-item` at 65,533 records restores CAP-055's original meaning — a
-grammar stop with the arena one record below the bound, the item's two nodes
-inside that budget — and is graded against the product.
+judgement here so it can be overruled.** Reviewed and **upheld** on 2026-08-19
+after the checkpoint was committed, on two grounds: the violation was derived
+from the changed cost model *before* any run, rather than explained after a red
+appeared; and the response was to add a correctly costed probe rather than to
+loosen the stale one.
+
+**Exactly what happened to `node-under`, stated rather than left to a diff.** It
+was **retained, in both of the tests that consume it, and removed from neither.**
+Its entry in `capacity_probe_table()` — `node_chain_probe(bound / 2)`, expecting
+`10 / 0 / 1` at `bound - 1` nodes — is byte-identical to the base commit.
+`every_capacity_probe_stops_where_this_checkpoint_predicted` is untouched and
+still grades that entry against `capacity_parser_stop`, CAP-055's model, under
+which it is still a grammar stop at 65,535 nodes, because that model has no
+module rule and no item node to charge; the assertion was true before this
+checkpoint and is still true. `every_capacity_probe_agrees_with_the_product`
+changed in exactly one way: it derives its expectation from
+`module_parser_stop` instead. The new expectation — `status = 14`, code 65,536,
+actual 3, located at the item's own `fn` — is computed by the model from the two
+guards and was never typed into a table. So the probe's premise expired and the
+model recomputed what that premise now yields; the probe was not weakened,
+skipped or deleted, and `node-under-with-item` at 65,533 records is an
+**addition** that restores CAP-055's original meaning, not a substitution. All
+three capacity tests are green in the gate this checkpoint committed on.
+
+**This is not precedent for the retraction below, and must not be cited as
+such.** The two arguments have the same surface shape — "I predicted it, so
+proceeding was sound" — and one of them is the failure that cost this project
+two retracted records in two days. What separates them is what the prediction
+was about and when it was confirmed. The stop-condition-6 prediction is a
+derivation from a cost change already made and readable in the product, written
+down before the run, and **confirmed afterward by a completed exit status**. The
+"locally green" claims were bets on runs that were **still executing**, or worse,
+made against a completed **red** in the expectation it would clear. A prediction
+confirmed by a finished run is evidence; a prediction standing in for a finished
+run is the inversion. No claim in this ledger may rest on the second, and the
+first is admissible only once the run it predicts has returned and been read.
 
 The contract's stop condition should read "changes any field other than node
 count and checksum **on a probe more than two records below the node ceiling**".
