@@ -54,6 +54,28 @@ default branch is `master`; integration work belongs on
 
 ## Evidence and reporting
 
+**A claim of a test result must be written after reading that run's completed
+exit status, never before, in any record a later reader could cite** - the task
+ledger, `PROJECT_STATE.md`, a readiness document, a commit message, a handoff,
+or a status reported to a human. "It turned out to be true" is not the standard,
+because a later reader cannot distinguish a corrected record from a false one.
+The rule previously lived only in `TASK_LEDGER.md` and was worded to bind "a
+ledger entry"; CAP-055 and CAP-056 each broke it in a file that wording did not
+name, CAP-056 doing so sixty seconds after reading a completed red. Two
+procedures follow from it:
+
+- Write a run's row with its result column **empty** and fill it only from a
+  read exit status. Nothing else prevents a summary being written while the gate
+  is still running, which is simply faster.
+- Recording a gate edits the tree that gate verified, so the last gate before a
+  commit can never appear in the files it covers. Put its totals in the **commit
+  message**, which is written after the tree is fixed. Exactly one unrecorded
+  run is therefore in flight at commit time, by construction rather than
+  oversight.
+
+When this rule is broken, correct the record in place with the actual run table
+and exit values so the inversion stays visible; do not overwrite it.
+
 Every delegated task must report:
 
 1. Finding or implementation summary.
