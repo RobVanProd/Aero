@@ -335,7 +335,9 @@ a copy-derived successor of accepted B1C asserted byte for byte, now with
 sixteen further CAP-054 differences and one counted CAP-055 transform. The
 accepted 34-byte canonical program is preserved exactly: exit 91 and the
 identical 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`. The focused
-target `self_host_source_ingestion_tests` is 35/35 green.
+target `self_host_source_ingestion_tests` is 35/35 green, and the complete
+repository-root gate is green: 117 `test result:` lines, 988 passed, zero
+failed, 16 ignored.
 
 CAP-055/H1B-6 then raised all five parse-group record ceilings - node, value,
 operator, block and call - from 512 to a uniform 65,536, and changed no grammar.
