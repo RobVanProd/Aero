@@ -1,5 +1,92 @@
 # Aero Task Ledger
 
+## OPS-001 - the C: drive exhaustion, 2026-08-19 - operations note, not a checkpoint
+
+No contract, no gate obligation, no product change. Recorded because the
+mechanism is not the one the convention assumes and the next session would
+otherwise rediscover it the hard way.
+
+**The premise was that this project's build output filled `C:`. It did not.**
+Measured before anything was touched, `C:` was at 460 GB of 461 GB with 1.3 GB
+free. The consumers, with real numbers:
+
+| size | what | whose |
+|---|---|---|
+| **43.8 GB** | `C:\pagefile.sys`, OS-managed, **6.5 GB in use, 7.4 GB peak** | system setting - **Rob's** |
+| 13 GB | `C:\hiberfil.sys` (32 GB RAM machine) | system setting - **Rob's** |
+| 24 GB | Claude desktop VM bundles, 12 GB each in `AppData\Roaming\Claude\vm_bundles` and the mirrored `AppData\Local\Packages\Claude_*\LocalCache\...`, newest written 2026-08-19 | application data - **Rob's** |
+| 143 GB | `C:\Users\usa50\Documents` (Unreal projects, captures) | user data - untouched |
+| 20 GB | `C:\Users\usa50\.codex` | not this project's - untouched |
+| 2.5 GB | `%TEMP%`, almost entirely Docker Desktop and unrelated `.tmp` files | not this project's - untouched |
+| 442 MB | `~/.cargo` registry cache | regenerable, left: re-downloading costs more than it frees |
+| **0 bytes** | **this project's build leftovers on `C:`** | three zero-length files, removed |
+
+**This project left three zero-byte files on `C:`** - `case-326268.o`,
+`case-4fd227-38aa05ee.o.tmp` and `aero_runtime-9e93fd-2bd99bcd.o.tmp`, the last
+two being the exact intermediates from the 11:08 gate failure. They were removed
+and freed nothing measurable. **There is no cargo `target` directory anywhere on
+`C:`**; the D: convention held for the one thing that would have been large.
+
+The pagefile is the near-certain cause of the ~50 GB Rob observed: it is
+OS-managed, it grows under memory pressure - which parallel `cargo` plus dozens
+of linked `clang` test executables produce - and Windows does not shrink it
+back. It is allocated at 43.8 GB while its own peak usage is 7.4 GB.
+
+### The mechanism that defeated the D: convention, proven rather than inferred
+
+Real, but transient and not the cause of the exhaustion. `clang` on Windows does
+**not** honour `TMPDIR`; it reads `TMP` and `TEMP`. Observed directly with
+`clang -###`, which prints the intermediate path without running:
+
+| environment | clang resolves its `.o` to |
+|---|---|
+| `TMPDIR` on D:, `TMP`/`TEMP` unset | `C:\Users\usa50\t-1fe079.o` - **the profile root** |
+| `TMPDIR` on D:, `TMP`/`TEMP` inherited from Windows | `C:\Users\usa50\AppData\Local\Temp\...` |
+| `TMP` **or** `TEMP` on D: | `D:\...\t-968383.o` |
+
+Either variable alone is sufficient; `TMPDIR` alone is worthless. That is how a
+full `C:` surfaced at 11:08 as `unable to open output file '...case-4fd227.o':
+'no space on device'` inside `runtime_ascii_checked_ir_tests` and read as a
+product regression. The intermediates are deleted after each link, so the
+footprint is transient - a gate exiting returned about 640 MB - which is why
+this mechanism explains the *failure* but not the *exhaustion*.
+
+**The root cause is that nothing enforced the convention.** `tools/test.sh` set
+no output location at all. `AGENTS.md` required output off the system drive and
+left every operator to arrange it by hand, with the one variable most likely to
+be reached for being the one that does nothing.
+
+### The fix
+
+`tools/test.sh` now defaults `CARGO_TARGET_DIR` to `$ROOT_DIR/target` and
+`TMP`/`TEMP`/`TMPDIR` to `$ROOT_DIR/target/gate-tmp`, respects any value already
+exported, converts to a native path with `cygpath` so Windows tools read it, and
+**aborts** if any of the four resolves onto `C:`. Defaults are repo-relative, so
+they follow the repository's drive rather than hard-coding this machine's.
+
+Proved by observation, not by reading the script: starting from a deliberately
+hostile environment - `TMP` and `TEMP` pointed at
+`C:\Users\usa50\AppData\Local\Temp` and `CARGO_TARGET_DIR` unset - the block
+overrides them and `clang -###` resolves to
+`D:\...\target\gate-tmp\t-4fd878.o`. The guard was exercised in both
+directions: forcing `CARGO_TARGET_DIR` or `GATE_TMP` onto `C:` exits 1 naming
+the offending variable.
+
+### Left for Rob, deliberately not touched
+
+Both are large, both are his call, and neither is a build artifact:
+
+1. **The pagefile**, 43.8 GB allocated against 7.4 GB peak use. Capping it - or
+   setting a fixed size around 8-16 GB - would return roughly 28-36 GB. This is
+   a system setting and is outside what an agent should change.
+2. **The Claude VM bundles**, 24 GB across two mirrored locations, newest today.
+   Application data rather than a build cache, so outside the authorization
+   given, and it is not obvious which copy is authoritative.
+
+Freeing either is worth more than everything this project could contribute.
+Nothing under `Documents`, `Desktop`, `Downloads`, the recycle bin, `.rustup` or
+`D:\Aero-backups` was read for deletion or touched.
+
 ## H1B-6 arena-capacity measurement, 2026-08-18 - evidence, not an authorization
 
 This section authorizes nothing, changes no product, and asserts no capability.
