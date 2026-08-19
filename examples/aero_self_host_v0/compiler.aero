@@ -1969,12 +1969,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         // carries the same bound and the same exhaustion diagnostic as the
         // value and operator stores.
         if parser_cycle_state == 52 {
-            if block_records >= 512 {
+            if block_records >= 65536 {
                 status = 15;
                 error_offset = current_start;
                 error_line = current_line;
                 error_column = current_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
@@ -2158,12 +2158,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     ref_marker = 107;
                     ref_advance = 1;
                 }
-                if operator_records >= 512 {
+                if operator_records >= 65536 {
                     status = 15;
                     error_offset = ref_start;
                     error_line = ref_line;
                     error_column = ref_column;
-                    diagnostic_code = 512;
+                    diagnostic_code = 65536;
                     diagnostic_actual = 37;
                     parser_running = 0;
                 }
@@ -2188,12 +2188,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 expression_dispatch = 1;
                 parser_state = 24;
                 if current_kind == 10 {
-                    if call_records >= 512 || operator_records >= 512 {
+                    if call_records >= 65536 || operator_records >= 65536 {
                         status = 15;
                         error_offset = held_start;
                         error_line = held_line;
                         error_column = held_column;
-                        diagnostic_code = 512;
+                        diagnostic_code = 65536;
                         diagnostic_actual = current_kind;
                         parser_running = 0;
                     }
@@ -2260,12 +2260,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 && expression_dispatch == 0 && expecting_operand == 1
                 && (current_kind == 21 || current_kind == 27 || current_kind == 10) {
-                if operator_records >= 512 {
+                if operator_records >= 65536 {
                     status = 15;
                     error_offset = current_start;
                     error_line = current_line;
                     error_column = current_column;
-                    diagnostic_code = 512;
+                    diagnostic_code = 65536;
                     diagnostic_actual = current_kind;
                     parser_running = 0;
                 }
@@ -2372,12 +2372,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
             }
             if parser_running == 1 && decimal_index == current_length {
-                if node_count >= 512 {
+                if node_count >= 65536 {
                     status = 14;
                     error_offset = current_start;
                     error_line = current_line;
                     error_column = current_column;
-                    diagnostic_code = 512;
+                    diagnostic_code = 65536;
                     diagnostic_actual = current_kind;
                     parser_running = 0;
                 }
@@ -2412,12 +2412,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         if parser_cycle_state == 12 {
             node_count = node_count + 1;
             node_id = node_count;
-            if value_records >= 512 {
+            if value_records >= 65536 {
                 status = 15;
                 error_offset = current_start;
                 error_line = current_line;
                 error_column = current_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
@@ -2619,12 +2619,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if top_kind == 106 || top_kind == 107 {
                 reduction_actual = 37;
             }
-            if node_count >= 512 {
+            if node_count >= 65536 {
                 status = 14;
                 error_offset = top_start;
                 error_line = top_line;
                 error_column = top_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = reduction_actual;
                 parser_running = 0;
             }
@@ -2666,12 +2666,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             if top_kind == 106 || top_kind == 107 {
                 reduction_actual = 37;
             }
-            if value_records >= 512 {
+            if value_records >= 65536 {
                 status = 15;
                 error_offset = top_start;
                 error_line = top_line;
                 error_column = top_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = reduction_actual;
                 parser_running = 0;
             }
@@ -2702,12 +2702,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         // Consume the lookahead after all required reductions.
         if parser_cycle_state == 6 {
             if reduction_mode == 1 {
-                if operator_records >= 512 {
+                if operator_records >= 65536 {
                     status = 15;
                     error_offset = current_start;
                     error_line = current_line;
                     error_column = current_column;
-                    diagnostic_code = 512;
+                    diagnostic_code = 65536;
                     diagnostic_actual = current_kind;
                     parser_running = 0;
                 }
@@ -2843,12 +2843,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 closing_step = closing_step + 1;
                 parser_state = 20;
                 if closing_step == 2 {
-                    if node_count >= 512 {
+                    if node_count >= 65536 {
                         status = 14;
                         error_offset = return_start;
                         error_line = return_line;
                         error_column = return_column;
-                        diagnostic_code = 512;
+                        diagnostic_code = 65536;
                         diagnostic_actual = 6;
                         parser_running = 0;
                     }
@@ -2882,12 +2882,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         if parser_cycle_state == 22 {
             node_count = node_count + 1;
             node_id = node_count;
-            if node_count >= 512 {
+            if node_count >= 65536 {
                 status = 14;
                 error_offset = function_start;
                 error_line = function_line;
                 error_column = function_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = 3;
                 parser_running = 0;
             }
@@ -2927,12 +2927,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         // so its kind-2 node is appended now, one iteration later than before
         // and in the same order, with the same payload and the same origin.
         if parser_cycle_state == 24 {
-            if node_count >= 512 {
+            if node_count >= 65536 {
                 status = 14;
                 error_offset = held_start;
                 error_line = held_line;
                 error_column = held_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = 1;
                 parser_running = 0;
             }
@@ -2964,12 +2964,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         if parser_cycle_state == 25 {
             node_count = node_count + 1;
             node_id = node_count;
-            if value_records >= 512 {
+            if value_records >= 65536 {
                 status = 15;
                 error_offset = held_start;
                 error_line = held_line;
                 error_column = held_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = 1;
                 parser_running = 0;
             }
@@ -3082,12 +3082,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && node_count >= 512 {
+            if parser_running == 1 && node_count >= 65536 {
                 status = 14;
                 error_offset = current_start;
                 error_line = current_line;
                 error_column = current_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
@@ -3155,12 +3155,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && node_count >= 512 {
+            if parser_running == 1 && node_count >= 65536 {
                 status = 14;
                 error_offset = top_start;
                 error_line = top_line;
                 error_column = top_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = 10;
                 parser_running = 0;
             }
@@ -3195,12 +3195,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         if parser_cycle_state == 39 {
             node_count = node_count + 1;
             node_id = node_count;
-            if value_records >= 512 {
+            if value_records >= 65536 {
                 status = 15;
                 error_offset = top_start;
                 error_line = top_line;
                 error_column = top_column;
-                diagnostic_code = 512;
+                diagnostic_code = 65536;
                 diagnostic_actual = 10;
                 parser_running = 0;
             }

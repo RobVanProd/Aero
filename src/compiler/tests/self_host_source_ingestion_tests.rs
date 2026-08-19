@@ -208,6 +208,109 @@ mod oracle {
         pub ampersand: bool,
     }
 
+    /// CAP-055 / H1B-6. The five parse-group record ceilings, modelled here for
+    /// the first time: through CAP-054 the oracle carried no record bound of
+    /// any kind, so the product's `status = 14` and `status = 15` were never
+    /// predicted by anything.
+    ///
+    /// These are deliberately *not* fields of [`Bounds`]. `Bounds` is the
+    /// ingestion phase's policy and is threaded into `ingest`, which appends no
+    /// record; folding parse-phase ceilings into it would make seventeen
+    /// unrelated literals carry them. The contract said "extend `Bounds`"; this
+    /// is the one place the implementation departs from it, and the departure
+    /// is recorded in the ledger rather than smoothed.
+    #[derive(Clone, Copy)]
+    pub struct Caps {
+        pub nodes: usize,
+        pub values: usize,
+        pub operators: usize,
+        pub blocks: usize,
+        pub calls: usize,
+    }
+
+    impl Caps {
+        /// Every model through CAP-054, exactly. No check can fire, so the
+        /// bounded parser is the unbounded parser by construction rather than
+        /// by inspection.
+        pub const UNBOUNDED: Caps = Caps {
+            nodes: usize::MAX,
+            values: usize::MAX,
+            operators: usize::MAX,
+            blocks: usize::MAX,
+            calls: usize::MAX,
+        };
+
+        /// The product's own arrangement: one literal shared by all five.
+        pub const fn uniform(bound: usize) -> Caps {
+            Caps {
+                nodes: bound,
+                values: bound,
+                operators: bound,
+                blocks: bound,
+                calls: bound,
+            }
+        }
+    }
+
+    /// A located stop. A grammar reject carries the offending token's own kind
+    /// as `actual`; a capacity stop may not, because the product locates
+    /// several of its exhaustion diagnostics at a pending operator
+    /// (`compiler.aero:2622`, `diagnostic_actual = reduction_actual`) or at a
+    /// held callee (`:2191`) rather than at the token being classified.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub struct Reject {
+        pub offset: i32,
+        pub line: i32,
+        pub column: i32,
+        pub status: i32,
+        pub code: i32,
+        pub actual: i32,
+    }
+
+    impl Reject {
+        /// Every grammar reject the models through CAP-054 produced, unchanged.
+        fn token(record: &TokenRecord, status: i32, code: i32) -> Reject {
+            Reject {
+                offset: record[1],
+                line: record[3],
+                column: record[4],
+                status,
+                code,
+                actual: record[0],
+            }
+        }
+
+        /// A record-arena exhaustion. `origin` is the oracle's
+        /// `[start, line, column, kind]`, and `diagnostic_code` carries the
+        /// bound itself exactly as the product does.
+        fn capacity(origin: [i32; 4], status: i32, bound: usize, actual: i32) -> Reject {
+            Reject {
+                offset: origin[0],
+                line: origin[1],
+                column: origin[2],
+                status,
+                code: i32::try_from(bound).expect("bounded record ceiling"),
+                actual,
+            }
+        }
+    }
+
+    /// Mirrors the product's counters, which are never decremented: each counts
+    /// total pushes over the whole parse, not live depth. A pop rewinds only a
+    /// link, and the record arrays have an append path and no write-at-index
+    /// path, so an abandoned record is never reused.
+    ///
+    /// The node arena is absent because it is append-only in the model too and
+    /// `nodes.len()` already *is* the product's `node_count` - every accepted
+    /// probe grades that equality through the expectation vector.
+    #[derive(Default)]
+    pub struct Counts {
+        pub values: usize,
+        pub operators: usize,
+        pub blocks: usize,
+        pub calls: usize,
+    }
+
     /// Model the stdin ingestion loop and the lexer. Returns the state the Aero
     /// product reaches before its parser runs.
     pub fn ingest(source: &[u8], bounds: &Bounds) -> Ingestion {
@@ -525,7 +628,15 @@ mod oracle {
     /// This is the single model. Both the canonical self-source target and the
     /// focused signature probes are graded against it.
     pub fn signature_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, false, false, false, false)
+        parser_stop(
+            ingested,
+            source,
+            false,
+            false,
+            false,
+            false,
+            &Caps::UNBOUNDED,
+        )
     }
 
     /// Where the parser stops once CAP-051 / H1B-2 additionally admits one
@@ -540,7 +651,15 @@ mod oracle {
     /// shunting-yard so nodes append in the product's order. The construct
     /// itself appends no node and needs no new node kind.
     pub fn match_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, false, false, false)
+        parser_stop(
+            ingested,
+            source,
+            true,
+            false,
+            false,
+            false,
+            &Caps::UNBOUNDED,
+        )
     }
 
     /// Where the parser stops once CAP-052 / H1B-3 additionally admits the
@@ -548,7 +667,7 @@ mod oracle {
     /// followed by `}`, and `;` terminates the return statement rather than
     /// closing the body.
     pub fn statement_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, false, false)
+        parser_stop(ingested, source, true, true, false, false, &Caps::UNBOUNDED)
     }
 
     /// Where the parser stops once CAP-053 / H1B-4 additionally admits the two
@@ -570,7 +689,7 @@ mod oracle {
     /// H1C that the conditional has no body. So the `1..=19` node-kind bound is
     /// untouched, and a nested `return` leaves its expression as an orphan.
     pub fn control_flow_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, true, false)
+        parser_stop(ingested, source, true, true, true, false, &Caps::UNBOUNDED)
     }
 
     /// Where the parser stops once CAP-054 / H1B-5 additionally admits call
@@ -591,7 +710,20 @@ mod oracle {
     /// operand. Every node under a call is reachable from the call node, so a
     /// call's whole subtree is as reachable as the call itself.
     pub fn call_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, true, true)
+        parser_stop(ingested, source, true, true, true, true, &Caps::UNBOUNDED)
+    }
+
+    /// CAP-055 / H1B-6. The same grammar as [`call_parser_stop`] under the five
+    /// parse-group record ceilings, which nothing modelled before this
+    /// checkpoint.
+    ///
+    /// This is *not* a new parser. `call_parser_stop` is this function at
+    /// [`Caps::UNBOUNDED`], so the CAP-054 model survives as an instance of the
+    /// CAP-055 one rather than as a copy that could drift, and the two must
+    /// agree on every shape that stays under the bound. That equality is the
+    /// product-free proof this checkpoint changed no grammar.
+    pub fn capacity_parser_stop(ingested: &Ingestion, source: &[u8], caps: &Caps) -> Ingestion {
+        parser_stop(ingested, source, true, true, true, true, caps)
     }
 
     /// The accepted expression grammar, modelled as the product's own
@@ -610,27 +742,73 @@ mod oracle {
         nodes: &mut Vec<[i32; 4]>,
         origins: &mut Vec<[i32; 5]>,
         admit_calls: bool,
-    ) -> Result<i32, (TokenRecord, i32, i32)> {
+        caps: &Caps,
+        counts: &mut Counts,
+    ) -> Result<i32, Reject> {
+        /// `compiler.aero` checks `node_count >= BOUND` *before* the append and
+        /// locates the stop at the origin the node would have carried, so the
+        /// check belongs here rather than at each call site.
         fn append(
             nodes: &mut Vec<[i32; 4]>,
             origins: &mut Vec<[i32; 5]>,
+            caps: &Caps,
             kind: i32,
             payload: i32,
             left: i32,
             right: i32,
             origin: [i32; 4],
-        ) -> i32 {
+        ) -> Result<i32, Reject> {
+            if nodes.len() >= caps.nodes {
+                // `diagnostic_actual` is the origin's own token kind at every
+                // reachable site. At the reduction site the product spells this
+                // `reduction_actual`, which maps marker 103 to 21, 104 to 27
+                // and 106/107 to 37 - exactly the kinds of the tokens that
+                // pushed those markers, which is what the origin already holds.
+                return Err(Reject::capacity(origin, 14, caps.nodes, origin[3]));
+            }
             nodes.push([kind, payload, left, right]);
             let id = i32::try_from(nodes.len()).expect("bounded nodes");
             origins.push([id, origin[0], origin[1], origin[2], origin[3]]);
-            id
+            Ok(id)
+        }
+        /// The product increments `node_count` and only then checks
+        /// `value_records`, so a value push is guarded after its node append.
+        fn push_value(
+            values: &mut Vec<i32>,
+            counts: &mut Counts,
+            caps: &Caps,
+            id: i32,
+            origin: [i32; 4],
+        ) -> Result<(), Reject> {
+            if counts.values >= caps.values {
+                return Err(Reject::capacity(origin, 15, caps.values, origin[3]));
+            }
+            counts.values += 1;
+            values.push(id);
+            Ok(())
+        }
+        fn push_operator(
+            operators: &mut Vec<(i32, [i32; 4])>,
+            counts: &mut Counts,
+            caps: &Caps,
+            marker: i32,
+            origin: [i32; 4],
+        ) -> Result<(), Reject> {
+            if counts.operators >= caps.operators {
+                return Err(Reject::capacity(origin, 15, caps.operators, origin[3]));
+            }
+            counts.operators += 1;
+            operators.push((marker, origin));
+            Ok(())
         }
         fn reduce_top(
             nodes: &mut Vec<[i32; 4]>,
             origins: &mut Vec<[i32; 5]>,
             values: &mut Vec<i32>,
             operators: &mut Vec<(i32, [i32; 4])>,
-        ) {
+            caps: &Caps,
+            counts: &mut Counts,
+        ) -> Result<(), Reject> {
             let (marker, at) = operators.pop().expect("modelled operator stack");
             if marker == 103 || marker == 104 || marker == 106 || marker == 107 {
                 let left = values.pop().expect("modelled operand stack");
@@ -643,20 +821,24 @@ mod oracle {
                     106 => 22,
                     _ => 23,
                 };
-                values.push(append(nodes, origins, kind, 0, left, 0, at));
+                let id = append(nodes, origins, caps, kind, 0, left, 0, at)?;
+                push_value(values, counts, caps, id, at)?;
             } else {
                 let right = values.pop().expect("modelled operand stack");
                 let left = values.pop().expect("modelled operand stack");
-                values.push(append(
+                let id = append(
                     nodes,
                     origins,
+                    caps,
                     binary_node_kind(marker),
                     0,
                     left,
                     right,
                     at,
-                ));
+                )?;
+                push_value(values, counts, caps, id, at)?;
             }
+            Ok(())
         }
 
         /// Close the innermost call: turn the values above its base into a
@@ -675,12 +857,16 @@ mod oracle {
             calls: &mut Vec<(i32, usize)>,
             paren_depth: &mut i32,
             close: [i32; 4],
-        ) {
+            caps: &Caps,
+            counts: &mut Counts,
+        ) -> Result<(), Reject> {
             let (callee, base) = calls.pop().expect("modelled call stack");
             let mut chain = 0i32;
             while values.len() > base {
                 let argument = values.pop().expect("modelled operand stack");
-                chain = append(nodes, origins, 21, 0, argument, chain, close);
+                // `compiler.aero:3085` guards the argument cell at the closing
+                // `)`, which is the origin the cell carries.
+                chain = append(nodes, origins, caps, 21, 0, argument, chain, close)?;
             }
             let (marker, at) = operators.pop().expect("modelled operator stack");
             assert_eq!(marker, 105, "a call closes on its own marker");
@@ -688,7 +874,12 @@ mod oracle {
             // The callee is the call node's payload and never becomes a
             // name-reference node: `f` in `f(x)` is not a value read of `f`,
             // and the self-source has no first-class functions.
-            values.push(append(nodes, origins, 20, callee, chain, 0, at));
+            //
+            // `compiler.aero:3158` guards this node at `top_start`, the marker's
+            // own origin, which is `at`.
+            let id = append(nodes, origins, caps, 20, callee, chain, 0, at)?;
+            push_value(values, counts, caps, id, at)?;
+            Ok(())
         }
 
         let mut values: Vec<i32> = Vec::new();
@@ -717,6 +908,28 @@ mod oracle {
                 // always exists because `record[0] == 1` excludes end of input.
                 if admit_calls && record[0] == 1 && ingested.tokens[*index + 1][0] == 10 {
                     let open = ingested.tokens[*index + 1];
+                    // `compiler.aero:2191` is one check over both stores -
+                    // `call_records >= B || operator_records >= B` - located at
+                    // the *held callee* with `diagnostic_actual` taken from the
+                    // `(` that ended the hold. Under a uniform bound the two
+                    // trip together; under a non-uniform one the model reports
+                    // whichever ceiling was actually reached, and the call store
+                    // is checked first because the product names it first.
+                    if counts.calls >= caps.calls || counts.operators >= caps.operators {
+                        let bound = if counts.calls >= caps.calls {
+                            caps.calls
+                        } else {
+                            caps.operators
+                        };
+                        return Err(Reject::capacity(
+                            [record[1], record[3], record[4], record[0]],
+                            15,
+                            bound,
+                            open[0],
+                        ));
+                    }
+                    counts.calls += 1;
+                    counts.operators += 1;
                     calls.push((record[5], values.len()));
                     operators.push((105, [open[1], open[3], open[4], open[0]]));
                     paren_depth += 1;
@@ -731,7 +944,9 @@ mod oracle {
                         marker = 107;
                         *index += 1;
                     }
-                    operators.push((marker, origin));
+                    // `compiler.aero:2161`, located at the `&` with
+                    // `diagnostic_actual = 37`, which is that token's own kind.
+                    push_operator(&mut operators, counts, caps, marker, origin)?;
                     continue;
                 }
                 // A `)` is an operand-position token only as a zero-argument
@@ -751,13 +966,16 @@ mod oracle {
                         &mut calls,
                         &mut paren_depth,
                         origin,
-                    );
+                        caps,
+                        counts,
+                    )?;
                     expecting_operand = false;
                     *index += 1;
                     continue;
                 }
                 if record[0] == 1 {
-                    values.push(append(nodes, origins, 2, record[5], 0, 0, origin));
+                    let id = append(nodes, origins, caps, 2, record[5], 0, 0, origin)?;
+                    push_value(&mut values, counts, caps, id, origin)?;
                 } else if record[0] == 2 {
                     let from = usize::try_from(record[1]).expect("bounded start");
                     let to = from + usize::try_from(record[2]).expect("bounded length");
@@ -765,21 +983,26 @@ mod oracle {
                     for byte in &source[from..to] {
                         literal = literal * 10 + i32::from(byte - b'0');
                     }
-                    values.push(append(nodes, origins, 1, literal, 0, 0, origin));
+                    let id = append(nodes, origins, caps, 1, literal, 0, 0, origin)?;
+                    push_value(&mut values, counts, caps, id, origin)?;
                 } else if record[0] == 21 || record[0] == 27 || record[0] == 10 {
                     let marker = match record[0] {
                         21 => 103,
                         27 => 104,
                         _ => 10,
                     };
+                    // `compiler.aero:2263`, located at the current token with
+                    // its own kind. The grouping `(` is counted here and the
+                    // check precedes the depth increment, so an exhausted
+                    // operator store never leaves a half-opened group.
+                    push_operator(&mut operators, counts, caps, marker, origin)?;
                     if marker == 10 {
                         paren_depth += 1;
                     }
-                    operators.push((marker, origin));
                     *index += 1;
                     continue;
                 } else {
-                    return Err((record, 11, 100));
+                    return Err(Reject::token(&record, 11, 100));
                 }
                 expecting_operand = false;
                 *index += 1;
@@ -800,9 +1023,10 @@ mod oracle {
                     if top < precedence {
                         break;
                     }
-                    reduce_top(nodes, origins, &mut values, &mut operators);
+                    reduce_top(nodes, origins, &mut values, &mut operators, caps, counts)?;
                 }
-                operators.push((record[0], origin));
+                // `compiler.aero:2705`, located at the operator token itself.
+                push_operator(&mut operators, counts, caps, record[0], origin)?;
                 expecting_operand = true;
                 *index += 1;
                 continue;
@@ -814,12 +1038,12 @@ mod oracle {
                 loop {
                     let marker = operators.last().expect("modelled operator stack").0;
                     if marker == 10 {
-                        return Err((record, 10, 11));
+                        return Err(Reject::token(&record, 10, 11));
                     }
                     if marker == 105 {
                         break;
                     }
-                    reduce_top(nodes, origins, &mut values, &mut operators);
+                    reduce_top(nodes, origins, &mut values, &mut operators, caps, counts)?;
                 }
                 *index += 1;
                 expecting_operand = true;
@@ -843,19 +1067,21 @@ mod oracle {
                             &mut calls,
                             &mut paren_depth,
                             origin,
-                        );
+                            caps,
+                            counts,
+                        )?;
                         break;
                     }
-                    reduce_top(nodes, origins, &mut values, &mut operators);
+                    reduce_top(nodes, origins, &mut values, &mut operators, caps, counts)?;
                 }
                 *index += 1;
                 continue;
             }
             if paren_depth > 0 {
-                return Err((record, 10, 11));
+                return Err(Reject::token(&record, 10, 11));
             }
             while !operators.is_empty() {
-                reduce_top(nodes, origins, &mut values, &mut operators);
+                reduce_top(nodes, origins, &mut values, &mut operators, caps, counts)?;
             }
             assert_eq!(values.len(), 1, "one expression reduces to one value");
             return Ok(values[0]);
@@ -869,8 +1095,10 @@ mod oracle {
         admit_statements: bool,
         admit_control_flow: bool,
         admit_calls: bool,
+        caps: &Caps,
     ) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
+        let mut counts = Counts::default();
         let mut stopped = ingested.clone();
         stopped.signature_grammar = true;
         stopped.parameters = Vec::new();
@@ -892,6 +1120,21 @@ mod oracle {
                 stopped.error_column = record[4];
                 stopped.diagnostic_code = $code;
                 stopped.diagnostic_actual = record[0];
+                return stopped;
+            }};
+        }
+        /// CAP-055. A stop that already knows its own location and
+        /// `diagnostic_actual`, which a capacity stop does and a grammar reject
+        /// does not.
+        macro_rules! reject_located {
+            ($reject:expr) => {{
+                let reject: Reject = $reject;
+                stopped.status = reject.status;
+                stopped.error_offset = reject.offset;
+                stopped.error_line = reject.line;
+                stopped.error_column = reject.column;
+                stopped.diagnostic_code = reject.code;
+                stopped.diagnostic_actual = reject.actual;
                 return stopped;
             }};
         }
@@ -952,6 +1195,9 @@ mod oracle {
         macro_rules! append {
             ($kind:expr, $payload:expr, $left:expr, $right:expr, $origin:expr) => {{
                 let origin: [i32; 4] = $origin;
+                if stopped.nodes.len() >= caps.nodes {
+                    reject_located!(Reject::capacity(origin, 14, caps.nodes, origin[3]));
+                }
                 stopped.nodes.push([$kind, $payload, $left, $right]);
                 let id = i32::try_from(stopped.nodes.len()).expect("bounded nodes");
                 stopped
@@ -1006,6 +1252,17 @@ mod oracle {
                         mode = 4;
                     } else if next[0] == 12 {
                         index += 1; // `{`, opening the final `else` body
+                        // `compiler.aero:1972`, located at the token that opens
+                        // the block with that token's own kind.
+                        if counts.blocks >= caps.blocks {
+                            reject_located!(Reject::capacity(
+                                [next[1], next[3], next[4], next[0]],
+                                15,
+                                caps.blocks,
+                                next[0],
+                            ));
+                        }
+                        counts.blocks += 1;
                         blocks.push((3, block_state));
                         block_state = 0;
                         continue;
@@ -1089,10 +1346,12 @@ mod oracle {
                             &mut stopped.nodes,
                             &mut stopped.origins,
                             admit_calls,
+                            caps,
+                            &mut counts,
                         );
                         match arm {
                             Ok(value) => root = value,
-                            Err((record, status, code)) => reject!(&record, status, code),
+                            Err(reject) => reject_located!(reject),
                         }
                         take!(16); // the arm's trailing `,`
                     }
@@ -1105,10 +1364,12 @@ mod oracle {
                         &mut stopped.nodes,
                         &mut stopped.origins,
                         admit_calls,
+                        caps,
+                        &mut counts,
                     );
                     match value {
                         Ok(value) => root = value,
-                        Err((record, status, code)) => reject!(&record, status, code),
+                        Err(reject) => reject_located!(reject),
                     }
                 }
                 // The statement's terminator is decided by what the expression
@@ -1116,6 +1377,7 @@ mod oracle {
                 // `{` for a condition, whose block record is pushed as that `{`
                 // is accepted.
                 let terminator = if mode >= 4 { 12 } else { 18 };
+                let opener = ingested.tokens[index];
                 take!(terminator);
                 if mode == 3 {
                     // `body_root` stays one register and the last write wins.
@@ -1127,6 +1389,17 @@ mod oracle {
                     block_state = 2;
                 }
                 if mode >= 4 {
+                    // `compiler.aero:1972`, located at the `{` that opens the
+                    // block, which is the token just accepted.
+                    if counts.blocks >= caps.blocks {
+                        reject_located!(Reject::capacity(
+                            [opener[1], opener[3], opener[4], opener[0]],
+                            15,
+                            caps.blocks,
+                            opener[0],
+                        ));
+                    }
+                    counts.blocks += 1;
                     blocks.push((if mode == 4 { 1 } else { 2 }, block_state));
                     block_state = 0;
                 }
@@ -1205,9 +1478,11 @@ mod oracle {
                     &mut stopped.nodes,
                     &mut stopped.origins,
                     admit_calls,
+                    caps,
+                    &mut counts,
                 );
-                if let Err((record, status, code)) = arm {
-                    reject!(&record, status, code);
+                if let Err(reject) = arm {
+                    reject_located!(reject);
                 }
 
                 take!(16); // the arm's trailing `,`
@@ -3969,7 +4244,68 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(CALL_ORIGIN_BOUND_ANCHOR, CALL_ORIGIN_BOUND);
     assert_eq!(derived.matches(CALL_ORIGIN_MAPPING_ANCHOR).count(), 1);
     let derived = derived.replace(CALL_ORIGIN_MAPPING_ANCHOR, CALL_ORIGIN_MAPPING);
-    derived
+
+    // CAP-055 / H1B-6. The uniform parse-group capacity raise, applied last and
+    // as one step rather than as thirty-two anchored fragments.
+    //
+    // It is expressed this way because that is what it is: one policy ceiling
+    // shared by five stores, nine of whose sites the accepted B1C product
+    // already carries verbatim and seven of which CAP-050 through CAP-054
+    // added. Anchoring each site would make the anchors and their replacements
+    // differ only in a number, and would silently accept a *missed* site as
+    // "no difference" instead of failing. The counted transform cannot: it
+    // asserts exactly how many sites it rewrote.
+    raise_parse_record_bound(&derived)
+}
+
+/// Rewrite every parse-group record ceiling and every exhaustion
+/// `diagnostic_code` from the accepted 512 to [`PARSE_RECORD_BOUND`].
+///
+/// The verifier's own `512` at `compiler.aero:5557` is untouched, because the
+/// transform matches only lines that compare one of the five parse-group stores
+/// and lines that are exactly an exhaustion `diagnostic_code` assignment.
+/// `verified_function_node > 512` is neither.
+fn raise_parse_record_bound(source: &str) -> String {
+    let stores = [
+        "block_records",
+        "operator_records",
+        "call_records",
+        "node_count",
+        "value_records",
+    ];
+    let bound = PARSE_RECORD_BOUND;
+    let mut comparisons = 0usize;
+    let mut compared = 0usize;
+    let mut codes = 0usize;
+    let mut raised: Vec<String> = Vec::new();
+    for line in source.split('\n') {
+        let hits = stores
+            .iter()
+            .filter(|store| line.contains(&format!("{store} >= 512")))
+            .count();
+        if hits > 0 {
+            let mut rewritten = line.to_string();
+            for store in stores {
+                rewritten =
+                    rewritten.replace(&format!("{store} >= 512"), &format!("{store} >= {bound}"));
+            }
+            comparisons += 1;
+            compared += hits;
+            raised.push(rewritten);
+        } else if line.trim() == "diagnostic_code = 512;" {
+            codes += 1;
+            raised.push(line.replace("512", &bound.to_string()));
+        } else {
+            raised.push(line.to_string());
+        }
+    }
+    // Sixteen conditions guarding seventeen compared stores, because
+    // `compiler.aero:2191` guards the call store and the operator store in one
+    // condition, and sixteen `diagnostic_code` assignments beside them.
+    assert_eq!(comparisons, 16, "parse-group comparison conditions");
+    assert_eq!(compared, 17, "parse-group stores compared");
+    assert_eq!(codes, 16, "exhaustion diagnostic codes");
+    raised.join("\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -6440,4 +6776,605 @@ fn the_call_checkpoint_leaves_the_canonical_stop_unmoved() {
             "CAP-054 self-ingestion diverged from the independent oracle at {optimization}"
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// CAP-055 / H1B-6 - arena capacity
+//
+// The five parse-group record stores are `node_count`, `value_records`,
+// `operator_records`, `block_records` and `call_records`. All five are never
+// decremented, so each counts total pushes over the whole parse rather than
+// live depth: a pop rewinds only a link, and the record arrays have an append
+// path (`parser_append_target`) and no write-at-index path. "512 value records"
+// was never a limit on expression complexity - the deepest the value stack gets
+// on the entire canonical source is five.
+//
+// Every one of the five arrays is created by `bytes_new()` and grows by append,
+// so all five bounds are policy ceilings and not preallocations. Raising them
+// costs nothing until the capacity is used.
+// ---------------------------------------------------------------------------
+
+/// The single literal `compiler.aero` compares all five parse-group stores
+/// against, and reports as `diagnostic_code` when one is exhausted.
+///
+/// The verifier's own `512` at `compiler.aero:5557` is deliberately *not* this
+/// constant. It bounds `verified_function_node`, lives in the verifier group -
+/// which `BOOTSTRAP_CONVERGENCE_READINESS.md:265-267` forbids H1B to widen -
+/// and cannot bite inside H1B at all, because the verifier runs only on a
+/// complete `status == 0` pipeline that no H1B checkpoint reaches. It is
+/// recorded as debt for whichever checkpoint first drives the verifier over one
+/// function.
+const PARSE_RECORD_BOUND: usize = 65_536;
+
+/// What the canonical source actually needs, measured for the 293,592-byte
+/// tree CAP-054 left and recorded in `TASK_LEDGER.md` under "H1B-6
+/// arena-capacity measurement" and at
+/// `BOOTSTRAP_CONVERGENCE_READINESS.md:352-359`. This checkpoint consumes the
+/// measurement and does not repeat it.
+const CANONICAL_RECORD_REQUIREMENT: [(&str, usize); 5] = [
+    ("node", 17_621),
+    ("value", 15_842),
+    ("operator", 6_030),
+    ("block", 1_289),
+    ("call", 1_120),
+];
+
+/// `fn f() -> int { return ` - every capacity probe shares this prefix, so a
+/// located diagnostic's offset is derivable in one line.
+const PROBE_PREFIX: &[u8] = b"fn f() -> int { return ";
+
+/// A left-associative chain of `leaves` integer operands joined by `+`.
+///
+/// Equal precedence reduces eagerly, so the operator stack never gets deeper
+/// than one and the arena holds `2k - 2` nodes after leaf *k* and `2k - 1`
+/// after the reduction that follows it. `leaves` integers therefore produce
+/// exactly `2 * leaves - 1` nodes, which is how a probe lands on a chosen side
+/// of the bound to the record.
+fn node_chain_probe(leaves: usize) -> Vec<u8> {
+    let mut source = PROBE_PREFIX.to_vec();
+    for index in 0..leaves {
+        if index > 0 {
+            source.push(b'+');
+        }
+        source.push(b'1');
+    }
+    source.extend_from_slice(b"; } x");
+    source
+}
+
+/// `opens` grouping parentheses in operand position, each one operator record
+/// and no node at all. The chain never closes, which is deliberate: the stop
+/// happens on the way down, so the probe proves the operator store is exhausted
+/// with an empty node arena rather than as a side effect of node pressure.
+fn grouping_chain_probe(opens: usize) -> Vec<u8> {
+    let mut source = PROBE_PREFIX.to_vec();
+    source.extend(std::iter::repeat_n(b'(', opens));
+    source.extend_from_slice(b"1; } x");
+    source
+}
+
+/// `opens` nested calls, each one call record *and* one operator record, and no
+/// node until a call closes - which this probe never lets happen.
+fn call_chain_probe(opens: usize) -> Vec<u8> {
+    let mut source = PROBE_PREFIX.to_vec();
+    for _ in 0..opens {
+        source.extend_from_slice(b"f(");
+    }
+    source.extend_from_slice(b"1; } x");
+    source
+}
+
+fn capacity_ingest(source: &[u8]) -> oracle::Ingestion {
+    let ingested = oracle::ingest(
+        source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(
+        ingested.status, 0,
+        "a capacity probe must lex completely, so that what it proves is a \
+         record ceiling and not the token or source ceiling"
+    );
+    ingested
+}
+
+/// The four capacity shapes, with the expectation hand-derived from the
+/// accounting table and the check placement in `compiler.aero`, before any run.
+///
+/// `(label, source, status, code, actual, offset, nodes)`. `offset` is derived
+/// arithmetically from `PROBE_PREFIX` rather than searched for, so a probe that
+/// stopped at a plausible-looking wrong token would fail.
+fn capacity_probe_table() -> Vec<(&'static str, Vec<u8>, i32, i32, i32, i32, usize)> {
+    let bound = PARSE_RECORD_BOUND;
+    let prefix = i32::try_from(PROBE_PREFIX.len()).expect("bounded prefix");
+    let wide = i32::try_from(bound).expect("bounded record ceiling");
+    vec![
+        // The arena fills to `bound - 1` and the parse reaches the trailing
+        // `x`, an ordinary grammar stop. This is the checkpoint's positive: at
+        // 512 the identical shape cannot hold a hundredth of these records.
+        (
+            "node-under",
+            node_chain_probe(bound / 2),
+            10,
+            0,
+            1,
+            0,
+            bound - 1,
+        ),
+        // One more leaf makes the closing reduction the `bound + 1`-th append.
+        // `compiler.aero:2622` locates it at the pending operator's own origin -
+        // the last `+` in the source - and reports `reduction_actual`, which for
+        // a binary operator is that token's kind, 20.
+        (
+            "node-over",
+            node_chain_probe(bound / 2 + 1),
+            14,
+            wide,
+            20,
+            prefix + wide - 1,
+            bound,
+        ),
+        // `compiler.aero:2263`. The `bound + 1`-th `(` is at `prefix + bound`,
+        // and no node has been appended at all.
+        (
+            "operator-over",
+            grouping_chain_probe(bound + 1),
+            15,
+            wide,
+            10,
+            prefix + wide,
+            0,
+        ),
+        // `compiler.aero:2191`, one check over both the call store and the
+        // operator store. A nested call pushes one of each, so under a uniform
+        // bound they are exhausted on the same open. The stop is located at the
+        // *held callee* and reports the `(` that ended the hold.
+        (
+            "call-over",
+            call_chain_probe(bound + 1),
+            15,
+            wide,
+            10,
+            prefix + 2 * wide,
+            0,
+        ),
+    ]
+}
+
+/// The capacity model must reproduce the CAP-054 model exactly on every shape
+/// that stays under the bound, including the shapes no capacity probe covers.
+///
+/// This is the product-free proof that CAP-055 changed no grammar. It is not a
+/// tautology even though `call_parser_stop` is `capacity_parser_stop` at
+/// `Caps::UNBOUNDED`: a check placed one step early - before a reject the
+/// grammar was going to raise anyway, or on a path the product does not guard -
+/// would change an under-bound answer and this would catch it.
+#[test]
+fn the_capacity_model_agrees_with_the_call_model_under_the_bound() {
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    let mut compared = 0;
+    for (label, source, ..) in MODEL_LOCK_SHAPES {
+        let ingested = capacity_ingest(source);
+        assert_eq!(
+            oracle::expectation_vector(
+                source,
+                &oracle::capacity_parser_stop(&ingested, source, &caps)
+            ),
+            oracle::expectation_vector(source, &oracle::call_parser_stop(&ingested, source)),
+            "capacity model drifted from CAP-054 on the out-of-table shape `{label}`"
+        );
+        compared += 1;
+    }
+    let under = node_chain_probe(PARSE_RECORD_BOUND / 2);
+    let ingested = capacity_ingest(&under);
+    assert_eq!(
+        oracle::expectation_vector(
+            &under,
+            &oracle::capacity_parser_stop(&ingested, &under, &caps)
+        ),
+        oracle::expectation_vector(&under, &oracle::call_parser_stop(&ingested, &under)),
+        "capacity model drifted from CAP-054 one record below the bound"
+    );
+    compared += 1;
+    assert_eq!(compared, MODEL_LOCK_SHAPES.len() + 1);
+}
+
+/// The deliberate out-of-table grading, and the result that makes it worth
+/// running.
+///
+/// CAP-054's model has no record ceiling of any kind, so on every over-bound
+/// shape it does not merely get a detail wrong - it reports an ordinary grammar
+/// stop where the product reports an exhausted arena. The accepted oracle was
+/// blind to a whole class of product behaviour while twenty-six probes passed
+/// green around it, because no probe in any table ever exceeded 512 records.
+#[test]
+fn the_call_model_is_blind_to_every_over_bound_shape() {
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    let mut divergences = 0;
+    for (label, source, status, ..) in capacity_probe_table() {
+        let ingested = capacity_ingest(&source);
+        let bounded = oracle::capacity_parser_stop(&ingested, &source, &caps);
+        let cap054 = oracle::call_parser_stop(&ingested, &source);
+        assert!(
+            cap054.status != 14 && cap054.status != 15,
+            "CAP-054's model cannot report a capacity stop, yet `{label}` produced {}",
+            cap054.status
+        );
+        if status == 14 || status == 15 {
+            assert_ne!(
+                oracle::expectation_vector(&source, &bounded),
+                oracle::expectation_vector(&source, &cap054),
+                "`{label}` must separate the two models"
+            );
+            divergences += 1;
+        } else {
+            assert_eq!(
+                oracle::expectation_vector(&source, &bounded),
+                oracle::expectation_vector(&source, &cap054),
+                "`{label}` stays under the bound and must not separate them"
+            );
+        }
+    }
+    assert_eq!(divergences, 3, "three of the four shapes exceed a ceiling");
+}
+
+/// The hand-derived predictions, graded against the model before the product is
+/// asked anything.
+#[test]
+fn every_capacity_probe_stops_where_this_checkpoint_predicted() {
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    for (label, source, status, code, actual, offset, nodes) in capacity_probe_table() {
+        let ingested = capacity_ingest(&source);
+        let stopped = oracle::capacity_parser_stop(&ingested, &source, &caps);
+        assert_eq!(stopped.status, status, "`{label}` status");
+        assert_eq!(stopped.diagnostic_code, code, "`{label}` diagnostic_code");
+        assert_eq!(
+            stopped.diagnostic_actual, actual,
+            "`{label}` diagnostic_actual"
+        );
+        assert_eq!(stopped.nodes.len(), nodes, "`{label}` node records");
+        if status != 10 {
+            assert_eq!(stopped.error_offset, offset, "`{label}` located offset");
+            assert_eq!(stopped.error_line, 1, "`{label}` located line");
+            assert_eq!(stopped.error_column, offset + 1, "`{label}` located column");
+        }
+        assert_eq!(stopped.origins.len(), nodes, "`{label}` origin sidecar");
+    }
+}
+
+/// The same four shapes against the real linked product. This is the raise:
+/// `node-under` holds 65,535 node records, which is 128 times what the accepted
+/// product admitted, and the three `-over` shapes fail closed on the new bound
+/// with the located diagnostic intact rather than turning a capacity stop into
+/// a silent success.
+///
+/// The full expectation vector is asserted, so a stop that lost its offset,
+/// line or column, or that reported `status = 0`, would fail here.
+#[test]
+fn every_capacity_probe_agrees_with_the_product() {
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    for (label, source, ..) in capacity_probe_table() {
+        let ingested = capacity_ingest(&source);
+        let stopped = oracle::capacity_parser_stop(&ingested, &source, &caps);
+        assert_eq!(
+            run_expectation("capacity", compiled_h1a(), &source, &stopped, "-O0"),
+            91,
+            "capacity probe `{label}` diverged from the independent oracle"
+        );
+    }
+}
+
+/// Two of the five ceilings cannot be reached, and both facts are derived
+/// rather than discovered by a probe that failed to build.
+///
+/// A value push is paired with a node append at all four of its sites, and
+/// three node appends have no value push at all - the function node, the root
+/// and the argument cell - so `value_records <= node_count` always. At each
+/// value check the paired node increment has already happened and the node
+/// check guarding the same path passed, so `value_records < B` whenever the
+/// value check runs: at a uniform bound it can never fire. That was true at 512
+/// too.
+///
+/// A block push costs at least 6.5 tokens, because an empty block is rejected
+/// and the cheapest two-block shape is `if 1 { return 1; } else { return 1; }`
+/// at 13 tokens. 65,537 pushes therefore need at least 425,990 tokens against
+/// the frozen 262,144-token bound, which fires first. If a later checkpoint
+/// raises the token bound past roughly 426,000, the block ceiling becomes
+/// reachable and acquires a boundary no probe here covers.
+///
+/// Both paths are still live code, and this exercises them at a *non-uniform*
+/// bound, which is the only arrangement that can reach either. This is
+/// model-only evidence and is labelled model-only; it is not offered as product
+/// evidence for those two ceilings.
+#[test]
+fn the_value_and_block_ceilings_are_live_paths_at_a_non_uniform_bound() {
+    let unreachable_uniformly = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+
+    // Five operands need nine value pushes - five leaves and four reductions -
+    // so a ceiling of four stops on the reduction that would be the fifth.
+    let source = node_chain_probe(5);
+    let ingested = capacity_ingest(&source);
+    assert_eq!(
+        oracle::capacity_parser_stop(&ingested, &source, &unreachable_uniformly).status,
+        10,
+        "at a uniform bound this shape is an ordinary grammar stop"
+    );
+    let value_pinched = oracle::Caps {
+        values: 4,
+        ..oracle::Caps::UNBOUNDED
+    };
+    let stopped = oracle::capacity_parser_stop(&ingested, &source, &value_pinched);
+    assert_eq!(stopped.status, 15, "the value ceiling must fail closed");
+    assert_eq!(stopped.diagnostic_code, 4, "and report the ceiling it hit");
+    assert_eq!(stopped.error_line, 1);
+    assert!(
+        stopped.error_offset > 0 && stopped.error_column > 1,
+        "a capacity stop must stay located"
+    );
+
+    // Three nested blocks, none of them empty, under a ceiling of two.
+    let blocks = b"fn f() -> int { if 1 { a = 1; } else { a = 1; } if 1 { a = 1; } return 1; } x";
+    let ingested = capacity_ingest(blocks);
+    assert_eq!(
+        oracle::capacity_parser_stop(&ingested, blocks, &unreachable_uniformly).status,
+        10,
+        "at a uniform bound this shape is an ordinary grammar stop"
+    );
+    let block_pinched = oracle::Caps {
+        blocks: 2,
+        ..oracle::Caps::UNBOUNDED
+    };
+    let stopped = oracle::capacity_parser_stop(&ingested, blocks, &block_pinched);
+    assert_eq!(stopped.status, 15, "the block ceiling must fail closed");
+    assert_eq!(stopped.diagnostic_code, 2, "and report the ceiling it hit");
+    assert_eq!(
+        stopped.diagnostic_actual, 12,
+        "located on the opening brace"
+    );
+    assert_eq!(stopped.error_line, 1);
+}
+
+/// The raised bound admits what the canonical source measurably requires, with
+/// margin, and the old one did not admit any of it.
+///
+/// This is arithmetic over a committed measurement rather than a fresh
+/// measurement. It is a test so that a later source growth that overruns the
+/// ceiling is caught here instead of at the module-shape gate, which is the
+/// place `BOOTSTRAP_CONVERGENCE_READINESS.md:333-335` says capacity must never
+/// be allowed to masquerade as a grammar failure.
+#[test]
+fn the_raised_bound_covers_the_measured_canonical_requirement() {
+    for (arena, required) in CANONICAL_RECORD_REQUIREMENT {
+        assert!(
+            required > 512,
+            "the {arena} store's requirement of {required} must exceed the bound \
+             this checkpoint replaced, or the checkpoint has no reason to exist"
+        );
+        assert!(
+            required < PARSE_RECORD_BOUND,
+            "the {arena} store needs {required} records and the bound is \
+             {PARSE_RECORD_BOUND}"
+        );
+    }
+    // The upper projection of the same measurement, which is what the bound was
+    // derived from.
+    //
+    // A correction to the measurement, left visible rather than restated. It
+    // says 65,536 is 2.5x that; 65,536 / 26,332 is 2.4888, so 2.5x is a rounded
+    // figure reported as exact. Nothing depends on the difference - the
+    // recommendation stands and the bound is unchanged - but the claim that is
+    // exactly true is the weaker one, that the bound is at least *twice* the
+    // upper projection, which is the margin the derivation actually argues for:
+    // a source that doubles still fits. The second assertion pins the
+    // correction so the 2.5x claim cannot quietly return.
+    const UPPER_PROJECTION: usize = 26_332;
+    assert!(UPPER_PROJECTION * 2 <= PARSE_RECORD_BOUND);
+    assert!(
+        UPPER_PROJECTION * 5 / 2 > PARSE_RECORD_BOUND,
+        "2.5x the upper projection is 65,830 and overstates the bound"
+    );
+}
+
+/// CAP-055 / H1B-6 leaves the canonical self-ingestion stop exactly where
+/// CAP-051 put it. A capacity raise must not move it; if it moves, something
+/// other than capacity changed.
+///
+/// The canonical run stops four nodes in, so it never approaches any of the
+/// five ceilings and the bounded model must agree with all five earlier ones.
+#[test]
+fn the_capacity_checkpoint_leaves_the_canonical_stop_unmoved() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = capacity_ingest(&source);
+
+    let frozen = oracle::SignatureStop {
+        status: 10,
+        error_offset: 146,
+        error_line: 8,
+        error_column: 1,
+        diagnostic_code: 0,
+        diagnostic_actual: 3,
+        node_count: 4,
+        parameters: 1,
+    };
+    assert_eq!(
+        oracle::call_grammar_stop(&ingested, &source),
+        frozen,
+        "the CAP-054 target moved"
+    );
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    let stopped = oracle::capacity_parser_stop(&ingested, &source, &caps);
+    assert_eq!(
+        oracle::expectation_vector(&source, &stopped),
+        oracle::expectation_vector(&source, &oracle::call_parser_stop(&ingested, &source)),
+        "CAP-055 must not move the canonical stop in either direction"
+    );
+    assert_eq!(stopped.nodes.len(), 4);
+    assert_eq!(stopped.origins.len(), 4);
+    assert_eq!(&source[146..148], b"fn");
+
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_expectation(
+                "capacity-self-ingestion",
+                compiled_h1a(),
+                &source,
+                &stopped,
+                optimization
+            ),
+            91,
+            "CAP-055 self-ingestion diverged from the independent oracle at {optimization}"
+        );
+    }
+}
+
+/// The bound lives at exactly the parse-group sites and the verifier's own
+/// ceiling is untouched. A future edit that raised the verifier's `512` because
+/// it shares a literal with the others - the mistake the ledger explicitly
+/// warns against - fails here.
+///
+/// The counts correct this checkpoint's own contract, which said "sixteen
+/// parse-group sites - eight comparisons and eight `diagnostic_code`
+/// assignments". The product carries **sixteen comparison conditions** - one of
+/// which, `compiler.aero:2191`, tests two stores and so holds two occurrences -
+/// and **sixteen `diagnostic_code` assignments`: 33 occurrences over 32 lines,
+/// not 16. `65536` is not counted directly, because the source already uses it
+/// 94 times as the 2^16 byte-packing multiplier and such a count would prove
+/// nothing.
+#[test]
+fn the_raise_touched_the_parse_group_and_left_the_verifier_alone() {
+    let source = fs::read_to_string(repository_path(H1A_PRODUCT)).expect("read canonical source");
+    let stores = [
+        "block_records",
+        "operator_records",
+        "call_records",
+        "node_count",
+        "value_records",
+    ];
+    let bound = PARSE_RECORD_BOUND;
+
+    let comparisons = source
+        .lines()
+        .filter(|line| {
+            stores
+                .iter()
+                .any(|store| line.contains(&format!("{store} >= {bound}")))
+        })
+        .count();
+    assert_eq!(comparisons, 16, "sixteen parse-group comparison conditions");
+    let occurrences: usize = source
+        .lines()
+        .map(|line| {
+            stores
+                .iter()
+                .filter(|store| line.contains(&format!("{store} >= {bound}")))
+                .count()
+        })
+        .sum();
+    assert_eq!(
+        occurrences, 17,
+        "seventeen compared stores, because `compiler.aero:2191` guards the          call store and the operator store in one condition"
+    );
+    let codes = source
+        .lines()
+        .filter(|line| line.trim() == format!("diagnostic_code = {bound};"))
+        .count();
+    assert_eq!(codes, 16, "every exhaustion reports the bound it hit");
+
+    let remaining: Vec<&str> = source
+        .lines()
+        .filter(|line| line.contains("512"))
+        .map(|line| line.trim())
+        .collect();
+    assert_eq!(
+        remaining,
+        vec![
+            "&& (verified_function_node < 3 || verified_function_node > 512) {",
+            "verified_expected = 512;",
+        ],
+        "the only `512` left in the product must be the verifier's, which is          recorded as debt and is not H1B's to widen"
+    );
+}
+
+/// Drive the block store past the bound this checkpoint replaced, through the
+/// real product, rather than compare a number against it.
+///
+/// The block store is the one of the five that no `-over` probe can reach:
+/// 65,537 pushes need at least 425,990 tokens against the frozen 262,144-token
+/// bound, so the ceiling is unreachable and there is no boundary to exercise.
+/// The raise is therefore proven from the other side, and this is the test that
+/// makes the other four probes' evidence complete rather than partial.
+///
+/// The defect it rules out is specific: a guard raised without the storage
+/// behind it. Structurally that cannot happen here - all five arenas are
+/// `bytes_new()` buffers written by the same dispatch at
+/// `compiler.aero:3372-3395`, and `bytes_push` doubles its capacity through
+/// `aero_realloc` - but "the guard moved and the storage did not" is exactly
+/// the shape of a defect that passes a gate and fails later, so it is measured
+/// rather than argued. If the block array had a fixed 512-record allocation,
+/// `bytes_push` would return negative at record 513 and `compiler.aero:3404`
+/// would report `status = 8`, which is not the stop asserted here.
+///
+/// 1,300 blocks is chosen to exceed the canonical requirement of 1,289, so the
+/// probe covers the capacity the self-source actually needs from this store.
+#[test]
+fn the_product_holds_more_block_records_than_the_replaced_bound() {
+    const BLOCKS: usize = 1_300;
+    assert!(
+        BLOCKS > 512,
+        "the probe must exceed the bound being replaced"
+    );
+    assert!(
+        BLOCKS > 1_289,
+        "and the canonical source's measured block requirement"
+    );
+
+    let mut source = b"fn f() -> int { ".to_vec();
+    for _ in 0..BLOCKS / 2 {
+        source.extend_from_slice(b"if 1 { a = 1; } else { a = 1; } ");
+    }
+    source.extend_from_slice(b"return 1; } x");
+    let ingested = capacity_ingest(&source);
+    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
+    let stopped = oracle::capacity_parser_stop(&ingested, &source, &caps);
+    assert_eq!(
+        stopped.status, 10,
+        "the shape must reach an ordinary grammar stop, not a capacity one"
+    );
+
+    // The record count is pinned by bracketing rather than asserted from the
+    // model's own bookkeeping: a ceiling of exactly `BLOCKS` admits the parse
+    // and one record less fails closed on the block store. Both cannot hold if
+    // the shape pushes some other number of records.
+    let exact = oracle::Caps {
+        blocks: BLOCKS,
+        ..oracle::Caps::UNBOUNDED
+    };
+    let short = oracle::Caps {
+        blocks: BLOCKS - 1,
+        ..oracle::Caps::UNBOUNDED
+    };
+    assert_eq!(
+        oracle::capacity_parser_stop(&ingested, &source, &exact).status,
+        10,
+        "a ceiling of exactly {BLOCKS} must admit the parse"
+    );
+    let pinched = oracle::capacity_parser_stop(&ingested, &source, &short);
+    assert_eq!(pinched.status, 15, "one record short must fail closed");
+    assert_eq!(
+        pinched.diagnostic_code,
+        i32::try_from(BLOCKS - 1).expect("bounded ceiling")
+    );
+
+    // Reaching the predicted stop against the linked product means the
+    // product's own block array actually grew to hold 1,300 records, and the
+    // harness's allocation assertions mean it was freed cleanly afterwards.
+    assert_eq!(
+        run_expectation("block-storage", compiled_h1a(), &source, &stopped, "-O0"),
+        91,
+        "the product's block store did not hold {BLOCKS} records"
+    );
 }

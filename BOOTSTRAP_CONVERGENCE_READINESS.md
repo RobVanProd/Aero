@@ -326,7 +326,7 @@ later reader takes the original wording as evidence:
 | H1B-3 — statement blocks (locally green, CAP-052) | `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`, `IDENT = EXPR ;`, and `return EXPR ;`, in a body that is `{` followed by one or more statements followed by `}`. The skeleton's fixed `return` step is dissolved into the statement loop and `;` is demoted from a closing token to the return statement's own terminator, so the closing sequence shrinks to `}` then end-of-input with one entry point. A statement creates no syntax node, exactly as a parameter does not, so the `1..=19` node-kind bound is again unchanged | No control flow and no calls; no `ByteBuffer` or `Result<int, int>` binding type, because every one of those in the source is initialized by a call; a binding carries no type, ownership, mutability, scope, or checked meaning, and `mut` is matched and recorded rather than enforced |
 | H1B-4 — control flow (locally green, CAP-053) | `if EXPR BLOCK`, with any number of `else if EXPR BLOCK` arms and an optional final `else BLOCK`, and `while EXPR BLOCK`, over the existing expression grammar. A `BLOCK` is CAP-052's statement sequence with two differences: it closes on `}` and nothing more, and the requirement that a `return` completed moves from the block to the function. Nesting is carried by a fourth bounded parse-group arena, one three-word record per nested block. Neither form creates a syntax node, so the `1..=19` node-kind bound is again unchanged. Within any block a `return` is the last statement and the only one - the rule CAP-052 froze and did not implement | No new expression forms; no `match` in a condition, because the source never writes one; no `else` without a preceding `if` body; a block carries no scope, reachability, liveness, or checked meaning, and a condition is not type-checked and is not required to be boolean |
 | H1B-5 — calls and references (locally green, CAP-054) | `IDENT ( ARGS )` where the callee is an operand-position identifier immediately followed by `(`, and an argument may begin with `&` or `& mut` and may do so nowhere else. **The first H1B checkpoint that represents rather than only admits**: four node kinds take the node-kind bound from `1..=19` to `1..=23` — kind 20 the call, carrying its callee as `payload` and its argument list as `left`; kind 21 one argument-list cell; kinds 22 and 23 the two references. Open calls are carried by a fifth bounded parse-group arena, one three-word record each | No intrinsic knowledge, arity, type, ownership, borrow, or aliasing meaning; no callee that is not a bare identifier, so `(f)(a)`, `1(a)` and `f(a)(b)` are rejections; no `match` in an argument; no method, field or index syntax; no `ByteBuffer` or `Result<int, int>` binding type — see the gap below |
-| H1B-6 — arena capacity | Node, value, and operator record bounds raised from 512 to the measured self-source requirement, under the same independent-oracle proof H1A used for tokens | No grammar change; capacity only |
+| H1B-6 — arena capacity (locally green, CAP-055) | **All five** parse-group record bounds — node, value, operator, block and call — raised from 512 to a uniform 65,536, under the same independent-oracle proof H1A used for tokens. The oracle carried no record ceiling of any kind before this checkpoint, so the proof required building the model rather than editing a literal. The verifier's own `512` at `compiler.aero:5557` is untouched and recorded as debt | No grammar change; capacity only |
 
 Each checkpoint is separately authorized and red-first, crosses at most two
 compiler authorities, and must stop at an independently predicted next construct.
@@ -413,6 +413,37 @@ into a parser checkpoint. It gets its own ordered gate — module shape before
 meaning — authorized only after H1B-1 through H1B-5 have proven the parser can
 describe a single function completely. Until then, every checkpoint stops at the
 second `fn` item, and that stop is the expected result rather than a defect.
+
+#### Recorded debt this gate inherits: the verifier's `512`
+
+CAP-055/H1B-6 raised **five** record bounds — node, value, operator, block and
+call — from 512 to 65,536, and deliberately left a sixth `512` in place:
+`compiler.aero:5557` requires `verified_function_node` to be within `3..=512`
+and `:5561` reports `verified_expected = 512`. It is now the **only** `512` left
+in the product, and a test asserts that by exact list, so its survival is a
+decision rather than an oversight.
+
+It was left because it is not H1B's to widen. It constrains the verifier group,
+which `:265-267` forbids the parser task to touch, and it cannot bite inside H1B
+at all, because the verifier runs only on a complete `status == 0` pipeline that
+no H1B checkpoint reaches. Raising a fourth — now sixth — number merely because
+it shares a literal with the parse-group five is the specific mistake
+`TASK_LEDGER.md`'s arena-capacity measurement warns against.
+
+The debt is recorded **here**, at the gate that will meet it, rather than in a
+paragraph about capacity. Two things about when it fires:
+
+- It does **not** fire at module shape itself, which is a parse gate and does
+  not reach the verifier. Module shape can be built without touching it.
+- It fires at the first checkpoint that drives a complete pipeline over the real
+  source, which is H1C/H1D, and it fires hard. A single canonical function,
+  `run_runtime_ascii_llvm_emitter`, needs over 12,000 nodes on its own against a
+  bound of 512 — a factor of 24 — and 15 of the 23 functions are smaller only
+  because they are smaller, not because anything caps them.
+
+Whichever checkpoint owns it should raise it under the verifier group's own
+authority and with the verifier group's own independent-oracle proof, not by
+inheriting CAP-055's.
 
 ## Explicit non-claims
 

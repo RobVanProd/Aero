@@ -89,9 +89,12 @@ preserved exactly: exit 91 and the identical 144-byte module, MD5
 `fd2390d17d448d4539a72bf1991314dc`. The focused target
 `self_host_source_ingestion_tests` is 8/8 green.
 
-CAP-050a, CAP-050/H1B-1, CAP-051/H1B-2, CAP-052/H1B-3, CAP-053/H1B-4, and
-CAP-054/H1B-5 are the next six H1 prerequisites to execute and are locally
-green. CAP-050a added the bounded parameter store - one owner, its
+CAP-050a, CAP-050/H1B-1, CAP-051/H1B-2, CAP-052/H1B-3, CAP-053/H1B-4,
+CAP-054/H1B-5, and CAP-055/H1B-6 are the next seven H1 prerequisites to execute
+and are locally green. H1B-1 through H1B-6 are therefore all locally green,
+which admits the H1B grammar; it does **not** discharge
+`BOOTSTRAP_CONVERGENCE_READINESS.md:223`, because five of the six checkpoints
+admit a construct without representing it and capacity represents nothing. CAP-050a added the bounded parameter store - one owner, its
 counter, a 68th expectation value, and a validated `989` checksum region -
 without any parser rule, so that a later grammar failure would be unambiguous.
 CAP-050 then added the parameter sub-machine itself. Between the `(` and the
@@ -327,14 +330,34 @@ all, because all 451 live in `run_runtime_ascii_llvm_emitter`, which carries 17
 `ByteBuffer` and `Result<int, int>` bindings that no checkpoint in the table
 admits; references are proven by hand-written probes only. The canonical source
 is now 293,592 bytes, 7-bit ASCII, SHA-256
-`550972467a2ebd4b30a25960d1e9ff033bb609571ae96102177f13c216450a85`, and remains
+`e82f6280d3d0d73b50bb8e38b8899e6d2012a399e11523989f5b97d8e8478540`, and remains
 a copy-derived successor of accepted B1C asserted byte for byte, now with
-sixteen further CAP-054 differences. The accepted 34-byte canonical program is
-preserved exactly: exit 91 and the identical 144-byte module, MD5
-`fd2390d17d448d4539a72bf1991314dc`. The focused target
-`self_host_source_ingestion_tests` is 26/26 green, and the complete
-repository-root gate is green: 117 `test result:` lines, 979 passed, zero
-failed, 16 ignored.
+sixteen further CAP-054 differences and one counted CAP-055 transform. The
+accepted 34-byte canonical program is preserved exactly: exit 91 and the
+identical 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`. The focused
+target `self_host_source_ingestion_tests` is 35/35 green.
+
+CAP-055/H1B-6 then raised all five parse-group record ceilings - node, value,
+operator, block and call - from 512 to a uniform 65,536, and changed no grammar.
+Every one of the five arrays is created by `bytes_new()` and grows by append, so
+all five bounds are policy ceilings and not preallocations; the raise costs
+nothing until the capacity is used. The measured requirement for the canonical
+source is 17,621 / 15,842 / 6,030 / 1,289 / 1,120 records, so 512 was exceeded
+by between 2.2x and 34x.
+
+The checkpoint's substance was not the literal. The independent oracle modelled
+**no record ceiling of any kind** before it - twenty-six probes passed green
+around a class of product behaviour nothing predicted, because no probe had ever
+exceeded 512 records. The model was built and then validated against the
+*unchanged* 512-bound product on four boundary probes, all four matching
+hand-derived predictions on the first attempt, before the product was raised; it
+therefore cannot have been fitted to the raised product. Two of the five
+ceilings have no product boundary evidence and this is stated rather than
+blurred: the value ceiling can never fire at a uniform bound because
+`value_records <= node_count` always, and the block ceiling cannot be reached at
+65,536 because a block push costs at least 6.5 tokens against the frozen
+262,144-token bound. Both are exercised in the model at a non-uniform bound and
+labelled model-only.
 
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
@@ -352,8 +375,9 @@ passing required LLVM verification.
 H1A is ingestion and tokenization only, CAP-050/H1B-1 adds signature syntax
 only, CAP-051/H1B-2 adds one match form in one position only, CAP-052/H1B-3 adds
 statement syntax only, CAP-053/H1B-4 adds two control-flow syntax forms only,
-and CAP-054/H1B-5 adds call and reference syntax and the four node kinds that
-represent it, and nothing else. The compiler reads its own source and now admits its function signatures,
+CAP-054/H1B-5 adds call and reference syntax and the four node kinds that
+represent it, and CAP-055/H1B-6 adds record capacity and no syntax at all, and
+nothing else. The compiler reads its own source and now admits its function signatures,
 the whole body of its first function, multi-statement bodies of typed bindings,
 assignments and returns, and nested `if` / `else if` / `else` and `while`
 blocks and call expressions with their arguments and references; a parameter
