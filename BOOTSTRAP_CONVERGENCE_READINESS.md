@@ -439,6 +439,13 @@ references". So 16 `ByteBuffer` bindings and 2 `Result<int, int>` bindings
 remain inadmissible, they are confined to `read_input_value` and
 `run_runtime_ascii_llvm_emitter`, and no checkpoint in the table admits them.
 
+**Corrected under CAP-057.** That is 18 and this document says 19 sites two
+paragraphs earlier; both cannot be right. The current source carries **17
+`ByteBuffer` and 2 `Result<int, int>`** bindings, which is the 19. The 16
+predates CAP-054, whose `calls` arena added the seventeenth at
+`compiler.aero:521`. Enumerated: `:232`, `:515-531` and `:6761`. The confinement
+to two functions is unchanged, and CAP-057 is the checkpoint that admits them.
+
 The consequence is concrete and it costs evidence. All 451 `&` and `&mut`
 operands in the source live in `run_runtime_ascii_llvm_emitter`, so **no
 canonical function containing a reference can be lifted verbatim as a probe at
@@ -490,6 +497,18 @@ H1M-1 does not complete the gate and does not make the canonical source parse.
 The construct that does is the `ByteBuffer` / `Result<int, int>` binding type at
 19 sites in two functions, and it is the last grammar work before the canonical
 source parses end to end.
+
+That work is contracted as **CAP-057/H1M-1b** in `TASK_LEDGER.md`, authored and
+not implemented. It is numbered outside the H1M sequence deliberately: it is
+statement-grammar work that crosses the parse group alone, and it neither
+admits module shape nor touches meaning, verification or emission. Three
+properties recorded there are not shared by any checkpoint before it — it is the
+first to exercise CAP-055's raised bounds at scale, it is the one after which
+the canonical stop no longer exists and must be replaced as the pinning
+assertion, and it is the first whose own edit falls inside the region its
+canonical run measures, because `compiler.aero` is both the product and the
+source. The last of these makes its acceptance figure a procedure rather than a
+frozen number, and the contract says so rather than freezing one.
 
 #### Retraction: this document asserted H1M-1 green before any run said so
 

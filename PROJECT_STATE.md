@@ -468,6 +468,29 @@ accepted 34-byte canonical program is preserved exactly: exit 91 and the
 identical 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`, which is the
 byte-for-byte proof that a module of exactly one item is unchanged.
 
+CAP-057/H1M-1b is **contracted and not implemented**: the contract is authored
+in `TASK_LEDGER.md` and no product byte has moved, so nothing below is a result.
+It admits the `ByteBuffer` and `Result<int, int>` binding types at the 19 sites
+that carry them — `compiler.aero:232`, `:515-531` and `:6761` — which CAP-052
+froze, CAP-054 declined to lift, and which are now the only construct in the
+source the accepted grammar plus module shape does not admit. The grammar is not
+new: the accepted parameter machine at `:1541-1604` already parses
+`Result<int, int>`, and the checkpoint moves that shape to the binding position
+and adds `ByteBuffer`. Three things about it are recorded in advance rather than
+discovered. It is the first checkpoint at which any of CAP-055's five raised
+bounds is exercised by more than 1%; the whole-module requirement is predicted
+at **17,700 node, 15,921 value, 6,051 operator, 1,293 block and 1,120 call
+records** for the current tree, which is 27.0% of the raised bound and **34.6x**
+the one it replaced, so at 512 the parse cannot complete. It ends the grammar
+work, which means the canonical stop that has pinned this project's behaviour
+since CAP-051 ceases to exist and is replaced by a complete-parse vector, the
+walked 23-item chain, and the semantic phase's own already-implemented refusal
+at `semantic_status = 17` / `semantic_code = 2` — the stop relocating to the next
+authority rather than disappearing. And because `compiler.aero` is both the
+product edited and the source parsed, a parse that runs end to end measures the
+edit itself, so the acceptance figure is a procedure rather than a number; every
+prior checkpoint escaped this only because its edits fell past its own stop.
+
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`
 result temporary inside a loop became a non-entry `alloca` that LLVM never
