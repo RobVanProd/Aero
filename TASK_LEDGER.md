@@ -400,6 +400,302 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-055-H1B6-ARENA-CAPACITY - raise the five parse-group record bounds from 512 to 65,536
+
+- Date/task/status: 2026-08-18, `CAP-055-H1B6-ARENA-CAPACITY`, authored
+  ledger-first from locally green CAP-054/H1B-5 at `466701c`. It is the sixth
+  and last H1B checkpoint, per `BOOTSTRAP_CONVERGENCE_READINESS.md:329`. It
+  raises the node, value, operator, block and call record bounds and changes no
+  grammar. It is not H1B completion in the sense of
+  `BOOTSTRAP_CONVERGENCE_READINESS.md:223` - a capacity change represents
+  nothing and leaves the orphan census exactly where CAP-054 left it - and it is
+  not H1, H2, stage convergence, or any self-hosting claim. Completing it does
+  not unlock the second `fn` item; that is the module-shape gate's, which this
+  checkpoint exists to precede.
+- Base commit `466701c`, branch `claude/self-hosting-analysis-be3f72`, confirmed
+  present on the remote by `git ls-remote origin claude/self-hosting-analysis-be3f72`
+  returning `466701c859ff91a1aab87f7678940c9fb1ca9b6e`, rather than inferred from
+  push output, and the working tree confirmed clean by `git status --porcelain`
+  before any file was read. CAP-054's handoff could not name its own successor
+  commit and named `bf4fc97`; `466701c` is the documentation commit that followed
+  it and is the correct base.
+- D:-only task storage is unchanged from CAP-054: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`, with both `$HOME/.cargo/bin`
+  and the LLVM `bin` directory on `PATH` and `AERO_LLVM_BIN` set to the latter.
+  The environment was verified before the first gate was spent, per CAP-054's
+  correction.
+- Observed behavior at the base commit: the compiler consumes its own
+  293,592-byte source and stops at the second `fn` item at offset 146, line 8,
+  column 1, with `status = 10`, `diagnostic_code = 0`, `diagnostic_actual = 3`,
+  four nodes, one parameter, and `root = 0`. `self_host_source_ingestion_tests`
+  is 26/26 green at `466701c`. The canonical source SHA-256 is
+  `550972467a2ebd4b30a25960d1e9ff033bb609571ae96102177f13c216450a85`.
+
+### The measurement this checkpoint consumes, and is not asked to redo
+
+The self-source requirement is measured and committed - "H1B-6 arena-capacity
+measurement" at the top of this file, extended by CAP-053 and CAP-054 and
+summarized at `BOOTSTRAP_CONVERGENCE_READINESS.md:337-367`. This contract
+consumes it and re-measures nothing. The figures it consumes are the five
+post-CAP-054 requirements for the 293,592-byte source:
+
+| Arena | required | bound today | ratio |
+|---|---|---|---|
+| node records | 17,621 | 512 | 34x |
+| value records | 15,842 | 512 | 31x |
+| operator records | 6,030 | 512 | 12x |
+| block records | 1,289 | 512 | 2.5x |
+| call records | 1,120 | 512 | 2.2x |
+
+and the recommended uniform bound of **65,536**, derived there rather than
+picked: 2.5x the upper projection of 26,332 node records, against a source
+growing roughly 7 KB and 625 projected nodes a checkpoint. It costs nothing
+until used, because every record array is created by `bytes_new()` and grows by
+append, so all five bounds are policy ceilings and not preallocations. This
+contract adopts 65,536 uniform across all five and offers no independent
+derivation of its own, because inventing a second one would be theatre.
+
+### Decision 1 - the bound list is five, and that is not a new decision
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:329` names three arenas because it was
+written before CAP-053 and CAP-054 existed. `:352-359` already corrects it -
+"H1B-6's bound list is five, not three" - and this contract follows the
+correction rather than the stale row, and repairs the row as part of the
+checkpoint.
+
+The block store and the call store are in scope, and the reason is authority,
+not arithmetic. CAP-051's and CAP-052's test for whether a bound sits inside the
+parser's own authority is where the bound lives and which diagnostic it reports.
+All five live in the parse group, are appended by `parser_append_target`, are
+never decremented, and report through the parse group's own `status = 14` and
+`status = 15` with `diagnostic_code` carrying the bound. The block store
+(`compiler.aero:1972`, CAP-053) and the call store (`:2191`, CAP-054) are
+identical to the other three in every one of those respects.
+
+Excluding them would leave two bounds that the module-shape gate exceeds by 2.5x
+and 2.2x in exactly the place this checkpoint exists to clear, which is the
+precise failure mode `BOOTSTRAP_CONVERGENCE_READINESS.md:333-335` forbids:
+capacity masquerading as a grammar failure. The arena-capacity measurement
+predates both stores and did not cost them; it does not have to, because the
+checkpoints that added them measured their requirements - 1,289 block records at
+a peak live depth of 10, 1,120 call records at a peak live depth of 3 - and both
+are recorded at `:352-359`. Nothing here is estimated.
+
+### Decision 2 - the fourth 512, at the verifier, stays at 512
+
+`compiler.aero:5557` and `:5561` require `verified_function_node` to be within
+`3..=512` and report `verified_expected = 512`. It is not raised. This is the
+ledger's own standing instruction rather than a fresh judgement: the bound lives
+in the verifier group, which `BOOTSTRAP_CONVERGENCE_READINESS.md:265-267`
+forbids H1B to widen, and it cannot bite inside H1B at all because the verifier
+runs only on a complete `status == 0` pipeline that no H1B checkpoint reaches.
+
+The instruction was checked rather than obeyed on sight, and it survives the
+check. Two things would overturn it. It would be wrong if the verifier bound
+were reachable at this checkpoint - it is not, because no H1B run reaches
+`status == 0`. It would also be wrong if leaving it created an inconsistency a
+later reader would misread as an oversight - it does not, because after this
+checkpoint `512` occurs in `compiler.aero` exactly twice and both occurrences
+are the verifier's, which reads as deliberate rather than as a miss. It is
+recorded as debt for whichever checkpoint first drives the verifier over one
+function, and that checkpoint is not this one.
+
+### Decision 3 - `diagnostic_code` follows the bound
+
+Every exhaustion site sets `diagnostic_code` to the bound it just failed
+against. Raising the bound therefore moves the code from `512` to `65536` at all
+sixteen sites. The alternative - raise the comparison and freeze the code at 512
+- is rejected: the field's entire content is "the bound you hit", and a code
+naming a bound the product no longer has is a false diagnostic. This is a
+visible behavior change and it is the only one this checkpoint makes outside
+capacity itself.
+
+### The red this checkpoint is written against, and the hole it found first
+
+Before any product edit, the accepted test file was read for what it already
+proves about capacity. **It proves nothing.** The independent oracle
+(`self_host_source_ingestion_tests.rs`, `mod oracle`, lines 67-1478) models the
+source bound, the token bound and the name bound, and models **no record bound
+of any kind**. `oracle::Bounds` carries `source`, `token`, `name` and
+`ampersand`, and nothing else. Neither `status = 14` nor `status = 15` occurs
+anywhere in the oracle; the nine occurrences in the file are all inside
+`expected_h1a_source()`, which is the byte-for-byte reconstruction of the
+product source and not a model of it. No test in the repository asserts either
+status.
+
+That hole is real and it predates this checkpoint. It also means H1B-6's charter
+sentence - "under the same independent-oracle proof H1A used for tokens" - is
+not satisfiable by editing a literal. H1A did not merely set the token bound to
+262,144; it modelled the token bound in the oracle and graded the product
+against the model at the boundary. The equivalent work for records has never
+been done, and doing it is this checkpoint's substance. The literal change is
+the small half.
+
+It is also the anti-fitting lesson CAP-053 earned and CAP-054 repeated, arriving
+from a new direction: every probe suite through CAP-054 passed while the
+capacity behaviour of the product was entirely unmodelled, because no probe in
+any table ever exceeded 512 records. A passing suite was evidence about the
+suite.
+
+### Two arenas cannot be reached at 65,536, and both facts are derived here
+
+Neither was discovered by a failing probe. Both are derived from the accepted
+parser before the first run, and both are results in their own right.
+
+**Value records are unreachable at any uniform bound, and were unreachable at
+512 too.** Each of the four value pushes is paired with a node append - leaf
+`:2413/:2442`, reduction `:2657/:2696`, discharged hold `:2965/:2997`, call
+close `:3196/:3225` - and three node appends have no value push at all: the
+function node `:2883`, the root `:2920`, and the argument cell `:3122`.
+Therefore `value_records <= node_count` always. At each of the four value checks
+the paired `node_count` has already been incremented for the record being
+appended, so `value_records <= node_count - 1` there, and the node check
+guarding the same path passed, so `node_count - 1 < B`. Hence
+`value_records < B` whenever a value check is evaluated: with the node and value
+bounds equal, the value check can never fire. This is a property of the accepted
+parser, not of the new bound. Raising the value bound is still correct and still
+required - `value_records` is compared against the literal and a future
+non-uniform or reordered arrangement would expose it - but it cannot be given
+product evidence at the boundary, and this contract does not pretend otherwise.
+
+**Block records are unreachable at 65,536, because of the token bound.** An
+empty block is rejected - CAP-053, `TASK_LEDGER.md:1792`, `if a { }` reports
+`expected 6, actual 13` at the `}` - so every block push costs at minimum `{`,
+a three-token statement, and `}`, which is 5 tokens, plus its share of an
+`if EXPR ... else ...` head. The cheapest shape that produces two blocks is
+`if 1 { return 1; } else { return 1; }` at 13 tokens, so no source reaches a
+block push for under 6.5 tokens. 65,537 pushes therefore need at least 425,990
+tokens against the frozen 262,144-token bound, which fires first at
+`status = 6`. The block bound is unreachable by a factor of 1.6, and the ceiling
+on block records that the token bound actually imposes is roughly 40,330 - still
+31x the measured requirement of 1,289. This creates a coupling worth recording:
+if a later checkpoint raises the token bound past about 426,000, the block bound
+becomes reachable and acquires a boundary that no probe here covers.
+
+### What is authorized
+
+1. `examples/aero_self_host_v0/compiler.aero`: the literal `512` replaced by
+   `65536` at the sixteen parse-group sites - eight comparisons and eight
+   `diagnostic_code` assignments across `block_records`, `operator_records`,
+   `call_records`, `node_count` and `value_records`. The two verifier
+   occurrences at `:5557` and `:5561` are untouched. No other byte changes, so
+   no token, no name, no grammar and no node kind changes.
+2. `src/compiler/tests/self_host_source_ingestion_tests.rs`:
+   - `expected_h1a_source()` updated identically, so the canonical source stays
+     exactly reconstructible from the accepted B1C product byte for byte;
+   - `oracle::Bounds` extended with `nodes`, `values`, `operators`, `blocks` and
+     `calls`, and a new bounded stop `oracle::capacity_parser_stop` applying
+     them. `oracle::call_parser_stop` is left **behaviourally identical** and
+     remains the unbounded CAP-054 model, so the previous checkpoint's model
+     survives intact to be graded against;
+   - the probes below.
+3. `BOOTSTRAP_CONVERGENCE_READINESS.md:329`, to say five arenas rather than
+   three, and to record the checkpoint green.
+4. `PROJECT_STATE.md` and this ledger.
+
+Nothing else. No grammar change of any kind; the frozen exclusion at `:329` is
+"No grammar change; capacity only" and it is honored literally.
+
+### What must go red first, and the predictions, hand-derived
+
+Every expectation below was derived from the accounting table at the top of this
+file and from the check placement read out of `compiler.aero`, before any run.
+Corrections are reported in the outcome section rather than smoothed into the
+predictions.
+
+**A. Product-grounded boundary pair at the real bound, for the three reachable
+arenas.** Each probe ends in a trailing `x`, on the tiny-probe discipline, so
+the run stops at a predicted token rather than completing.
+
+| Probe | shape | predicted |
+|---|---|---|
+| `node-under` | `fn f() -> int { return 1+1+...+1; } x`, 32,768 integer leaves | grammar stop on `x`, `status = 10`, **65,535 nodes** |
+| `node-over` | the same with 32,769 leaves | `status = 14`, `diagnostic_code = 65536`, located on the pending `+` at the reduction site `:2622`, node count 65,536 |
+| `operator-over` | `fn f() -> int { return ` then 65,537 `(` | `status = 15`, `diagnostic_code = 65536`, located on the 65,537th `(` at `:2263`, `diagnostic_actual = 10`, node count 0 |
+| `call-over` | `fn f() -> int { return ` then 65,537 repetitions of `f(` | `status = 15`, `diagnostic_code = 65536`, located at the 65,537th held callee at `:2191`, `diagnostic_actual = 10`, node count 0 |
+
+The arithmetic behind `node-under` and `node-over`: a left-associative chain of
+equal-precedence `+` reduces eagerly, so after leaf *k* the arena holds `2k - 2`
+nodes and after the reduction that follows it holds `2k - 1`. 32,768 leaves give
+32,767 reductions and 65,535 nodes, one short of the bound. 32,769 leaves make
+the final reduction the 65,537th append, and the node check at `:2622` sees
+`node_count == 65,536` and stops. The two probes differ by three source bytes.
+
+`node-under` is the checkpoint's central positive. 65,535 node records is 128x
+what the accepted product admits, and at the base commit the identical bytes
+stop at `status = 14` with `diagnostic_code = 512`. That difference, on one pair
+of runs, is the raise.
+
+`operator-over` and `call-over` trip on the way down and never close, so the
+lexer sees an unbalanced but well-formed token stream, `ingest` returns
+`status = 0`, and the parser stops before a single node is appended. Their
+predicted node count of zero is a real prediction and not an omission.
+
+**B. The two unreachable arenas, proven where they can be proven.** The value
+check and the block check are exercised in the oracle at a *non-uniform* bound -
+`values` below `nodes`, `blocks` set small - which locates each diagnostic and
+shows the path is live rather than dead code. This is model-only evidence and is
+labelled model-only. It is not a weaker proof of the raise: the raise of the
+value bound is proven by the same argument that shows its check cannot fire, and
+the raise of the block bound is proven by 1,289 being 51x under a ceiling the
+token bound already caps at roughly 40,330.
+
+**C. Fail-closed above the bound is not silent success.** Each `-over` probe
+asserts the full expectation vector, so a capacity stop that produced
+`status = 0`, or lost its offset, line or column, would fail the probe rather
+than pass it. The located diagnostic is the assertion, not a footnote.
+
+**D. The canonical stop is unchanged.** `status = 10`, offset 146, line 8,
+column 1, `diagnostic_code = 0`, `diagnostic_actual = 3`, four nodes, one
+parameter, `root = 0`, at both `-O0` and `-O2`. A capacity raise must not move
+it. If it moves, something other than capacity changed and the checkpoint is
+wrong.
+
+**E. The deliberate out-of-table grading, against CAP-054's model.** Required by
+the anti-fitting lesson, and here it takes an unusually sharp form, because
+CAP-054's model has no capacity concept at all.
+
+- On every shape in `MODEL_LOCK_SHAPES`, and on every capacity shape that stays
+  under the bound, `capacity_parser_stop` and `call_parser_stop` must agree
+  **exactly**, including node counts. That is the product-free proof that this
+  checkpoint changed no grammar.
+- On the `-over` shapes the two must **disagree**, and the direction is
+  predicted: CAP-054's model reports a grammar stop and no capacity stop at all,
+  because it has no bound to hit. Both are then run against the real product,
+  and the product must agree with the new model and contradict the old one.
+
+The second half is the reportable result. This is not a shape the new model gets
+right and the old one gets slightly wrong; it is a class of behaviour the
+accepted oracle never modelled, while 26 tests passed green around it.
+
+### What is explicitly not claimed
+
+- Not H1B completion in the sense of `:223`. Capacity represents nothing, and
+  the orphan census is untouched.
+- Not evidence that the canonical source parses. The module-shape gate is still
+  unbuilt; this checkpoint removes the capacity obstacle in front of it and does
+  nothing else.
+- Not evidence about the verifier's `512`, which is unchanged.
+- Not a claim that 65,536 is sufficient beyond H1B. It is 2.5x the measured
+  upper projection for the current source, and is re-derivable when the source
+  doubles.
+- Not a claim that every one of the five bounds now has boundary evidence. Three
+  do, from the product; two are shown unreachable and are exercised in the model
+  only. The distinction is stated in the outcome, not blurred.
+
+### Gate discipline
+
+`./tools/test.sh` green from the repository root before every commit, on the
+exact tree committed; correctness clippy blocking; no test weakened, skipped or
+deleted; the canonical source exactly reconstructible from the accepted B1C
+product byte for byte. A tripwire manifest of `compiler.aero`, the focused test
+file, this ledger, `PROJECT_STATE.md` and `BOOTSTRAP_CONVERGENCE_READINESS.md`
+is taken before work starts and re-verified before each commit. Each green
+commit is pushed plain - no force, no tags, no PR - and the ref confirmed moved
+by `git ls-remote`.
+
 ## CAP-054-H1B5-SELF-SOURCE-CALLS-AND-REFERENCES - represent call expressions, admit `&` / `&mut`
 
 - Date/task/status: 2026-08-18, `CAP-054-H1B5-SELF-SOURCE-CALLS-AND-REFERENCES`,
