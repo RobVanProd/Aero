@@ -400,6 +400,668 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST - admit the module's second and subsequent `fn` item
+
+- Date/task/status: 2026-08-19, `CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST`, authored
+  ledger-first from locally green CAP-055/H1B-6. It is the **first** checkpoint
+  of the module-shape gate that `BOOTSTRAP_CONVERGENCE_READINESS.md:405` orders
+  between H1B and H1C - "module shape before meaning" - and it is not the whole
+  gate. It admits a module of one or more `fn` items where the accepted product
+  admits exactly one, and it changes **no** authority except the parse group. It
+  is not H1B completion in the sense of `:223`, not H1C, not H1, not H2, not
+  stage convergence, and not any self-hosting claim. Completing it does not make
+  the canonical source parse; the derivation below says exactly where the
+  canonical run stops afterwards and why.
+- Base commit `815d162`, branch `claude/self-hosting-analysis-be3f72`, confirmed
+  present on the remote by `git ls-remote origin claude/self-hosting-analysis-be3f72`
+  returning `815d162fddbc668684d553189a8921d7df3dd9c3`, rather than inferred from
+  any hash written in a prior handoff, and the working tree confirmed clean by
+  `git status --porcelain` before any file was read. CAP-055's handoff correctly
+  declined to name its own successor and deferred to `ls-remote`; `815d162` is
+  the documentation commit that followed `1efc041` and is the correct base.
+- D:-only task storage is unchanged from CAP-055: worktree
+  `D:\Aero\.claude\worktrees\self-hosting-analysis-be3f72`, Cargo target
+  `D:\Aero-build-targets\h1`, temporary root `D:\Aero-temp\h1`, LLVM/Clang
+  22.1.8 from `D:\AeroToolchains\llvm-22.1.8\bin`, with both `$HOME/.cargo/bin`
+  and the LLVM `bin` directory on `PATH` and `AERO_LLVM_BIN` set to the latter.
+  Verify the environment before the first gate is spent, per CAP-054's
+  correction: `AERO_LLVM_BIN` alone is not sufficient.
+- Observed behavior at the base commit: the compiler consumes its own
+  293,658-byte source and stops at the second `fn` item at offset 146, line 8,
+  column 1, with `status = 10`, `diagnostic_code = 0`, `diagnostic_actual = 3`,
+  four nodes, one parameter, and `root = 0`. The canonical source SHA-256 is
+  `e82f6280d3d0d73b50bb8e38b8899e6d2012a399e11523989f5b97d8e8478540`, confirmed
+  by reading the file rather than copied from CAP-055's outcome section.
+
+### Why this gate is not like the six before it, stated as the accepted product states it
+
+Every checkpoint from CAP-050 through CAP-055 crossed at most two compiler
+authorities. This one meets four downstream authorities at once, and each of the
+four asserts single-function-ness in its own code rather than merely assuming it:
+
+| Authority | The assertion, by line in `compiler.aero` | What it says |
+|---|---|---|
+| parse group | `:3675-3676` `root <= 0 \|\| root != node_count \|\| word != 19` | the module's root is the last node and it is a function node |
+| semantic | `:4030` `symbol_count = 1`; `:4251-4257` the kind-19 rule requires `semantic_node == root`, `semantic_right == 0`, and `semantic_left == semantic_node - 1` | there is one symbol and exactly one function node, and it is the root |
+| checked IR | `:4443-4446` `node_count < 3 \|\| root != node_count \|\| origin_count != node_count \|\| fact_count != node_count \|\| symbol_count != 1 \|\| bytes_len(&symbols) != 16`; `:4470` `checked_symbol_function != root`; `:4480` `checked_expression_count = node_count - 2` | one symbol of exactly 16 bytes, one fact per node, and exactly two non-expression nodes in the whole module |
+| verifier | `:5556-5557` `verified_function_node < 3 \|\| verified_function_node > 512` | one function node, and its id - which equals the module's node count - is at most 512 |
+| emitter | one module body from the fixed fragment table at `:344` / `:372` | one `define`, emitted once |
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:405-413` is explicit that this must not be
+smuggled into a parser checkpoint, and `:331` caps every checkpoint at two
+authorities. The central job of this contract is to say how the gate is split so
+that the cap still holds. It is split into three, and the split is derived
+below rather than chosen.
+
+### How the gate splits, and the derivation that fixes the split
+
+The tempting split is "parser first, then meaning, then verification and
+emission". That is the right shape, but it leaves one question that decides
+everything: **when the parser admits a second `fn` item, what refuses it?**
+
+Three answers were considered.
+
+**Rejected - the parse group refuses it.** Let the parser build the whole module
+and then fail the module at the parse-completion check, so `status != 0` and no
+downstream phase runs. This crosses one authority and is the smallest possible
+change. It is refuted by `compiler.aero:3679`: when `status != 0` the parse
+self-check requires `root != 0` to `return 79`. A parse-group refusal must
+therefore leave `root = 0`, which discards `root`, the item chain and the
+`root == node_count` invariant - **the entire result the gate exists to
+produce**. A refusal that destroys the evidence is not a cheaper gate, it is a
+gate with no evidence.
+
+**Rejected - nothing refuses it.** Let the parser admit N functions and let the
+four downstream phases run as they are. Refuted by inspection rather than by
+taste: `:4251` classifies a kind-19 node and `:4443` sizes the checked module,
+and neither has defined behavior for a second function node. Undefined
+downstream behavior at a gate whose whole subject is the downstream boundary is
+the one outcome this project cannot accept.
+
+**Taken - the downstream phases refuse it, using refusals that already exist.**
+The semantic phase does not passively assume one function; `:4251-4257` asserts
+it. For a module with N > 1 items, the fact loop reaches function 1's kind-19
+node before it reaches `root`, and `semantic_node != root` fires:
+`semantic_status = 27`, `semantic_code = 3`, located at that node. Nothing is
+added to the semantic phase to make this happen. The same is true one phase
+further down: the verifier is an authenticator whose default is refusal, so an
+unexpected serialized shape is rejected by construction.
+
+That is the derivation, and it collapses the authority count:
+
+| Checkpoint | Authorities crossed | Everything downstream |
+|---|---|---|
+| **H1M-1** (this contract) | parse group only - **one** | refuses, with already-implemented located diagnostics that this checkpoint **predicts and asserts** and does not modify |
+| **H1M-2** - module meaning | semantic + checked IR - **two** | the verifier refuses by authentication; predicted and asserted, not modified |
+| **H1M-3** - module verification and emission | verifier + emitter - **two** | - |
+
+Five authorities, three checkpoints, none crossing more than two, and the two
+later ones are not authorized by this contract. H1M-2 and H1M-3 get CAP numbers
+when they are authorized; they are named here only so the split is on the
+record.
+
+One naming decision, recorded so it is not relitigated: the readiness document
+gives this gate no label, calling it only "the module-shape gate". It is labelled
+**H1M** here, with checkpoints H1M-1..H1M-3, because "H1B-7" would place it
+inside a gate whose required result it does not discharge and whose frozen
+exclusion at `:265-267` forbids exactly the downstream widening H1M-2 and H1M-3
+must perform.
+
+### The instrument, and how it was validated before its output was used
+
+Every number below comes from a transcription of the accepted lexer
+(`keyword_token_kind:29`, `pair_token_kind:62`, `single_token_kind:90`, main loop
+`:686`) plus a recursive-descent model of the accepted H1B-1..H1B-5 grammar and
+the module shape, run over the canonical bytes outside the repository. It is a
+counting instrument, not product code; nothing in the repository depends on it
+and no repository file was changed to obtain any figure here. It is a **third**
+independently written instrument - the arena-capacity measurement's and CAP-054's
+were the first two - so where it disagrees with either, that is recorded as a
+correction rather than smoothed.
+
+It was validated against eight figures it did not choose, all recorded before
+it existed, and it reproduces every one exactly:
+
+| Recorded figure | source | this instrument |
+|---|---|---|
+| 17,621 node records for the whole module | `BOOTSTRAP_CONVERGENCE_READINESS.md:352-359` | 17,621 |
+| 15,842 value records | same | 15,842 |
+| 6,030 operator records | same | 6,030 |
+| 1,289 block records | same | 1,289 |
+| 1,120 call records | same | 1,120 |
+| `emitter_fixed_byte` needs 394 nodes | `:372-383`, CAP-054's own correction | 394 |
+| 240 nodes reachable from a root, whole module | CAP-054's census | 240 |
+| 23 `fn`, 23 `->`, 2 `=>`, and no `[`, `]`, `.`, `%`, `!` token anywhere | `:272-290` | identical |
+
+It also reproduces the accepted product's own frozen result: it places the
+second `fn` item at offset 146, line 8, column 1, and it gives function 1 four
+expression nodes before its close, which is the four the accepted regression
+assertion freezes. And it reads the canonical file's SHA-256 as
+`e82f6280d3d0d73b50bb8e38b8899e6d2012a399e11523989f5b97d8e8478540`, matching
+CAP-055's recorded digest.
+
+The implementing session is not asked to rebuild it. It is asked to re-derive
+its predictions inside the repository's own independent oracle, and to grade
+them against the product only after they are written down.
+
+### Decision 1 - module shape represents the module, and merely admitting would make the census worse
+
+`TASK_LEDGER.md`'s representation-gap analysis records that five of six H1B
+checkpoints admitted a construct without representing it, that the compound
+effect is 240 reachable nodes of 17,621, and that a wrong representation is
+worse than none. This gate must therefore answer the question explicitly rather
+than inherit an answer.
+
+**It represents.** Every `fn` item in the module is reachable from `root` when
+the parse completes. It represents nothing else: no statement, no sequence, no
+conditional, no binding. The 10,319-node statement obligation the ledger records
+is untouched and is still owned by no checkpoint.
+
+The decision is not a preference. Measured under this contract's instrument, for
+the complete 23-function module:
+
+| Policy | reachable | of | orphans |
+|---|---|---|---|
+| represent the item list | **240** | 17,621 | 98.64% |
+| merely admit - one root, the last function node, the other 22 unreachable | **146** | 17,621 | 99.17% |
+| CAP-054's recorded census, before this gate | 240 | 16,819 | 98.57% |
+
+Merely admitting would **lose 94 reachable nodes** and take the census
+backwards for the first time in the project. Representing is census-preserving,
+not census-improving: it adds no reachable node and it removes none. That is the
+honest claim and it is the one the outcome section must make.
+
+**The number that must not drift, stated three ways so it cannot.**
+
+1. **On the canonical run**, after this gate, the census reads **0 reachable of
+   486 node records**, because the canonical run does not complete - see
+   Decision 3 - and a failed parse has `root = 0` by `:3679`. This is not a
+   regression from anything: the comparable figure at the base commit is 0 of 4.
+   Anyone reading "0 of 486" as a collapse has misread it.
+2. **On the 14-function canonical prefix probe** required below, which does
+   complete, the census reads **62 reachable of 486**, 87.24% orphans.
+3. **Modelled over the whole module**, 240 of 17,621, unchanged in the
+   reachable column from CAP-054's 240.
+
+### Decision 2 - the item list is a reverse chain through kind-19 `right`, and the append-only arena forces it
+
+The module needs a shape in which every item is reachable from one `root`. Five
+options were considered. The first is refuted by the accepted product's own
+mechanics rather than by preference; the rest are refuted by what they cost.
+
+**Rejected - a forward chain, root at the first function, each kind-19 `right`
+naming the next.** Refuted twice over. First, the node arena has **no
+write-at-index path**: CAP-055 established that the parser has only
+`parser_append_target` and the `parser_record_*` reads, and function 1's `right`
+is not knowable until function 2 closes, so a forward link cannot be written.
+Second, even if it could, `:3657` requires `validate_right < node_id` for every
+node - every reference in the arena points backwards - so a forward link is
+rejected by the parse validation as ill-formed. This is the CAP-053 pattern: the
+design is refuted by the product, and the refutation is recorded so nobody
+relitigates it.
+
+**Rejected - a module node, a new kind 24, appended last as `root`.** It would
+take the node-kind bound from `1..=23` to `1..=24` and add one node to every
+module including single-function ones, which changes the root's kind, the node
+count and the parse checksum for every accepted probe and for the frozen
+canonical stop. It buys nothing the reverse chain does not: the module node's own
+list of items has to be built append-only too, so it would be a reverse chain
+with an extra node in front of it. A node kind is spent for no representational
+gain.
+
+**Rejected - no chain: N function nodes, `root` the last one, the rest
+unreachable.** This is "merely admit", and Decision 1 measured what it costs: 94
+reachable nodes, and a census that goes backwards. It also leaves `root ==
+node_count` literally true while `root` no longer denotes the module - an
+assertion that still passes while meaning something false, which is precisely the
+failure mode CAP-053 refused when it declined to half-represent a conditional.
+
+**Rejected - a `function_count` side store folded into the parse checksum**, on
+the CAP-050 parameter precedent. Refuted by the precedent's own reason: a
+parameter is folded into the checksum *because nothing else sees it*. The item
+count is derivable by walking the chain in an arena whose every word `:3611`
+already folds into the checksum, so a side counter would be a second, weaker
+copy of a fact the AST already carries. Rejecting it also keeps every
+single-function checksum unchanged, which is a regression property worth having.
+
+**Taken.** A kind-19 function node's `right`, today required to be `0`, carries
+**the previous function item's node id**, or `0` for the first item. `root`
+remains the last function node, so `root == node_count` is preserved exactly and
+`:3675` is unchanged. No new node kind; `1..=23` is unchanged. No new arena, no
+new bound, no new checksum input. For a module of one item, `right` is `0` and
+the product's behavior is byte-identical to the base commit.
+
+The one validation change this forces is at `:3660-3662`: kind 19 currently falls
+into the catch-all branch requiring `validate_right != 0` to reject. It needs its
+own branch, mirroring the kind-21 branch at `:3654-3658`: `payload` in
+`1..=name_count`, `left` in `1..node_id`, and `right` in `0..node_id`. Whether
+`right` must additionally be checked to name a kind-19 node is an open question
+below; the kind-21 precedent does not check its own `right`'s kind, and this
+contract follows the precedent unless the implementing session finds a reason
+not to.
+
+The parser register that carries the previous item's id is a register, not an
+arena, exactly as `body_root` is - CAP-053's "the block record is a parser
+register, not AST". It is initialized to 0 and written once per closed item.
+
+### Decision 3 - the frozen canonical stop moves, and predicting where is this gate's central result
+
+The canonical self-ingestion stop at offset 146, line 8, column 1 has been frozen
+since CAP-051 and cited as a regression guard by CAP-052, CAP-053, CAP-054 and
+CAP-055. **This is the checkpoint that moves it**, and it is the first time it
+has moved since it was set. The move is the gate's headline evidence and it must
+be predicted before it is observed, never read off the product and then written
+down.
+
+Hand-derived, before any run:
+
+| | base commit | after H1M-1 |
+|---|---|---|
+| `status` | 10 | **12** |
+| `diagnostic_code` | 0 (EOF expected) | **102** |
+| `diagnostic_actual` | 3 (`fn`) | **1** (identifier) |
+| offset | 146 | **5,203** |
+| line, column | 8, 1 | **232, 15** |
+| stopping token | the second `fn` | **`Result`**, in `let read: Result<int, int> = stdin_read_byte();` |
+| function items completed | 0 | **14** |
+| `node_count` | 4 | **486** |
+| `root` | 0 | **0** - the parse fails, so `:3679` requires it |
+
+The parse does **not** reach `status = 0` on the canonical source, and this gate
+does not claim it does. The construct it stops at is the non-`int` binding type,
+refused at `compiler.aero:1859-1866` with `status = 12`, `diagnostic_code = 102`
+and the type token's own location - the exclusion CAP-052 froze at H1B-3 and
+CAP-054 deliberately declined to lift. Nineteen sites in the source carry it:
+one in `read_input_value` at line 232 and eighteen in
+`run_runtime_ascii_llvm_emitter`. Line 232 is the first, and every function
+before it parses completely.
+
+**The +2 churn, which is unavoidable and must not be fitted.** Today the kind-18
+return node and the kind-19 function node are appended at `parser_cycle_state ==
+21` only after **end-of-input** has been consumed (`closing_step == 2`,
+`:2845`), so a probe that stops on a token after `}` reports the pre-close node
+count. After this gate a function item closes at its own `}`, and the module then
+takes either another `fn` or EOF. Therefore **every accepted probe whose stop is
+at or after its function's `}` gains exactly two nodes**, and its parse checksum
+changes with them. This is expected churn, not a regression, and it is the single
+largest anti-fitting hazard in the checkpoint: the implementing session must
+re-derive each affected expectation **from the oracle**, and must not read the
+new value off the product and paste it into the table. Enumerate the affected
+probes before changing any of them, and state the count in the outcome.
+
+### Decision 4 - what the arenas actually hold, and a finding against the capacity projection
+
+The capacity measurement predicted that with the bound at 512 the node arena
+would be exhausted "inside function 8, `quotient_256`, at line 154 of 6,085",
+and `BOOTSTRAP_CONVERGENCE_READINESS.md:361-367` repeats it as the reason H1B-6
+is pulled ahead of this gate. **It does not happen.** Measured under the
+accounting the product actually implements, the canonical run at this gate holds:
+
+| Arena | canonical run after H1M-1 | bound | used |
+|---|---|---|---|
+| node | **486** | 65,536 | 0.74% |
+| value | **449** | 65,536 | 0.69% |
+| operator | **169** | 65,536 | 0.26% |
+| block | **54** | 65,536 | 0.08% |
+| call | **9** | 65,536 | 0.01% |
+
+486 is not merely inside the raised bound - it is inside the **replaced** bound
+of 512, by 26 records. This gate does not exercise the raised bounds at all, and
+any outcome section claiming that it does is wrong.
+
+Recorded as a finding, with both causes, because a projection that overshoots
+what this gate actually produces by a factor of 36 - 17,621 projected against 486
+produced - must not be left to be rediscovered:
+
+1. The 512-at-line-154 figure was computed under the measurement's **projected**
+   policy - one node per statement, per conditional, per loop and per sequence
+   element - which the product does not implement and which CAP-053 explicitly
+   declined to implement. Under the policy the product actually has, the
+   cumulative node count at the end of function 7, line 154, is **325**.
+2. The prediction also assumed the canonical run would continue past line 232,
+   which the `int`-only binding type refuses.
+
+Cumulative per completed function, so the projection can be checked at any point
+rather than only at the end:
+
+| item | function | next line | node | value | operator | block | call |
+|---|---|---|---|---|---|---|---|
+| 1 | `result_value` | 8 | 6 | 4 | 1 | 0 | 0 |
+| 2 | `is_identifier_start` | 15 | 29 | 25 | 12 | 1 | 0 |
+| 3 | `is_identifier_continue` | 22 | 46 | 39 | 19 | 2 | 1 |
+| 4 | `is_digit` | 29 | 57 | 48 | 22 | 3 | 1 |
+| 5 | `keyword_token_kind` | 62 | 175 | 164 | 70 | 15 | 1 |
+| 6 | `pair_token_kind` | 90 | 242 | 229 | 94 | 23 | 1 |
+| 7 | `single_token_kind` | 154 | 325 | 310 | 114 | 43 | 1 |
+| 8 | `quotient_256` | 164 | 339 | 322 | 117 | 44 | 1 |
+| 9 | `signed_quotient` | 199 | 430 | 411 | 153 | 51 | 1 |
+| 10 | `word_byte_0` | 207 | 440 | 419 | 155 | 52 | 1 |
+| 11 | `word_byte_1` | 211 | 447 | 422 | 157 | 52 | 3 |
+| 12 | `word_byte_2` | 215 | 456 | 426 | 160 | 52 | 6 |
+| 13 | `word_byte_3` | 219 | 465 | 430 | 163 | 52 | 9 |
+| 14 | `checksum_step` | 231 | **486** | **449** | **169** | **54** | **9** |
+
+**A divergence from this table is a finding, not an inconvenience.** If the
+product's counts differ from any row, stop and record which row and by how much
+before changing anything; do not adjust the table to match the product. The
+instrument that produced it reproduced eight independently recorded figures
+exactly, so a disagreement is information about the product or about the
+accounting, and it is worth more than the checkpoint.
+
+**Where the raised bounds are actually first exercised**, so H1B-6's ordering
+can be read correctly rather than as vindicated by this gate: the first
+checkpoint to put real volume into the five arenas is the one that admits the
+`ByteBuffer` and `Result<int, int>` binding types - the "second construct the
+checkpoint table does not own", `BOOTSTRAP_CONVERGENCE_READINESS.md:384-402`.
+That checkpoint unlocks `run_runtime_ascii_llvm_emitter`, which needs **16,355
+node records on its own**, and takes the whole module to 17,621. H1B-6 was
+ordered correctly - without it that checkpoint would exhaust 512 inside function
+22 - but its stated trigger fires there, not here.
+
+### Decision 5 - the verifier's `512` is not this gate's, and this is whose it is
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:417-445` records `compiler.aero:5556-5557`
+and `:5561` - `verified_function_node` within `3..=512` - as debt this gate
+inherits, and states that it does not fire at module shape. That is confirmed
+here rather than taken on trust, and it is confirmed for all three H1M
+checkpoints, not only the first:
+
+- **H1M-1 does not reach the verifier.** The canonical run stops at `status = 12`
+  and the probes whose parse does reach `status = 0` are refused by the
+  semantic phase, which runs two phases ahead of the verifier.
+- **H1M-2 does not reach it either**, because the verifier refuses a
+  multi-function checked module by authentication before any bound is consulted.
+- **H1M-3 reaches it**, but only over hand-written probes. It becomes H1M-3's
+  the moment one of H1M-3's probes exceeds 512 nodes, and H1M-3's contract must
+  therefore either keep every probe under 512 nodes or take ownership of the
+  bound explicitly. It must not discover this mid-checkpoint.
+
+**The owning checkpoint is the first one that drives a complete `status == 0`
+pipeline over a canonical function larger than 512 nodes.** Under the current
+table that is H1C/H1D, and it is additionally gated on the binding-type
+checkpoint, because the only canonical function that exceeds 512 is
+`run_runtime_ascii_llvm_emitter` and it carries 18 of the 19 inadmissible
+bindings. Whichever checkpoint that turns out to be must raise the bound under
+the **verifier group's own authority and its own independent-oracle proof**, not
+by inheriting CAP-055's - that instruction is `:444-446` and this contract does
+not weaken it.
+
+One correction to the recorded size of that debt. `:438-441` states the overrun
+as "over 12,000 nodes ... a factor of 24". Measured under CAP-054's policy on the
+current 293,658-byte source, `run_runtime_ascii_llvm_emitter` needs **16,355**
+nodes, a factor of **31.9**, and the whole module needs 17,621, a factor of
+**34.4**. The 12,000 figure is the arena-capacity measurement's **floor** policy
+on the smaller `f416067` source and predates CAP-054's call representation.
+Nothing depends on the difference and the conclusion is unchanged; the larger
+number is the true one and is recorded so the smaller is not cited later.
+
+### Two inherited claims this gate corrects rather than repeats
+
+**"The five parser checkpoints plus the module-shape gate are between them
+sufficient for the canonical source, and no construct outside them was
+encountered"** - the arena-capacity measurement, repeated by CAP-054. It is false
+for the product. Both prior instruments modelled a binding's type as any type
+identifier; the product accepts only `int`, at `:1859-1866`. Measured here, the
+non-`int` binding type is the **only** construct in the whole 293,658-byte source
+that the accepted grammar plus module shape does not admit - relaxing that single
+rule and nothing else lets the instrument consume all 23 functions. So the true
+statement is: **the five parser checkpoints, plus the module-shape gate, plus the
+two binding types, are sufficient for the canonical source, and the gap is 19
+sites in two functions.** That is a sharper and more useful result than the one
+it replaces, and it makes the binding-type checkpoint the last grammar work
+before the canonical source parses end to end.
+
+**"Every checkpoint stops at the second `fn` item, and that stop is the expected
+result rather than a defect"** - `:414-416`. True until this checkpoint, and this
+checkpoint is the one that ends it. The sentence needs the qualification "until
+H1M-1", and repairing it is part of the implementing session's readiness-document
+work.
+
+### What is authorized
+
+For the implementing session, not for the session that authored this contract,
+which changed only this file.
+
+1. `examples/aero_self_host_v0/compiler.aero`, **parse group only**:
+   - the closing sequence at `parser_cycle_state == 20..23` restructured so a
+     function item closes at its own `}` and the module then accepts either
+     another `fn` item or end-of-input, with at least one item required;
+   - the kind-19 append carrying the previous item's node id in `right`, from a
+     parser register initialized to 0;
+   - the node validation at `:3660-3662` given a kind-19 branch, mirroring
+     kind 21.
+   No other byte. No new node kind, no new arena, no new bound, no new checksum
+   input, and not one line inside the semantic, checked-IR, verifier or emitter
+   groups.
+2. `src/compiler/tests/self_host_source_ingestion_tests.rs`:
+   - `expected_h1a_source()` updated identically, so the canonical source stays
+     exactly reconstructible from the accepted B1C product byte for byte;
+   - the oracle extended with the module grammar and the item chain. The CAP-055
+     model must survive as an instance of the new one rather than be copied,
+     exactly as `call_parser_stop` became `capacity_parser_stop` at
+     `Caps::UNBOUNDED`, so the previous checkpoint's model stays available to be
+     graded against;
+   - the probes below, and the re-derived expectations for every probe affected
+     by the +2 churn.
+3. `BOOTSTRAP_CONVERGENCE_READINESS.md`: a row for the H1M gate and its three
+   checkpoints; the repairs named above at `:361-367`, `:414-416` and
+   `:438-441`; and recording H1M-1 green.
+4. `PROJECT_STATE.md` and this ledger.
+
+Nothing else. `src/compiler/src/**` is not in scope and neither is any other
+example.
+
+### Frozen exclusions
+
+- No grammar change inside a function body. The gate admits exactly one new
+  thing: a second and subsequent `fn` item at module level.
+- No `ByteBuffer` or `Result<int, int>` binding type. It is the next
+  checkpoint's, it is what makes the canonical source parse, and taking it here
+  would fuse two gates and destroy the clean stop this contract predicts.
+- No new node kind; `1..=23` is unchanged.
+- No capacity change. The five parse-group bounds stay at 65,536 and the
+  verifier's `512` stays at 512.
+- No change to any downstream authority. Their refusals are predicted and
+  asserted, never edited, never relaxed.
+- No zero-item module. Empty input stays rejected exactly as today.
+- No claim that the canonical source parses, and no claim of H1B completion in
+  the sense of `:223`.
+
+### What must go red first, and the predictions
+
+Derive every expectation from the tables above and from the check placement read
+out of `compiler.aero`, and write it down **before** any run. Report corrections
+in the outcome rather than smoothing them into the predictions.
+
+**A. The model is validated against the unchanged product first.** Extend the
+oracle, then run the focused target with `compiler.aero` byte-identical to
+`815d162`. It must be 35/35 green before a single product byte moves. This is
+CAP-055's discipline and it is available only once: a model that reproduces a
+product whose behavior it did not choose cannot have been fitted to the product
+that replaces it.
+
+**B. The red.** A two-item probe - the smallest is
+`fn f() -> int { return 1; } fn g() -> int { return 2; }` - run against the base
+product. Predicted: `status = 10`, `diagnostic_code = 0`, `diagnostic_actual = 3`,
+located at the second `fn`, with the pre-close node count. The oracle must
+predict that exactly. The same bytes against the changed product must parse both
+items to `status = 0` with `root == node_count`, the second item's kind-19
+`right` naming the first item's kind-19 node, and the first item's `right` zero.
+That pair of runs is the gate.
+
+**C. The canonical move, predicted in full before it is observed.**
+`status = 12`, `diagnostic_code = 102`, `diagnostic_actual = 1`, offset 5,203,
+line 232, column 15, 14 items completed, `root = 0`, and the five arena counts
+486 / 449 / 169 / 54 / 9, at both `-O0` and `-O2`. Every figure is in Decision 3
+and Decision 4. A mismatch in any one of them is a stop condition, not an edit.
+
+**D. The canonical-bytes probe, which is the strongest evidence this gate can
+produce.** The first **5,158 bytes** of the canonical source - functions 1
+through 14 verbatim, ending `}\n\n`, SHA-256
+`9bc23a8ce1623417dd4cba034386a41f8d23dd1ca5c5ad6f905697f483d303cb` - are a
+complete, well-formed 14-item module. It must parse to `status = 0` with 486
+nodes, `root = 486`, 1,092 tokens, and 62 of its 486 nodes reachable from the
+root. This is canonical evidence rather than a hand-written probe, on the
+precedent of `the_canonical_function_2_probe_is_the_canonical_bytes`, and it is
+the only place at this gate where the census is observable on a real run. The
+implementing session must assert the reachable count by walking the arena, not by
+trusting the model.
+
+**E. The downstream refusals, predicted and asserted.** On probe D and on probe
+B's two-item form, the parse reaches `status = 0` and the semantic phase then
+refuses: `semantic_status = 27`, `semantic_code = 3`, located at the **first**
+item's kind-19 node, because the fact loop reaches it before it reaches `root`.
+Assert the full vector. A run that reached `status = 0` *through* the semantic
+phase would be a silent widening of an authority this checkpoint does not own,
+and the assertion is what catches it.
+
+**F. Fail-closed is not silent success.** Every negative asserts its located
+diagnostic - offset, line, column, code, actual - not merely a non-zero status.
+
+**G. Single-item behavior is unchanged, byte for byte.** Every accepted probe
+that stops **before** its function's `}` must produce an identical expectation
+vector to the base commit, including checksum. This is the property the reverse
+chain and the rejected `function_count` side store were chosen to preserve, and
+it is worth a test of its own.
+
+### The deliberate out-of-table grading, against CAP-055's model
+
+Required by the anti-fitting lesson, and sharper here than at CAP-055 because
+the disagreement is predicted in **direction and magnitude** rather than only in
+kind.
+
+- On every `MODEL_LOCK_SHAPES` entry and every single-item shape that stops
+  before `}`, the module model and CAP-055's `capacity_parser_stop` must agree
+  **exactly**, including node counts. That is the product-free proof that this
+  checkpoint changed nothing inside a function.
+- On every shape that stops at or after `}`, the two must disagree by **exactly
+  +2 nodes** and by nothing else - same status, same code, same actual, same
+  location. A disagreement of any other size or in any other field is a defect
+  in the change, not in the old model.
+- On every multi-item shape, CAP-055's model cannot report a completed parse at
+  all, because it has no module grammar; it reports the grammar stop at the
+  second `fn`. Both models are then run against the real product, and the product
+  must agree with the new model and contradict the old one.
+
+A probe suite passing is evidence about the probe suite. The out-of-table
+grading is what makes it evidence about the change.
+
+### Mandatory stop conditions
+
+Stop, record, and do not continue if any of these occurs. Each is a finding
+worth more than finishing the checkpoint on schedule.
+
+1. The canonical run does not stop at offset 5,203 / line 232 / column 15 with
+   `status = 12`, `diagnostic_code = 102`, `diagnostic_actual = 1`.
+2. Any of the five arena counts differs from 486 / 449 / 169 / 54 / 9, or any
+   row of the per-item table differs.
+3. Any downstream phase accepts a multi-item module - anything that reaches
+   `status = 0` past the semantic phase.
+4. Closing the gate appears to require editing the semantic, checked-IR,
+   verifier or emitter group. That is H1M-2 or H1M-3, and it is not authorized
+   here.
+5. Closing the gate appears to require a new node kind, a new arena, a new
+   bound, or a change to `root == node_count`. Re-author the contract instead;
+   `root == node_count` is asserted by three separate phases and is the invariant
+   the reverse chain exists to preserve.
+6. The +2 churn touches a probe whose stop is **before** its `}`, or changes any
+   field other than node count and checksum.
+7. The canonical source stops being exactly reconstructible from the accepted
+   B1C product byte for byte.
+
+### Open questions the implementing session must settle
+
+Named here rather than left to be discovered, each with the evidence that
+settles it.
+
+1. **Does the kind-19 `right` need a kind check?** This contract follows the
+   kind-21 precedent and validates only `0 <= right < node_id`. *Settled by*:
+   whether a malformed arena could present a kind-19 `right` pointing at a
+   non-kind-19 node under any reachable parser path. If none exists, the range
+   check is sufficient and the stronger check is dead code; if one exists, add
+   the check and record the path.
+2. **Which diagnostic does the module loop report for a token that is neither
+   `fn` nor end-of-input?** The base product reports `diagnostic_code = 0`
+   (end-of-input expected). Only one expectation can be reported and this
+   contract keeps `0`, so `fn` is silently also accepted. *Settled by*: whether
+   any accepted probe's expectation vector distinguishes the two. If one does,
+   the choice is forced; if none does, keeping `0` minimizes churn and should be
+   stated as a choice in the outcome.
+3. **How many accepted probes does the +2 churn touch?** Not counted here,
+   deliberately - counting it from the test file is the implementing session's
+   first act, and the count belongs in the outcome. *Settled by*: enumerating
+   every probe whose stop token is at or after its function's `}` **before**
+   editing any expectation.
+4. **Can H1M-2's semantic phase consume a reverse chain?** The facts array is
+   indexed by node id and appended in node order, while the item chain runs from
+   the last item backwards. *Settled by*: whether per-item symbols can be emitted
+   in source order from a backwards walk without a write-at-index path in the
+   symbols arena. If they cannot, H1M-2 needs a two-pass walk - count the chain,
+   then walk it N times - which is O(N²) at N = 23 and costs nothing, but it
+   should be known before H1M-2 is authored, not during it.
+5. **Does the emitter's fixed fragment table contain one `define` or a
+   per-function preamble?** Not read at this gate, because it is H1M-3's and
+   reading it here would invite scope creep. *Settled by*: reading
+   `emitter_fixed_length:344` and `emitter_fixed_byte:372` when H1M-3 is
+   authored.
+6. **Is `checked_expression_count = node_count - 2` at `:4480` the only place
+   that arithmetic on "exactly two non-expression nodes" appears?** It is
+   H1M-2's to generalize to `node_count - 2N`. *Settled by*: grepping the checked
+   group for every constant that encodes the single-function shape, before
+   H1M-2's contract fixes its scope.
+
+### Gate discipline and method
+
+Ledger-first: this contract is committed and gated green before any product byte
+moves, on a tree whose `compiler.aero` and focused test file are byte-identical
+to `815d162`.
+
+`./tools/test.sh` green from the repository root before **every** commit, on the
+exact tree committed; correctness clippy blocking; no test weakened, skipped or
+deleted; the canonical source exactly reconstructible from the accepted B1C
+product byte for byte. A tripwire manifest of `compiler.aero`, the focused test
+file, this ledger, `PROJECT_STATE.md` and `BOOTSTRAP_CONVERGENCE_READINESS.md`
+is taken before work starts and re-verified before each commit. Each green commit
+is pushed plain - no force, no tags, no PR - and the ref confirmed moved by
+`git ls-remote`.
+
+Decisions are derived, and rejected alternatives are recorded with what falsified
+them. Four are recorded above under Decision 2 and two under the split
+derivation; that record is why CAP-053's rejected design has never been
+relitigated, and it is worth more than the space it costs.
+
+**The evidence rule, carried forward from CAP-055 and the most important thing
+on this project's record.** A ledger entry must be written **after** reading a
+completed exit status, never before. CAP-055's implementing session wrote "the
+focused target is 34/34 green" and "`./tools/test.sh` green" while recording an
+expectation; the next invocation returned **exit 1** at `cargo fmt --check`, so
+the sentence was false at the moment it was written and became true only after a
+fix and a second gate. Nothing red was committed and the rule "green before every
+commit" held - what failed is the stricter rule this project runs on, that an
+entry means what it says when it is written. "It turned out to be true" is not
+the standard, because a later reader cannot distinguish a corrected entry from a
+false one. Author the evidence paragraph after reading the exit status, even when
+the run is expected to pass and the rest of the section is ready to write. The
+cost of waiting is one edit.
+
+### What is explicitly not claimed
+
+- Not that the canonical source parses. It stops at line 232, and the
+  binding-type checkpoint is what changes that.
+- Not H1B completion in the sense of `:223`. The statement-level representation
+  gap - 4,186 sequence positions, 2,505 assignments, 1,026 conditionals, 512
+  bindings, 252 `else` arms, 201 `return` nodes and 84 loops - is untouched and
+  is still owned by no checkpoint.
+- Not the module-shape gate. It is H1M-1 of three; meaning, verification and
+  emission over N functions are H1M-2 and H1M-3 and are not authorized here.
+- Not evidence about the verifier's `512`, which is unchanged and not reached.
+- Not evidence that the raised arena bounds are sufficient at scale. This gate
+  uses 0.74% of the node arena; the checkpoint that admits the two binding types
+  is the first to test them.
+- Not a semantic, type, ownership, scope or linkage meaning for a function item.
+  The parser learns that a module is a list of items. Nothing downstream is
+  permitted to believe it yet.
+
 ## CAP-055-H1B6-ARENA-CAPACITY - raise the five parse-group record bounds from 512 to 65,536
 
 - Date/task/status: 2026-08-18, `CAP-055-H1B6-ARENA-CAPACITY`, authored
