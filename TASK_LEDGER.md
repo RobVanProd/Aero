@@ -400,6 +400,450 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-057-H1M1B-SELF-SOURCE-BINDING-TYPES - admit the `ByteBuffer` and `Result<int, int>` binding types
+
+- Date/task/status: 2026-08-19, `CAP-057-H1M1B-SELF-SOURCE-BINDING-TYPES`,
+  authored ledger-first from `924f5b44f5d6b519adb3f521b6f8b11bb7a1ebc1`, which
+  `git ls-remote origin claude/self-hosting-analysis-be3f72` confirms is both
+  the local `HEAD` and the remote head. It admits the two binding types CAP-052
+  froze at H1B-3 and CAP-054 deliberately declined to lift, at the **19 sites**
+  that carry them, and it changes **no** authority except the parse group.
+- It is the checkpoint `BOOTSTRAP_CONVERGENCE_READINESS.md:452-454` names as
+  "the last grammar work before the canonical source parses end to end". It is
+  not part of the H1M gate proper - it neither admits module shape (H1M-1, done)
+  nor touches meaning (H1M-2) nor verification and emission (H1M-3) - so it is
+  labelled H1M-1b rather than given an H1M number of its own.
+- **A base correction, recorded first because the handoff was wrong about it.**
+  The session prompt for this checkpoint states that head was `924f5b44` "plus
+  one gating commit". There is no such commit, on the remote or locally.
+  `924f5b44` is the tip on both, and what actually exists is an **uncommitted**
+  working tree carrying the CAP-056 review correction to `TASK_LEDGER.md`,
+  `PROJECT_STATE.md` and `BOOTSTRAP_CONVERGENCE_READINESS.md` - the
+  prefix-versus-whole analysis. The previous session ended between writing that
+  correction and gating it. This checkpoint therefore inherits it, gates it, and
+  commits it together with this contract, and says so in the commit message
+  rather than presenting it as its own work. Nothing in it is modified.
+
+### Why this checkpoint is not like the seven before it
+
+Three things, and the third was not in the handoff's list.
+
+**One: it is the first checkpoint where the raised arena bounds are actually
+exercised at scale.** Every checkpoint through CAP-056 fitted inside the
+*replaced* 512 bound - 486 node records at the current canonical stop - and
+CAP-056 recorded plainly that this is a fact about where the parse ends and not
+about capacity: 97.2% of the module's nodes lie past that stop. This checkpoint
+removes the stop, so the whole module's requirement lands in the arenas at once.
+Predicted below, before any run.
+
+**Two: it ends the grammar work.** If it succeeds, the canonical source parses
+end to end for the first time, and the canonical stop - the single assertion
+that has pinned this project's behaviour since CAP-051 set it, and that CAP-052,
+CAP-053, CAP-054, CAP-055 and CAP-056 each cited as their regression guard -
+**stops existing**. Decision 3 says what replaces it. That question has no
+precedent in this ledger and it must be answered in the contract rather than
+discovered in the implementation.
+
+**Three, and this is the one no prior checkpoint has had to face: the
+measurement target is the artifact being edited.** `compiler.aero` is both the
+product this checkpoint changes and the canonical source it is fed. Every prior
+checkpoint escaped the consequence by structural luck rather than by design:
+CAP-056's earliest self-source edit is at line 1,164 while its canonical stop is
+at line 232, so the fourteen items it measured were byte-identical before and
+after its own edit, and its hand-derived 486 survived. **That escape is gone
+here.** A parse that runs end to end measures the edit itself. The arena figures
+in Decision 4 are therefore exact for the *pre-edit* tree at
+`a839ff379c30b4f0ed72d4f14ad3a1c74b587677b5de094a291ed32f615d87a1` and are
+**not** the acceptance figures; Decision 4 states the acceptance procedure that
+replaces them, and the implementing session must not freeze a number before its
+own diff exists.
+
+### The instrument, and how it was validated before its output was used
+
+A transcription of the accepted lexer plus a recursive-descent and
+shunting-yard model of the H1B-1..H1B-5 grammar, the CAP-056 module rule, and
+this checkpoint's binding types as a switch, counting the five parse-group
+arenas under the accounting rules transcribed at the top of this ledger. It is a
+counting instrument, built and run outside the repository; nothing in the
+repository depends on it and no repository file was changed to obtain any figure
+below.
+
+It was validated against results it did not choose, on a product it did not
+author, **before** any figure from it was used:
+
+| check | expected, from an independent record | instrument |
+|---|---|---|
+| CAP-056 Decision 4 per-item table, all 14 rows x 5 columns | 70 cells | **70/70 exact** |
+| CAP-056 canonical stop vector | `12 / 102 / 1`, offset 5,203, line 232, col 15, 14 items, 486 nodes | **all exact** |
+| whole-source arena requirement at `466701c` | 17,621 / 15,842 / 6,030 / 1,289 / 1,120 | **all five exact** |
+| `emitter_fixed_byte` node cost, hand-derived in the readiness document from its own token histogram | 394 | **394** |
+| product `token_count` on the 14-item prefix, CAP-056 probe correction 2 | 1,093 | **1,093** |
+| orphan census on the 14-item prefix, CAP-056 | 62 of 486, 87.24% | **62 of 486, 87.24%** |
+
+The third row is the load-bearing one: 17,621 / 15,842 / 6,030 / 1,289 / 1,120
+is the standing whole-source figure this project has carried since CAP-055, and
+the instrument reproduces **all five components** of it on the tree it was
+measured on, without having been shown it. The sixth row is the one that caught
+an error in this session's own hand-derivation; see the corrections below.
+
+A separate token-histogram reconciliation closes independently on the current
+source, which is the check that catches a miscounted role rather than a
+miscounted token. 3,712 `;` = 549 bindings + 227 returns + 2,936 assignments.
+3,485 `=` = 549 binding initializers + 2,936 assignments. Both close exactly.
+23 `fn`, 23 `->`, 2 `=>`, and no `[`, `]`, `.`, `%` or `!` token anywhere,
+reproducing the structural facts the H1B-6 measurement recorded.
+
+### Decision 1 - the grammar is CAP-050's parameter type machine, moved to the binding
+
+The accepted product **already parses `Result<int, int>`**, at
+`compiler.aero:1541-1604`, as parameter and return types under CAP-050. The
+binding position at `:1852-1870` checks a three-byte `int` and nothing else.
+This checkpoint does not invent a type grammar; it gives the binding position
+the one the signature position already has, plus `ByteBuffer`.
+
+The accepted parameter machine, transcribed so the implementing session does not
+re-derive it: mode 2 reads the type identifier and branches - length 3 spelling
+`int` stores type code 1 and completes, length 6 spelling `Result` goes to mode
+3; mode 3 takes `<` (kind 29), mode 4 an `int` identifier, mode 5 `,` (kind 16),
+mode 6 an `int` identifier, mode 7 `>` (kind 31), which stores type code 2 and
+completes. `int` is required at modes 4 and 6, so `Result<Result<...>, int>` is
+refused - the measured closed type set, unchanged.
+
+The binding machine at `parser_cycle_state == 47` cycles `stmt_cycle_step` 0..4:
+0 takes the binding name or `mut` (alternate kind 5), 1 the name after `mut`, 2
+`:` (kind 17), 3 the type identifier, 4 `=` (kind 25), and then hands to the
+expression scanner at `parser_state = 3`. This checkpoint extends step 3's
+branch:
+
+| at step 3 | admits | goes to |
+|---|---|---|
+| length 3, `int` | accepted today | step 4 |
+| length 10, `ByteBuffer` | **new** | step 4 |
+| length 6, `Result` | **new** | step 5 |
+| anything else | refused, `status = 12` / `diagnostic_code = 102`, unchanged | - |
+
+and adds five steps that mirror parameter modes 3..7 exactly: step 5 `<`, step 6
+an `int` identifier, step 7 `,`, step 8 an `int` identifier, step 9 `>`, then
+step 4. The default advance `stmt_step = stmt_cycle_step + 1` must be overridden
+at steps 3 and 9; every other step keeps it.
+
+**The 19 sites, enumerated from the current source rather than inherited.**
+`compiler.aero:232` (`Result<int, int>`, in `read_input_value`), `:515-531`
+(seventeen consecutive `ByteBuffer` bindings, in `run_runtime_ascii_llvm_emitter`),
+and `:6761` (`Result<int, int>`, also in `run_runtime_ascii_llvm_emitter`). One
+in item 15 and eighteen in item 22, which is what the readiness document states.
+
+### Decision 2 - no node, no new kind, no new arena, no new bound, and no type meaning
+
+A binding creates no syntax node today (CAP-052) and this checkpoint does not
+change that. The node-kind bound stays `1..=23`; the five parse-group record
+bounds stay at 65,536; the verifier's `512` stays at 512; no new counted store
+is added and no new input is folded into the parse checksum.
+
+**The binding type is checked and discarded, exactly as `mut` is.** The
+parameter machine stores a type code because the parameter store is folded into
+the checksum; the binding position has no such store, and adding one would be a
+new counted arena and a new checksum input - a second authority, in a checkpoint
+that should cross one. Recorded as a deliberate choice rather than an oversight,
+with its consequence stated: **after this checkpoint the parse cannot
+distinguish `let x: int = f();` from `let x: ByteBuffer = f();` in any observable
+output.** Whichever checkpoint gives bindings a representation owns that, and it
+is the same checkpoint the representation gap above is waiting for.
+
+No ownership, no borrow, no layout, no lifetime, no type checking. `ByteBuffer`
+is admitted as a spelling, not as a type.
+
+### Decision 3 - what replaces the canonical stop, when there is no next construct to stop at
+
+The canonical stop has been this project's pinning assertion since CAP-051. It
+does not survive this checkpoint, and nothing is gained by pretending a weaker
+version of it does. Three things replace it, and together they are strictly
+stronger than the stop was, because a stop pins one token while these pin the
+whole parse.
+
+**1. A complete-parse vector, in place of a stop vector.** `status = 0`,
+`root = node_count`, 23 items, and the five arena counts - the same shape of
+assertion, with the located-diagnostic fields replaced by the completion fields.
+`root == node_count` is the invariant CAP-056 preserved and it becomes the
+primary structural guard: it is false if any item fails to chain, and it is the
+one assertion that cannot be satisfied by a parse that quietly stops early,
+because `compiler.aero:3680` forces `root = 0` on any stopped parse.
+
+**2. The item chain, walked rather than counted.** Exactly 23 kind-19 nodes,
+reachable from `root` through `right` in reverse item order, each with its
+kind-18 return node as `left`. CAP-056 already asserts this shape; here it
+becomes the guard that the *whole* module was consumed rather than a prefix.
+
+**3. The stop itself relocates to the next authority, and this is the part that
+must not be lost.** The canonical run does not stop being stopped - it stops
+being stopped *in the parser*. The pipeline still refuses, one phase later, and
+the refusal is already implemented and was already predicted and asserted by
+CAP-056: `compiler.aero:4054-4074` is a first pass over every node that rejects
+any kind-2 node outright. Canonical function 1's first appended node is the
+arm-1 body `value`, a kind-2 node. So the canonical run's terminal state after
+this checkpoint is predicted to be:
+
+| | predicted |
+|---|---|
+| parse `status` | **0** |
+| `semantic_status` | **17** |
+| `semantic_code` | **2** |
+| located at | node 1's origin - `value`, **line 3, column 22, offset 98** |
+| `checked_attempted` | **0** |
+
+That vector is the new canonical assertion. It is owned by H1M-2 to *change* and
+by this checkpoint to *predict and not modify*, which is the same discipline
+CAP-056 applied to the same refusal. The canonical run is still pinned to a
+single located token; the token has simply moved from the parser's authority to
+the semantic phase's, and from offset 5,203 to offset 98.
+
+### Decision 4 - what the arenas will hold, predicted before any run, and why this number cannot be frozen
+
+**Predicted, for the pre-edit tree at `a839ff37`, 296,584 bytes:**
+
+| Arena | predicted | bound | used | against the replaced 512 |
+|---|---|---|---|---|
+| node | **17,700** | 65,536 | 27.0% | **34.6x** |
+| value | **15,921** | 65,536 | 24.3% | 31.1x |
+| operator | **6,051** | 65,536 | 9.2% | 11.8x |
+| block | **1,293** | 65,536 | 2.0% | 2.5x |
+| call | **1,120** | 65,536 | 1.7% | 2.2x |
+
+with `token_count` 36,663 against the 262,144 bound (14.0%) and 652 distinct
+names against the 16,384 bound (4.0%). **This is the first checkpoint at which
+any of the five raised bounds is exercised by more than 1%**, and it is the
+first evidence that CAP-055's raise was necessary rather than merely ordered
+correctly: at 512 this parse cannot complete.
+
+**The divergence from the standing figure is a finding, and it is not
+measurement error.** The standing whole-source requirement this project has
+carried since CAP-055 is 17,621 / 15,842 / 6,030 / 1,289 / 1,120. The prediction
+above differs by **+79 node, +79 value, +21 operator, +4 block, +0 call**. The
+cause is fully attributed and was checked rather than assumed: the standing
+figure was measured on the 293,592-byte source at `466701c`, and the instrument
+reproduces it there **exactly, on all five arenas**. CAP-056 then added 2,926
+bytes and 204 tokens to `compiler.aero` - which *is* the measured source - and
+those bytes cost 79 nodes. The standing figure is not wrong; it is **stale, for
+a tree that no longer exists**, and every record citing 17,621 should name the
+tree it holds for.
+
+**Which is why the acceptance figure cannot be written here.** This checkpoint's
+own product edit lands at roughly `:1200` and `:1852-1880`, inside item 22,
+inside the region an end-to-end parse measures. So the post-edit canonical run
+will hold **more** than 17,700, by the cost of the diff, and the implementing
+session must:
+
+1. Write the product edit.
+2. Predict the delta **from the diff**, by hand, before running anything - the
+   edit is statement-machine code in the file's own style, and CAP-056's edit
+   cost 79 nodes for 2,926 bytes, so an edit of 1,000-3,000 bytes should cost
+   roughly 27-81 nodes. **That band is an estimate and is not evidence**; the
+   hand-derivation from the actual diff is what grades.
+3. Re-run the instrument on the post-edit tree and confirm it agrees with the
+   hand-derivation.
+4. Only then run the product, and require exact agreement.
+
+A divergence at step 4 is a finding about the product or the accounting and is
+worth more than the checkpoint. **Do not adjust any table to match the product.**
+
+**Where 512 would have stopped this parse, per arena**, recorded because the
+readiness document states one function and the true answer is two different
+functions:
+
+| arena | 512 first crossed inside |
+|---|---|
+| **node** | item 16, `binary_precedence` (492 -> 547) |
+| value | item 17, `binary_node_kind` (505 -> 558) |
+| operator | item 22, `run_runtime_ascii_llvm_emitter` (350 -> 6,043) |
+| block | item 22 (181 -> 1,293) |
+| call | item 22 (13 -> 1,119) |
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:401` says this checkpoint "would exhaust 512
+inside function 22". That is **exactly right for the operator, block and call
+arenas and wrong for the node arena**, which fires six functions earlier, in
+`binary_precedence`. Since the node arena fires first, the parse under a 512
+bound would stop in item 16 and the other three would never be reached. The
+claim is misattributed rather than baseless, and is corrected on that basis.
+
+`run_runtime_ascii_llvm_emitter` alone costs **16,434** of the 17,700 nodes -
+92.85% of the module - which is the concentration CAP-056 recorded as 16,355 of
+17,621 (92.8%) on the older tree.
+
+### Decision 5 - the orphan census, and why no previous figure is comparable
+
+**Predicted for the whole source: 240 reachable of 17,700 node records, 17,460
+orphans, 98.64%.**
+
+Every orphan figure this ledger carries was measured on a prefix or on a
+different tree or under a different node policy, and none is comparable to it.
+Stated explicitly so the number is not read as a regression:
+
+| figure | what it was measured on | comparable? |
+|---|---|---|
+| 62 of 486, 87.24% | CAP-056, the **14-item prefix** - 1.74% of the bytes | no |
+| 0 of 486 | CAP-056, the canonical run, which **stops**, so `:3680` forces `root = 0` | no |
+| 154 of 13,190, 98.8% | the H1B-6 measurement, on the **264,163-byte** source under the **floor** policy that charges nothing for calls or references | no |
+| **240 of 17,700, 98.64%** | this checkpoint, whole source, implemented policy | this is the new baseline |
+
+The census gets *worse* in absolute terms and marginally better in ratio, and
+both movements are expected: reachability per item is bounded by the last
+completed return's expression subtree plus two nodes, which does not grow with
+the item, while node production does. 23 items contribute 46 nodes of structure
+and 194 nodes of final-return expression. **No record may cite 98.64% as
+progress or as regression against 87.24%**; they measure different sources.
+
+The obligation the representation gap records is unchanged in kind and larger in
+size: closing it means reachable equal to node records, and this checkpoint moves
+that ratio from 62/486 on a prefix to 240/17,700 on the whole module.
+
+### Four corrections to standing records, reported rather than smoothed
+
+1. **The standing 17,621 is stale.** Correct for the current tree is 17,700 /
+   15,921 / 6,051 / 1,293 / 1,120. Cause attributed in Decision 4. Every record
+   citing the five-arena requirement should name its tree.
+2. **`BOOTSTRAP_CONVERGENCE_READINESS.md:401`'s "exhaust 512 inside function
+   22"** is right for three arenas and wrong for the one that fires first. See
+   Decision 4.
+3. **The readiness document's "16 `ByteBuffer` bindings and 2 `Result<int, int>`
+   bindings"** totals 18 and contradicts its own "19 sites" in the same
+   document. The current source carries **17 `ByteBuffer` and 2
+   `Result<int, int>`** = 19. The 16 predates CAP-054's `calls` arena, whose
+   owning binding at `:521` is the seventeenth.
+4. **The representation gap's "[function 1] yields four nodes, and all four are
+   orphans" is wrong. Exactly one of the four is an orphan.** The product
+   latches `body_root = expression_root` at the return's `;`
+   (`compiler.aero:1915`), and for a `match` return `expression_root` is the
+   **second arm's** root, because each arm body is parsed by the ordinary
+   expression scanner and the last one wins. So function 1's nodes 2, 3 and 4
+   (`0`, `code`, `0 - code`) are reachable and only node 1 (`value`, arm 1's
+   body) is not.
+
+   **This correction is also this session's own probe correction, and it is
+   recorded as such.** The hand-derivation for the census was taken from that
+   prose and predicted 0 reachable for item 1, giving 59 of 486 against
+   CAP-056's product-measured 62. The instrument was **not** adjusted to fit;
+   the disagreement was traced to `:1915`, the model corrected at the mechanism,
+   and the census then reproduced 62 and 87.24% exactly. A model tuned to close
+   a 3-node gap would have reproduced the same total and proved nothing.
+
+### What is authorized
+
+- `examples/aero_self_host_v0/compiler.aero`, **parse group only**, the binding
+  step-3 branch and the five new steps, plus whatever registers they need
+  alongside `stmt_b0..stmt_b2`.
+- `src/compiler/tests/self_host_source_ingestion_tests.rs`, the oracle and its
+  probes.
+- `TASK_LEDGER.md`, `PROJECT_STATE.md`, `BOOTSTRAP_CONVERGENCE_READINESS.md`.
+
+Nothing else. Not one line inside the semantic, checked-IR, verifier, emitter or
+driver groups.
+
+### Frozen exclusions
+
+- No new node kind; `1..=23` unchanged. No new arena, no new bound, no new
+  checksum input. The verifier's `512` stays at 512.
+- No binding-type representation, per Decision 2.
+- No type in a nested position: `int` remains required at the two positions
+  inside `Result< , >`, exactly as CAP-050 requires there.
+- No new type spelling beyond `ByteBuffer` and `Result<int, int>`. The type set
+  stays closed and measured.
+- No grammar change anywhere else in a function body.
+- **No claim that the module is understood.** A parse that reaches `status = 0`
+  is a parse. The semantic phase refuses it at node 1 and this checkpoint does
+  not touch that.
+
+### What must go red first, and the predictions, hand-derived
+
+Every expectation below is derived from the grammar and the frozen contract
+independently of any run, and must be checked against the oracle before the
+product is touched. Corrections get reported, not smoothed.
+
+| probe | shape | predicted |
+|---|---|---|
+| A | `fn f() -> int { let b: ByteBuffer = g(); return 1; }` | accepted; nodes = 1 call + 0 cells + 1 leaf + 2 item nodes = 4 |
+| B | `fn f() -> int { let r: Result<int, int> = g(); return 1; }` | accepted; 4 nodes, same as A - the type costs nothing |
+| C | `fn f() -> int { let mut b: ByteBuffer = g(); return 1; }` | accepted; `mut` still matched and stored nowhere |
+| D | `fn f() -> int { let r: Result<int> = g(); return 1; }` | refused at the `>`; `status = 10`, `diagnostic_code = 16` (`,`), actual 31 |
+| E | `fn f() -> int { let r: Result<ByteBuffer, int> = g(); return 1; }` | refused at `ByteBuffer`; `status = 12` / `102` - nested position is `int` only |
+| F | `fn f() -> int { let b: Bytebuffer = g(); return 1; }` | refused, `status = 12` / `102` - the spelling is exact, length 10 and byte-equal |
+| G | `fn f(p: ByteBuffer) -> int { return 1; }` | **refused**, `status = 12` / `102` - `ByteBuffer` is a binding type only, and the parameter type set is unchanged |
+| H | `fn f() -> ByteBuffer { return 1; }` | **refused**, same reason, return position |
+| I | the 14-item canonical prefix, 5,158 bytes | unchanged from CAP-056: 486 / 449 / 169 / 54 / 9, `root = 486`, 62 reachable |
+| J | canonical source, whole | `status = 0`, 23 items, `root == node_count`, then `semantic_status = 17` / `semantic_code = 2` at offset 98 |
+
+G and H are the two that matter most and are the easiest to get wrong: widening
+a shared type-classification helper instead of the binding branch would admit
+both, and both must stay refused. If the implementation makes G or H pass, it
+has crossed into CAP-050's authority and must be reverted.
+
+I is the anti-fitting guard: this checkpoint must not move a single figure that
+CAP-056 established on the prefix, because the prefix contains no non-`int`
+binding. Any churn there is a defect.
+
+### The deliberate out-of-table grading, against CAP-056's model
+
+A probe suite passing is evidence about the probe suite. Both halves are
+required, as CAP-056 required them:
+
+- On every `MODEL_LOCK_SHAPES` entry, CAP-056's model and CAP-057's must agree
+  **exactly**, because no lock shape contains a non-`int` binding type. Zero
+  churn is the expectation, and any churn is a finding.
+- And the half that makes the first half mean something: on a shape that **does**
+  carry a `ByteBuffer` binding, CAP-056's model must be graded against the real
+  product and must **contradict** it - CAP-056's model refuses at `status = 12`
+  / `102` where the product now accepts. A refactor that collapsed the two
+  models into one would pass the first check and fail this one.
+
+### Mandatory stop conditions
+
+1. Any edit outside the authorized files.
+2. Any change to the node-kind bound, any arena bound, the verifier's `512`, or
+   the parse checksum inputs.
+3. Probe G or H passing.
+4. Any churn on the 14-item canonical prefix (probe I).
+5. Any divergence between the instrument and the product on the post-edit tree
+   that is not hand-derived from the diff first. Record which arena and by how
+   much before changing anything.
+6. A red gate. Revert and record; do not stack.
+7. **A figure written before its run completed.** See the method note.
+
+### Gate discipline and method
+
+- Tripwire manifest before starting; re-verified before each commit.
+- Red-first, with expectations derived from the grammar and this contract
+  independently rather than read out of a run.
+- If the oracle is extracted or refactored, confirm it behaviour-preserving with
+  `compiler.aero` **byte-identical and hash-verified before and after** and all
+  inherited probes green, before writing new ones.
+- `./tools/test.sh` green from the repository root before any commit; correctness
+  clippy blocking; no test weakened, skipped or deleted. If a probe's premise
+  expires because a cost model changed, add a correctly costed replacement and
+  say plainly what became of the old one.
+- The canonical source stays exactly reconstructible from accepted B1C byte for
+  byte.
+- **A claim of a test result is written after reading that run's completed exit
+  status, never before, in any record a later reader could cite.** `AGENTS.md`
+  now carries this. It has been broken twice and retracted twice this week; the
+  procedure that prevents a third is to write each run's row with its result
+  column empty and fill it only from a read exit status.
+- Push after each green commit, plain, no force, no tags, no PR, confirmed with
+  `ls-remote`.
+- Never modify the compiler without a full build-and-verify cycle afterward; the
+  full gate is roughly forty minutes. An exit 101 from a full `C:` drive is an
+  environment fault and is not a test failure - `TMP` and `TEMP`, not `TMPDIR`,
+  redirect clang's intermediates.
+
+### What is explicitly not claimed
+
+A parse is not a compile. When this checkpoint is green the compiler will
+consume its own 296,584 bytes and build a 17,700-node arena from them, and it
+will understand none of it: the semantic phase refuses the result at its first
+node, 98.64% of the arena is unreachable, and no binding, assignment, statement
+sequence, conditional or loop has any representation at all. This is grammar
+coverage reaching 100% of the canonical source. It is not H1B's `:223`
+obligation, not stage convergence, not self-hosting, and not a claim that any
+language feature is stable.
+
 ## CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST - admit the module's second and subsequent `fn` item
 
 - Date/task/status: 2026-08-19, `CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST`, authored
@@ -1167,6 +1611,57 @@ say so in the product's own terms so that no later outcome can claim otherwise.
 Decision 4's finding is confirmed as stated: the capacity measurement's
 "exhausted inside function 8 at line 154" prediction does not happen, for both
 of the causes it names, and `BOOTSTRAP_CONVERGENCE_READINESS.md` is corrected.
+
+**What these two numbers do NOT mean, checked on review because the wrong
+inference had already begun to form outside this record.**
+
+Decision 4 says the projection "overshoots what this gate actually produces by a
+factor of 36 - 17,621 projected against 486 produced". Every number in that
+sentence is right and the inference a reader reaches for is wrong: that the
+capacity projection is unreliable, that the raise was waste, or that capacity is
+solved. It is none of those. **The 36x is a prefix-versus-whole artifact**, and
+`17,621 / 486 = 36.26` is literally a whole-source projection divided by an
+actual measured over 1.74% of the source.
+
+| | |
+|---|---|
+| bytes parsed before the stop | 5,158 of 296,584 = **1.74%** |
+| functions parsed | 14 of 23 = 60.9% |
+| nodes in that prefix | 486 of 17,621 = **2.76%** |
+| nodes **past** the stop | 17,135 = **97.2%** |
+| `run_runtime_ascii_llvm_emitter` alone | 16,355 = **92.8%** of the module |
+
+The 14 functions that parse are 61% of the *items* and 1.74% of the *bytes*,
+because they are the small ones and the nine that remain hold almost all of the
+source. The comparison is between two different quantities.
+
+It is stronger than a wash, and in the direction that settles it: the parsed
+prefix is **node-denser** than the module average - 10.61 bytes per node against
+16.83 - so 486 *over*-represents node production per byte. At uniform density
+the prefix would hold about 306 nodes. The projection is not overshooting; the
+parse has not reached the expensive code.
+
+**There is a real projection discrepancy, and it is about 1.5x rather than
+36x.** On the same fourteen functions the measurement's *projected* policy
+crosses 512 inside function 8, while the product holds 339 at the end of
+function 8 - the per-item table above. That gap is the deliberate, recorded
+policy difference between one node per statement/conditional/loop/sequence
+element and the policy CAP-053 explicitly declined to implement. It is a
+decision, not a measurement error, and it is the only sense in which the
+projection and the product disagree on this prefix.
+
+**So the raise stands on the figure that governs it**, which this checkpoint
+leaves entirely untouched: the whole module needs **17,621 node records against
+a bound of 512, a factor of 34.4**. What CAP-056 demonstrates is that the raise
+was not *exercised* here - a statement about where the parse currently ends, not
+about whether capacity is sufficient. Capacity is untested at scale, not solved,
+and the checkpoint that first tests it is the one admitting the two binding
+types.
+
+The same qualification attaches to the arena row above, and it is one clause:
+486 / 449 / 169 / 54 / 9 fit inside the replaced 512 bound **only because the
+parse stops before the nine functions that carry 97.2% of the module's nodes**.
+No record may cite the fit as evidence that 512 would have sufficed.
 
 #### The +2 churn, enumerated rather than pasted
 

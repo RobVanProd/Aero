@@ -379,9 +379,35 @@ paragraph should be read.
   232, which the `int`-only binding type refuses. The canonical run at H1M-1
   holds **486 node, 449 value, 169 operator, 54 block and 9 call records**,
   which is inside the *replaced* 512 bound by 26 records and is 0.74% of the
-  raised one. H1B-6 was still ordered correctly — without it the checkpoint that
+  raised one. That fit is a fact about where the parse stops, not about
+  capacity: the prefix is 1.74% of the source's bytes and 2.76% of its 17,621
+  node records, and the nine functions past the stop carry the other 97.2%. The
+  ratio between the whole-source projection and this partial actual is two
+  different quantities and must not be read as the projection overshooting; see
+  the CAP-056 outcome in `TASK_LEDGER.md`. H1B-6 was still ordered correctly — without it the checkpoint that
   admits the two binding types would exhaust 512 inside function 22 — but its
   stated trigger fires **there**, not at module shape.
+
+  **Corrected under CAP-057, and left visible rather than restated.** "Inside
+  function 22" is right for three of the five arenas and wrong for the one that
+  fires first, so the parse would never reach function 22 at all. Measured on
+  the current source with the instrument recorded under CAP-057, 512 is first
+  crossed on the **node** arena inside item 16, `binary_precedence` (492 → 547);
+  on the value arena inside item 17 (505 → 558); and on the operator, block and
+  call arenas inside item 22 (350 → 6,043, 181 → 1,293 and 13 → 1,119). The node
+  arena fires six functions earlier than this bullet states, and it is the one
+  that governs. The conclusion — that H1B-6 was ordered correctly and that its
+  trigger fires at the binding-type checkpoint rather than at module shape — is
+  unchanged, and is in fact strengthened.
+
+  A second staleness, recorded in the same place. The five-arena requirement
+  this document states as **17,621 / 15,842 / 6,030 / 1,289 / 1,120** holds for
+  the 293,592-byte source at `466701c`, where CAP-057's instrument reproduces
+  all five exactly. CAP-056 then added 2,926 bytes to `compiler.aero`, which
+  *is* the measured source, and the requirement for the current 296,584-byte
+  tree is **17,700 / 15,921 / 6,051 / 1,293 / 1,120**. Any record citing the
+  five-arena requirement should name the tree it holds for; the self-source
+  grows with every checkpoint that edits the parser.
 
 One qualification, so it is not discovered mid-checkpoint, **corrected under
 CAP-054 and left visible rather than quietly restated**. This paragraph used to

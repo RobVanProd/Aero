@@ -450,7 +450,10 @@ CAP-052 froze, which is now the only construct in the whole source that the
 accepted grammar plus module shape does not admit. `root` is 0, as
 `compiler.aero:3680` requires of any stopped parse. The five arenas hold
 **486 node, 449 value, 169 operator, 54 block and 9 call records**, which is
-inside the bound CAP-055 *replaced* by 26 records: **this checkpoint does not
+inside the bound CAP-055 *replaced* by 26 records - but only because the parse
+stops before the nine functions that carry 97.2% of the module's nodes, so the
+fit is no evidence that 512 would have sufficed, and the whole module still
+needs 17,621 node records against that bound. **This checkpoint does not
 exercise the raised bounds at all**, and the readiness document's prediction
 that 512 would be exhausted inside function 8 at line 154 is corrected there.
 The strongest evidence is canonical rather than hand-written: the first 5,158
