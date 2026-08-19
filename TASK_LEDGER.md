@@ -941,15 +941,30 @@ boundary that no probe here covers. The same is not true of the value ceiling,
 which is unreachable structurally and would stay unreachable at any uniform
 bound.
 
-**What to do first, next session. Base commit `2426071`**, branch
-`claude/self-hosting-analysis-be3f72`, confirmed on the remote at the same
-object by `git ls-remote` rather than inferred from push output. Two commits
-were added: `481f688`, the contract, gated green before any product change with
-`compiler.aero` and the focused test file byte-identical to `466701c`; and
-`2426071`, the implementation. Both were gated on the exact tree committed.
-This sentence names its own successor only because a third commit records it -
-the implementation commit cannot contain its own hash - so prefer `ls-remote`
-if the two ever disagree. H1B-1 through H1B-6 are now all locally green.
+**What to do first, next session. The base is the branch head of
+`claude/self-hosting-analysis-be3f72`, which is at or after `1efc041`.**
+Confirm it with `git ls-remote origin claude/self-hosting-analysis-be3f72`
+rather than trusting any hash written here: a commit cannot contain its own
+hash, so the last commit of a session is always the one its own handoff cannot
+name. That is why this paragraph names the commits whose *contents* matter and
+defers the head to `ls-remote`, instead of naming a specific base that a later
+documentation commit would silently make stale - which is exactly what happened
+to the first version of this paragraph, which named `2426071` and was overtaken
+by `1efc041` within the same session.
+
+Three commits carry CAP-055, each gated on the exact tree committed with its
+exit status read before `git commit`:
+
+- `481f688` - the contract, gated green before any product change, with
+  `compiler.aero` and the focused test file byte-identical to `466701c`.
+- `2426071` - the implementation: the five-bound raise, the oracle capacity
+  model, and the nine tests.
+- `1efc041` - documentation only, correcting an evidence claim in the outcome
+  section above that had been written before its run. `examples/` and `src/`
+  are byte-identical between `2426071` and `1efc041`, so the product and the
+  tests are entirely `2426071`'s.
+
+H1B-1 through H1B-6 are now all locally green.
 
 1. **The module-shape gate**, which is what H1B-6 existed to precede and is now
    unobstructed on capacity. It is the first checkpoint that parses past the
