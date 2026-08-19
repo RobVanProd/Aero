@@ -1162,6 +1162,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut return_line: int = 0;
     let mut return_column: int = 0;
     let mut closing_step: int = 0;
+    let mut closing_cycle_step: int = 0;
+    let mut module_next_item: int = 0;
+    let mut item_previous: int = 0;
     let mut int_matches: int = 0;
     let mut parameter_count: int = 0;
     let mut param_mode: int = 0;
@@ -2812,16 +2815,28 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
         }
 
-        // Exact '} EOF' suffix, entered once from the statement loop. A body
-        // that closes without a completed return statement has no root for the
+        // CAP-056 module shape. A function item closes at its own '}', and
+        // the module then takes another 'fn' item or end-of-input. A body that
+        // closes without a completed return statement has no root for the
         // function node, so its '}' is rejected with the statement expectation
         // instead - which is also how an empty body is rejected.
+        //
+        // 'closing_step' is 0 while the item's '}' is expected and 1 while the
+        // module's next item or end-of-input is. It is latched once per
+        // iteration, exactly as 'param_mode' and 'stmt_step' are, so the flat
+        // per-step branches cannot cascade within one iteration.
+        //
+        // Only one expectation can be reported for the module step, and it
+        // stays 0 - end-of-input - so a token that is neither is rejected
+        // exactly as it was before this checkpoint, and 'fn' is silently also
+        // accepted.
         if parser_cycle_state == 21 {
+            closing_cycle_step = closing_step;
             expected_kind = 13;
             if block_state != 2 {
                 expected_kind = 6;
             }
-            if closing_step == 1 {
+            if closing_cycle_step == 1 {
                 expected_kind = 0;
             }
             if current_kind < 0 || current_start < 0 || current_line <= 0
@@ -2829,7 +2844,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 status = 16;
                 parser_running = 0;
             }
-            if parser_running == 1 && current_kind != expected_kind {
+            module_next_item = 0;
+            if parser_running == 1 && closing_cycle_step == 1
+                && current_kind == 3 {
+                module_next_item = 1;
+            }
+            if parser_running == 1 && module_next_item == 0
+                && current_kind != expected_kind {
                 status = 10;
                 error_offset = current_start;
                 error_line = current_line;
@@ -2838,44 +2859,86 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
-            if parser_running == 1 {
+            // A new item restores every per-item parser register to the value
+            // it is declared with, so item N is parsed by exactly the machine
+            // that parsed item 1. The module-wide stores - node, origin,
+            // parameter, value, operator, block and call - are not touched,
+            // because they accumulate across the whole module.
+            if parser_running == 1 && module_next_item == 1 {
+                skeleton_step = 0;
+                closing_step = 0;
+                param_mode = 0;
+                match_active = 0;
+                statement_mode = 0;
+                body_root = 0;
+                block_state = 0;
+                block_top = 0;
+                block_depth = 0;
+                block_else = 0;
+                expression_root = 0;
+                value_top = 0;
+                value_depth = 0;
+                operator_top = 0;
+                operator_depth = 0;
+                paren_depth = 0;
+                expecting_operand = 1;
+                held_active = 0;
+                ref_pending = 0;
+                arg_leading = 0;
+                arg_open = 0;
+                call_top = 0;
+                call_base = 0;
+                call_chain = 0;
+                parser_state = 2;
+            }
+            // End-of-input completes the module. 'root' is the last item's
+            // kind-19 node, which is the last node appended, so
+            // 'root == node_count' is preserved exactly. It is set here rather
+            // than at each item's close because a stopped parse must leave
+            // 'root' at zero, which the parse self-check requires.
+            if parser_running == 1 && module_next_item == 0
+                && closing_cycle_step == 1 {
                 parse_index = parse_index + 1;
-                closing_step = closing_step + 1;
-                parser_state = 20;
-                if closing_step == 2 {
-                    if node_count >= 65536 {
-                        status = 14;
-                        error_offset = return_start;
-                        error_line = return_line;
-                        error_column = return_column;
-                        diagnostic_code = 65536;
-                        diagnostic_actual = 6;
-                        parser_running = 0;
-                    }
-                    if parser_running == 1 {
-                        pending_node_kind = 18;
-                        pending_node_payload = 0;
-                        pending_node_left = body_root;
-                        pending_node_right = 0;
-                        pending_node_after = 22;
-                        pending_node_offset = return_start;
-                        pending_node_line = return_line;
-                        pending_node_column = return_column;
-                        parser_append_target = 4;
-                        parser_append_width = 5;
-                        parser_append_0 = node_count + 1;
-                        parser_append_1 = return_start;
-                        parser_append_2 = return_line;
-                        parser_append_3 = return_column;
-                        parser_append_4 = 6;
-                        parser_append_field = 0;
-                        parser_append_byte = 0;
-                        parser_append_after = 33;
-                        parser_append_offset = return_start;
-                        parser_append_line = return_line;
-                        parser_append_column = return_column;
-                        parser_state = 32;
-                    }
+                root = item_previous;
+                parser_running = 0;
+                parser_state = 0;
+            }
+            if parser_running == 1 && module_next_item == 0
+                && closing_cycle_step == 0 {
+                parse_index = parse_index + 1;
+                closing_step = 1;
+                if node_count >= 65536 {
+                    status = 14;
+                    error_offset = return_start;
+                    error_line = return_line;
+                    error_column = return_column;
+                    diagnostic_code = 65536;
+                    diagnostic_actual = 6;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    pending_node_kind = 18;
+                    pending_node_payload = 0;
+                    pending_node_left = body_root;
+                    pending_node_right = 0;
+                    pending_node_after = 22;
+                    pending_node_offset = return_start;
+                    pending_node_line = return_line;
+                    pending_node_column = return_column;
+                    parser_append_target = 4;
+                    parser_append_width = 5;
+                    parser_append_0 = node_count + 1;
+                    parser_append_1 = return_start;
+                    parser_append_2 = return_line;
+                    parser_append_3 = return_column;
+                    parser_append_4 = 6;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 33;
+                    parser_append_offset = return_start;
+                    parser_append_line = return_line;
+                    parser_append_column = return_column;
+                    parser_state = 32;
                 }
             }
         }
@@ -2895,7 +2958,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 pending_node_kind = 19;
                 pending_node_payload = function_name_id;
                 pending_node_left = node_id;
-                pending_node_right = 0;
+                pending_node_right = item_previous;
                 pending_node_after = 23;
                 pending_node_offset = function_start;
                 pending_node_line = function_line;
@@ -2918,9 +2981,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         }
         if parser_cycle_state == 23 {
             node_count = node_count + 1;
-            root = node_count;
-            parser_running = 0;
-            parser_state = 0;
+            item_previous = node_count;
+            parser_state = 20;
         }
 
         // CAP-054. A held identifier turned out to be an ordinary operand,
@@ -3657,8 +3719,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 || validate_right >= node_id {
                 return 78;
             }
-        } else if validate_payload <= 0 || validate_payload > name_count
-            || validate_left <= 0 || validate_left >= node_id || validate_right != 0 {
+        } else if validate_node_kind == 19 {
+            if validate_payload <= 0 || validate_payload > name_count
+                || validate_left <= 0 || validate_left >= node_id
+                || validate_right < 0 || validate_right >= node_id {
+                return 78;
+            }
+        } else {
             return 78;
         }
         validate_node = validate_node + 1;

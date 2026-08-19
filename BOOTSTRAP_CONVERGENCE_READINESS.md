@@ -328,6 +328,11 @@ later reader takes the original wording as evidence:
 | H1B-5 — calls and references (locally green, CAP-054) | `IDENT ( ARGS )` where the callee is an operand-position identifier immediately followed by `(`, and an argument may begin with `&` or `& mut` and may do so nowhere else. **The first H1B checkpoint that represents rather than only admits**: four node kinds take the node-kind bound from `1..=19` to `1..=23` — kind 20 the call, carrying its callee as `payload` and its argument list as `left`; kind 21 one argument-list cell; kinds 22 and 23 the two references. Open calls are carried by a fifth bounded parse-group arena, one three-word record each | No intrinsic knowledge, arity, type, ownership, borrow, or aliasing meaning; no callee that is not a bare identifier, so `(f)(a)`, `1(a)` and `f(a)(b)` are rejections; no `match` in an argument; no method, field or index syntax; no `ByteBuffer` or `Result<int, int>` binding type — see the gap below |
 | H1B-6 — arena capacity (locally green, CAP-055) | **All five** parse-group record bounds — node, value, operator, block and call — raised from 512 to a uniform 65,536, under the same independent-oracle proof H1A used for tokens. The oracle carried no record ceiling of any kind before this checkpoint, so the proof required building the model rather than editing a literal. The verifier's own `512` at `compiler.aero:5557` is untouched and recorded as debt | No grammar change; capacity only |
 
+H1B is complete as *admitted grammar* when H1B-6 is green. It is **not**
+complete in the sense of `:223`; see the representation gap recorded in
+`TASK_LEDGER.md`. The gate that follows it is H1M, the module-shape gate,
+described below.
+
 Each checkpoint is separately authorized and red-first, crosses at most two
 compiler authorities, and must stop at an independently predicted next construct.
 H1B-6 is listed last but must be pulled earlier the moment a checkpoint's AST
@@ -359,11 +364,24 @@ paragraph should be read.
   15,842 value, 6,030 operator, 1,289 block and 1,120 call records**.
 - The pull-forward rule above does **not** fire at H1B-4 or H1B-5. Both leave
   the canonical stop at offset 146 with four nodes and are proven by focused
-  probes of a few dozen tokens, so neither can exceed 512. The rule fires at the
-  module-shape gate below, and there it fires at once: parsing the canonical
-  source function by function with the bound at 512 exhausts the node arena
-  inside function 8 at line 154 of 6,085. **H1B-6 should be pulled ahead of the
-  module-shape gate, not ahead of H1B-4 or H1B-5.**
+  probes of a few dozen tokens, so neither can exceed 512. **H1B-6 should be
+  pulled ahead of the module-shape gate, not ahead of H1B-4 or H1B-5.**
+- **Corrected under CAP-056/H1M-1, and left visible rather than restated.** This
+  bullet used to say the rule fires at the module-shape gate "at once", with the
+  node arena exhausted inside function 8 at line 154 of 6,085. Measured against
+  the built product, it does not fire there either. Two causes, both recorded
+  in `TASK_LEDGER.md` under CAP-056 Decision 4. The 512-at-line-154 figure was
+  computed under the measurement's *projected* node policy — one node per
+  statement, per conditional, per loop and per sequence element — which the
+  product does not implement and which CAP-053 declined to implement; under the
+  policy the product has, the cumulative node count at the end of function 7 is
+  **325**. And the prediction assumed the canonical run would continue past line
+  232, which the `int`-only binding type refuses. The canonical run at H1M-1
+  holds **486 node, 449 value, 169 operator, 54 block and 9 call records**,
+  which is inside the *replaced* 512 bound by 26 records and is 0.74% of the
+  raised one. H1B-6 was still ordered correctly — without it the checkpoint that
+  admits the two binding types would exhaust 512 inside function 22 — but its
+  stated trigger fires **there**, not at module shape.
 
 One qualification, so it is not discovered mid-checkpoint, **corrected under
 CAP-054 and left visible rather than quietly restated**. This paragraph used to
@@ -414,6 +432,74 @@ meaning — authorized only after H1B-1 through H1B-5 have proven the parser can
 describe a single function completely. Until then, every checkpoint stops at the
 second `fn` item, and that stop is the expected result rather than a defect.
 
+**Corrected under CAP-056/H1M-1.** "Until then" ended at H1M-1, which is the
+checkpoint that admits the second and subsequent `fn` item and the first to move
+the canonical stop since CAP-051 set it. The sentence above is true of H1B-1
+through H1B-6 and of nothing after them. From H1M-1 the canonical run parses
+fourteen complete function items and stops at line 232, column 15, offset 5,203,
+on `Result` in `let read: Result<int, int> = stdin_read_byte();` — the `int`-only
+binding type CAP-052 froze, which is now the **only** construct in the whole
+296,584-byte source that the accepted grammar plus module shape does not admit -
+19 sites, one in `read_input_value` and eighteen in
+`run_runtime_ascii_llvm_emitter`.
+
+### The module-shape gate, H1M
+
+The gate is labelled **H1M** and split into three checkpoints, because it meets
+five downstream authorities and `:331` caps a checkpoint at two. The split is
+derived in `TASK_LEDGER.md` under CAP-056 rather than chosen: a parse-group
+refusal is refuted by `compiler.aero:3680`, which requires `root == 0` whenever
+`status != 0` and so would destroy the very result the gate exists to produce.
+What refuses a multi-item module instead is the **downstream phases' own
+already-implemented refusals**, which each checkpoint predicts and asserts and
+none edits.
+
+| Checkpoint | Required result | Frozen exclusions |
+|---|---|---|
+| H1M-1 — module item list (locally green from 12:40 on 2026-08-19, CAP-056; see the retraction below for why that time is stated) | A module is one or more `fn` items. A function item closes at its own `}` and the module then takes another `fn` item or end-of-input. The item list is **represented**: a kind-19 node's `right`, previously required to be `0`, carries the previous item's node id, so every item is reachable from `root` and `root == node_count` is preserved exactly. Crosses the parse group only. The semantic phase refuses a multi-item module with `semantic_status = 27` / `semantic_code = 3` where the module has no identifier, and with `semantic_status = 17` / `semantic_code = 2` where it has one — both predicted and asserted, neither modified | No new node kind; `1..=23` unchanged. No capacity change; the five parse-group bounds stay at 65,536 and the verifier's `512` stays at 512. No grammar change inside a function body. No `ByteBuffer` or `Result<int, int>` binding type. No zero-item module. No claim that the canonical source parses |
+| H1M-2 — module meaning | The semantic and checked-IR groups over N function items: N symbols, one fact per node, and the `node_count - 2` arithmetic at `compiler.aero:4480` generalized. Crosses two authorities. The verifier refuses a multi-function checked module by authentication; predicted and asserted, not modified | Not authorized here |
+| H1M-3 — module verification and emission | The verifier and emitter groups over N function items. Crosses two authorities. Takes ownership of the verifier's `512` at `compiler.aero:5557` or keeps every probe under 512 nodes, explicitly rather than by discovery | Not authorized here |
+
+H1M-1 does not complete the gate and does not make the canonical source parse.
+The construct that does is the `ByteBuffer` / `Result<int, int>` binding type at
+19 sites in two functions, and it is the last grammar work before the canonical
+source parses end to end.
+
+#### Retraction: this document asserted H1M-1 green before any run said so
+
+Recorded in place rather than overwritten, on the template CAP-055 set at
+`1efc041`. The H1M-1 row above originally read "(locally green, CAP-056)". That
+label was written before 10:52 on 2026-08-19, while the first focused run on the
+changed product was still executing and **no** completed exit status existed for
+the changed tree at all; the file's later 10:58 timestamp is a one-line
+byte-count fix, not the origin of the claim. The full run record is tabulated in
+`PROJECT_STATE.md` under the matching retraction.
+
+What is actually evidenced, and what is not:
+
+- **Evidenced.** The focused target `self_host_source_ingestion_tests` returned
+  **45 passed, 0 failed, exit 0**, completed 10:57 and read from its own log, on
+  `compiler.aero` SHA-256 `a839ff37…` and the focused test file SHA-256
+  `082b9e0d…` — the exact tree, confirmed by the assertion strings being present
+  in the linked test binary rather than assumed from timestamps. Every
+  behavioural figure this document records for H1M-1 — the canonical stop, the
+  five arena counts, the item chain, the downstream refusals — is covered by
+  that run.
+- **Not evidenced at the time of writing.** "Locally green" on this project
+  means the complete repository-root gate. Attempt 1 returned **exit 101** at
+  11:10, on an environment fault rather than a product one: `clang` could not
+  write intermediate objects because `C:` was full, and `TMPDIR` does not
+  redirect it — `TMP`/`TEMP` do. Attempt 2 returned **exit 0** at 11:55, and
+  attempt 3, on the tree carrying these corrections, returned **exit 0** at
+  12:40 with 998 passed, 0 failed, 16 ignored. The row above therefore carries a
+  green from 12:40 and names that time, because the same row asserted the same
+  status from before 10:52 with nothing behind it.
+
+The rule this breaks is `TASK_LEDGER.md`'s *"A **ledger entry** must be written
+after reading a completed exit status, never before."* It held exactly where it
+was named — `TASK_LEDGER.md` claimed no CAP-056 result — and broke in the two
+files it did not name. **Restated: any record, not only the ledger.**
+
 #### Recorded debt this gate inherits: the verifier's `512`
 
 CAP-055/H1B-6 raised **five** record bounds — node, value, operator, block and
@@ -437,9 +523,21 @@ paragraph about capacity. Two things about when it fires:
   not reach the verifier. Module shape can be built without touching it.
 - It fires at the first checkpoint that drives a complete pipeline over the real
   source, which is H1C/H1D, and it fires hard. A single canonical function,
-  `run_runtime_ascii_llvm_emitter`, needs over 12,000 nodes on its own against a
-  bound of 512 — a factor of 24 — and 15 of the 23 functions are smaller only
-  because they are smaller, not because anything caps them.
+  `run_runtime_ascii_llvm_emitter`, needs **16,355** nodes on its own against a
+  bound of 512 — a factor of **31.9** — and the whole module needs 17,621, a
+  factor of 34.4. 15 of the 23 functions are smaller only because they are
+  smaller, not because anything caps them.
+
+  **Corrected under CAP-056/H1M-1.** This bullet used to state the overrun as
+  "over 12,000 nodes … a factor of 24". That figure is the arena-capacity
+  measurement's *floor* policy on the smaller `f416067` source and predates
+  CAP-054's call representation. Nothing depends on the difference and the
+  conclusion is unchanged; the larger number is the true one and is recorded so
+  the smaller is not cited later. CAP-056 additionally confirms that the debt
+  does not fire at **any** of H1M-1, H1M-2 or H1M-3 over the canonical source:
+  H1M-1 stops at `status = 12`, H1M-2's multi-function checked module is refused
+  by authentication before any bound is consulted, and H1M-3 reaches the
+  verifier only over hand-written probes.
 
 Whichever checkpoint owns it should raise it under the verifier group's own
 authority and with the verifier group's own independent-oracle proof, not by

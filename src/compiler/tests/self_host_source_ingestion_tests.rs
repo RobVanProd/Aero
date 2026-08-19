@@ -199,6 +199,19 @@ mod oracle {
         /// arena, but `origin_count` is compared and folded with the semantic
         /// group, so a stopped parse that produced a node still reports it.
         pub origins: Vec<[i32; 5]>,
+        /// CAP-056 / H1M-1. The module's root, which is the last function
+        /// item's kind-19 node and equals `node_count`. Zero unless the parse
+        /// completed: `compiler.aero:3680` requires `root == 0` whenever
+        /// `status != 0`, so every model before this checkpoint could fold a
+        /// literal zero and did.
+        pub root: i32,
+        /// The four counted parse-group stores as `(value, operator, block,
+        /// call)` at the stop. The node arena is absent because `nodes.len()`
+        /// already is it. None of the four is in any expectation vector - the
+        /// product folds no record count into any checksum - so they are
+        /// carried here only so the contract's arena projection can be graded
+        /// in full rather than on its node column alone.
+        pub counts: (usize, usize, usize, usize),
     }
 
     pub struct Bounds {
@@ -311,6 +324,12 @@ mod oracle {
         pub calls: usize,
     }
 
+    impl Counts {
+        fn snapshot(&self) -> (usize, usize, usize, usize) {
+            (self.values, self.operators, self.blocks, self.calls)
+        }
+    }
+
     /// Model the stdin ingestion loop and the lexer. Returns the state the Aero
     /// product reaches before its parser runs.
     pub fn ingest(source: &[u8], bounds: &Bounds) -> Ingestion {
@@ -334,6 +353,8 @@ mod oracle {
                     parameters: Vec::new(),
                     nodes: Vec::new(),
                     origins: Vec::new(),
+                    root: 0,
+                    counts: (0, 0, 0, 0),
                 };
             }
             if *byte == b'\n' {
@@ -371,6 +392,8 @@ mod oracle {
                     parameters: Vec::new(),
                     nodes: Vec::new(),
                     origins: Vec::new(),
+                    root: 0,
+                    counts: (0, 0, 0, 0),
                 }
             };
         }
@@ -554,6 +577,8 @@ mod oracle {
             parameters: Vec::new(),
             nodes: Vec::new(),
             origins: Vec::new(),
+            root: 0,
+            counts: (0, 0, 0, 0),
         }
     }
 
@@ -635,6 +660,7 @@ mod oracle {
             false,
             false,
             false,
+            false,
             &Caps::UNBOUNDED,
         )
     }
@@ -658,6 +684,7 @@ mod oracle {
             false,
             false,
             false,
+            false,
             &Caps::UNBOUNDED,
         )
     }
@@ -667,7 +694,16 @@ mod oracle {
     /// followed by `}`, and `;` terminates the return statement rather than
     /// closing the body.
     pub fn statement_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, false, false, &Caps::UNBOUNDED)
+        parser_stop(
+            ingested,
+            source,
+            true,
+            true,
+            false,
+            false,
+            false,
+            &Caps::UNBOUNDED,
+        )
     }
 
     /// Where the parser stops once CAP-053 / H1B-4 additionally admits the two
@@ -689,7 +725,16 @@ mod oracle {
     /// H1C that the conditional has no body. So the `1..=19` node-kind bound is
     /// untouched, and a nested `return` leaves its expression as an orphan.
     pub fn control_flow_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, true, false, &Caps::UNBOUNDED)
+        parser_stop(
+            ingested,
+            source,
+            true,
+            true,
+            true,
+            false,
+            false,
+            &Caps::UNBOUNDED,
+        )
     }
 
     /// Where the parser stops once CAP-054 / H1B-5 additionally admits call
@@ -710,7 +755,16 @@ mod oracle {
     /// operand. Every node under a call is reachable from the call node, so a
     /// call's whole subtree is as reachable as the call itself.
     pub fn call_parser_stop(ingested: &Ingestion, source: &[u8]) -> Ingestion {
-        parser_stop(ingested, source, true, true, true, true, &Caps::UNBOUNDED)
+        parser_stop(
+            ingested,
+            source,
+            true,
+            true,
+            true,
+            true,
+            false,
+            &Caps::UNBOUNDED,
+        )
     }
 
     /// CAP-055 / H1B-6. The same grammar as [`call_parser_stop`] under the five
@@ -723,7 +777,24 @@ mod oracle {
     /// agree on every shape that stays under the bound. That equality is the
     /// product-free proof this checkpoint changed no grammar.
     pub fn capacity_parser_stop(ingested: &Ingestion, source: &[u8], caps: &Caps) -> Ingestion {
-        parser_stop(ingested, source, true, true, true, true, caps)
+        parser_stop(ingested, source, true, true, true, true, false, caps)
+    }
+
+    /// CAP-056 / H1M-1. The same grammar as [`capacity_parser_stop`] over a
+    /// module of one or more `fn` items.
+    ///
+    /// This is *not* a new parser either. `capacity_parser_stop` is this
+    /// function with the module rule switched off, so CAP-055's model survives
+    /// as an instance of this one rather than as a copy that could drift, and
+    /// the two must agree exactly on every shape that stops before its `}` and
+    /// differ by exactly the item's own two nodes on every shape that stops
+    /// after it.
+    ///
+    /// A module of one item is byte-identical to CAP-055's product: the two
+    /// nodes are the same two nodes, appended in the same order with the same
+    /// origins, and only the token at which they are appended moved.
+    pub fn module_parser_stop(ingested: &Ingestion, source: &[u8], caps: &Caps) -> Ingestion {
+        parser_stop(ingested, source, true, true, true, true, true, caps)
     }
 
     /// The accepted expression grammar, modelled as the product's own
@@ -1095,6 +1166,7 @@ mod oracle {
         admit_statements: bool,
         admit_control_flow: bool,
         admit_calls: bool,
+        admit_module: bool,
         caps: &Caps,
     ) -> Ingestion {
         assert_eq!(ingested.status, 0, "ingestion must succeed first");
@@ -1114,6 +1186,7 @@ mod oracle {
         macro_rules! reject {
             ($record:expr, $status:expr, $code:expr) => {{
                 let record: &TokenRecord = $record;
+                stopped.counts = counts.snapshot();
                 stopped.status = $status;
                 stopped.error_offset = record[1];
                 stopped.error_line = record[3];
@@ -1129,6 +1202,7 @@ mod oracle {
         macro_rules! reject_located {
             ($reject:expr) => {{
                 let reject: Reject = $reject;
+                stopped.counts = counts.snapshot();
                 stopped.status = reject.status;
                 stopped.error_offset = reject.offset;
                 stopped.error_line = reject.line;
@@ -1149,49 +1223,6 @@ mod oracle {
             }};
         }
 
-        take!(3); // fn
-        take!(1); // function name
-        take!(10); // (
-
-        // Parameter list: either an immediate `)` or `IDENT : TYPE` repeated.
-        if ingested.tokens[index][0] != 11 {
-            loop {
-                let name = take!(1); // parameter name
-                take!(17); // :
-                let ty = take!(1);
-                let code = match text(ty) {
-                    b"int" => 1,
-                    b"Result" => {
-                        take!(29); // <
-                        let first = take!(1);
-                        if text(first) != b"int" {
-                            reject!(first, 12, 102);
-                        }
-                        take!(16); // ,
-                        let second = take!(1);
-                        if text(second) != b"int" {
-                            reject!(second, 12, 102);
-                        }
-                        take!(31); // >
-                        2
-                    }
-                    _ => reject!(ty, 12, 102),
-                };
-                stopped.parameters.push((name[5], code));
-                if ingested.tokens[index][0] != 16 {
-                    break;
-                }
-                index += 1; // ,
-            }
-        }
-        take!(11); // )
-        take!(35); // ->
-        let result_type = take!(1);
-        if text(result_type) != b"int" {
-            reject!(result_type, 12, 102);
-        }
-        take!(12); // {
-
         macro_rules! append {
             ($kind:expr, $payload:expr, $left:expr, $right:expr, $origin:expr) => {{
                 let origin: [i32; 4] = $origin;
@@ -1207,139 +1238,223 @@ mod oracle {
             }};
         }
 
-        // CAP-052 / H1B-3. The body is `{` followed by one or more statements
-        // followed by `}`. The four admitted statement forms are
-        // `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`,
-        // `IDENT = EXPR ;`, and `return EXPR ;`. `;` is the return statement's
-        // own terminator rather than a closing token, so the two entry points
-        // CAP-051 created into the closing sequence collapse into one rule
-        // inside the loop and the closing sequence shrinks to `}` then
-        // end-of-input, entered once.
+        // CAP-056 / H1M-1. A module is one or more `fn` items. One iteration of
+        // this loop is one item, from its `fn` to its own `}`; the module step
+        // at the bottom then takes another `fn` or end-of-input. Every model
+        // before this checkpoint runs the body exactly once and leaves through
+        // one of the panics below, so `admit_module == false` is the linear
+        // parser those models always were.
         //
-        // A statement produces no syntax node, exactly as a CAP-050 parameter
-        // does not, so the body's tree is still one return node over the last
-        // completed return statement's expression. A binding's or an
-        // assignment's initializer nodes are therefore orphans, joining the
-        // four CAP-051 left.
-        if admit_statements {
-            // CAP-053 / H1B-4 adds the block stack the two control-flow forms
-            // need. A record is pushed for every *nested* block and never for
-            // the function body, so an empty stack means the function body and
-            // its closing rule stays exactly where CAP-052 put it.
-            //
-            // A record holds the block's kind - 1 an `if` body, 2 a `while`
-            // body, 3 an `else` body - and the enclosing block's statement
-            // state, restored on pop. `block_state` is 0 before the block's
-            // first statement, 1 once one has completed, and 2 once a `return`
-            // has, which is the whole of the per-block return rule: a statement
-            // opener at state 2 is rejected, and a `}` at state 0 is an empty
-            // block.
-            let mut body_root = 0i32;
-            let mut blocks: Vec<(i32, i32)> = Vec::new();
-            let mut block_state = 0i32;
-            let mut else_admissible = false;
-            loop {
-                let leading = ingested.tokens[index];
-                let else_opens = admit_control_flow && else_admissible && leading[0] == 8;
-                else_admissible = false;
-                // 1 `let`, 2 assignment, 3 `return`, 4 `if`, 5 `while`.
-                let mut mode = 0i32;
-                if else_opens {
-                    index += 1; // else
-                    let next = ingested.tokens[index];
-                    if next[0] == 7 {
-                        index += 1; // `if`, continuing the chain
-                        mode = 4;
-                    } else if next[0] == 12 {
-                        index += 1; // `{`, opening the final `else` body
-                        // `compiler.aero:1972`, located at the token that opens
-                        // the block with that token's own kind.
-                        if counts.blocks >= caps.blocks {
-                            reject_located!(Reject::capacity(
-                                [next[1], next[3], next[4], next[0]],
-                                15,
-                                caps.blocks,
-                                next[0],
-                            ));
-                        }
-                        counts.blocks += 1;
-                        blocks.push((3, block_state));
-                        block_state = 0;
-                        continue;
-                    } else {
-                        reject!(&next, 10, 12);
-                    }
-                } else {
-                    if leading[0] == 4 {
-                        mode = 1;
-                    } else if leading[0] == 1 {
-                        mode = 2;
-                    } else if leading[0] == 6 {
-                        mode = 3;
-                    } else if admit_control_flow && leading[0] == 7 {
-                        mode = 4;
-                    } else if admit_control_flow && leading[0] == 9 {
-                        mode = 5;
-                    }
-                    if mode == 0 {
-                        if blocks.is_empty() {
-                            break;
-                        }
-                        // A nested block closes on `}` and nothing more, and
-                        // carries no return requirement. Its one extra rule is
-                        // that it may not be empty, reported the way CAP-052
-                        // reports an empty function body.
-                        let expected_close = if block_state == 0 { 6 } else { 13 };
-                        if leading[0] != expected_close {
-                            reject!(&leading, 10, expected_close);
-                        }
-                        index += 1; // }
-                        let (kind, enclosing) = blocks.pop().expect("modelled block stack");
-                        block_state = enclosing;
-                        else_admissible = kind == 1;
-                        continue;
-                    }
-                    if admit_control_flow && block_state == 2 {
-                        // The rule CAP-052 froze and did not implement: after a
-                        // return statement's `;` the only admissible token is
-                        // that block's `}`.
-                        reject!(&leading, 10, 13);
-                    }
-                    index += 1; // the statement's leading token
-                    if mode == 1 {
-                        if ingested.tokens[index][0] == 5 {
-                            index += 1; // mut
-                        }
-                        take!(1); // the bound name
-                        take!(17); // :
-                        let ty = take!(1);
-                        if text(ty) != b"int" {
-                            reject!(ty, 12, 102);
-                        }
-                        take!(25); // =
-                    } else if mode == 2 {
-                        take!(25); // =
-                    }
-                }
-                block_state = 1;
+        // `previous_item` is the reverse chain: a kind-19 node's `right` is the
+        // previous item's kind-19 node id, or 0 for the first item. It is a
+        // parser register rather than an arena, exactly as `body_root` is, and
+        // it points backwards because the node arena has an append path and no
+        // write-at-index path.
+        let mut previous_item = 0i32;
+        loop {
+            let function_open = ingested.tokens[index];
+            take!(3); // fn
+            let function_name = take!(1); // function name
+            let function_name_id = function_name[5];
+            take!(10); // (
 
-                // A return expression dispatches on its leading token exactly as
-                // CAP-051 does; a binding's, an assignment's or a condition's
-                // expression does not, so `match` there is an ordinary
-                // identifier operand.
-                let mut root = 0i32;
-                let opening = ingested.tokens[index];
-                if mode == 3 && opening[0] == 1 && text(&opening) == b"match" {
-                    index += 1; // match
-                    take!(1); // the scrutinee is exactly one identifier
-                    take!(12); // {
-                    for _ in 0..2 {
-                        take!(1); // the pattern head
-                        take!(10); // (
-                        take!(1); // the bound identifier
-                        take!(11); // )
-                        take!(36); // =>
-                        let arm = parse_expression(
+            // Parameter list: either an immediate `)` or `IDENT : TYPE` repeated.
+            if ingested.tokens[index][0] != 11 {
+                loop {
+                    let name = take!(1); // parameter name
+                    take!(17); // :
+                    let ty = take!(1);
+                    let code = match text(ty) {
+                        b"int" => 1,
+                        b"Result" => {
+                            take!(29); // <
+                            let first = take!(1);
+                            if text(first) != b"int" {
+                                reject!(first, 12, 102);
+                            }
+                            take!(16); // ,
+                            let second = take!(1);
+                            if text(second) != b"int" {
+                                reject!(second, 12, 102);
+                            }
+                            take!(31); // >
+                            2
+                        }
+                        _ => reject!(ty, 12, 102),
+                    };
+                    stopped.parameters.push((name[5], code));
+                    if ingested.tokens[index][0] != 16 {
+                        break;
+                    }
+                    index += 1; // ,
+                }
+            }
+            take!(11); // )
+            take!(35); // ->
+            let result_type = take!(1);
+            if text(result_type) != b"int" {
+                reject!(result_type, 12, 102);
+            }
+            take!(12); // {
+
+            // CAP-052 / H1B-3. The body is `{` followed by one or more statements
+            // followed by `}`. The four admitted statement forms are
+            // `let IDENT : int = EXPR ;`, `let mut IDENT : int = EXPR ;`,
+            // `IDENT = EXPR ;`, and `return EXPR ;`. `;` is the return statement's
+            // own terminator rather than a closing token, so the two entry points
+            // CAP-051 created into the closing sequence collapse into one rule
+            // inside the loop and the closing sequence shrinks to `}` then
+            // end-of-input, entered once.
+            //
+            // A statement produces no syntax node, exactly as a CAP-050 parameter
+            // does not, so the body's tree is still one return node over the last
+            // completed return statement's expression. A binding's or an
+            // assignment's initializer nodes are therefore orphans, joining the
+            // four CAP-051 left.
+            if admit_statements {
+                // CAP-053 / H1B-4 adds the block stack the two control-flow forms
+                // need. A record is pushed for every *nested* block and never for
+                // the function body, so an empty stack means the function body and
+                // its closing rule stays exactly where CAP-052 put it.
+                //
+                // A record holds the block's kind - 1 an `if` body, 2 a `while`
+                // body, 3 an `else` body - and the enclosing block's statement
+                // state, restored on pop. `block_state` is 0 before the block's
+                // first statement, 1 once one has completed, and 2 once a `return`
+                // has, which is the whole of the per-block return rule: a statement
+                // opener at state 2 is rejected, and a `}` at state 0 is an empty
+                // block.
+                let mut body_root = 0i32;
+                // `compiler.aero:1737-1741` latches the located `return` token on
+                // every return statement, and `:2848` appends the kind-18 node at
+                // that latch. Last write wins, exactly as `body_root` does, and for
+                // the same reason: the last `return` completed in token order
+                // within an item is always that item's own.
+                let mut return_origin = [0i32; 4];
+                let mut blocks: Vec<(i32, i32)> = Vec::new();
+                let mut block_state = 0i32;
+                let mut else_admissible = false;
+                loop {
+                    let leading = ingested.tokens[index];
+                    let else_opens = admit_control_flow && else_admissible && leading[0] == 8;
+                    else_admissible = false;
+                    // 1 `let`, 2 assignment, 3 `return`, 4 `if`, 5 `while`.
+                    let mut mode = 0i32;
+                    if else_opens {
+                        index += 1; // else
+                        let next = ingested.tokens[index];
+                        if next[0] == 7 {
+                            index += 1; // `if`, continuing the chain
+                            mode = 4;
+                        } else if next[0] == 12 {
+                            index += 1; // `{`, opening the final `else` body
+                            // `compiler.aero:1972`, located at the token that opens
+                            // the block with that token's own kind.
+                            if counts.blocks >= caps.blocks {
+                                reject_located!(Reject::capacity(
+                                    [next[1], next[3], next[4], next[0]],
+                                    15,
+                                    caps.blocks,
+                                    next[0],
+                                ));
+                            }
+                            counts.blocks += 1;
+                            blocks.push((3, block_state));
+                            block_state = 0;
+                            continue;
+                        } else {
+                            reject!(&next, 10, 12);
+                        }
+                    } else {
+                        if leading[0] == 4 {
+                            mode = 1;
+                        } else if leading[0] == 1 {
+                            mode = 2;
+                        } else if leading[0] == 6 {
+                            mode = 3;
+                            return_origin = [leading[1], leading[3], leading[4], leading[0]];
+                        } else if admit_control_flow && leading[0] == 7 {
+                            mode = 4;
+                        } else if admit_control_flow && leading[0] == 9 {
+                            mode = 5;
+                        }
+                        if mode == 0 {
+                            if blocks.is_empty() {
+                                break;
+                            }
+                            // A nested block closes on `}` and nothing more, and
+                            // carries no return requirement. Its one extra rule is
+                            // that it may not be empty, reported the way CAP-052
+                            // reports an empty function body.
+                            let expected_close = if block_state == 0 { 6 } else { 13 };
+                            if leading[0] != expected_close {
+                                reject!(&leading, 10, expected_close);
+                            }
+                            index += 1; // }
+                            let (kind, enclosing) = blocks.pop().expect("modelled block stack");
+                            block_state = enclosing;
+                            else_admissible = kind == 1;
+                            continue;
+                        }
+                        if admit_control_flow && block_state == 2 {
+                            // The rule CAP-052 froze and did not implement: after a
+                            // return statement's `;` the only admissible token is
+                            // that block's `}`.
+                            reject!(&leading, 10, 13);
+                        }
+                        index += 1; // the statement's leading token
+                        if mode == 1 {
+                            if ingested.tokens[index][0] == 5 {
+                                index += 1; // mut
+                            }
+                            take!(1); // the bound name
+                            take!(17); // :
+                            let ty = take!(1);
+                            if text(ty) != b"int" {
+                                reject!(ty, 12, 102);
+                            }
+                            take!(25); // =
+                        } else if mode == 2 {
+                            take!(25); // =
+                        }
+                    }
+                    block_state = 1;
+
+                    // A return expression dispatches on its leading token exactly as
+                    // CAP-051 does; a binding's, an assignment's or a condition's
+                    // expression does not, so `match` there is an ordinary
+                    // identifier operand.
+                    let mut root = 0i32;
+                    let opening = ingested.tokens[index];
+                    if mode == 3 && opening[0] == 1 && text(&opening) == b"match" {
+                        index += 1; // match
+                        take!(1); // the scrutinee is exactly one identifier
+                        take!(12); // {
+                        for _ in 0..2 {
+                            take!(1); // the pattern head
+                            take!(10); // (
+                            take!(1); // the bound identifier
+                            take!(11); // )
+                            take!(36); // =>
+                            let arm = parse_expression(
+                                ingested,
+                                source,
+                                &mut index,
+                                &mut stopped.nodes,
+                                &mut stopped.origins,
+                                admit_calls,
+                                caps,
+                                &mut counts,
+                            );
+                            match arm {
+                                Ok(value) => root = value,
+                                Err(reject) => reject_located!(reject),
+                            }
+                            take!(16); // the arm's trailing `,`
+                        }
+                        take!(13); // the match construct's closing `}`
+                    } else {
+                        let value = parse_expression(
                             ingested,
                             source,
                             &mut index,
@@ -1349,15 +1464,160 @@ mod oracle {
                             caps,
                             &mut counts,
                         );
-                        match arm {
+                        match value {
                             Ok(value) => root = value,
                             Err(reject) => reject_located!(reject),
                         }
-                        take!(16); // the arm's trailing `,`
                     }
-                    take!(13); // the match construct's closing `}`
+                    // The statement's terminator is decided by what the expression
+                    // was for: `;` for a binding, an assignment or a return, and
+                    // `{` for a condition, whose block record is pushed as that `{`
+                    // is accepted.
+                    let terminator = if mode >= 4 { 12 } else { 18 };
+                    let opener = ingested.tokens[index];
+                    take!(terminator);
+                    if mode == 3 {
+                        // `body_root` stays one register and the last write wins.
+                        // Every block's `return` is its last statement and every
+                        // function body ends in one, so the last `return` completed
+                        // in token order within a function is always the function
+                        // body's own. A nested `return` leaves an orphan.
+                        body_root = root;
+                        block_state = 2;
+                    }
+                    if mode >= 4 {
+                        // `compiler.aero:1972`, located at the `{` that opens the
+                        // block, which is the token just accepted.
+                        if counts.blocks >= caps.blocks {
+                            reject_located!(Reject::capacity(
+                                [opener[1], opener[3], opener[4], opener[0]],
+                                15,
+                                caps.blocks,
+                                opener[0],
+                            ));
+                        }
+                        counts.blocks += 1;
+                        blocks.push((if mode == 4 { 1 } else { 2 }, block_state));
+                        block_state = 0;
+                    }
+                }
+
+                // The closing sequence: `}` then end-of-input, entered once. A body
+                // that closes without a completed return statement has no root for
+                // the function node, so `}` is rejected there with the statement
+                // expectation instead - which is also how an empty body is rejected.
+                // The function body's own closing rule is unchanged: `}` then
+                // end-of-input, and the requirement that a `return` completed is
+                // now the *function's* rather than any block's, so a nested block
+                // that returned does not satisfy it.
+                //
+                // `body_root` is the last-write-wins register Decision 3 keeps, and
+                // no probe observes it: the return node is appended only after
+                // end-of-input is accepted, which no probe of this checkpoint
+                // reaches. Its one relationship with the function's requirement is
+                // asserted rather than assumed.
+                assert!(
+                    block_state != 2 || body_root > 0,
+                    "a function body that returned always has a root"
+                );
+                //
+                // The two spellings of that requirement differ only on inputs
+                // CAP-053 rejects. `block_state == 2` says the *function body*
+                // returned; `body_root > 0` says *some* block did. Under CAP-053
+                // they coincide, because a statement can never follow a completed
+                // `return` and no nested block can be the last thing a function
+                // body does. Under CAP-052 they do not - its product admits a
+                // statement after a return, which clears the block state - so the
+                // CAP-052 model keeps the spelling that models its own product.
+                let close = &ingested.tokens[index];
+                let expected_close = if admit_control_flow {
+                    if block_state == 2 { 13 } else { 6 }
+                } else if body_root > 0 {
+                    13
                 } else {
-                    let value = parse_expression(
+                    6
+                };
+                if close[0] != expected_close {
+                    reject!(close, 10, expected_close);
+                }
+                index += 1;
+                if !admit_module {
+                    let end = &ingested.tokens[index];
+                    if end[0] != 0 {
+                        reject!(end, 10, 0);
+                    }
+                    panic!("this checkpoint requires the input to stop inside the parse phase");
+                }
+
+                // CAP-056 / H1M-1. The item's two nodes are appended here, at its
+                // own `}`, rather than after end-of-input. That is the whole of the
+                // `+2` churn: a probe that gets its `}` accepted and then stops at
+                // the module step now carries them, and a probe rejected *on* its
+                // `}` still carries neither.
+                //
+                // Both appends are charged against the node ceiling in the
+                // product's own order - `compiler.aero:2846` guards the kind-18
+                // append and `:2884` the kind-19 one, one record apart - so a
+                // module that fills the arena to within two records of the bound is
+                // refused here rather than at the module step.
+                assert!(
+                    body_root > 0,
+                    "an item that closed on `}}` always has a return root"
+                );
+                let return_node = append!(18, 0, body_root, 0, return_origin);
+                let function_node = append!(
+                    19,
+                    function_name_id,
+                    return_node,
+                    previous_item,
+                    [
+                        function_open[1],
+                        function_open[3],
+                        function_open[4],
+                        function_open[0]
+                    ]
+                );
+                previous_item = function_node;
+
+                // The module step. Only one expectation can be reported, and this
+                // checkpoint keeps `compiler.aero`'s existing 0 - end-of-input - so
+                // a token that is neither `fn` nor end-of-input is rejected exactly
+                // as it was before, and `fn` is silently also accepted.
+                let next = ingested.tokens[index];
+                if next[0] == 3 {
+                    continue;
+                }
+                if next[0] != 0 {
+                    reject!(&next, 10, 0);
+                }
+                // The product advances past end-of-input here and nothing
+                // observes it: `consumed` is the lexer's, and the parse is over.
+                stopped.counts = counts.snapshot();
+                stopped.root = function_node;
+                return stopped;
+            }
+
+            take!(6); // return
+
+            // CAP-051 decides on the leading token of the return expression, before
+            // any operand reduction runs. `match` opens the admitted construct;
+            // anything else falls through to CAP-050's operand path unchanged.
+            let leading = ingested.tokens[index];
+            if admit_match && leading[0] == 1 && text(&leading) == b"match" {
+                index += 1; // match
+                take!(1); // the scrutinee is exactly one identifier
+                take!(12); // {
+                for _ in 0..2 {
+                    take!(1); // the pattern head, matched as a bare identifier
+                    take!(10); // (
+                    take!(1); // the bound identifier
+                    take!(11); // )
+                    take!(36); // =>
+
+                    // The arm body is the accepted expression grammar, modelled by
+                    // `parse_expression` as the product's own shunting-yard so nodes
+                    // append in the product's order.
+                    let arm = parse_expression(
                         ingested,
                         source,
                         &mut index,
@@ -1367,150 +1627,37 @@ mod oracle {
                         caps,
                         &mut counts,
                     );
-                    match value {
-                        Ok(value) => root = value,
-                        Err(reject) => reject_located!(reject),
+                    if let Err(reject) = arm {
+                        reject_located!(reject);
                     }
+
+                    take!(16); // the arm's trailing `,`
                 }
-                // The statement's terminator is decided by what the expression
-                // was for: `;` for a binding, an assignment or a return, and
-                // `{` for a condition, whose block record is pushed as that `{`
-                // is accepted.
-                let terminator = if mode >= 4 { 12 } else { 18 };
-                let opener = ingested.tokens[index];
-                take!(terminator);
-                if mode == 3 {
-                    // `body_root` stays one register and the last write wins.
-                    // Every block's `return` is its last statement and every
-                    // function body ends in one, so the last `return` completed
-                    // in token order within a function is always the function
-                    // body's own. A nested `return` leaves an orphan.
-                    body_root = root;
-                    block_state = 2;
-                }
-                if mode >= 4 {
-                    // `compiler.aero:1972`, located at the `{` that opens the
-                    // block, which is the token just accepted.
-                    if counts.blocks >= caps.blocks {
-                        reject_located!(Reject::capacity(
-                            [opener[1], opener[3], opener[4], opener[0]],
-                            15,
-                            caps.blocks,
-                            opener[0],
-                        ));
-                    }
-                    counts.blocks += 1;
-                    blocks.push((if mode == 4 { 1 } else { 2 }, block_state));
-                    block_state = 0;
-                }
+                take!(13); // the match construct's closing `}`
+            } else if leading[0] == 1 {
+                // CAP-050: one leading identifier operand becomes a name-reference
+                // node.
+                let record = ingested.tokens[index];
+                append!(
+                    2,
+                    record[5],
+                    0,
+                    0,
+                    [record[1], record[3], record[4], record[0]]
+                );
+                index += 1;
             }
 
-            // The closing sequence: `}` then end-of-input, entered once. A body
-            // that closes without a completed return statement has no root for
-            // the function node, so `}` is rejected there with the statement
-            // expectation instead - which is also how an empty body is rejected.
-            // The function body's own closing rule is unchanged: `}` then
-            // end-of-input, and the requirement that a `return` completed is
-            // now the *function's* rather than any block's, so a nested block
-            // that returned does not satisfy it.
-            //
-            // `body_root` is the last-write-wins register Decision 3 keeps, and
-            // no probe observes it: the return node is appended only after
-            // end-of-input is accepted, which no probe of this checkpoint
-            // reaches. Its one relationship with the function's requirement is
-            // asserted rather than assumed.
-            assert!(
-                block_state != 2 || body_root > 0,
-                "a function body that returned always has a root"
-            );
-            //
-            // The two spellings of that requirement differ only on inputs
-            // CAP-053 rejects. `block_state == 2` says the *function body*
-            // returned; `body_root > 0` says *some* block did. Under CAP-053
-            // they coincide, because a statement can never follow a completed
-            // `return` and no nested block can be the last thing a function
-            // body does. Under CAP-052 they do not - its product admits a
-            // statement after a return, which clears the block state - so the
-            // CAP-052 model keeps the spelling that models its own product.
-            let close = &ingested.tokens[index];
-            let expected_close = if admit_control_flow {
-                if block_state == 2 { 13 } else { 6 }
-            } else if body_root > 0 {
-                13
-            } else {
-                6
-            };
-            if close[0] != expected_close {
-                reject!(close, 10, expected_close);
-            }
-            index += 1;
+            // The frozen `; } EOF` closing sequence. The final step never advances
+            // past the token it accepts, so it is spelled out rather than taken.
+            take!(18); // ;
+            take!(13); // }
             let end = &ingested.tokens[index];
             if end[0] != 0 {
                 reject!(end, 10, 0);
             }
             panic!("this checkpoint requires the input to stop inside the parse phase");
         }
-
-        take!(6); // return
-
-        // CAP-051 decides on the leading token of the return expression, before
-        // any operand reduction runs. `match` opens the admitted construct;
-        // anything else falls through to CAP-050's operand path unchanged.
-        let leading = ingested.tokens[index];
-        if admit_match && leading[0] == 1 && text(&leading) == b"match" {
-            index += 1; // match
-            take!(1); // the scrutinee is exactly one identifier
-            take!(12); // {
-            for _ in 0..2 {
-                take!(1); // the pattern head, matched as a bare identifier
-                take!(10); // (
-                take!(1); // the bound identifier
-                take!(11); // )
-                take!(36); // =>
-
-                // The arm body is the accepted expression grammar, modelled by
-                // `parse_expression` as the product's own shunting-yard so nodes
-                // append in the product's order.
-                let arm = parse_expression(
-                    ingested,
-                    source,
-                    &mut index,
-                    &mut stopped.nodes,
-                    &mut stopped.origins,
-                    admit_calls,
-                    caps,
-                    &mut counts,
-                );
-                if let Err(reject) = arm {
-                    reject_located!(reject);
-                }
-
-                take!(16); // the arm's trailing `,`
-            }
-            take!(13); // the match construct's closing `}`
-        } else if leading[0] == 1 {
-            // CAP-050: one leading identifier operand becomes a name-reference
-            // node.
-            let record = ingested.tokens[index];
-            append!(
-                2,
-                record[5],
-                0,
-                0,
-                [record[1], record[3], record[4], record[0]]
-            );
-            index += 1;
-        }
-
-        // The frozen `; } EOF` closing sequence. The final step never advances
-        // past the token it accepts, so it is spelled out rather than taken.
-        take!(18); // ;
-        take!(13); // }
-        let end = &ingested.tokens[index];
-        if end[0] != 0 {
-            reject!(end, 10, 0);
-        }
-        panic!("this checkpoint requires the input to stop inside the parse phase");
     }
 
     /// Where the parser stops once CAP-051 / H1B-2 admits the match construct,
@@ -1592,8 +1739,7 @@ mod oracle {
             i32::try_from(stopped.names.len()).expect("bounded names"),
             i32::try_from(stopped.tokens.len()).expect("bounded tokens"),
             i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
-            // A stopped parse never has a root.
-            0,
+            stopped.root,
         ] {
             checksum = checksum_step(checksum, word);
         }
@@ -1663,6 +1809,218 @@ mod oracle {
         checksum
     }
 
+    /// CAP-056 / H1M-1. Where the *semantic* phase stops on a module whose
+    /// parse completed.
+    ///
+    /// Nothing before this checkpoint needed it: no probe reached
+    /// `status == 0`, so `expectation_vector` folded a semantic group of zeros
+    /// and a literal `root` of zero. A module of two or more items reaches the
+    /// semantic phase and is refused there, and this checkpoint asserts that
+    /// refusal rather than editing it, because a run that reached `status == 0`
+    /// *through* the semantic phase would be a silent widening of an authority
+    /// H1M-1 does not own.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct SemanticStop {
+        pub status: i32,
+        pub node: i32,
+        pub offset: i32,
+        pub line: i32,
+        pub column: i32,
+        pub code: i32,
+        pub expected: i32,
+        pub actual: i32,
+        pub symbols: i32,
+        pub facts: i32,
+        pub root_type: i32,
+        /// The four words of the one emitted symbol, folded into the semantic
+        /// checksum whenever `symbols` is 1.
+        pub symbol_words: Vec<i32>,
+        /// Three words per appended fact, in node order.
+        pub fact_words: Vec<i32>,
+    }
+
+    /// Model the semantic phase far enough to predict its refusal.
+    ///
+    /// Three of the product's passes matter, in the order it runs them.
+    /// `compiler.aero:4030` emits one symbol from `root` *before* any node is
+    /// classified, so a module refused later still reports `symbol_count = 1`.
+    /// `:4054` then rejects **any** kind-2 node outright, before a single fact
+    /// is appended. Only if the module contains no identifier at all does the
+    /// fact loop at `:4085` run, and `:4250-4257` refuses the first kind-19
+    /// node that is not `root`.
+    pub fn module_semantic_stop(stopped: &Ingestion) -> SemanticStop {
+        assert_eq!(stopped.status, 0, "the parse must complete first");
+        assert!(stopped.root > 0, "a completed parse always has a root");
+        assert!(
+            stopped.nodes.iter().filter(|node| node[0] == 19).count() > 1,
+            "a module of exactly one item is accepted by every phase and              compiled to LLVM; only a multi-item module is refused, and only              that refusal is modelled here"
+        );
+        let root_index = usize::try_from(stopped.root).expect("bounded root") - 1;
+        let function_payload = stopped.nodes[root_index][1];
+        let mut stop = SemanticStop {
+            status: 0,
+            node: 0,
+            offset: -1,
+            line: 0,
+            column: 0,
+            code: 0,
+            expected: 0,
+            actual: 0,
+            symbols: 1,
+            facts: 0,
+            root_type: 0,
+            symbol_words: vec![1, function_payload, stopped.root, 1],
+            fact_words: Vec::new(),
+        };
+
+        // `compiler.aero:4054`. Every identifier use is refused, located at its
+        // own origin, before the fact loop runs.
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            if node[0] == 2 {
+                let origin = stopped.origins[index];
+                stop.status = 17;
+                stop.node = i32::try_from(index + 1).expect("bounded node");
+                stop.offset = origin[1];
+                stop.line = origin[2];
+                stop.column = origin[3];
+                stop.code = 2;
+                return stop;
+            }
+        }
+
+        // `compiler.aero:4085`. One classified fact per node, in node order.
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            let id = i32::try_from(index + 1).expect("bounded node");
+            let origin = stopped.origins[index];
+            stop.node = id;
+            stop.offset = origin[1];
+            stop.line = origin[2];
+            stop.column = origin[3];
+            let type_of = |reference: i32, words: &[i32]| -> i32 {
+                if reference > 0 {
+                    words[(usize::try_from(reference).expect("bounded reference") - 1) * 3 + 1]
+                } else {
+                    0
+                }
+            };
+            let left_type = type_of(node[2], &stop.fact_words);
+            let (complete_type, ownership) = match node[0] {
+                // `:4165`. An integer literal is a complete owned `int`.
+                1 => (1, 1),
+                // `:4241`. A return node requires a complete `int` under it.
+                18 => {
+                    if left_type != 1 {
+                        stop.status = 25;
+                        stop.code = 18;
+                        stop.expected = 1;
+                        stop.actual = left_type;
+                        return stop;
+                    }
+                    (0, 0)
+                }
+                // `:4250`. Exactly one function node, and it is `root`.
+                19 => {
+                    if id != stopped.root
+                        || node[1] != function_payload
+                        || node[2] != id - 1
+                        || node[3] != 0
+                        || left_type != 0
+                    {
+                        stop.status = 27;
+                        stop.code = 3;
+                        return stop;
+                    }
+                    (0, 0)
+                }
+                kind => panic!(
+                    "CAP-056 models the semantic phase only as far as its probes reach;                      node kind {kind} is not one of them"
+                ),
+            };
+            stop.fact_words
+                .extend_from_slice(&[id, complete_type, ownership]);
+            stop.facts += 1;
+        }
+
+        // `:4304`. Unreachable: the loop above classifies every node in order,
+        // and a module with two or more items always meets a kind-19 node that
+        // is not `root` before it runs out of nodes.
+        unreachable!("a multi-item module is always refused at its first item");
+    }
+
+    /// The semantic-group checksum for a module the parse completed and the
+    /// semantic phase refused. `compiler.aero:4325-4396`.
+    pub fn refused_semantic_checksum(origins: &[[i32; 5]], stop: &SemanticStop) -> i32 {
+        let mut checksum = 17;
+        for record in origins {
+            for word in record {
+                checksum = checksum_step(checksum, *word);
+            }
+        }
+        checksum = checksum_step(checksum, 994);
+        for word in &stop.symbol_words {
+            checksum = checksum_step(checksum, *word);
+        }
+        checksum = checksum_step(checksum, 995);
+        for word in &stop.fact_words {
+            checksum = checksum_step(checksum, *word);
+        }
+        checksum = checksum_step(checksum, 996);
+        let located = if stop.offset >= 0 { stop.offset + 1 } else { 0 };
+        for word in [
+            stop.status,
+            stop.node,
+            located,
+            stop.line,
+            stop.column,
+            stop.code,
+            stop.expected,
+            stop.actual,
+            i32::try_from(origins.len()).expect("bounded origins"),
+            stop.symbols,
+            stop.facts,
+            stop.root_type,
+        ] {
+            checksum = checksum_step(checksum, word);
+        }
+        checksum
+    }
+
+    /// The complete expectation vector for a module whose parse completed and
+    /// whose semantic phase refused it.
+    ///
+    /// Only the parse group's `root` and the thirteen semantic-group values
+    /// differ from [`expectation_vector`]: `checked_attempted` at
+    /// `compiler.aero:4437` requires `semantic_status == 0`, so the checked-IR,
+    /// verifier, emitter and driver groups are exactly as unattempted as they
+    /// are for a stopped parse.
+    pub fn refused_expectation_vector(
+        source: &[u8],
+        stopped: &Ingestion,
+        stop: &SemanticStop,
+    ) -> Vec<i32> {
+        let semantic = refused_semantic_checksum(&stopped.origins, stop);
+        let mut vector = expectation_vector(source, stopped);
+        let located = [
+            stop.status,
+            stop.node,
+            stop.offset,
+            stop.line,
+            stop.column,
+            stop.code,
+            stop.expected,
+            stop.actual,
+            i32::try_from(stopped.origins.len()).expect("bounded origins"),
+            stop.symbols,
+            stop.facts,
+            stop.root_type,
+            semantic,
+        ];
+        vector[11..24].copy_from_slice(&located);
+        // The checked group folds the semantic checksum it authenticates.
+        vector[40] = unattempted_checked_checksum(semantic);
+        vector
+    }
+
     /// The complete 67-value expectation vector `run_runtime_ascii_llvm_emitter`
     /// must match for a run that stops before the semantic phase.
     pub fn expectation_vector(source: &[u8], stopped: &Ingestion) -> Vec<i32> {
@@ -1680,7 +2038,7 @@ mod oracle {
             i32::try_from(stopped.names.len()).expect("bounded names"),
             i32::try_from(stopped.tokens.len()).expect("bounded tokens"),
             i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
-            0,
+            stopped.root,
             parse_checksum(source, stopped),
             // semantic group - never entered, but it reports `origin_count`
             0,
@@ -4002,6 +4360,245 @@ const CALL_ORIGIN_MAPPING: &str = r#"                if origin_node_kind == 19 {
                 if origin_node_kind == 23 {
                     origin_expected_kind = 37;
                 }"#;
+
+// CAP-056 / H1M-1. The module-shape gate: a function item closes at its own
+// `}`, the module then takes another `fn` item or end-of-input, the kind-19
+// node carries the previous item's node id in `right`, and the node validator
+// gets a kind-19 branch that admits it.
+const MODULE_REGISTERS_ANCHOR: &str = r#"    let mut closing_step: int = 0;"#;
+const MODULE_REGISTERS: &str = r#"    let mut closing_step: int = 0;
+    let mut closing_cycle_step: int = 0;
+    let mut module_next_item: int = 0;
+    let mut item_previous: int = 0;"#;
+const MODULE_CLOSING_ANCHOR: &str = r#"        // Exact '} EOF' suffix, entered once from the statement loop. A body
+        // that closes without a completed return statement has no root for the
+        // function node, so its '}' is rejected with the statement expectation
+        // instead - which is also how an empty body is rejected.
+        if parser_cycle_state == 21 {
+            expected_kind = 13;
+            if block_state != 2 {
+                expected_kind = 6;
+            }
+            if closing_step == 1 {
+                expected_kind = 0;
+            }
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            if parser_running == 1 && current_kind != expected_kind {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                parse_index = parse_index + 1;
+                closing_step = closing_step + 1;
+                parser_state = 20;
+                if closing_step == 2 {
+                    if node_count >= 512 {
+                        status = 14;
+                        error_offset = return_start;
+                        error_line = return_line;
+                        error_column = return_column;
+                        diagnostic_code = 512;
+                        diagnostic_actual = 6;
+                        parser_running = 0;
+                    }
+                    if parser_running == 1 {
+                        pending_node_kind = 18;
+                        pending_node_payload = 0;
+                        pending_node_left = body_root;
+                        pending_node_right = 0;
+                        pending_node_after = 22;
+                        pending_node_offset = return_start;
+                        pending_node_line = return_line;
+                        pending_node_column = return_column;
+                        parser_append_target = 4;
+                        parser_append_width = 5;
+                        parser_append_0 = node_count + 1;
+                        parser_append_1 = return_start;
+                        parser_append_2 = return_line;
+                        parser_append_3 = return_column;
+                        parser_append_4 = 6;
+                        parser_append_field = 0;
+                        parser_append_byte = 0;
+                        parser_append_after = 33;
+                        parser_append_offset = return_start;
+                        parser_append_line = return_line;
+                        parser_append_column = return_column;
+                        parser_state = 32;
+                    }
+                }
+            }
+        }"#;
+const MODULE_CLOSING: &str = r#"        // CAP-056 module shape. A function item closes at its own '}', and
+        // the module then takes another 'fn' item or end-of-input. A body that
+        // closes without a completed return statement has no root for the
+        // function node, so its '}' is rejected with the statement expectation
+        // instead - which is also how an empty body is rejected.
+        //
+        // 'closing_step' is 0 while the item's '}' is expected and 1 while the
+        // module's next item or end-of-input is. It is latched once per
+        // iteration, exactly as 'param_mode' and 'stmt_step' are, so the flat
+        // per-step branches cannot cascade within one iteration.
+        //
+        // Only one expectation can be reported for the module step, and it
+        // stays 0 - end-of-input - so a token that is neither is rejected
+        // exactly as it was before this checkpoint, and 'fn' is silently also
+        // accepted.
+        if parser_cycle_state == 21 {
+            closing_cycle_step = closing_step;
+            expected_kind = 13;
+            if block_state != 2 {
+                expected_kind = 6;
+            }
+            if closing_cycle_step == 1 {
+                expected_kind = 0;
+            }
+            if current_kind < 0 || current_start < 0 || current_line <= 0
+                || current_column <= 0 {
+                status = 16;
+                parser_running = 0;
+            }
+            module_next_item = 0;
+            if parser_running == 1 && closing_cycle_step == 1
+                && current_kind == 3 {
+                module_next_item = 1;
+            }
+            if parser_running == 1 && module_next_item == 0
+                && current_kind != expected_kind {
+                status = 10;
+                error_offset = current_start;
+                error_line = current_line;
+                error_column = current_column;
+                diagnostic_code = expected_kind;
+                diagnostic_actual = current_kind;
+                parser_running = 0;
+            }
+            // A new item restores every per-item parser register to the value
+            // it is declared with, so item N is parsed by exactly the machine
+            // that parsed item 1. The module-wide stores - node, origin,
+            // parameter, value, operator, block and call - are not touched,
+            // because they accumulate across the whole module.
+            if parser_running == 1 && module_next_item == 1 {
+                skeleton_step = 0;
+                closing_step = 0;
+                param_mode = 0;
+                match_active = 0;
+                statement_mode = 0;
+                body_root = 0;
+                block_state = 0;
+                block_top = 0;
+                block_depth = 0;
+                block_else = 0;
+                expression_root = 0;
+                value_top = 0;
+                value_depth = 0;
+                operator_top = 0;
+                operator_depth = 0;
+                paren_depth = 0;
+                expecting_operand = 1;
+                held_active = 0;
+                ref_pending = 0;
+                arg_leading = 0;
+                arg_open = 0;
+                call_top = 0;
+                call_base = 0;
+                call_chain = 0;
+                parser_state = 2;
+            }
+            // End-of-input completes the module. 'root' is the last item's
+            // kind-19 node, which is the last node appended, so
+            // 'root == node_count' is preserved exactly. It is set here rather
+            // than at each item's close because a stopped parse must leave
+            // 'root' at zero, which the parse self-check requires.
+            if parser_running == 1 && module_next_item == 0
+                && closing_cycle_step == 1 {
+                parse_index = parse_index + 1;
+                root = item_previous;
+                parser_running = 0;
+                parser_state = 0;
+            }
+            if parser_running == 1 && module_next_item == 0
+                && closing_cycle_step == 0 {
+                parse_index = parse_index + 1;
+                closing_step = 1;
+                if node_count >= 512 {
+                    status = 14;
+                    error_offset = return_start;
+                    error_line = return_line;
+                    error_column = return_column;
+                    diagnostic_code = 512;
+                    diagnostic_actual = 6;
+                    parser_running = 0;
+                }
+                if parser_running == 1 {
+                    pending_node_kind = 18;
+                    pending_node_payload = 0;
+                    pending_node_left = body_root;
+                    pending_node_right = 0;
+                    pending_node_after = 22;
+                    pending_node_offset = return_start;
+                    pending_node_line = return_line;
+                    pending_node_column = return_column;
+                    parser_append_target = 4;
+                    parser_append_width = 5;
+                    parser_append_0 = node_count + 1;
+                    parser_append_1 = return_start;
+                    parser_append_2 = return_line;
+                    parser_append_3 = return_column;
+                    parser_append_4 = 6;
+                    parser_append_field = 0;
+                    parser_append_byte = 0;
+                    parser_append_after = 33;
+                    parser_append_offset = return_start;
+                    parser_append_line = return_line;
+                    parser_append_column = return_column;
+                    parser_state = 32;
+                }
+            }
+        }"#;
+const MODULE_CHAIN_ANCHOR: &str = r#"                pending_node_kind = 19;
+                pending_node_payload = function_name_id;
+                pending_node_left = node_id;
+                pending_node_right = 0;
+                pending_node_after = 23;"#;
+const MODULE_CHAIN: &str = r#"                pending_node_kind = 19;
+                pending_node_payload = function_name_id;
+                pending_node_left = node_id;
+                pending_node_right = item_previous;
+                pending_node_after = 23;"#;
+const MODULE_ITEM_CLOSE_ANCHOR: &str = r#"        if parser_cycle_state == 23 {
+            node_count = node_count + 1;
+            root = node_count;
+            parser_running = 0;
+            parser_state = 0;
+        }"#;
+const MODULE_ITEM_CLOSE: &str = r#"        if parser_cycle_state == 23 {
+            node_count = node_count + 1;
+            item_previous = node_count;
+            parser_state = 20;
+        }"#;
+const MODULE_NODE_SHAPE_ANCHOR: &str = r#"        } else if validate_payload <= 0 || validate_payload > name_count
+            || validate_left <= 0 || validate_left >= node_id || validate_right != 0 {
+            return 78;
+        }"#;
+const MODULE_NODE_SHAPE: &str = r#"        } else if validate_node_kind == 19 {
+            if validate_payload <= 0 || validate_payload > name_count
+                || validate_left <= 0 || validate_left >= node_id
+                || validate_right < 0 || validate_right >= node_id {
+                return 78;
+            }
+        } else {
+            return 78;
+        }"#;
+
 fn expected_h1a_source() -> String {
     let accepted = accepted_b1c_source();
 
@@ -4244,6 +4841,17 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(CALL_ORIGIN_BOUND_ANCHOR, CALL_ORIGIN_BOUND);
     assert_eq!(derived.matches(CALL_ORIGIN_MAPPING_ANCHOR).count(), 1);
     let derived = derived.replace(CALL_ORIGIN_MAPPING_ANCHOR, CALL_ORIGIN_MAPPING);
+
+    assert_eq!(derived.matches(MODULE_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(MODULE_REGISTERS_ANCHOR, MODULE_REGISTERS);
+    assert_eq!(derived.matches(MODULE_CLOSING_ANCHOR).count(), 1);
+    let derived = derived.replace(MODULE_CLOSING_ANCHOR, MODULE_CLOSING);
+    assert_eq!(derived.matches(MODULE_CHAIN_ANCHOR).count(), 1);
+    let derived = derived.replace(MODULE_CHAIN_ANCHOR, MODULE_CHAIN);
+    assert_eq!(derived.matches(MODULE_ITEM_CLOSE_ANCHOR).count(), 1);
+    let derived = derived.replace(MODULE_ITEM_CLOSE_ANCHOR, MODULE_ITEM_CLOSE);
+    assert_eq!(derived.matches(MODULE_NODE_SHAPE_ANCHOR).count(), 1);
+    let derived = derived.replace(MODULE_NODE_SHAPE_ANCHOR, MODULE_NODE_SHAPE);
 
     // CAP-055 / H1B-6. The uniform parse-group capacity raise, applied last and
     // as one step rather than as thirty-two anchored fragments.
@@ -4605,6 +5213,13 @@ fn canonical_self_host_source_ingests_itself_and_stops_at_the_predicted_construc
     );
     assert_eq!(&source[146..148], b"fn");
 
+    // CAP-056 / H1M-1 moves the canonical stop for the first time since
+    // CAP-051 set it. Every assertion above is unchanged and still true: it is
+    // where the parse stops when a module is exactly one function item. What
+    // moved is the module rule, so the product is graded against the module
+    // model. The move itself is asserted once, in
+    // `the_module_checkpoint_moves_the_canonical_stop`.
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_expectation(
@@ -4790,8 +5405,16 @@ fn focused_signature_probes_exercise_every_rule_of_the_admitted_grammar() {
             *nodes,
             "probe `{label}` target node count"
         );
+        // CAP-056 / H1M-1. No CAP-050 probe reaches its function's `}`, so the
+        // module model must agree with the CAP-050 model on every one of them,
+        // node for node. That is asserted rather than assumed.
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        assert!(
+            !assert_module_churn(label, &target, &module),
+            "no CAP-050 probe gets its function `}}` accepted"
+        );
         assert_eq!(
-            run_expectation("signature-probe", compiled_h1a(), source, &target, "-O0"),
+            run_expectation("signature-probe", compiled_h1a(), source, &module, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-050 target"
         );
@@ -4998,6 +5621,7 @@ const MATCH_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
 
 fn match_probe_targets() -> Vec<oracle::Ingestion> {
     let mut targets = Vec::new();
+    let mut churned = 0usize;
     for (label, source, status, code, actual, text, parameters, nodes) in MATCH_PROBES {
         assert!(
             source.len() < 100,
@@ -5046,8 +5670,21 @@ fn match_probe_targets() -> Vec<oracle::Ingestion> {
             target.nodes.len(),
             "probe `{label}` must mirror every node with one origin"
         );
-        targets.push(target);
+        // CAP-056 / H1M-1. The product is graded against the module model.
+        // The table above still grades this checkpoint's own model, unedited,
+        // and `assert_module_churn` requires the two to differ by exactly the
+        // item's own two nodes when the probe's `}` is accepted and by nothing
+        // at all otherwise, so no hand-derived number in the table moved.
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if assert_module_churn(label, &target, &module) {
+            churned += 1;
+        }
+        targets.push(module);
     }
+    assert_eq!(
+        churned, 1,
+        "exactly one CAP-051 probe gets its function `}}` accepted"
+    );
     targets
 }
 
@@ -5339,6 +5976,7 @@ const STATEMENT_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize)] = &[
 
 fn statement_probe_targets() -> Vec<oracle::Ingestion> {
     let mut targets = Vec::new();
+    let mut churned = 0usize;
     for (label, source, status, code, actual, text, parameters, nodes) in STATEMENT_PROBES {
         assert!(
             source.len() < 100,
@@ -5383,8 +6021,21 @@ fn statement_probe_targets() -> Vec<oracle::Ingestion> {
             target.nodes.len(),
             "probe `{label}` must mirror every node with one origin"
         );
-        targets.push(target);
+        // CAP-056 / H1M-1. The product is graded against the module model.
+        // The table above still grades this checkpoint's own model, unedited,
+        // and `assert_module_churn` requires the two to differ by exactly the
+        // item's own two nodes when the probe's `}` is accepted and by nothing
+        // at all otherwise, so no hand-derived number in the table moved.
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if assert_module_churn(label, &target, &module) {
+            churned += 1;
+        }
+        targets.push(module);
     }
+    assert_eq!(
+        churned, 6,
+        "exactly six CAP-052 probes get their function `}}` accepted"
+    );
     targets
 }
 
@@ -5460,6 +6111,13 @@ fn the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved() {
     assert_eq!(stopped.nodes.len(), 4);
     assert_eq!(stopped.origins.len(), 4);
 
+    // CAP-056 / H1M-1 moves the canonical stop for the first time since
+    // CAP-051 set it. Every assertion above is unchanged and still true: it is
+    // where the parse stops when a module is exactly one function item. What
+    // moved is the module rule, so the product is graded against the module
+    // model. The move itself is asserted once, in
+    // `the_module_checkpoint_moves_the_canonical_stop`.
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_expectation(
@@ -5777,6 +6435,7 @@ const CANONICAL_FUNCTION_2: (usize, usize) = (146, 315);
 
 fn control_flow_probe_targets() -> Vec<oracle::Ingestion> {
     let mut targets = Vec::new();
+    let mut churned = 0usize;
     for (label, source, status, code, actual, text, parameters, nodes) in CONTROL_FLOW_PROBES {
         assert!(
             source.len() < 200,
@@ -5821,8 +6480,21 @@ fn control_flow_probe_targets() -> Vec<oracle::Ingestion> {
             target.nodes.len(),
             "probe `{label}` must mirror every node with one origin"
         );
-        targets.push(target);
+        // CAP-056 / H1M-1. The product is graded against the module model.
+        // The table above still grades this checkpoint's own model, unedited,
+        // and `assert_module_churn` requires the two to differ by exactly the
+        // item's own two nodes when the probe's `}` is accepted and by nothing
+        // at all otherwise, so no hand-derived number in the table moved.
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if assert_module_churn(label, &target, &module) {
+            churned += 1;
+        }
+        targets.push(module);
     }
+    assert_eq!(
+        churned, 11,
+        "exactly eleven CAP-053 probes get their function `}}` accepted"
+    );
     targets
 }
 
@@ -5917,6 +6589,13 @@ fn the_control_flow_checkpoint_leaves_the_canonical_stop_unmoved() {
     assert_eq!(stopped.nodes.len(), 4);
     assert_eq!(stopped.origins.len(), 4);
 
+    // CAP-056 / H1M-1 moves the canonical stop for the first time since
+    // CAP-051 set it. Every assertion above is unchanged and still true: it is
+    // where the parse stops when a module is exactly one function item. What
+    // moved is the module rule, so the product is graded against the module
+    // model. The move itself is asserted once, in
+    // `the_module_checkpoint_moves_the_canonical_stop`.
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_expectation(
@@ -6425,12 +7104,13 @@ fn canonical_main_span(source: &[u8]) -> (usize, usize) {
 
 fn call_probe_targets() -> Vec<oracle::Ingestion> {
     let mut targets = Vec::new();
+    let mut churned = 0usize;
     for (label, source, status, code, actual, text, parameters, nodes) in CALL_PROBES {
         assert!(
             source.len() < 200,
             "probe `{label}` must stay a small complete program"
         );
-        targets.push(graded_call_probe(
+        let (target, moved) = graded_call_probe(
             label,
             source,
             *status,
@@ -6439,8 +7119,16 @@ fn call_probe_targets() -> Vec<oracle::Ingestion> {
             text,
             *parameters,
             *nodes,
-        ));
+        );
+        if moved {
+            churned += 1;
+        }
+        targets.push(target);
     }
+    assert_eq!(
+        churned, 23,
+        "exactly twenty-three CAP-054 probes get their function `}}` accepted"
+    );
     targets
 }
 
@@ -6454,7 +7142,7 @@ fn graded_call_probe(
     text: &str,
     parameters: usize,
     nodes: usize,
-) -> oracle::Ingestion {
+) -> (oracle::Ingestion, bool) {
     let ingested = oracle::ingest(
         source,
         &oracle::Bounds {
@@ -6494,7 +7182,12 @@ fn graded_call_probe(
         target.nodes.len(),
         "probe `{label}` must mirror every node with one origin"
     );
-    target
+    // CAP-056 / H1M-1, exactly as the other four tables: the CAP-054 number
+    // above is unedited, the product is graded against the module model, and
+    // the difference between them is derived rather than pasted.
+    let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+    let moved = assert_module_churn(label, &target, &module);
+    (module, moved)
 }
 
 /// `main` is the source's widest argument list at 68 arguments, and the only
@@ -6506,7 +7199,7 @@ fn canonical_main_probe() -> (Vec<u8>, oracle::Ingestion) {
     let (from, to) = canonical_main_span(&source);
     let mut probe = source[from..to].to_vec();
     probe.extend_from_slice(b" x");
-    let target = graded_call_probe(
+    let (target, moved) = graded_call_probe(
         "call-canonical-main",
         &probe,
         10,
@@ -6517,6 +7210,10 @@ fn canonical_main_probe() -> (Vec<u8>, oracle::Ingestion) {
         // 68 integer leaves, 7 prefix `-` nodes over 7 of them, 68 argument
         // cells and one call node.
         144,
+    );
+    assert!(
+        moved,
+        "`main`'s own `}}` is accepted before the trailing `x`"
     );
     (probe, target)
 }
@@ -6584,6 +7281,118 @@ fn focused_call_probes_exercise_every_rule_of_the_admitted_grammar() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// CAP-056 / H1M-1 module shape
+// ---------------------------------------------------------------------------
+
+/// The five parse-group ceilings, as the product carries them.
+fn module_caps() -> oracle::Caps {
+    oracle::Caps::uniform(PARSE_RECORD_BOUND)
+}
+
+fn module_ingest(source: &[u8]) -> oracle::Ingestion {
+    let ingested = oracle::ingest(
+        source,
+        &oracle::Bounds {
+            source: H1A_SOURCE_BOUND,
+            token: H1A_TOKEN_BOUND,
+            name: H1A_NAME_BOUND,
+            ampersand: true,
+        },
+    );
+    assert_eq!(ingested.status, 0, "a module probe must lex completely");
+    ingested
+}
+
+/// The one relationship the module rule creates with every model before it, and
+/// the only way this checkpoint is allowed to change an inherited expectation.
+///
+/// A probe whose function `}` is *accepted* now carries the item's own two
+/// nodes - the kind-18 return node and the kind-19 function node - because they
+/// are appended at that `}` rather than after end-of-input. A probe rejected on
+/// or before its `}` carries neither. Nothing else moves: same status, same
+/// located diagnostic, same parameters, and every node and origin the older
+/// model appended is identical and in the same position.
+///
+/// This is what keeps the churn derived rather than pasted. **No probe table's
+/// hand-derived node count is edited anywhere in this file.** Every table still
+/// grades against its own checkpoint's model, and the product is graded against
+/// the module model, which is asserted here to be that model plus exactly the
+/// item's two nodes. A difference of any other size, or in any other field,
+/// fails here instead of being absorbed into a table.
+///
+/// Returns whether this shape churned.
+fn assert_module_churn(label: &str, before: &oracle::Ingestion, after: &oracle::Ingestion) -> bool {
+    assert_eq!(before.status, after.status, "`{label}` status moved");
+    assert_eq!(
+        before.error_offset, after.error_offset,
+        "`{label}` offset moved"
+    );
+    assert_eq!(before.error_line, after.error_line, "`{label}` line moved");
+    assert_eq!(
+        before.error_column, after.error_column,
+        "`{label}` column moved"
+    );
+    assert_eq!(
+        before.diagnostic_code, after.diagnostic_code,
+        "`{label}` code moved"
+    );
+    assert_eq!(
+        before.diagnostic_actual, after.diagnostic_actual,
+        "`{label}` actual moved"
+    );
+    assert_eq!(
+        before.parameters, after.parameters,
+        "`{label}` parameters moved"
+    );
+    assert_eq!(before.root, 0, "no model before CAP-056 reports a root");
+    assert_eq!(
+        after.root, 0,
+        "`{label}` is a stopped parse and has no root"
+    );
+    assert!(
+        after.nodes.len() >= before.nodes.len(),
+        "`{label}` lost nodes the older model appended"
+    );
+    assert_eq!(
+        after.nodes[..before.nodes.len()],
+        before.nodes[..],
+        "`{label}` changed a node the older model appended"
+    );
+    assert_eq!(
+        after.origins[..before.origins.len()],
+        before.origins[..],
+        "`{label}` changed an origin the older model appended"
+    );
+    let delta = after.nodes.len() - before.nodes.len();
+    assert_eq!(
+        delta,
+        after.origins.len() - before.origins.len(),
+        "`{label}` appended a node without an origin"
+    );
+    assert!(
+        delta == 0 || delta == 2,
+        "`{label}` moved by {delta} nodes, and the module rule moves a shape by \
+         either nothing or the item's own two nodes"
+    );
+    if delta == 2 {
+        let first = after.nodes[before.nodes.len()];
+        let second = after.nodes[before.nodes.len() + 1];
+        assert_eq!(first[0], 18, "`{label}` must add the return node first");
+        assert_eq!(second[0], 19, "`{label}` must add the function node second");
+        assert_eq!(
+            second[2],
+            i32::try_from(before.nodes.len() + 1).expect("bounded nodes"),
+            "`{label}` function node must reference its own return node"
+        );
+        assert_eq!(
+            second[3], 0,
+            "`{label}` is one item, so its chain link is zero"
+        );
+    }
+    delta == 2
+}
+
 /// Shapes that **no** CAP-050, CAP-051, CAP-052 or CAP-053 probe covers, each
 /// hand-derived under both the CAP-053 model and the CAP-054 model.
 ///
@@ -6649,6 +7458,7 @@ const MODEL_LOCK_SHAPES: &[(
 
 fn model_lock_targets() -> Vec<(&'static str, oracle::Ingestion, oracle::Ingestion)> {
     let mut graded = Vec::new();
+    let mut churned = 0usize;
     for (label, source, cap053, cap054) in MODEL_LOCK_SHAPES {
         let ingested = oracle::ingest(
             source,
@@ -6676,12 +7486,32 @@ fn model_lock_targets() -> Vec<(&'static str, oracle::Ingestion, oracle::Ingesti
             );
             assert_eq!(stopped.nodes.len(), nodes, "lock `{label}` node count");
         }
+        // CAP-056 / H1M-1. The deliberate out-of-table grading this checkpoint
+        // owes, and it is sharper than CAP-055's because the disagreement is
+        // predicted in direction and magnitude rather than only in kind: on a
+        // shape that stops before its `}` the two models must agree node for
+        // node, and on a shape that stops after it they must differ by exactly
+        // the item's own two nodes and by nothing else.
+        let cap055 = oracle::capacity_parser_stop(&ingested, source, &module_caps());
+        assert_eq!(
+            oracle::expectation_vector(source, &cap055),
+            oracle::expectation_vector(source, &oracle::call_parser_stop(&ingested, source)),
+            "lock `{label}`: CAP-055's model is CAP-054's under the raised bound"
+        );
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if assert_module_churn(label, &cap055, &module) {
+            churned += 1;
+        }
         graded.push((
             *label,
             oracle::control_flow_parser_stop(&ingested, source),
-            oracle::call_parser_stop(&ingested, source),
+            module,
         ));
     }
+    assert_eq!(
+        churned, 4,
+        "four of the seven out-of-table shapes get their function `}}` accepted"
+    );
     graded
 }
 
@@ -6710,9 +7540,756 @@ fn the_out_of_table_shapes_run_against_the_product() {
         assert_eq!(
             run_expectation("model-lock", compiled_h1a(), source, &target, "-O0"),
             91,
-            "out-of-table shape `{label}` diverged from the CAP-054 model"
+            "out-of-table shape `{label}` diverged from the CAP-056 model"
         );
     }
+}
+
+/// The other half of the out-of-table grading: the product must **contradict**
+/// the previous checkpoint's model on exactly the shapes the two disagree on.
+///
+/// A probe suite passing is evidence about the probe suite. Grading the same
+/// bytes against CAP-055's model and requiring the product to reject it is what
+/// makes the CAP-056 column evidence about the change rather than about the
+/// table.
+#[test]
+fn the_product_contradicts_the_previous_model_where_the_checkpoint_says_it_must() {
+    let mut contradicted = 0usize;
+    for (label, source, ..) in MODEL_LOCK_SHAPES {
+        let ingested = module_ingest(source);
+        let cap055 = oracle::capacity_parser_stop(&ingested, source, &module_caps());
+        let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if oracle::expectation_vector(source, &cap055)
+            == oracle::expectation_vector(source, &module)
+        {
+            continue;
+        }
+        contradicted += 1;
+        assert_ne!(
+            run_expectation(
+                "model-lock-previous",
+                compiled_h1a(),
+                source,
+                &cap055,
+                "-O0"
+            ),
+            91,
+            "the product still agrees with CAP-055's model on `{label}`, so the \
+             module rule did not reach it"
+        );
+    }
+    assert_eq!(
+        contradicted, 4,
+        "four out-of-table shapes must separate the two models"
+    );
+}
+
+/// CAP-056 / H1M-1 focused module probes.
+///
+/// Every expectation is hand-derived from the frozen contract before it is
+/// checked against the oracle. `text` is the located token; it is empty when
+/// the parse completes, which is the first time any probe table in this file
+/// has had a row that does. `root` is zero for every stopped parse, because
+/// `compiler.aero:3680` requires it.
+///
+/// label, source, status, code, actual, text, parameters, nodes, root
+const MODULE_PROBES: &[(&str, &[u8], i32, i32, i32, &str, usize, usize, i32)] = &[
+    // The gate itself. Two items: one integer leaf, one return node and one
+    // function node each, and the second item's `right` naming the first
+    // item's function node.
+    (
+        "two-items",
+        b"fn f() -> int { return 1; } fn g() -> int { return 2; }",
+        0,
+        0,
+        0,
+        "",
+        0,
+        6,
+        6,
+    ),
+    // The chain is a chain, not a pair: three items link 9 -> 6 -> 3 -> 0.
+    (
+        "three-items",
+        b"fn f() -> int { return 1; } fn g() -> int { return 2; } fn h() -> int { return 3; }",
+        0,
+        0,
+        0,
+        "",
+        0,
+        9,
+        9,
+    ),
+    // One item is still a module, and its chain link is zero. This is the
+    // shape whose result must be byte-identical to the base commit.
+    (
+        "one-item",
+        b"fn f() -> int { return 1; }",
+        0,
+        0,
+        0,
+        "",
+        0,
+        3,
+        3,
+    ),
+    // Parameters accumulate across the module; they are a module-wide store
+    // and are not reset per item.
+    (
+        "two-items-with-parameters",
+        b"fn f(a: int) -> int { return a; } fn g(b: int) -> int { return b; }",
+        0,
+        0,
+        0,
+        "",
+        2,
+        6,
+        6,
+    ),
+    // The per-item register reset, exercised where it can actually fail: the
+    // block stack and `block_state` must be empty when item 2 opens, or item
+    // 2's first statement is rejected as following a completed `return`.
+    (
+        "two-items-with-control-flow",
+        b"fn f() -> int { if a { b = 1; } return 2; } fn g() -> int { while c { d = 2; } return 3; }",
+        0,
+        0,
+        0,
+        "",
+        0,
+        10,
+        10,
+    ),
+    // The call and reference registers reset too.
+    //
+    // A correction to this table's own first draft, left visible rather than
+    // restated: it said 10 nodes and the count is 11. Item 1's `g(a)` is three
+    // - the operand `a`, its argument cell and the call - and item 2's `h(&b)`
+    // is four, because `&` is a prefix operator in the shunting yard and
+    // reduces to a node of its own before the argument cell is built. Five and
+    // six with each item's return and function nodes.
+    (
+        "two-items-with-calls",
+        b"fn f() -> int { return g(a); } fn g() -> int { return h(&b); }",
+        0,
+        0,
+        0,
+        "",
+        0,
+        11,
+        11,
+    ),
+    // A trailing token after a complete two-item module is rejected at the
+    // module step, with the expectation the checkpoint deliberately keeps.
+    (
+        "trailing-token",
+        b"fn f() -> int { return 1; } fn g() -> int { return 2; } x",
+        10,
+        0,
+        1,
+        "x",
+        0,
+        6,
+        0,
+    ),
+    // A malformed second item is rejected inside its own signature, with the
+    // first item's two nodes already in the arena.
+    (
+        "second-item-malformed",
+        b"fn f() -> int { return 1; } fn g( -> int { return 2; }",
+        10,
+        1,
+        35,
+        "->",
+        0,
+        3,
+        0,
+    ),
+    // A second item with no return is rejected exactly as a first item with no
+    // return is: the body's `}` carries the statement expectation.
+    (
+        "second-item-without-return",
+        b"fn f() -> int { return 1; } fn g() -> int { }",
+        10,
+        6,
+        13,
+        "}",
+        0,
+        3,
+        0,
+    ),
+    // `fn` is a module-level token and nothing else. Inside a body it is not a
+    // statement, so it falls to the closing sequence and is rejected there.
+    (
+        "nested-fn-is-not-a-statement",
+        b"fn f() -> int { fn g() -> int { return 1; } return 2; }",
+        10,
+        6,
+        3,
+        "fn",
+        0,
+        0,
+        0,
+    ),
+    // No zero-item module: empty input is rejected exactly as today.
+    ("empty-module", b"", 10, 3, 0, "", 0, 0, 0),
+    // A module that is only a `fn` keyword is rejected in the signature.
+    ("bare-fn", b"fn", 10, 1, 0, "", 0, 0, 0),
+];
+
+fn module_probe_targets() -> Vec<oracle::Ingestion> {
+    let mut targets = Vec::new();
+    let mut completed = 0usize;
+    for (label, source, status, code, actual, text, parameters, nodes, root) in MODULE_PROBES {
+        assert!(
+            source.len() < 120,
+            "probe `{label}` must stay a small complete program"
+        );
+        let ingested = module_ingest(source);
+        let target = oracle::module_parser_stop(&ingested, source, &module_caps());
+        assert_eq!(target.status, *status, "probe `{label}` target status");
+        assert_eq!(target.diagnostic_code, *code, "probe `{label}` target code");
+        assert_eq!(
+            target.diagnostic_actual, *actual,
+            "probe `{label}` target actual"
+        );
+        if !text.is_empty() {
+            let from = usize::try_from(target.error_offset).expect("bounded offset");
+            assert_eq!(
+                &source[from..from + text.len()],
+                text.as_bytes(),
+                "probe `{label}` target token"
+            );
+        }
+        assert_eq!(
+            target.parameters.len(),
+            *parameters,
+            "probe `{label}` target parameter count"
+        );
+        assert_eq!(
+            target.nodes.len(),
+            *nodes,
+            "probe `{label}` target node count"
+        );
+        assert_eq!(target.root, *root, "probe `{label}` target root");
+        assert_eq!(
+            target.origins.len(),
+            target.nodes.len(),
+            "probe `{label}` must mirror every node with one origin"
+        );
+        if target.status == 0 {
+            completed += 1;
+            assert_eq!(
+                target.root,
+                i32::try_from(target.nodes.len()).expect("bounded nodes"),
+                "probe `{label}`: `root == node_count` is the invariant the \
+                 reverse chain exists to preserve"
+            );
+            assert_module_item_chain(label, &target);
+        }
+        targets.push(target);
+    }
+    assert_eq!(
+        completed, 6,
+        "six module probes must complete their parse and reach the semantic phase"
+    );
+    targets
+}
+
+/// The item list, walked from `root` backwards, is every kind-19 node in the
+/// arena exactly once and in reverse source order, and nothing else is a
+/// kind-19 node.
+fn assert_module_item_chain(label: &str, target: &oracle::Ingestion) -> usize {
+    let mut walked = Vec::new();
+    let mut cursor = target.root;
+    while cursor != 0 {
+        let index = usize::try_from(cursor).expect("bounded chain link") - 1;
+        let node = target.nodes[index];
+        assert_eq!(node[0], 19, "`{label}` chain reached a non-function node");
+        assert!(
+            node[3] < cursor,
+            "`{label}` chain link must point backwards"
+        );
+        walked.push(cursor);
+        cursor = node[3];
+    }
+    let appended: Vec<i32> = target
+        .nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node[0] == 19)
+        .map(|(index, _)| i32::try_from(index + 1).expect("bounded nodes"))
+        .collect();
+    let mut reversed = walked.clone();
+    reversed.reverse();
+    assert_eq!(
+        reversed, appended,
+        "`{label}` chain must be every function node exactly once, in order"
+    );
+    walked.len()
+}
+
+/// Every expectation in [`MODULE_PROBES`] is a hand derivation from the frozen
+/// CAP-056 contract. This test touches no product.
+#[test]
+fn every_module_probe_expectation_is_derived_twice() {
+    assert_eq!(module_probe_targets().len(), MODULE_PROBES.len());
+}
+
+/// The gate. Every module probe, run against the real linked product.
+///
+/// A probe whose parse completes is then refused by the **semantic** phase, and
+/// the refusal is asserted in full rather than merely as a non-zero status: a
+/// run that reached `status == 0` *through* the semantic phase would be a
+/// silent widening of an authority H1M-1 does not own, and this is what catches
+/// it.
+#[test]
+fn focused_module_probes_exercise_every_rule_of_the_admitted_shape() {
+    for ((label, source, ..), target) in MODULE_PROBES.iter().zip(module_probe_targets()) {
+        if target.status == 0 && assert_module_item_chain(label, &target) == 1 {
+            // A module of one item is accepted by every phase and compiled to
+            // LLVM, exactly as it was at the base commit. Its product evidence
+            // is `canonical_self_host_source_preserves_the_accepted_canonical_module`,
+            // which runs the accepted single-item canonical module end to end
+            // and byte-compares the LLVM it emits against the frozen text -
+            // a stronger statement than an expectation vector, and the property
+            // this checkpoint had to preserve.
+            continue;
+        }
+        let code = if target.status == 0 {
+            let semantic = oracle::module_semantic_stop(&target);
+            assert_ne!(
+                semantic.status, 0,
+                "probe `{label}` must be refused by the semantic phase"
+            );
+            run_module_expectation("module-probe", source, &target, &semantic, "-O0")
+        } else {
+            run_expectation("module-probe", compiled_h1a(), source, &target, "-O0")
+        };
+        assert_eq!(code, 91, "probe `{label}` diverged from the CAP-056 target");
+    }
+}
+
+/// Link the product against a completed-parse expectation and return the exit
+/// code. The only difference from [`run_expectation`] is which vector is fed.
+fn run_module_expectation(
+    label: &str,
+    source: &[u8],
+    stopped: &oracle::Ingestion,
+    semantic: &oracle::SemanticStop,
+    optimization: &str,
+) -> i32 {
+    let expected = oracle::refused_expectation_vector(source, stopped, semantic);
+    let workspace = TestWorkspace::new(label);
+    let llvm = workspace.write("product.ll", renamed_product(compiled_h1a()));
+    let harness = workspace.write(
+        "expectation.c",
+        expectation_harness(&expected, source, stopped.consumed),
+    );
+    let runtime = repository_path("../../src/compiler/runtime/aero_test_runtime.c");
+    let executable = clang_link(
+        &workspace,
+        label,
+        optimization,
+        &[llvm.as_path(), runtime.as_path(), harness.as_path()],
+    );
+    let output = Command::new(executable)
+        .output()
+        .expect("run CAP-056 expectation harness");
+    assert!(
+        output.stdout.is_empty(),
+        "CAP-056 harness wrote stdout: {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    output.status.code().expect("CAP-056 harness exit code")
+}
+
+/// Contract property G, on the one shape that can actually observe it: a
+/// module of exactly one item is the accepted shape, unchanged.
+///
+/// Every accepted probe that stops *before* its function's `}` is graded
+/// identical to the base commit by `assert_module_churn`, across every table in
+/// this file. The shape that check cannot reach is the one that *completes*,
+/// because no model before CAP-056 could complete a parse at all. That shape is
+/// the accepted canonical module, and its product evidence is
+/// `canonical_self_host_source_preserves_the_accepted_canonical_module`, which
+/// runs it end to end and byte-compares the LLVM it emits against the frozen
+/// text. What is asserted here is the arena that run depends on: one item, its
+/// chain link zero, `root == node_count`, and - uniquely for a single-item
+/// module - every node reachable from the root.
+#[test]
+fn a_single_item_module_is_the_accepted_shape() {
+    let ingested = module_ingest(CANONICAL_INPUT);
+    let target = oracle::module_parser_stop(&ingested, CANONICAL_INPUT, &module_caps());
+    assert_eq!(target.status, 0, "the accepted canonical module parses");
+    assert_eq!(assert_module_item_chain("canonical-input", &target), 1);
+    let root = usize::try_from(target.root).expect("bounded root");
+    assert_eq!(root, target.nodes.len(), "`root == node_count`");
+    assert_eq!(target.nodes[root - 1][0], 19);
+    assert_eq!(
+        target.nodes[root - 1][3],
+        0,
+        "one item, so its chain link is zero"
+    );
+    assert_eq!(target.nodes[root - 2][0], 18);
+    assert_eq!(
+        reachable_nodes(&target),
+        target.nodes.len(),
+        "a single-item module of one return statement orphans nothing"
+    );
+}
+
+/// The two-item minimum, stated as the gate's own pair of runs.
+///
+/// The same bytes stop at the second `fn` under CAP-055's model - which is what
+/// the base product did - and parse to `status = 0` with a linked item list
+/// under CAP-056's. That pair is the checkpoint.
+#[test]
+fn the_two_item_module_separates_the_base_product_from_this_one() {
+    let source = b"fn f() -> int { return 1; } fn g() -> int { return 2; }";
+    let ingested = module_ingest(source);
+
+    let base = oracle::capacity_parser_stop(&ingested, source, &module_caps());
+    assert_eq!(base.status, 10, "the base product stops at the second `fn`");
+    assert_eq!(base.diagnostic_code, 0);
+    assert_eq!(base.diagnostic_actual, 3);
+    assert_eq!(base.error_offset, 28);
+    assert_eq!(&source[28..30], b"fn");
+    assert_eq!(base.nodes.len(), 1, "and reports the pre-close node count");
+    assert_eq!(base.root, 0);
+
+    let module = oracle::module_parser_stop(&ingested, source, &module_caps());
+    assert_eq!(module.status, 0, "CAP-056 parses both items");
+    assert_eq!(module.nodes.len(), 6);
+    assert_eq!(module.root, 6);
+    assert_eq!(module.nodes[2], [19, module.nodes[2][1], 2, 0], "item 1");
+    assert_eq!(module.nodes[5], [19, module.nodes[5][1], 5, 3], "item 2");
+    assert_ne!(
+        module.nodes[2][1], module.nodes[5][1],
+        "the two items carry different name payloads"
+    );
+    assert_eq!(assert_module_item_chain("two-items", &module), 2);
+
+    // The product must agree with the second and contradict the first.
+    let semantic = oracle::module_semantic_stop(&module);
+    assert_eq!(
+        run_module_expectation("two-item-gate", source, &module, &semantic, "-O0"),
+        91
+    );
+    assert_ne!(
+        run_expectation("two-item-gate-base", compiled_h1a(), source, &base, "-O0"),
+        91,
+        "the product still stops at the second `fn`, so the gate did not close"
+    );
+}
+
+/// The semantic phase refuses a multi-item module, and it does so with a
+/// refusal that already existed. Nothing in the semantic group was edited.
+#[test]
+fn every_downstream_phase_refuses_a_multi_item_module() {
+    for (label, source, ..) in MODULE_PROBES {
+        let ingested = module_ingest(source);
+        let target = oracle::module_parser_stop(&ingested, source, &module_caps());
+        if target.status != 0 || assert_module_item_chain(label, &target) == 1 {
+            continue;
+        }
+        let semantic = oracle::module_semantic_stop(&target);
+        assert_ne!(
+            semantic.status, 0,
+            "`{label}` reached the checked-IR group, which H1M-1 does not own"
+        );
+        assert_eq!(
+            semantic.symbols, 1,
+            "`{label}`: one symbol is emitted from `root` before any refusal"
+        );
+        // Two shapes of refusal, and which one fires is decided by whether the
+        // module contains an identifier at all.
+        if target.nodes.iter().any(|node| node[0] == 2) {
+            assert_eq!(
+                (semantic.status, semantic.code),
+                (17, 2),
+                "`{label}`: an identifier use is refused before the fact loop runs"
+            );
+            assert_eq!(semantic.facts, 0);
+        } else {
+            assert_eq!(
+                (semantic.status, semantic.code),
+                (27, 3),
+                "`{label}`: the fact loop reaches item 1's function node first"
+            );
+            let node = usize::try_from(semantic.node).expect("bounded node") - 1;
+            assert_eq!(target.nodes[node][0], 19);
+            assert_ne!(semantic.node, target.root);
+        }
+    }
+}
+
+/// The strongest evidence this gate can produce: the first fourteen canonical
+/// functions, verbatim, as a complete module.
+///
+/// This is canonical evidence rather than a hand-written probe, on the
+/// precedent of `the_canonical_function_2_probe_is_the_canonical_bytes`, and it
+/// is the only place at this gate where the orphan census is observable on a
+/// real run. The reachable count is walked out of the arena rather than
+/// trusted from the model.
+const CANONICAL_FOURTEEN_ITEMS: usize = 5_158;
+
+#[test]
+fn the_canonical_fourteen_item_prefix_is_a_complete_module() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let probe = &source[..CANONICAL_FOURTEEN_ITEMS];
+    assert!(
+        probe.ends_with(b"}\n\n"),
+        "the prefix must end on a function item's own closing brace"
+    );
+    assert_eq!(
+        source[CANONICAL_FOURTEEN_ITEMS..CANONICAL_FOURTEEN_ITEMS + 2],
+        *b"fn",
+        "and the next byte must open the fifteenth item"
+    );
+
+    let ingested = module_ingest(probe);
+    let target = oracle::module_parser_stop(&ingested, probe, &module_caps());
+    assert_eq!(target.status, 0, "the fourteen-item prefix must parse");
+    assert_eq!(target.nodes.len(), 486, "the contract's node projection");
+    assert_eq!(target.root, 486, "`root == node_count`");
+    // A correction to the contract, which projects 1,092 tokens. The product's
+    // `token_count` includes the end-of-input record the lexer appends after
+    // the last real token, so the figure any expectation vector carries is
+    // 1,093. The contract's 1,092 is the count of lexed tokens and is correct
+    // as that. Both are asserted so neither can be cited for the other.
+    assert_eq!(
+        target.tokens.len(),
+        1_093,
+        "the product's own `token_count`"
+    );
+    assert_eq!(
+        target.tokens[1_092][0], 0,
+        "and its last record is end-of-input"
+    );
+    assert_eq!(
+        assert_module_item_chain("canonical-fourteen", &target),
+        14,
+        "fourteen items"
+    );
+
+    // The census, walked out of the arena. A node is reachable when the walk
+    // from `root` reaches it through `payload`, `left` and `right` under the
+    // node kinds that actually reference their children.
+    assert_eq!(
+        reachable_nodes(&target),
+        62,
+        "the contract's census for this probe"
+    );
+
+    let semantic = oracle::module_semantic_stop(&target);
+    assert_eq!(
+        (semantic.status, semantic.code),
+        (17, 2),
+        "canonical function 1's first node is the arm body `value`, an identifier"
+    );
+    assert_eq!(semantic.node, 1);
+    assert_eq!(semantic.line, 3);
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_module_expectation(
+                "canonical-fourteen",
+                probe,
+                &target,
+                &semantic,
+                optimization
+            ),
+            91,
+            "the fourteen-item prefix diverged from the oracle at {optimization}"
+        );
+    }
+}
+
+/// How many of a module's nodes are reachable from its `root`.
+///
+/// Kind 19 reaches its return node through `left` and the previous item
+/// through `right`; kind 18 and the two reference kinds reach their operand
+/// through `left`; a binary node reaches both children; a call node reaches its
+/// argument list through `left` and an argument cell reaches its argument and
+/// the next cell. A kind-20 call's `payload` is a name id, not a node, and a
+/// kind-2 node's `payload` is a name id too, so neither is followed.
+fn reachable_nodes(target: &oracle::Ingestion) -> usize {
+    let mut seen = vec![false; target.nodes.len()];
+    let mut stack = Vec::new();
+    if target.root > 0 {
+        stack.push(target.root);
+    }
+    while let Some(id) = stack.pop() {
+        let index = usize::try_from(id).expect("bounded node") - 1;
+        if seen[index] {
+            continue;
+        }
+        seen[index] = true;
+        let node = target.nodes[index];
+        for child in [node[2], node[3]] {
+            if child > 0 {
+                stack.push(child);
+            }
+        }
+    }
+    seen.iter().filter(|reached| **reached).count()
+}
+
+/// CAP-056 / H1M-1 moves the canonical self-ingestion stop, for the first time
+/// since CAP-051 set it, and it moves because the grammar admits more rather
+/// than because a bound was relaxed.
+///
+/// Every figure here is hand-derived in the contract before it was observed.
+/// The parse does **not** reach `status = 0`: it stops at the first non-`int`
+/// binding type, which is the exclusion CAP-052 froze at H1B-3 and which the
+/// next checkpoint owns.
+#[test]
+fn the_module_checkpoint_moves_the_canonical_stop() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let ingested = module_ingest(&source);
+
+    // Where it was, and every earlier model still says so.
+    let frozen = oracle::SignatureStop {
+        status: 10,
+        error_offset: 146,
+        error_line: 8,
+        error_column: 1,
+        diagnostic_code: 0,
+        diagnostic_actual: 3,
+        node_count: 4,
+        parameters: 1,
+    };
+    assert_eq!(oracle::call_grammar_stop(&ingested, &source), frozen);
+
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
+    assert_eq!(stopped.status, 12, "the non-`int` binding type is refused");
+    assert_eq!(stopped.diagnostic_code, 102);
+    assert_eq!(stopped.diagnostic_actual, 1);
+    assert_eq!(stopped.error_offset, 5_203);
+    assert_eq!(stopped.error_line, 232);
+    assert_eq!(stopped.error_column, 15);
+    assert_eq!(&source[5_203..5_209], b"Result");
+    assert_eq!(stopped.root, 0, "a stopped parse never has a root");
+    assert_eq!(stopped.nodes.len(), 486);
+    assert_eq!(stopped.origins.len(), stopped.nodes.len());
+    assert_eq!(
+        stopped.nodes.iter().filter(|node| node[0] == 19).count(),
+        14,
+        "fourteen items complete before the stop"
+    );
+    assert_eq!(
+        (
+            stopped.nodes.len(),
+            stopped.counts.0,
+            stopped.counts.1,
+            stopped.counts.2,
+            stopped.counts.3
+        ),
+        (486, 449, 169, 54, 9),
+        "the contract's five arena counts for the canonical run"
+    );
+    // The claim this checkpoint may not make. 486 is inside the bound CAP-055
+    // *replaced*, by 26 records, so H1M-1 does not exercise the raised ones at
+    // all and no outcome section may say it does.
+    assert!(stopped.nodes.len() < 512);
+    assert!(stopped.nodes.len() * 100 / PARSE_RECORD_BOUND < 1);
+}
+
+/// What the five arenas actually hold once the canonical source parses past
+/// function 1, against the contract's per-item projection.
+///
+/// A divergence from any row is a finding, not an inconvenience. The whole
+/// table is asserted rather than only its last row, so a disagreement names the
+/// item it starts at.
+const CANONICAL_ITEM_ARENAS: &[(&str, usize, usize, usize, usize, usize)] = &[
+    ("result_value", 6, 4, 1, 0, 0),
+    ("is_identifier_start", 29, 25, 12, 1, 0),
+    ("is_identifier_continue", 46, 39, 19, 2, 1),
+    ("is_digit", 57, 48, 22, 3, 1),
+    ("keyword_token_kind", 175, 164, 70, 15, 1),
+    ("pair_token_kind", 242, 229, 94, 23, 1),
+    ("single_token_kind", 325, 310, 114, 43, 1),
+    ("quotient_256", 339, 322, 117, 44, 1),
+    ("signed_quotient", 430, 411, 153, 51, 1),
+    ("word_byte_0", 440, 419, 155, 52, 1),
+    ("word_byte_1", 447, 422, 157, 52, 3),
+    ("word_byte_2", 456, 426, 160, 52, 6),
+    ("word_byte_3", 465, 430, 163, 52, 9),
+    ("checksum_step", 486, 449, 169, 54, 9),
+];
+
+#[test]
+fn the_canonical_arenas_hold_what_the_contract_projected() {
+    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    let (last, _, _, _, _, _) = CANONICAL_ITEM_ARENAS[CANONICAL_ITEM_ARENAS.len() - 1];
+    assert_eq!(last, "checksum_step");
+
+    // The node column is checkable per item without a second instrument: the
+    // prefix that ends at item N's own `}` is itself a complete N-item module,
+    // and its node count is that row.
+    let mut cursor = 0usize;
+    for (index, (name, nodes, values, operators, blocks, calls)) in
+        CANONICAL_ITEM_ARENAS.iter().enumerate()
+    {
+        let opener = format!("\nfn {name}(");
+        let at = source
+            .windows(opener.len())
+            .position(|window| window == opener.as_bytes())
+            .map(|position| position + 1)
+            .unwrap_or(0);
+        assert!(at >= cursor, "item {name} must follow the previous one");
+        cursor = at;
+        let end = next_item_end(&source, cursor);
+        let prefix = &source[..end];
+        let ingested = module_ingest(prefix);
+        let target = oracle::module_parser_stop(&ingested, prefix, &module_caps());
+        assert_eq!(
+            target.status,
+            0,
+            "the prefix through item {} must be a complete module",
+            index + 1
+        );
+        assert_eq!(
+            (
+                target.nodes.len(),
+                target.counts.0,
+                target.counts.1,
+                target.counts.2,
+                target.counts.3
+            ),
+            (*nodes, *values, *operators, *blocks, *calls),
+            "item {} `{name}`: node / value / operator / block / call projection",
+            index + 1
+        );
+        assert_eq!(
+            assert_module_item_chain(name, &target),
+            index + 1,
+            "item {} `{name}` item count",
+            index + 1
+        );
+    }
+
+    // The bound this checkpoint does not exercise. 486 is inside the *replaced*
+    // 512, by 26 records, so no outcome may claim the raised bounds were tested
+    // here.
+    assert!(
+        486 < 512,
+        "the canonical run stays inside the replaced bound"
+    );
+    assert_eq!(PARSE_RECORD_BOUND, 65_536);
+}
+
+/// The byte after a module prefix's last item, found by scanning for the
+/// column-1 `}` that closes it.
+fn next_item_end(source: &[u8], from: usize) -> usize {
+    let mut index = from;
+    while index < source.len() {
+        if source[index] == b'}' && (index == 0 || source[index - 1] == b'\n') {
+            return index + 2;
+        }
+        index += 1;
+    }
+    panic!("a canonical item always closes on a column-1 brace");
 }
 
 /// CAP-054 / H1B-5 leaves the canonical self-ingestion stop exactly where
@@ -6763,6 +8340,13 @@ fn the_call_checkpoint_leaves_the_canonical_stop_unmoved() {
     assert_eq!(stopped.nodes.len(), 4);
     assert_eq!(stopped.origins.len(), 4);
 
+    // CAP-056 / H1M-1 moves the canonical stop for the first time since
+    // CAP-051 set it. Every assertion above is unchanged and still true: it is
+    // where the parse stops when a module is exactly one function item. What
+    // moved is the module rule, so the product is graded against the module
+    // model. The move itself is asserted once, in
+    // `the_module_checkpoint_moves_the_canonical_stop`.
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_expectation(
@@ -7054,18 +8638,102 @@ fn every_capacity_probe_stops_where_this_checkpoint_predicted() {
 ///
 /// The full expectation vector is asserted, so a stop that lost its offset,
 /// line or column, or that reported `status = 0`, would fail here.
+///
+/// **CAP-056 finding.** `node-under` is the one probe in this file on which the
+/// module rule changes more than a node count, and the reason is arithmetic at
+/// the ceiling rather than a defect in the rule. The shape holds 65,535 node
+/// records and then stops at its trailing `x`. Under CAP-055 the item's own two
+/// nodes were appended only after end-of-input, which that stop never reaches,
+/// so they were never charged. Under CAP-056 they are appended at the item's
+/// `}`: `compiler.aero` guards the kind-18 append at `node_count = 65,535`,
+/// which passes, and the kind-19 append at `node_count = 65,536`, which fires.
+/// So a shape CAP-055 named "under" is two records over once the item it
+/// belongs to is charged for itself.
+///
+/// The probe is kept, its expectation is re-derived rather than relaxed, and
+/// `node-under-with-item` below restores the original intent - a grammar stop
+/// at `bound - 1` records - with the item's two nodes included in the budget.
 #[test]
 fn every_capacity_probe_agrees_with_the_product() {
-    let caps = oracle::Caps::uniform(PARSE_RECORD_BOUND);
     for (label, source, ..) in capacity_probe_table() {
         let ingested = capacity_ingest(&source);
-        let stopped = oracle::capacity_parser_stop(&ingested, &source, &caps);
+        let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
         assert_eq!(
             run_expectation("capacity", compiled_h1a(), &source, &stopped, "-O0"),
             91,
             "capacity probe `{label}` diverged from the independent oracle"
         );
     }
+}
+
+/// The one place the item's own two nodes are charged against the node ceiling,
+/// asserted rather than left to be discovered.
+///
+/// `node-under` sits one record below the bound with 65,535 nodes. The kind-18
+/// append takes it to the bound exactly and the kind-19 append is refused, so
+/// the shape CAP-055 proved was under the bound is over it once its item pays
+/// for itself. `node-under-with-item` is the same shape two records smaller and
+/// is the probe that now carries CAP-055's original meaning.
+#[test]
+fn the_item_nodes_are_charged_against_the_node_ceiling() {
+    let caps = module_caps();
+
+    let over = node_chain_probe(PARSE_RECORD_BOUND / 2);
+    let ingested = capacity_ingest(&over);
+    let cap055 = oracle::capacity_parser_stop(&ingested, &over, &caps);
+    assert_eq!(
+        (cap055.status, cap055.diagnostic_code, cap055.nodes.len()),
+        (10, 0, PARSE_RECORD_BOUND - 1),
+        "CAP-055's model still says this shape is a grammar stop under the bound"
+    );
+    let stopped = oracle::module_parser_stop(&ingested, &over, &caps);
+    assert_eq!(stopped.status, 14, "the kind-19 append is refused");
+    assert_eq!(
+        stopped.diagnostic_code,
+        i32::try_from(PARSE_RECORD_BOUND).expect("bounded ceiling")
+    );
+    assert_eq!(
+        stopped.diagnostic_actual, 3,
+        "located at the item's own `fn` token"
+    );
+    assert_eq!(stopped.error_offset, 0);
+    assert_eq!(stopped.error_line, 1);
+    assert_eq!(stopped.error_column, 1);
+    assert_eq!(
+        stopped.nodes.len(),
+        PARSE_RECORD_BOUND,
+        "the kind-18 append lands on the bound exactly"
+    );
+    assert_eq!(stopped.nodes[PARSE_RECORD_BOUND - 1][0], 18);
+    assert_eq!(stopped.root, 0);
+
+    // The same shape two records smaller keeps CAP-055's meaning: a grammar
+    // stop at the trailing `x`, with the arena one record below the bound and
+    // the item's own two nodes inside that budget.
+    let under = node_chain_probe(PARSE_RECORD_BOUND / 2 - 1);
+    let ingested = capacity_ingest(&under);
+    let stopped = oracle::module_parser_stop(&ingested, &under, &caps);
+    assert_eq!(stopped.status, 10, "a grammar stop, not a capacity stop");
+    assert_eq!(stopped.diagnostic_code, 0);
+    assert_eq!(stopped.diagnostic_actual, 1);
+    assert_eq!(stopped.nodes.len(), PARSE_RECORD_BOUND - 1);
+    assert_eq!(stopped.nodes[PARSE_RECORD_BOUND - 2][0], 19);
+    assert_eq!(
+        stopped.nodes[PARSE_RECORD_BOUND - 2][3],
+        0,
+        "one item, so its chain link is zero"
+    );
+    assert_eq!(
+        run_expectation(
+            "node-under-with-item",
+            compiled_h1a(),
+            &under,
+            &stopped,
+            "-O0"
+        ),
+        91,
+        "`node-under-with-item` diverged from the independent oracle"
+    );
 }
 
 /// Two of the five ceilings cannot be reached, and both facts are derived
@@ -7216,6 +8884,13 @@ fn the_capacity_checkpoint_leaves_the_canonical_stop_unmoved() {
     assert_eq!(stopped.origins.len(), 4);
     assert_eq!(&source[146..148], b"fn");
 
+    // CAP-056 / H1M-1 moves the canonical stop for the first time since
+    // CAP-051 set it. Every assertion above is unchanged and still true: it is
+    // where the parse stops when a module is exactly one function item. What
+    // moved is the module rule, so the product is graded against the module
+    // model. The move itself is asserted once, in
+    // `the_module_checkpoint_moves_the_canonical_stop`.
+    let stopped = oracle::module_parser_stop(&ingested, &source, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_expectation(
@@ -7372,8 +9047,18 @@ fn the_product_holds_more_block_records_than_the_replaced_bound() {
     // Reaching the predicted stop against the linked product means the
     // product's own block array actually grew to hold 1,300 records, and the
     // harness's allocation assertions mean it was freed cleanly afterwards.
+    //
+    // CAP-056. The shape's `}` is accepted before it stops at the trailing `x`,
+    // so the product is graded against the module model. The block bracketing
+    // above is unchanged and still uses CAP-055's, which is what pins the
+    // record count.
+    let module = oracle::module_parser_stop(&ingested, &source, &caps);
+    assert!(
+        assert_module_churn("block-storage", &stopped, &module),
+        "this shape gets its function `}}` accepted"
+    );
     assert_eq!(
-        run_expectation("block-storage", compiled_h1a(), &source, &stopped, "-O0"),
+        run_expectation("block-storage", compiled_h1a(), &source, &module, "-O0"),
         91,
         "the product's block store did not hold {BLOCKS} records"
     );
