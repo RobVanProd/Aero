@@ -931,6 +931,256 @@ coverage reaching 100% of the canonical source. It is not H1B's `:223`
 obligation, not stage convergence, not self-hosting, and not a claim that any
 language feature is stable.
 
+### Outcome, CAP-057/H1M-1b - implemented 2026-08-19
+
+Implemented from `bb7f7e49b89c6c9a8b7d15c03f3cb43a78269dab`, which
+`git ls-remote origin claude/self-hosting-analysis-be3f72` confirms is both the
+local `HEAD` and the remote head. **The handoff's own warning did not fire this
+time and that is worth stating:** the session prompt said not to trust
+`bb7f7e49` because "the last commit of a session is always the one its own
+handoff cannot name". `ls-remote` says `bb7f7e49` is the tip. The base named in
+the handoff was correct, and it was verified rather than assumed.
+
+Two files changed, both authorized: `examples/aero_self_host_v0/compiler.aero`
+(parse group only) and `src/compiler/tests/self_host_source_ingestion_tests.rs`.
+A tripwire manifest of SHA-256 over all 493 tracked files plus `HEAD` was taken
+before any edit and re-verified before the gate: exactly those two files differ
+and `HEAD` never moved.
+
+**The canonical source parses end to end.** `status = 0`, `root = node_count`,
+23 items walked from the root through `right` in reverse order. This is the
+first time in this project that it has done so, and the canonical stop that
+pinned every checkpoint's evidence from CAP-051 through CAP-056 no longer
+exists.
+
+#### What replaces the stop, in place before anything relied on it
+
+Decision 3's three replacements are all implemented and asserted in
+`the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it`:
+
+1. The complete-parse vector - `status = 0`, `error_offset = -1`, and
+   `root == node_count`, which is the one assertion a quietly truncated parse
+   cannot satisfy because `compiler.aero:3680` forces `root = 0` on any stopped
+   parse.
+2. The item chain walked rather than counted - exactly 23 kind-19 nodes, each
+   with its kind-18 return node as `left`, each link pointing backwards, and no
+   kind-19 node outside the chain.
+3. The stop relocated to the next authority, exactly as predicted and not
+   modified: `semantic_status = 17`, `semantic_code = 2`, at node 1, offset 98,
+   line 3, column 22 - the arm-1 body `value` in `result_value`. Every field of
+   the prediction reproduced.
+
+#### Predicted versus observed, and the one hand-derivation that was wrong
+
+The contract forbade freezing an acceptance figure before the diff existed, and
+the procedure it required was followed in order: write the edit, hand-derive the
+delta from the diff, check the derivation against the instrument, then run the
+product.
+
+**The baseline survived an independent instrument.** Before grading the delta,
+this checkpoint's model was run over the **pre-edit** bytes and reproduces
+Decision 4's projection exactly, on all five arenas: 17,700 / 15,921 / 6,051 /
+1,293 / 1,120. That figure was produced by a different instrument in a different
+session and it was not adjusted to fit.
+
+| arena | pre-edit `a839ff37` | hand-derived delta | predicted | observed |
+|---|---|---|---|---|
+| node | 17,700 | +285 | **17,985** | **17,985** |
+| value | 15,921 | +237 | **16,158** | **16,158** |
+| operator | 6,051 | +114 | **6,165** | **6,165** |
+| block | 1,293 | +9 | **1,302** | **1,302** |
+| call | 1,120 | +32 | **1,152** | **1,152** |
+
+All five exact, against the model and then against the linked product at both
+`-O0` and `-O2`. No table was adjusted to match a run.
+
+**The first hand-derivation was wrong, and how it was fixed matters more than
+that it was wrong.** It predicted 289 / 241 / 114 / 9 / 32. Operator, block and
+call were exact; node and value were each 4 high. Two things were checked before
+anything was changed. The baseline was re-measured (exact, above), and each of
+the eight per-construct unit costs in the derivation was priced individually
+against the model - a register binding, a step-expectation block, a simple and
+an offset `bytes_get` assignment, two-way and three-way `&&` conditions, and the
+parenthesised `||` chain. **All eight reproduced exactly.** The error was
+therefore a miscounted unit and not a mispriced one, and it was: the replacement
+register block *contains* thirteen `let mut stmt_*` lines and the diff *adds*
+nine, because `stmt_b0`, `stmt_b1` and `stmt_b2` were already there. 289 - 4 =
+285. The correction was made at the count, with the pricing left untouched.
+
+**A finding against the contract's own estimate.** Decision 4 offered
+"roughly 27-81 nodes" for an edit of 1,000-3,000 bytes, extrapolated from
+CAP-056's 79 nodes for 2,926 bytes, and labelled it an estimate rather than
+evidence. The diff is **3,887 bytes and costs 285 nodes** - 13.6 bytes per node
+against CAP-056's 37. The estimate is wrong by roughly 4x and it is wrong in the
+way a byte count must be: node cost tracks expression structure, not bytes, and
+a ten-way byte comparison (`stmt_b0 == 66 && ... && stmt_b9 == 114`) is the
+densest construct the admitted grammar has - 39 nodes in one condition. **No
+future checkpoint should size an arena delta from a byte count.**
+
+#### The raised bounds, exercised for the first time
+
+This is the first checkpoint at which any of CAP-055's five raised bounds is
+exercised by more than 1%, and the first evidence that the raise was necessary
+rather than merely ordered correctly: at 512 this parse cannot complete on any
+of the five arenas. The node arena holds 17,985 - 27.4% of the raised bound and
+**35.1x** the one it replaced. `run_runtime_ascii_llvm_emitter` alone remains
+the overwhelming majority of it.
+
+The standing five-arena requirement 17,621 / 15,842 / 6,030 / 1,289 / 1,120 is
+kept in the test file as a **named historical** figure for the 293,592-byte tree
+at `466701c`, not edited, and the current requirement is asserted beside it so
+neither can be cited for the other. That is correction 1 of the contract,
+discharged in code rather than only in prose.
+
+#### The orphan census, and why it is comparable to nothing
+
+**240 reachable of 17,985 node records; 17,745 orphans; 98.665%.** The contract
+predicted 240 reachable and the prediction was exact: reachability per item is
+bounded by the last completed return statement's expression subtree plus the
+item's own two nodes, and this checkpoint's diff adds no return statement and
+touches no return expression, so all 285 nodes it adds are orphans. 23 items
+contribute 46 nodes of structure and 194 of final-return expression, and that
+decomposition is asserted rather than stated.
+
+**No record may cite 98.665% as progress or as regression against CAP-056's
+87.24%.** They measure different sources: 87.24% was 62 of 486 on the 14-item
+prefix, which is 1.72% of these bytes. The comparability table in Decision 5
+stands unchanged, with this figure as the new baseline.
+
+#### The out-of-table grading, both halves, and two more than were required
+
+- **Half one, zero churn.** On all seven `MODEL_LOCK_SHAPES` entries - none of
+  which carries a non-`int` binding type - CAP-056's model and this one agree in
+  every folded field of the expectation vector *and* on all four counted
+  arenas. Zero churn was the expectation and zero churn is what happened.
+- **Half two, the contradiction.** On 9 of the 12 `BINDING_TYPE_PROBES` the
+  product is graded against CAP-056's model and **contradicts** it. That is more
+  than the 5 first predicted; see the probe correction below.
+- **Four more, not required by the contract.** On the whole canonical source the
+  product now contradicts CAP-052's, CAP-053's, CAP-054's **and** CAP-055's
+  models, each asserted in that checkpoint's own regression test. A refactor
+  that collapsed any of the five models into one would fail here.
+
+#### Two probe corrections, both fixed at the mechanism
+
+1. **The model-separation count.** The first draft asserted that 5 of the 12
+   binding-type probes separate this model from CAP-056's, reasoning that 5 are
+   the ones this checkpoint admits. The instrument said 9. The reasoning was
+   incomplete rather than the number wrong: four more probes are refused by
+   **both** models and at **different tokens**, because CAP-056 stops at the type
+   spelling while CAP-057 walks into `Result< , >` and stops inside it. The fix
+   was not to write 9. The criterion was replaced by one that **partitions the
+   whole table** - 5 admitted, 4 refused later, 3 decided identically - so a row
+   landing in the wrong group now fails instead of being absorbed into a total.
+2. **The partition's own discriminator.** The first attempt at that partition
+   separated the groups by `status`, and got (8, 1, 3). That is also a real
+   error: `status` cannot separate them, because a probe this checkpoint admits
+   stops at the trailing `x` with `status = 10` and so does a probe it refuses
+   later. The discriminator was replaced by the one that actually names the
+   distinction - whether this checkpoint produced nodes the older model never
+   reached - which gives (5, 4, 3), and the "refused later" group additionally
+   asserts that its stop moved *forward*.
+
+#### Five inherited tests whose premise expired, and what became of each
+
+No test was weakened, skipped or deleted. All five were graded against the
+product on a shape whose refusal this checkpoint deliberately lifts, and all
+five were **inverted rather than removed**, which is a strictly stronger
+statement than the one they made:
+
+| test | was | is |
+|---|---|---|
+| `the_statement_block_checkpoint_leaves_the_canonical_stop_unmoved` | product agrees with CAP-052's stopped parse of the canonical source at `-O0`/`-O2` | CAP-052's model still stops at 5,203 (asserted); product must **contradict** it |
+| `the_control_flow_checkpoint_leaves_the_canonical_stop_unmoved` | same, CAP-053 | same, CAP-053 |
+| `the_call_checkpoint_leaves_the_canonical_stop_unmoved` | same, CAP-054 | same, CAP-054 |
+| `the_capacity_checkpoint_leaves_the_canonical_stop_unmoved` | same, CAP-055 | same, CAP-055 |
+| `focused_statement_probes_exercise_every_rule_of_the_admitted_grammar` | all rows agree with CAP-052's model | 2 rows (`stmt-bytebuffer-binding`, `stmt-result-binding`) must contradict CAP-052's model **and** agree with CAP-057's - one assertion became two |
+
+Every model-only half of all five is untouched and still green: CAP-052 through
+CAP-055 still produce exactly the stops they always produced on exactly these
+bytes, and `every_statement_probe_expectation_is_derived_twice` still asserts
+both lifted rows in full against CAP-052's model. The correctly costed
+replacements for the two lifted rows are `binding-bytebuffer` and
+`binding-result` in `BINDING_TYPE_PROBES`, carrying this checkpoint's own
+hand-derived node counts for the same constructs.
+
+`the_module_checkpoint_moves_the_canonical_stop`, `the_canonical_arenas_hold_what_the_contract_projected`
+and `the_canonical_fourteen_item_prefix_is_a_complete_module` all stayed green
+untouched, because this checkpoint's edit lands at `compiler.aero:1203` and
+`:1829-1950` while those tests measure the first 5,158 bytes. That is the same
+structural escape CAP-056 had, and it holds for the prefix tests and **not** for
+the whole-source ones - which is exactly what the contract predicted.
+
+#### Probe I, the anti-fitting guard
+
+`the_binding_types_leave_the_fourteen_item_prefix_untouched` asserts that not one
+CAP-056 figure moved on the 14-item prefix: 486 nodes, `root = 486`, arenas
+486 / 449 / 169 / 54 / 9, `token_count` 1,093, 14 items walked, 62 reachable,
+and the two models identical in every folded field. Nothing churned.
+
+#### Decisions 1 and 2, as implemented
+
+The grammar is CAP-050's parameter type machine moved to the binding position,
+exactly as Decision 1 specified: step 3 branches on the spelling, `int` and
+`ByteBuffer` complete at step 4, `Result` goes to step 5, and steps 5..9 mirror
+parameter modes 3..7 - `<`, an `int`, `,`, an `int`, `>` - before returning to
+step 4. The default advance is overridden at steps 3 and 9 and nowhere else.
+Nine registers were added alongside `stmt_b0..stmt_b2`.
+
+Decision 2 holds without exception. No node kind, no arena, no bound, no
+checksum input, and no store. The binding type is checked and discarded exactly
+as `mut` is, and the consequence stands as recorded: **after this checkpoint the
+parse cannot distinguish `let x: int = f();` from `let x: ByteBuffer = f();` in
+any observable output.** The verifier's `512` is untouched and still cannot bite,
+because the semantic phase still refuses before it.
+
+Probes G and H - `ByteBuffer` in a parameter position and in a return position -
+are both still refused with `status = 12` / `diagnostic_code = 102`. The
+implementation changed only `parser_cycle_state == 47` and no shared classifier,
+so CAP-050's authority was not crossed.
+
+#### Gate
+
+| run | target | tree | result |
+|---|---|---|---|
+| 1 | `self_host_source_ingestion_tests`, oracle refactor only, `compiler.aero` byte-identical at `a839ff37` before and after | oracle switch threaded, no product byte moved | **45 passed, 0 failed, exit 0**, read 00:43:49 UTC |
+| 2 | `focused_binding_type_probes...`, red-first against the unmodified product | `compiler.aero` still `a839ff37` | **FAILED as required**, probe `binding-bytebuffer` returned 80 against 91, read 00:51:46 UTC |
+| 3 | `self_host_source_ingestion_tests`, full focused target | post-edit tree | **52 passed, 0 failed, exit 0**, read 01:16:27 UTC |
+| 4 | `./tools/test.sh` from the repository root | product and oracle final, **records not yet written** | **1,005 passed, 0 failed, 16 ignored, exit 0**, read from the log at 01:56:02 UTC; 117 `test result:` lines summed from the log rather than from a harness report |
+| 5 | `./tools/test.sh` from the repository root | product, oracle **and** records | **1,005 passed, 0 failed, 16 ignored, exit 0**, read from the log at 02:39:54 UTC, same 117 lines |
+| 6 | `./tools/test.sh` from the repository root | **the exact tree committed** | green; the timestamp is in the commit message rather than here, for the reason below |
+
+Runs 4 and 5 are both recorded because they cover different trees and only the
+second covers this file. Four test targets read `TASK_LEDGER.md`,
+`PROJECT_STATE.md` and `BOOTSTRAP_CONVERGENCE_READINESS.md` and check their
+content, not merely their presence - `cap024_claim_verification_contract_tests`,
+`version_claim_contract_tests`, `cli_status_contract_tests` and
+`self_host_source_ingestion_tests` - so writing this outcome section changed a
+gated input and run 4 stopped covering the tree. Run 5 was taken on the records
+tree for that reason, and run 6 on the tree actually committed.
+
+**Run 6's result is named in the commit message and not in this table, and that
+is deliberate rather than an omission.** A gate row that names its own run's
+timestamp cannot be written into the tree that run covered: adding the row
+changes the tree, which is exactly the regress runs 4 and 5 demonstrate. The
+commit message is outside the tree, so it is the only place a timestamp for the
+committed tree can be recorded without invalidating itself. The tripwire over
+all 493 tracked files was verified byte-identical across every run above.
+
+#### What is explicitly not claimed
+
+A parse is not a compile, and `the_end_to_end_parse_is_not_a_compile` asserts
+that rather than leaving it to prose. The compiler consumes its own 300,471
+bytes and builds a 17,985-node arena from them, and it understands none of it:
+the semantic phase refuses at node 1, **zero** semantic facts are appended, the
+module has no type and no checked IR, and 98.6% of the arena is unreachable from
+the root. No binding, assignment, statement sequence, conditional or loop has any
+representation at all.
+
+This is grammar coverage reaching 100% of the canonical source. It is not H1B's
+`:223` obligation, not stage convergence, not self-hosting, and not a claim that
+any language feature is stable.
+
 ## CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST - admit the module's second and subsequent `fn` item
 
 - Date/task/status: 2026-08-19, `CAP-056-H1M1-MODULE-SHAPE-ITEM-LIST`, authored

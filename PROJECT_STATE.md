@@ -468,8 +468,33 @@ accepted 34-byte canonical program is preserved exactly: exit 91 and the
 identical 144-byte module, MD5 `fd2390d17d448d4539a72bf1991314dc`, which is the
 byte-for-byte proof that a module of exactly one item is unchanged.
 
-CAP-057/H1M-1b is **contracted and not implemented**: the contract is authored
-in `TASK_LEDGER.md` and no product byte has moved, so nothing below is a result.
+CAP-057/H1M-1b is **implemented and locally green**: the complete repository-root gate `./tools/test.sh` returned **exit 0** at 01:56:02 UTC on 2026-08-19 with 117 `test result:` lines totalling **1,005 passed, 0 failed, 16 ignored**, read from the pipeline's own exit status and cross-checked by summing the log's own lines. The tripwire over all 493 tracked files was byte-identical before and after the run.
+**The canonical source parses end to end**, for the first time in this
+project. The canonical run reaches `status = 0` with `root = node_count` and
+23 items walked from the root, and the canonical parser stop that pinned every
+checkpoint from CAP-051 through CAP-056 no longer exists; what pins the run
+instead is the complete-parse vector, the walked item chain, and the semantic
+phase's own already-implemented refusal at `semantic_status = 17` /
+`semantic_code = 2`, node 1, offset 98, line 3, column 22 - predicted and not
+modified. The source is now 300,471 bytes, SHA-256
+`cca8a3739529bf8dfa777e0df69245b3e1beb13ed75472986834db9f3dac9376`, and remains
+a copy-derived successor of accepted B1C asserted byte for byte, now with six
+further CAP-057 differences applied before the counted CAP-055 transform. The
+whole-module requirement is **17,985 node, 16,158 value, 6,165 operator, 1,302
+block and 1,152 call records** - hand-derived from the diff as the pre-edit
+17,700 / 15,921 / 6,051 / 1,293 / 1,120 plus +285 / +237 / +114 / +9 / +32, and
+matched exactly by the model and then by the linked product at `-O0` and
+`-O2`. It is 27.4% of CAP-055's raised bound and 35.1x the one it replaced, so
+this is the first checkpoint at which the raise is load-bearing rather than
+merely ordered correctly. Census: 240 of 17,985 nodes reachable from the root,
+98.665% orphaned - a figure comparable to no earlier one in this project,
+because every earlier one was measured on a prefix, a different tree, or a
+different node policy. **A parse is not a compile**: the semantic phase
+refuses at node 1, zero facts are appended, and no binding, assignment,
+statement sequence, conditional or loop has any representation.
+
+What it did, recorded because the contract required the procedure and not just
+the result:
 It admits the `ByteBuffer` and `Result<int, int>` binding types at the 19 sites
 that carry them — `compiler.aero:232`, `:515-531` and `:6761` — which CAP-052
 froze, CAP-054 declined to lift, and which are now the only construct in the

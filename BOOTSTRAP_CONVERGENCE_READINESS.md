@@ -476,6 +476,17 @@ binding type CAP-052 froze, which is now the **only** construct in the whole
 19 sites, one in `read_input_value` and eighteen in
 `run_runtime_ascii_llvm_emitter`.
 
+**Corrected again under CAP-057/H1M-1b, and left visible rather than
+restated.** The paragraph above is true of H1M-1 and of nothing after it.
+From CAP-057 the canonical run does not stop in the parser at all: it
+consumes all 300,471 bytes, reaches `status = 0` with `root = node_count`
+and 23 linked items, and is refused one phase later by the semantic group
+at `semantic_status = 17` / `semantic_code = 2`, node 1, offset 98, line 3,
+column 22. **There is no longer a canonical parser stop.** What pins the
+canonical run is now the complete-parse vector, the walked 23-item chain,
+and that relocated refusal - all three asserted, and the refusal predicted
+and not modified.
+
 ### The module-shape gate, H1M
 
 The gate is labelled **H1M** and split into three checkpoints, because it meets
@@ -498,7 +509,8 @@ The construct that does is the `ByteBuffer` / `Result<int, int>` binding type at
 19 sites in two functions, and it is the last grammar work before the canonical
 source parses end to end.
 
-That work is contracted as **CAP-057/H1M-1b** in `TASK_LEDGER.md`, authored and
+That work is **implemented** as CAP-057/H1M-1b; see the outcome in
+`TASK_LEDGER.md`. It was contracted as **CAP-057/H1M-1b**, authored and
 not implemented. It is numbered outside the H1M sequence deliberately: it is
 statement-grammar work that crosses the parse group alone, and it neither
 admits module shape nor touches meaning, verification or emission. Three
@@ -509,6 +521,21 @@ assertion, and it is the first whose own edit falls inside the region its
 canonical run measures, because `compiler.aero` is both the product and the
 source. The last of these makes its acceptance figure a procedure rather than a
 frozen number, and the contract says so rather than freezing one.
+
+All three held. The raised bounds were exercised: the whole-module
+requirement is **17,985 node, 16,158 value, 6,165 operator, 1,302 block and
+1,152 call records**, 27.4% of the raised bound and 35.1x the one it
+replaced, so at 512 the parse cannot complete on any of the five. The
+canonical stop was replaced before anything relied on it. And the
+acceptance figure was derived from the diff rather than frozen ahead of it:
+the pre-edit projection of 17,700 / 15,921 / 6,051 / 1,293 / 1,120 was
+reproduced exactly by an independent instrument, a delta of
++285 / +237 / +114 / +9 / +32 was hand-derived from the diff, and the sum
+matched the model and then the linked product on all five arenas at `-O0`
+and `-O2`. The contract's own byte-proportional estimate of 27-81 nodes did
+**not** survive: 3,887 bytes cost 285 nodes, because node cost tracks
+expression structure and not bytes. Census: 240 reachable of 17,985,
+98.665% orphaned, comparable to no earlier figure in this project.
 
 #### Retraction: this document asserted H1M-1 green before any run said so
 

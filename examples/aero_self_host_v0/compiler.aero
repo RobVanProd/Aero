@@ -1200,9 +1200,18 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut stmt_expected: int = 0;
     let mut stmt_alternate: int = 0;
     let mut stmt_is_int: int = 0;
+    let mut stmt_is_buffer: int = 0;
+    let mut stmt_is_result: int = 0;
     let mut stmt_b0: int = 0;
     let mut stmt_b1: int = 0;
     let mut stmt_b2: int = 0;
+    let mut stmt_b3: int = 0;
+    let mut stmt_b4: int = 0;
+    let mut stmt_b5: int = 0;
+    let mut stmt_b6: int = 0;
+    let mut stmt_b7: int = 0;
+    let mut stmt_b8: int = 0;
+    let mut stmt_b9: int = 0;
     let mut body_root: int = 0;
     let mut block_state: int = 0;
     let mut block_top: int = 0;
@@ -1817,10 +1826,23 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
         }
 
-        // One step of 'let [mut] IDENT : int =' or of 'IDENT ='. Step 0 admits
-        // 'mut' as its alternate, step 3 requires the binding type to be exactly
-        // 'int', and step 4 hands the initializer to the accepted expression
-        // grammar. An assignment enters at step 4.
+        // One step of 'let [mut] IDENT : TYPE =' or of 'IDENT ='. Step 0 admits
+        // 'mut' as its alternate, step 3 admits the binding type, and step 4
+        // hands the initializer to the accepted expression grammar. An
+        // assignment enters at step 4.
+        //
+        // CAP-057 gives the binding position the type machine the CAP-050
+        // parameter position already has, plus 'ByteBuffer'. Step 3 branches on
+        // the spelling: 'int' and 'ByteBuffer' complete at step 4, 'Result'
+        // goes to step 5, and steps 5..9 mirror parameter modes 3..7 exactly -
+        // '<', an 'int', ',', an 'int', '>' - before returning to step 4. The
+        // two nested positions stay 'int' only, so 'Result<Result<...>, int>'
+        // is refused there exactly as CAP-050 refuses it in a signature.
+        //
+        // Nothing is stored. The parameter machine stores a type code because
+        // the parameter store is folded into the parse checksum; a binding has
+        // no such store, so the type is checked and discarded exactly as 'mut'
+        // is, and this branch appends no node and pushes no record.
         if parser_cycle_state == 47 {
             stmt_cycle_step = stmt_step;
             stmt_expected = 1;
@@ -1833,6 +1855,15 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if stmt_cycle_step == 4 {
                 stmt_expected = 25;
+            }
+            if stmt_cycle_step == 5 {
+                stmt_expected = 29;
+            }
+            if stmt_cycle_step == 7 {
+                stmt_expected = 16;
+            }
+            if stmt_cycle_step == 9 {
+                stmt_expected = 31;
             }
             if current_kind < 0 || current_start < 0 || current_length < 0
                 || current_line <= 0 || current_column <= 0 {
@@ -1849,8 +1880,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 diagnostic_actual = current_kind;
                 parser_running = 0;
             }
-            if parser_running == 1 && stmt_cycle_step == 3 {
+            if parser_running == 1 && (stmt_cycle_step == 3 || stmt_cycle_step == 6
+                || stmt_cycle_step == 8) {
                 stmt_is_int = 0;
+                stmt_is_buffer = 0;
+                stmt_is_result = 0;
                 if current_length == 3 {
                     stmt_b0 = result_value(bytes_get(&source, current_start));
                     stmt_b1 = result_value(bytes_get(&source, current_start + 1));
@@ -1859,7 +1893,39 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                         stmt_is_int = 1;
                     }
                 }
-                if stmt_is_int == 0 {
+                if stmt_cycle_step == 3 && current_length == 6 {
+                    stmt_b0 = result_value(bytes_get(&source, current_start));
+                    stmt_b1 = result_value(bytes_get(&source, current_start + 1));
+                    stmt_b2 = result_value(bytes_get(&source, current_start + 2));
+                    stmt_b3 = result_value(bytes_get(&source, current_start + 3));
+                    stmt_b4 = result_value(bytes_get(&source, current_start + 4));
+                    stmt_b5 = result_value(bytes_get(&source, current_start + 5));
+                    if stmt_b0 == 82 && stmt_b1 == 101 && stmt_b2 == 115
+                        && stmt_b3 == 117 && stmt_b4 == 108
+                        && stmt_b5 == 116 {
+                        stmt_is_result = 1;
+                    }
+                }
+                if stmt_cycle_step == 3 && current_length == 10 {
+                    stmt_b0 = result_value(bytes_get(&source, current_start));
+                    stmt_b1 = result_value(bytes_get(&source, current_start + 1));
+                    stmt_b2 = result_value(bytes_get(&source, current_start + 2));
+                    stmt_b3 = result_value(bytes_get(&source, current_start + 3));
+                    stmt_b4 = result_value(bytes_get(&source, current_start + 4));
+                    stmt_b5 = result_value(bytes_get(&source, current_start + 5));
+                    stmt_b6 = result_value(bytes_get(&source, current_start + 6));
+                    stmt_b7 = result_value(bytes_get(&source, current_start + 7));
+                    stmt_b8 = result_value(bytes_get(&source, current_start + 8));
+                    stmt_b9 = result_value(bytes_get(&source, current_start + 9));
+                    if stmt_b0 == 66 && stmt_b1 == 121 && stmt_b2 == 116
+                        && stmt_b3 == 101 && stmt_b4 == 66 && stmt_b5 == 117
+                        && stmt_b6 == 102 && stmt_b7 == 102 && stmt_b8 == 101
+                        && stmt_b9 == 114 {
+                        stmt_is_buffer = 1;
+                    }
+                }
+                if stmt_is_int == 0 && stmt_is_buffer == 0
+                    && stmt_is_result == 0 {
                     status = 12;
                     error_offset = current_start;
                     error_line = current_line;
@@ -1874,6 +1940,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 stmt_step = stmt_cycle_step + 1;
                 if stmt_cycle_step == 0 && current_kind == 1 {
                     stmt_step = 2;
+                }
+                if stmt_cycle_step == 3 && stmt_is_result == 1 {
+                    stmt_step = 5;
+                }
+                if stmt_cycle_step == 9 {
+                    stmt_step = 4;
                 }
                 parser_state = 46;
                 if stmt_cycle_step == 4 {
