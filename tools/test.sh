@@ -59,6 +59,40 @@ for var in CARGO_TARGET_DIR TMPDIR TMP TEMP; do
   esac
 done
 
+# Cap build and test parallelism so a gate cannot drive the machine into commit
+# exhaustion.
+#
+# On 2026-08-19 a full-parallelism `cargo build` on this repository died with
+# `memory allocation of 3670016 bytes failed`, taking rustc down with internal
+# compiler errors in unrelated crates (`ryu`, `anstyle`) on the way. Neither is
+# a product failure, and neither is a disk-space failure in the ordinary sense.
+# The machine has 32 GB of RAM and had free physical memory at the time; what
+# was exhausted was the *system commit limit* - 81.8 GB, with 1.3 GB free -
+# because the OS-managed pagefile could not grow. It could not grow because the
+# system drive was down to 291 MB.
+#
+# The block above keeps our own output off the system drive, and it is not
+# enough on its own: parallel `rustc` plus dozens of linked `clang` test
+# executables is precisely the workload that drives commit charge up, and the
+# pagefile lives on the system drive no matter where CARGO_TARGET_DIR, TMP and
+# TEMP point. Capping the work in flight is the part that addresses the cause.
+#
+# Two is measured to build and gate this repository cleanly on that machine. The
+# cost is wall clock: the full gate goes from roughly 25-40 minutes to roughly
+# 40. That is the correct trade. A gate that dies after half an hour costs more
+# than a slower one that finishes, and it costs it twice, because an OOM in a
+# dependency reads like a product regression until someone measures the commit
+# limit.
+#
+# Any value already exported wins, so a machine with headroom can raise or
+# remove the cap without editing this script:
+#
+#     CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=8 ./tools/test.sh
+#
+: "${CARGO_BUILD_JOBS:=2}"
+: "${RUST_TEST_THREADS:=2}"
+export CARGO_BUILD_JOBS RUST_TEST_THREADS
+
 cd "$COMPILER_DIR"
 
 cargo fmt --check

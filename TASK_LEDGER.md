@@ -1,5 +1,115 @@
 # Aero Task Ledger
 
+## OPS-002 - the gate's own parallelism was the cause, 2026-08-20 - operations note, not a checkpoint
+
+No contract, no product change, no capability claim. `tools/test.sh` and this
+note are the whole change; `examples/` and `src/` are untouched. Recorded
+because OPS-001 fixed *where* the gate writes and this fixes *how hard it
+pushes*, and only the second one explains the failure that started both.
+
+### What actually failed, and why it is not what it looked like
+
+During CAP-057 a full-parallelism `cargo build` died with
+
+    memory allocation of 3670016 bytes failed
+
+and took `rustc` down with internal compiler errors in crates this project does
+not own - `cannot find trait 'Default' in this scope` inside `ryu`, and
+`could not resolve trait item being implemented` inside `anstyle`. Read cold,
+that is a broken toolchain or a poisoned target directory. It is neither.
+
+Measured at the moment of failure:
+
+| | |
+|---|---|
+| physical RAM | 32 GB, **4.7 GB free** |
+| system commit limit | **81.8 GB** |
+| commit available | **1.3 GB** |
+| `C:` free | **291 MB** |
+| pagefile | OS-managed, 47.2 GB allocated, 7.4 GB peak use |
+
+The machine had free *physical* memory and no free *commit*. The pagefile could
+not grow because the system drive had 291 MB, and the commit limit is physical
+RAM plus pagefile. Every allocation past that point fails no matter how much RAM
+is idle.
+
+**OPS-001's fix does not cover this and was never going to.** It keeps
+`CARGO_TARGET_DIR`, `TMP`, `TEMP` and `TMPDIR` off the system drive, and it
+aborts if any of them resolves onto `C:`. The pagefile is not one of those
+variables. It lives on the system drive regardless of where this project writes,
+so the one thing a gate can do about it is generate less pressure.
+
+### The fix
+
+`tools/test.sh` now defaults `CARGO_BUILD_JOBS` and `RUST_TEST_THREADS` to **2**,
+respects any value already exported, and exports both. Parallel `rustc` plus
+dozens of linked `clang` test executables is exactly the workload that drives
+commit charge, and two is measured to build and gate this repository cleanly on
+this machine - every CAP-057 gate ran under it.
+
+**The cost is wall clock and it is the correct trade.** The full gate goes from
+roughly 25-40 minutes to roughly 40; the three CAP-057 gates, all run under
+this cap, each completed in roughly 37-39 minutes. A gate that dies after half
+an hour costs more than a slower one that finishes, and it costs it twice,
+because an OOM inside a dependency reads like a
+product regression until somebody thinks to measure the commit limit. A machine
+with headroom raises or removes the cap without editing the script:
+
+    CARGO_BUILD_JOBS=8 RUST_TEST_THREADS=8 ./tools/test.sh
+
+### A correction to OPS-001's premise, from measuring it again
+
+OPS-001 recorded `C:` at 1.3 GB free and attributed the exhaustion to the
+pagefile, the hibernation file and application data rather than to this project.
+That attribution holds and is reconfirmed: **this project still has no `target`
+directory, no incremental directory and no build leftovers anywhere on `C:`.**
+
+What OPS-001 did not establish is that the figure moves on its own. Measured
+across 2026-08-19 to 2026-08-20 with no deliberate reclamation in between,
+`C:` free went 1.3 GB -> 291 MB -> 20.9 GB -> 36.5 GB. The pagefile shrank from
+47.2 GB to 35.8 GB after the CAP-057 gates finished, returning about 11 GB, and
+Windows' own automatic maintenance returned roughly a further 15 GB that is
+**not** attributable to anything this project did. So the 291 MB was a
+*transient* produced largely by our own gate, and the drive recovers afterwards.
+
+That matters for how the number should be read. **`C:` free is not a reliable
+standing figure on this machine, and a session that sees it low should not
+conclude the disk is full - it should measure the commit limit, which is what
+actually stops a build.** `Get-CimInstance Win32_OperatingSystem` reports
+`TotalVirtualMemorySize` and `FreeVirtualMemory`; those two are the diagnostic.
+
+### What was reclaimed, and what was deliberately left
+
+Reclaimed:
+
+| where | size | what |
+|---|---|---|
+| `D:\Aero-build-targets`, 28 of 30 roots | **192.97 GB** | per-checkpoint cargo target roots from CAP-031 through H1B, 2-5 days stale, rebuild-only cost |
+| `C:\Users\usa50\.cargo\registry` | **283.9 MB** | `cache`, `src` and `index`; costs a re-download on the next build |
+
+Left, deliberately:
+
+- `D:\Aero-build-targets\cap057`, 10.56 GB - the root CAP-057 gated against and
+  the warm cache H1M-2 will use.
+- `D:\Aero-build-targets\cap-033-red`, 70.04 MB - one `aero.pdb` is held by an
+  open handle belonging to `MsMpEng` (Windows Defender), which is the same
+  interference `AGENTS.md` records against freshly linked test executables.
+  Removing it means interfering with Defender for 70 MB.
+- `C:\Users\usa50\.cargo\bin`, 171 MB - the cargo and rustc **binaries**, not a
+  cache. Deleting them removes the toolchain.
+- 1.7 GB in `%TEMP%\evfqwd2p` - a .NET SDK / Visual Studio installer staging
+  tree (Emsdk manifests, AspNetCore shared frameworks, `Microsoft.Build.vsix`).
+  Not ours, so not ours to remove.
+- 399.6 MB of Docker Desktop state, and ~37 MB belonging to unrelated Claude
+  sessions in `%TEMP%`. Not attributable to this project.
+
+**The two changes that would actually matter are system settings and are
+deliberately not made here**: the pagefile is allocated at 35.79 GB against a
+7.58 GB peak, and `hiberfil.sys` is 12.75 GB with hibernation and Fast Startup
+enabled. Between them they hold roughly 40 GB. Both are Rob's to decide, both
+are recorded in the handoff with the exact commands, and neither is an agent's
+call to make on his behalf.
+
 ## OPS-001 - the C: drive exhaustion, 2026-08-19 - operations note, not a checkpoint
 
 No contract, no gate obligation, no product change. Recorded because the
