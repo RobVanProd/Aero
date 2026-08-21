@@ -597,6 +597,248 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-058-H1M2-MODULE-MEANING stage 2a - the semantic group over N function items
+
+- Date/task/status: 2026-08-21, `CAP-058-H1M2-MODULE-MEANING`, **stage 2a
+  implemented, the checkpoint incomplete**. Implemented from
+  `529e931ec1d64052891a0898978e4ea6e3d33169`, which
+  `git ls-remote origin claude/self-hosting-analysis-be3f72`, run from the
+  worktree and querying that branch by name, confirms is both the local `HEAD`
+  and the remote head. The session prompt named `529e931` and warned not to
+  trust it. **The warning did not fire this time either** - that is now three
+  consecutive non-firings, CAP-057, CAP-058's contract and this - and it is
+  still a reason to verify rather than a prediction. It was verified.
+- The contract above is the authority and was followed rather than re-derived.
+  Decision 7 stages the checkpoint 2a then 2b, each a complete green
+  independently evidenced tree, and says in terms: **if only 2a lands, the
+  checkpoint is incomplete and must be recorded as incomplete.** Only 2a
+  landed. H1M-2 is **not** green. The verifier refusal of Decision 1 row 3 -
+  `verified_actual = N` at `:5555` - has **not** been observed, and nothing in
+  this record may be cited as if it had.
+
+### What stage 2a changed, and what it did not
+
+Decision 4 only, at the three sites the contract enumerates as S1, S2 and S3,
+inside `examples/aero_self_host_v0/compiler.aero`'s semantic group. No
+parse-group line, no checked-IR line, no verifier line, no emitter line, no
+driver line, and not `main`.
+
+- **S1 is now N symbols.** The item chain is walked from `root` for its count -
+  CAP-056 gave a kind-19 node's `right` the previous item's node id - and a
+  separate ascending scan appends `[1, payload(F_i), F_i, 1]` for each kind-19
+  node. The two walks are independent, which is what makes `symbol_count !=
+  item_count` in S3 a real check rather than a tautology. Ascending node id is
+  source order and the reverse of the chain, so symbol index, item order and
+  future function id are the same number.
+- **S2 is now a chain rule.** `semantic_left == semantic_node - 1` and
+  `semantic_left_type == 0` are kept verbatim. `semantic_right` must equal the
+  previous kind-19 node met in the same loop, zero for the first.
+  `semantic_payload == function_payload` becomes a read of symbol record `i`
+  back out of the `symbols` arena, requiring its name word to equal
+  `semantic_payload` and its function word to equal `semantic_node` - a genuine
+  cross-check between pass 2 and pass 4 over the same item, where the accepted
+  rule compared against a single register. `semantic_node == root` is asserted
+  once after the loop, for the last item.
+- **S3 is now `symbol_count != item_count`, `bytes_len(&symbols) != item_count *
+  16`, and the two post-loop assertions above.**
+- **Pass 1 and pass 3 are untouched, and `fact_count == node_count` is not
+  weakened, relaxed or made conditional.**
+- One thing the contract's implementation notes required and that is easy to
+  miss: `function_start` / `function_line` / `function_column` hold the **last**
+  signature's location after a completed multi-item parse, so per-item failures
+  in pass 2 now read the origins arena instead. The whole-module checks at S3
+  keep the registers, because a module-level failure is not located at an item.
+
+### What the probes establish, and what they do not
+
+Seven shapes, A through G of the contract, in a new `MEANING_PROBES` table.
+A, B and C re-derive node counts `MODULE_PROBES` already holds and the
+agreement is **asserted** rather than assumed.
+
+**They establish**, on the real linked product at `-O0`:
+
+- B, C, D and E reach `semantic_status = 0` with `symbol_count = N`, one fact
+  per node, and `semantic_root_type = 1`, and are then refused by C1 -
+  `compiler.aero:4583`, `symbol_count != 1` - with `checked_attempted = 1`,
+  `checked_status = 4`, `checked_node = root`, `checked_code = 3`. C1 is
+  **predicted and not modified**. That is the whole of stage 2a's
+  product-visible claim and it crosses exactly one authority.
+- F is refused by pass 4 at node 7 with `25` / `18`, expected 1 actual 2 -
+  **item 2's** return node, against **item 2's** own expression type. A
+  generalization that carried item 1's `semantic_left_type` forward would
+  accept it.
+- G is refused by pass 3 at node 4 with `17` / `2` - **item 2's** `a` - with
+  `symbol_count` still 2, because pass 2 precedes pass 3. Pass 3 was not
+  widened.
+
+**They do not establish** any of the following, and no later record may read
+them as if they did:
+
+- Nothing about the checked-IR group beyond its own existing C1 refusal. E is
+  in this table to prove the checked group *evaluates item 2's expressions*,
+  and at stage 2a it does not: C1 fires before the expression loop runs, so E,
+  B, C and D are refused identically and E's division by zero is never reached.
+  **E is currently carrying no more weight than B.** That is stage 2b's to fix.
+- Nothing about the verifier. `verified_attempted` is 0 on every probe here.
+- Nothing about a module of N functions being *compiled*. No identifier is
+  resolved, no function calls another, and the emitter is never reached for any
+  multi-item shape.
+- Nothing about the canonical source's capability. See the negative control.
+
+### The deliberate out-of-table grading, and a correction to the contract
+
+Three halves, as the contract requires, and the first one does not survive
+contact.
+
+**Half one cannot be executed as written, and that is a finding rather than an
+omission.** The contract asks for zero churn between CAP-056's
+`module_semantic_stop` and this checkpoint's model "on every shape whose parse
+does not complete, and on every single-item shape". **Neither model is defined
+on either set.** `module_semantic_stop` asserts a completed parse *and* more
+than one item; `module_semantic_meaning` asserts a completed parse. So the
+comparison the contract names is vacuous, not strong. What replaces it is
+strictly stronger and is executable: on the shapes both models *can* express -
+a multi-item module refused by pass 3 - the located refusal must be identical
+field for field and the two models must differ in **exactly one** place,
+`symbols` and the `symbol_words` behind it. That is asserted by widening
+CAP-056's stop by that one field and requiring equality with this checkpoint's.
+
+**Half two, the contradiction, holds and is extended.** CAP-056's model is kept
+verbatim, still asserted to predict `27` / `3` at item 1's function node, and
+the product must now reject it. Three shapes contradict rather than the two the
+contract names: B, C **and G**. G is the extension and it is worth stating -
+its *located refusal* is identical under both models, and CAP-056's vector is
+still rejected by the product, because pass 2 now emits two symbols where the
+old model says one. A checkpoint that only checked located refusals would have
+missed it.
+
+**Half three, the one that is not a vector comparison at all.** CAP-056's model
+`panic!`s on any node kind its probes never reached. Four probes are declined
+by it: D, E and F for node kinds 5, 6, 8 and one of 10-15, and A because a
+single-item module trips its other assertion. Asserted as a caught panic, with
+the message checked, so the model's stated limit is documented in code rather
+than left as an unreached branch.
+
+### The negative control, unmoved and one field moved
+
+`compiler.aero` itself, 23 items. Its node 1 is `result_value`'s arm-1 body
+`value` at offset 98, line 3, column 22, and semantic pass 3 refuses any kind-2
+node outright, so this checkpoint's capability cannot be demonstrated on the
+canonical source at all. Its located refusal is **unchanged**: `17` / `2`, node
+1, offset 98, line 3, column 22, `checked_attempted = 0`.
+
+**One field moves and it was predicted rather than discovered.** `symbol_count`
+goes 1 -> 23, because pass 2 emits one symbol per item and completes before
+pass 3 refuses. That is the stress test working: 23 items and an arena of
+18,650 node records went through the rewritten pass and the refusal stayed at
+node 1. CAP-056's model is kept, still asserts 1, and the product now rejects
+its vector - half two applied to the shape the contract's table did not
+enumerate.
+
+### The census, worse by design
+
+Reachable stays at exactly **240**, and it is a constraint on the diff rather
+than an observation about it: the edit adds no `return` statement - zero added
+lines contain one - and touches no function's final return expression, so the
+derivation the contract's Decision 2 sets out stands. The node count is not
+17,985 any more, because `compiler.aero` is both the product and the canonical
+source and this edit lands inside item 22.
+
+**The census is 240 of 18,650.** The ratio gets worse - 98.665% orphaned
+becomes 98.713% - and **a worsening ratio here is expected rather than a
+regression**: every one of the 665 nodes this diff adds is an orphan, by
+construction, because none of them is reachable from any item's final return
+expression. No record may cite the movement as progress or as decay.
+
+### The eight single-function assumptions, and where stage 2a leaves them
+
+The contract found eight where `BOOTSTRAP_CONVERGENCE_READINESS.md:504` names
+three. Stage 2a discharges the three semantic ones and **none** of the five
+checked-IR ones, which is exactly what one authority buys:
+
+| | site | state after stage 2a |
+|---|---|---|
+| S1 | `:4116` | **discharged** - N symbols, source order |
+| S2 | `:4390` | **discharged** - a chain rule, cross-checked against the symbol record |
+| S3 | `:4443` | **discharged** - `N` and `16N` |
+| C1 | `:4583` | **open, and it is what refuses every probe here** |
+| C2 | `:4592` | open |
+| C3 | `:4619` | open - the one the readiness table names |
+| C4 | `:5043` | open |
+| C5 | `:5115` | open |
+| C6 | `:5163` | open |
+| C7 | `:5229` | open - the contract's own correction, still unmet |
+| C8 | `:5300` | open |
+
+### Hand-derivations, their corrections, and where each was fixed
+
+Four disagreements between a hand-derivation and an instrument. **All four were
+fixed at the mechanism and none by tuning a number**, and all four are reported
+rather than smoothed.
+
+1. **The cost instrument, three rules.** The arena delta needed an independent
+   cost model, and the first draft of that model reproduced neither
+   `CANONICAL_ITEM_ARENAS` nor the whole-file base. Three *rules* were wrong,
+   not three constants: an assignment target is free; a `match` scrutinee is
+   free; and a grouping `(` and a call each push an operator record but no node
+   and no value. Fixed, the model reproduces all fourteen cumulative per-item
+   rows and the whole pre-edit file exactly on all five arenas, and only then
+   was it used to price the diff.
+2. **Half three of the out-of-table grading - a correction to the contract.**
+   The contract predicts D, E **and F** are declined by CAP-056's model for
+   carrying node kinds it has never seen. Only D is. CAP-056's model returns at
+   the **first** kind-19 node that is not `root`, which in E and F is item 1's
+   function node at id 3 - met before item 2's `/` or `<` at node 6. D's unseen
+   kind is the `+` at node 3, inside item 1, so it is met first. The property is
+   not "the probe carries an unseen kind" but "the probe carries an unseen kind
+   **before item 1's function node**". The contract's reasoning did not account
+   for its own early return. Fixed by asserting both halves - the two declined
+   shapes, and that the other four all stop at node 3 - so neither can be cited
+   for the other.
+3. **The churn partition.** The first draft filtered on "both models refuse",
+   which admits F as well as G, and the two models disagree on F in the located
+   refusal itself. That is half two's contradiction, not churn. Fixed by naming
+   the property the filter means: both models refuse **in the same place**.
+4. **A collision in the product, found by the Rust compiler rather than by
+   reading.** `item_previous` already exists in `run_runtime_ascii_llvm_emitter`
+   as the parser's item-chain register at `:1167`, and the Aero subset's
+   semantic analyzer scopes a function body as one scope, so the new binding was
+   rejected with "already defined in this scope". The five new pass-2 registers
+   are named `semantic_item_*`. Recorded because a later session adding
+   registers to this function will meet the same thing.
+
+### What is explicitly not claimed
+
+A module is not a program, and stage 2a is not the checkpoint. The compiler now
+accepts a module of N functions **through semantic analysis** and no further. It
+constructs no checked-IR module for N > 1, verifies nothing, emits nothing,
+resolves no identifier, calls no function from another, and represents no
+binding, assignment, statement sequence, conditional or loop. 98.713% of the
+canonical arena is unreachable and this stage makes that figure worse rather
+than better. The verifier's `verified_actual = N` at `:5555` - the assertion the
+contract says pins this checkpoint - **has not been observed**.
+
+### Gate
+
+Result columns were written from a read exit status and not before. Times are
+UTC on 2026-08-21.
+
+| run | target | tree | result |
+|---|---|---|---|
+| 1 | `cargo test --test self_host_source_ingestion_tests`, the seven new tests only | **`compiler.aero` at `529e931`, unmodified**, plus the new probes and model - the red-first run | **exit 101**, 3 passed / 4 failed. Two failures are the intended red: `two-items` and `two-items-second-returns-bool` return **90**, the semantic-group mismatch code, against the base product. The other two were this session's own hand-derivation errors and are corrections 2 and 3 above |
+| 2 | the same target, whole | the semantic generalization applied | **exit 101**, 32 passed / 28 failed. Twenty-six failures are one cause: the Rust compiler refuses `compiler.aero` with "Variable `item_previous` is already defined in this scope". Correction 4 |
+| 3 | the same target, whole | the registers renamed | **exit 101**, 55 passed / 5 failed. Four are inherited tests whose premise expired and one is correction 4's remaining half |
+| 4 | the same target, whole | the four inherited tests inverted and the B1C reconstruction extended | **exit 0**, **60 passed, 0 failed**, in 482.55 s |
+| 5 | `./tools/test.sh` from the repository root | **the exact tree committed**, carrying these records | **result recorded in the commit message.** No result is claimed in this cell |
+
+Run 5's row claims nothing, for the reason the contract's own stop condition 10
+established: a gate row naming its own run cannot be written into the tree that
+run covered. Exactly one unrecorded run is in flight at commit time, by
+construction.
+
+The tripwire over all 493 tracked files was taken before anything was read and
+re-verified before the commit. No file changed that this session did not change.
+
 ## CAP-058-H1M2-MODULE-MEANING - the semantic and checked-IR groups over N function items
 
 - Date/task/status: 2026-08-20, `CAP-058-H1M2-MODULE-MEANING`, authored

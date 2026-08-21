@@ -1,6 +1,6 @@
 # Aero Project State
 
-Last updated: 2026-08-19 (America/New_York)
+Last updated: 2026-08-21 (America/New_York)
 
 ## Current objective
 
@@ -96,11 +96,18 @@ which admits the H1B grammar; it does **not** discharge
 `BOOTSTRAP_CONVERGENCE_READINESS.md:223`, because five of the six checkpoints
 admit a construct without representing it and capacity represents nothing.
 CAP-056/H1M-1 is the first checkpoint of the module-shape gate that follows
-H1B, and it is one of that gate's three. H1M-2 (semantic and checked IR) now has
-a contract, `CAP-058-H1M2-MODULE-MEANING` in `TASK_LEDGER.md`, **authored and
-not implemented**; no product line of the semantic or checked-IR group has been
-changed under it and no capability is claimed for it here. H1M-3 (verifier and
-emitter) is not authorized. Its status is stated with its
+H1B, and it is one of that gate's three. H1M-2 (semantic and checked IR) is
+contracted as `CAP-058-H1M2-MODULE-MEANING` in `TASK_LEDGER.md` and is
+**partially implemented and incomplete**: its stage 2a, the semantic group
+alone, is implemented and locally green, and its stage 2b, the checked-IR
+group, is not started. **H1M-2 is not green and no capability is claimed for
+the checkpoint.** What stage 2a establishes is that the semantic phase accepts
+a module of N function items - N symbols in source order, one fact per node,
+`semantic_root_type = 1` - and that the refusal has moved one authority down to
+the checked-IR group's own `symbol_count != 1` at `compiler.aero:4583`, which is
+predicted and unmodified. The verifier is not reached by any multi-item module,
+so the `verified_actual = N` assertion the contract says pins this checkpoint
+has **not** been observed. H1M-3 (verifier and emitter) is not authorized. Its status is stated with its
 evidence in the correction immediately below, and it is **not** claimed here.
 
 #### Retraction: this file asserted CAP-056 green before any run said so
@@ -519,10 +526,14 @@ product edited and the source parsed, a parse that runs end to end measures the
 edit itself, so the acceptance figure is a procedure rather than a number; every
 prior checkpoint escaped this only because its edits fell past its own stop.
 
-CAP-058/H1M-2 is **contracted and not implemented**. The contract is authored
-ledger-first from `aaaf6a8`, confirmed the branch tip by `git ls-remote`, and it
-is committed with the gate green and no product edit, which is the state the
-checkpoint is in. Three of its findings are recorded here because they are facts
+CAP-058/H1M-2 is **contracted, with stage 2a implemented and the checkpoint
+incomplete**. The contract was authored ledger-first from `aaaf6a8` and
+committed at `529e931` with the gate green and no product edit; stage 2a is
+implemented from `529e931`, confirmed the branch tip by `git ls-remote` run from
+the worktree. Decision 7 of the contract stages the checkpoint 2a then 2b and
+says in terms that if only 2a lands the checkpoint is incomplete and must be
+recorded as incomplete. It is so recorded. Three of the contract's findings are
+recorded here because they are facts
 about the accepted product rather than about work not yet done. **The canonical
 source cannot demonstrate this checkpoint's capability at all**: the semantic
 phase's third pass refuses every kind-2 identifier node outright, the canonical
@@ -541,6 +552,25 @@ instruction record `i`, and the `instructions == results + 1` invariant. H1M-2
 discharges **none** of the representation debt and its expected census is 240
 reachable nodes, unchanged, over a node count that grows by the cost of its own
 diff.
+
+Stage 2a's own figures, each read from a completed run and not before. The
+focused target `self_host_source_ingestion_tests` returned **exit 0** with
+**60 passed, 0 failed** in 482.55 seconds. The census is **240 reachable of
+18,650**, against 240 of 17,985 before: the ratio worsens from 98.665% orphaned
+to 98.713%, **which is expected by construction rather than a regression** -
+every one of the 665 nodes stage 2a's diff adds is an orphan, because none is
+reachable from any item's final return expression, and no record may cite the
+movement as progress or as decay. The five-arena delta is
+`(665, 569, 285, 19, 64)`, hand-derived from the diff by an independent cost
+instrument that reproduces the fourteen per-item rows and the whole pre-edit
+file exactly before it was used to price anything. The canonical source's
+located refusal is **unchanged** at `17` / `2`, node 1, offset 98, line 3,
+column 22, with `checked_attempted = 0`; its `symbol_count` moves from 1 to 23,
+which is predicted and is the stress test working rather than a drift. Three
+findings of this session's own are in the ledger: a correction to the
+contract's half-three grading, a correction to its half-one grading, which
+cannot be executed as written because neither model is defined on the shapes it
+names, and a name collision in `run_runtime_ascii_llvm_emitter`.
 
 CORE-093 is the code-generator fix CAP-049 uncovered and is locally green. The
 generator emitted each value's storage slot inline, so every checked `ByteBuffer`

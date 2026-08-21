@@ -2163,6 +2163,326 @@ mod oracle {
         }
         vector
     }
+
+    /// CAP-058 / H1M-2. What the *generalized* semantic phase does to a module
+    /// whose parse completed, for any item count.
+    ///
+    /// [`module_semantic_stop`] is CAP-056's model and is deliberately left as
+    /// it stands: it predicts `27` / `3` at item 1's function node, which is
+    /// what the product did before this checkpoint and what it must now
+    /// contradict. This is the second model, derived from the frozen contract's
+    /// Decision 4 and from the accepted rule table, and the two are graded
+    /// against each other rather than merged.
+    ///
+    /// Four passes, in the product's own order. Pass 1 authenticates origins
+    /// and is not modelled - no probe here can fail it. Pass 2 walks the item
+    /// chain from `root` for its count and then appends one symbol per kind-19
+    /// node in ascending node id. Pass 3 refuses **any** kind-2 node outright
+    /// and is untouched by this checkpoint. Pass 4 classifies one node per
+    /// iteration and appends exactly one fact per node.
+    pub fn module_semantic_meaning(stopped: &Ingestion) -> SemanticStop {
+        assert_eq!(stopped.status, 0, "the parse must complete first");
+        assert!(stopped.root > 0, "a completed parse always has a root");
+
+        // Pass 2, first half: the item chain, walked from `root` backwards.
+        // `right` carries the previous item's node id and is zero at item 1.
+        let mut item_count = 0i32;
+        let mut link = stopped.root;
+        while link > 0 {
+            let node = stopped.nodes[usize::try_from(link).expect("bounded link") - 1];
+            assert_eq!(node[0], 19, "every chain link is a function node");
+            assert!(
+                node[3] >= 0 && node[3] < link,
+                "the chain strictly decreases"
+            );
+            item_count += 1;
+            link = node[3];
+        }
+
+        let mut stop = SemanticStop {
+            status: 0,
+            node: 0,
+            offset: -1,
+            line: 0,
+            column: 0,
+            code: 0,
+            expected: 0,
+            actual: 0,
+            symbols: 0,
+            facts: 0,
+            root_type: 0,
+            symbol_words: Vec::new(),
+            fact_words: Vec::new(),
+        };
+
+        // Pass 2, second half: one symbol per kind-19 node, ascending node id.
+        // Ascending node id is source order and is the reverse of the chain
+        // just walked, so symbol index, item order and function id agree.
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            if node[0] == 19 {
+                let id = i32::try_from(index + 1).expect("bounded node");
+                stop.symbol_words.extend_from_slice(&[1, node[1], id, 1]);
+                stop.symbols += 1;
+            }
+        }
+        assert_eq!(
+            stop.symbols, item_count,
+            "the ascending scan and the chain walk must find the same items"
+        );
+
+        // Pass 3, untouched: every identifier use is refused, located at its
+        // own origin, before one fact is appended. Note that the symbols are
+        // already emitted, so a module refused here still reports `N`.
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            if node[0] == 2 {
+                let origin = stopped.origins[index];
+                stop.status = 17;
+                stop.node = i32::try_from(index + 1).expect("bounded node");
+                stop.offset = origin[1];
+                stop.line = origin[2];
+                stop.column = origin[3];
+                stop.code = 2;
+                return stop;
+            }
+        }
+
+        // Pass 4: one classified fact per node, in node order.
+        let mut item_index = 0usize;
+        let mut previous_function = 0i32;
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            let id = i32::try_from(index + 1).expect("bounded node");
+            let origin = stopped.origins[index];
+            stop.node = id;
+            stop.offset = origin[1];
+            stop.line = origin[2];
+            stop.column = origin[3];
+            let type_of = |reference: i32, words: &[i32]| -> i32 {
+                if reference > 0 {
+                    words[(usize::try_from(reference).expect("bounded reference") - 1) * 3 + 1]
+                } else {
+                    0
+                }
+            };
+            let left_type = type_of(node[2], &stop.fact_words);
+            let right_type = type_of(node[3], &stop.fact_words);
+            let kind = node[0];
+            let (complete_type, ownership) = match kind {
+                // `:4222`. An integer literal is a complete owned `int`.
+                1 => (1, 1),
+                // `:4310`. A prefix operator, typed by what it is applied to.
+                3 | 4 => {
+                    let expected = if kind == 3 { 1 } else { 2 };
+                    if left_type != expected {
+                        stop.status = if kind == 3 { 24 } else { 23 };
+                        stop.code = kind;
+                        stop.expected = expected;
+                        stop.actual = left_type;
+                        return stop;
+                    }
+                    (expected, 1)
+                }
+                // `:4328`. Integer arithmetic over two complete `int`s.
+                5 | 6 | 8 | 9 => {
+                    if left_type != 1 || right_type != 1 {
+                        stop.status = 19;
+                        stop.code = kind;
+                        stop.expected = 1;
+                        stop.actual = if left_type == 1 {
+                            right_type
+                        } else {
+                            left_type
+                        };
+                        return stop;
+                    }
+                    (1, 1)
+                }
+                // `:4344`. The remainder operator has no rule and never had.
+                7 => {
+                    stop.status = 18;
+                    stop.code = 7;
+                    return stop;
+                }
+                // `:4349`. A comparison of two equal complete types is `bool`.
+                10..=15 => {
+                    if left_type <= 0 || right_type <= 0 || left_type != right_type {
+                        stop.status = 20;
+                        stop.code = kind;
+                        stop.expected = left_type;
+                        stop.actual = right_type;
+                        return stop;
+                    }
+                    (2, 1)
+                }
+                // `:4362`. The logical connectives require `bool` on both sides.
+                16 | 17 => {
+                    if left_type != 2 {
+                        stop.status = 21;
+                        stop.code = kind;
+                        stop.expected = 2;
+                        stop.actual = left_type;
+                        return stop;
+                    }
+                    if right_type != 2 {
+                        stop.status = 22;
+                        stop.code = kind;
+                        stop.expected = 2;
+                        stop.actual = right_type;
+                        return stop;
+                    }
+                    (2, 1)
+                }
+                // `:4379`. A return node requires a complete `int` under it.
+                18 => {
+                    if left_type != 1 {
+                        stop.status = 25;
+                        stop.code = 18;
+                        stop.expected = 1;
+                        stop.actual = left_type;
+                        return stop;
+                    }
+                    (0, 0)
+                }
+                // Decision 4's S2. The kind-19 rule is a **chain** rule now: the
+                // item's `right` must name the previous kind-19 node met in this
+                // same loop, its symbol record must agree with it in both name
+                // and function word - a cross-check between pass 2 and pass 4
+                // over the same item, where the accepted rule compared against a
+                // single register - and `semantic_node == root` is asserted only
+                // after the loop, for the last item.
+                19 => {
+                    if item_index >= usize::try_from(stop.symbols).expect("bounded symbols") {
+                        stop.status = 27;
+                        stop.code = 3;
+                        return stop;
+                    }
+                    let name_word = stop.symbol_words[item_index * 4 + 1];
+                    let function_word = stop.symbol_words[item_index * 4 + 2];
+                    if name_word != node[1]
+                        || function_word != id
+                        || node[2] != id - 1
+                        || node[3] != previous_function
+                        || left_type != 0
+                    {
+                        stop.status = 27;
+                        stop.code = 3;
+                        return stop;
+                    }
+                    previous_function = id;
+                    item_index += 1;
+                    (0, 0)
+                }
+                _ => {
+                    // `:4399`. Every kind without a rule is refused by name, and
+                    // `fact_count == node_count` is what forces a future
+                    // representation checkpoint to supply one.
+                    stop.status = 27;
+                    stop.code = 2;
+                    return stop;
+                }
+            };
+            stop.fact_words
+                .extend_from_slice(&[id, complete_type, ownership]);
+            stop.facts += 1;
+        }
+
+        // Decision 4's S3, generalized. Every one of these reduces to the
+        // accepted single-item check term by term at N = 1.
+        assert_eq!(stop.symbols, item_count);
+        assert_eq!(
+            i32::try_from(item_index).expect("bounded items"),
+            item_count
+        );
+        assert_eq!(previous_function, stopped.root, "the last item is `root`");
+        assert_eq!(
+            stop.facts,
+            i32::try_from(stopped.nodes.len()).expect("bounded nodes"),
+            "`fact_count == node_count` is frozen and is not weakened here"
+        );
+        stop.root_type = 1;
+        stop.node = 0;
+        stop.offset = -1;
+        stop.line = 0;
+        stop.column = 0;
+        stop.code = 0;
+        stop.expected = 0;
+        stop.actual = 0;
+        stop
+    }
+
+    /// The checked-IR-group checksum for a module the semantic phase accepted
+    /// and the checked group refused at C1 - `compiler.aero:4583`,
+    /// `symbol_count != 1`.
+    ///
+    /// C1 is **predicted and not modified** by stage 2a. It fires before one
+    /// word of `checked_ir` is serialized, so the arena fold is empty and every
+    /// counted figure is zero.
+    pub fn c1_refused_checked_checksum(semantic: i32, root: i32) -> i32 {
+        let mut checksum = 23;
+        checksum = checksum_step(checksum, semantic);
+        checksum = checksum_step(checksum, 997);
+        checksum = checksum_step(checksum, 998);
+        // status, node, offset + 1, line, column, code, expected, actual,
+        // attempted, values, instructions, results, words, root kind, root
+        // payload, root type.
+        for word in [4, root, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0] {
+            checksum = checksum_step(checksum, word);
+        }
+        checksum
+    }
+
+    /// The complete expectation vector for a multi-item module that the
+    /// generalized semantic phase **accepts** and the checked-IR group refuses
+    /// at C1.
+    ///
+    /// This is stage 2a's whole product-visible claim. The semantic group
+    /// reports `status = 0` with `N` symbols and one fact per node, and the
+    /// refusal has moved one authority down to a check this checkpoint does not
+    /// own and does not touch.
+    pub fn c1_refused_expectation_vector(
+        source: &[u8],
+        stopped: &Ingestion,
+        stop: &SemanticStop,
+    ) -> Vec<i32> {
+        assert_eq!(stop.status, 0, "C1 is only reached by an accepted module");
+        let semantic = refused_semantic_checksum(&stopped.origins, stop);
+        let checked = c1_refused_checked_checksum(semantic, stopped.root);
+        let mut vector = expectation_vector(source, stopped);
+        vector[11..24].copy_from_slice(&[
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            i32::try_from(stopped.origins.len()).expect("bounded origins"),
+            stop.symbols,
+            stop.facts,
+            stop.root_type,
+            semantic,
+        ]);
+        vector[24..41].copy_from_slice(&[
+            1,
+            4,
+            stopped.root,
+            -1,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            checked,
+        ]);
+        vector
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -4766,6 +5086,315 @@ const BINDING_ADVANCE: &str = r#"                if stmt_cycle_step == 0 && curr
                     stmt_step = 4;
                 }"#;
 
+// CAP-058 / H1M-2 stage 2a. The semantic group over N function items: symbol
+// emission generalized from one symbol read out of `root` to one per item, the
+// kind-19 fact rule generalized from "the one function is `root`" to a chain
+// rule cross-checked against the symbol record, and the module invariant
+// generalized from `1` and `16` to `N` and `16N`. No parse-group line moves and
+// no node kind is added, so the `1..=23` bound is untouched.
+
+const SEMANTIC_SYMBOLS_ANCHOR: &str = r#"    // Emit the one bounded function symbol before name/type classification.
+    let mut symbol_count: int = 0;
+    let mut fact_count: int = 0;
+    let mut semantic_append_field: int = 0;
+    let mut semantic_append_byte: int = 0;
+    let mut semantic_append_word: int = 0;
+    let mut semantic_append_value: int = 0;
+    let mut function_payload: int = 0;
+    if status == 0 && semantic_status == 0 {
+        word_offset = (root - 1) * 16 + 4;
+        byte_0 = result_value(bytes_get(&nodes, word_offset));
+        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+            semantic_status = 27;
+            semantic_node = root;
+            semantic_offset = function_start;
+            semantic_line = function_line;
+            semantic_column = function_column;
+            semantic_code = 3;
+        } else {
+            function_payload = byte_0 + byte_1 * 256 + byte_2 * 65536
+                + byte_3 * 16777216;
+        }
+    }
+    if status == 0 && semantic_status == 0 {
+        semantic_append_field = 0;
+        while semantic_status == 0 && semantic_append_field < 4 {
+            semantic_append_word = 1;
+            if semantic_append_field == 1 {
+                semantic_append_word = function_payload;
+            } else if semantic_append_field == 2 {
+                semantic_append_word = root;
+            } else if semantic_append_field == 3 {
+                semantic_append_word = 1;
+            }
+            semantic_append_byte = 0;
+            while semantic_status == 0 && semantic_append_byte < 4 {
+                semantic_append_value = word_byte_0(semantic_append_word);
+                if semantic_append_byte == 1 {
+                    semantic_append_value = word_byte_1(semantic_append_word);
+                } else if semantic_append_byte == 2 {
+                    semantic_append_value = word_byte_2(semantic_append_word);
+                } else if semantic_append_byte == 3 {
+                    semantic_append_value = word_byte_3(semantic_append_word);
+                }
+                push_result = result_value(bytes_push(&mut symbols, semantic_append_value));
+                if push_result < 0 {
+                    semantic_status = 26;
+                    semantic_node = root;
+                    semantic_offset = function_start;
+                    semantic_line = function_line;
+                    semantic_column = function_column;
+                    semantic_code = 2;
+                }
+                semantic_append_byte = semantic_append_byte + 1;
+            }
+            semantic_append_field = semantic_append_field + 1;
+        }
+        if semantic_status == 0 {
+            symbol_count = 1;
+        }
+    }
+"#;
+
+const SEMANTIC_SYMBOLS: &str = r#"    // Emit one bounded function symbol per module item, in source order.
+    //
+    // CAP-058/H1M-2 Decision 4. The item chain is walked from `root` for its
+    // count - CAP-056 gave a kind-19 node's `right` the previous item's node
+    // id - and the symbols are appended by a separate ascending scan, which is
+    // source order and the order the fact loop meets the items in. The two
+    // walks are independent, so `symbol_count != semantic_item_count` below
+    // is a real
+    // check rather than a tautology. For one item both reduce to the accepted
+    // path term by term: the single item is first and last, and its `right`
+    // is zero.
+    let mut symbol_count: int = 0;
+    let mut fact_count: int = 0;
+    let mut semantic_append_field: int = 0;
+    let mut semantic_append_byte: int = 0;
+    let mut semantic_append_word: int = 0;
+    let mut semantic_append_value: int = 0;
+    let mut function_payload: int = 0;
+    let mut semantic_item_count: int = 0;
+    let mut semantic_item_link: int = 0;
+    let mut semantic_item_previous: int = 0;
+    let mut semantic_item_kind: int = 0;
+    let mut semantic_item_node: int = 0;
+    if status == 0 && semantic_status == 0 {
+        semantic_item_link = root;
+        while semantic_status == 0 && semantic_item_link > 0 {
+            word_offset = (semantic_item_link - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            semantic_item_kind = 0;
+            semantic_item_previous = 0;
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_node = semantic_item_link;
+                semantic_code = 3;
+            } else {
+                semantic_item_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                word_offset = (semantic_item_link - 1) * 16 + 12;
+                byte_0 = result_value(bytes_get(&nodes, word_offset));
+                byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+                byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+                byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_node = semantic_item_link;
+                    semantic_code = 3;
+                } else {
+                    semantic_item_previous = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
+                }
+            }
+            if semantic_status == 0 && (semantic_item_kind != 19 || semantic_item_previous < 0
+                || semantic_item_previous >= semantic_item_link) {
+                semantic_status = 27;
+                semantic_node = semantic_item_link;
+                semantic_code = 3;
+            }
+            if semantic_status == 0 {
+                semantic_item_count = semantic_item_count + 1;
+                semantic_item_link = semantic_item_previous;
+            }
+        }
+    }
+    if status == 0 && semantic_status == 0 {
+        semantic_item_node = 1;
+        while semantic_status == 0 && semantic_item_node <= node_count {
+            word_offset = (semantic_item_node - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            semantic_item_kind = 0;
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_node = semantic_item_node;
+                semantic_code = 3;
+            } else {
+                semantic_item_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+            }
+            if semantic_status == 0 && semantic_item_kind == 19 {
+                word_offset = (semantic_item_node - 1) * 16 + 4;
+                byte_0 = result_value(bytes_get(&nodes, word_offset));
+                byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+                byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+                byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_node = semantic_item_node;
+                    semantic_code = 3;
+                } else {
+                    function_payload = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
+                }
+                semantic_append_field = 0;
+                while semantic_status == 0 && semantic_append_field < 4 {
+                    semantic_append_word = 1;
+                    if semantic_append_field == 1 {
+                        semantic_append_word = function_payload;
+                    } else if semantic_append_field == 2 {
+                        semantic_append_word = semantic_item_node;
+                    } else if semantic_append_field == 3 {
+                        semantic_append_word = 1;
+                    }
+                    semantic_append_byte = 0;
+                    while semantic_status == 0 && semantic_append_byte < 4 {
+                        semantic_append_value = word_byte_0(semantic_append_word);
+                        if semantic_append_byte == 1 {
+                            semantic_append_value = word_byte_1(semantic_append_word);
+                        } else if semantic_append_byte == 2 {
+                            semantic_append_value = word_byte_2(semantic_append_word);
+                        } else if semantic_append_byte == 3 {
+                            semantic_append_value = word_byte_3(semantic_append_word);
+                        }
+                        push_result = result_value(bytes_push(&mut symbols, semantic_append_value));
+                        if push_result < 0 {
+                            semantic_status = 26;
+                            semantic_node = semantic_item_node;
+                            semantic_code = 2;
+                        }
+                        semantic_append_byte = semantic_append_byte + 1;
+                    }
+                    semantic_append_field = semantic_append_field + 1;
+                }
+                if semantic_status == 0 {
+                    symbol_count = symbol_count + 1;
+                }
+            }
+            semantic_item_node = semantic_item_node + 1;
+        }
+    }
+    // A per-item failure is located at that item own origin record. The
+    // function_start / function_line / function_column registers hold the
+    // *last* signature location after a completed multi-item parse, which is
+    // right for a whole-module check and wrong for one item.
+    if status == 0 && semantic_node > 0 && semantic_offset < 0
+        && (semantic_status == 26 || semantic_status == 27) {
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+    }
+"#;
+
+const SEMANTIC_FACT_REGISTERS_ANCHOR: &str = r#"    let mut semantic_rule_found: int = 0;"#;
+
+const SEMANTIC_FACT_REGISTERS: &str = r#"    let mut semantic_rule_found: int = 0;
+    let mut semantic_item_index: int = 0;
+    let mut semantic_previous_function: int = 0;
+    let mut symbol_name_word: int = 0;
+    let mut symbol_function_word: int = 0;"#;
+
+const SEMANTIC_ITEM_RULE_ANCHOR: &str = r#"        if semantic_status == 0 && semantic_kind == 19 {
+            semantic_rule_found = 1;
+            if semantic_node != root || semantic_payload != function_payload
+                || semantic_left != semantic_node - 1 || semantic_right != 0
+                || semantic_left_type != 0 {
+                semantic_status = 27;
+                semantic_code = 3;
+            }
+        }"#;
+
+const SEMANTIC_ITEM_RULE: &str = r#"        if semantic_status == 0 && semantic_kind == 19 {
+            semantic_rule_found = 1;
+            symbol_name_word = 0;
+            symbol_function_word = 0;
+            if semantic_item_index >= symbol_count {
+                semantic_status = 27;
+                semantic_code = 3;
+            } else {
+                word_offset = semantic_item_index * 16 + 4;
+                byte_0 = result_value(bytes_get(&symbols, word_offset));
+                byte_1 = result_value(bytes_get(&symbols, word_offset + 1));
+                byte_2 = result_value(bytes_get(&symbols, word_offset + 2));
+                byte_3 = result_value(bytes_get(&symbols, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_code = 3;
+                } else {
+                    symbol_name_word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
+                }
+                word_offset = semantic_item_index * 16 + 8;
+                byte_0 = result_value(bytes_get(&symbols, word_offset));
+                byte_1 = result_value(bytes_get(&symbols, word_offset + 1));
+                byte_2 = result_value(bytes_get(&symbols, word_offset + 2));
+                byte_3 = result_value(bytes_get(&symbols, word_offset + 3));
+                if semantic_status == 0 && (byte_0 < 0 || byte_1 < 0 || byte_2 < 0
+                    || byte_3 < 0 || byte_3 > 127) {
+                    semantic_status = 27;
+                    semantic_code = 3;
+                } else if semantic_status == 0 {
+                    symbol_function_word = byte_0 + byte_1 * 256
+                        + byte_2 * 65536 + byte_3 * 16777216;
+                }
+            }
+            if semantic_status == 0 && (symbol_name_word != semantic_payload
+                || symbol_function_word != semantic_node
+                || semantic_left != semantic_node - 1
+                || semantic_right != semantic_previous_function
+                || semantic_left_type != 0) {
+                semantic_status = 27;
+                semantic_code = 3;
+            }
+            if semantic_status == 0 {
+                semantic_previous_function = semantic_node;
+                semantic_item_index = semantic_item_index + 1;
+            }
+        }"#;
+
+const SEMANTIC_MODULE_INVARIANT_ANCHOR: &str = r#"        if symbol_count != 1 || bytes_len(&symbols) != 16
+            || fact_count != node_count || bytes_len(&facts) != fact_count * 12 {"#;
+
+const SEMANTIC_MODULE_INVARIANT: &str = r#"        if symbol_count != semantic_item_count
+            || bytes_len(&symbols) != semantic_item_count * 16
+            || semantic_item_index != semantic_item_count
+            || semantic_previous_function != root
+            || fact_count != node_count || bytes_len(&facts) != fact_count * 12 {"#;
+
 fn expected_h1a_source() -> String {
     let accepted = accepted_b1c_source();
 
@@ -5032,6 +5661,19 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(BINDING_TYPE_BRANCH_ANCHOR, BINDING_TYPE_BRANCH);
     assert_eq!(derived.matches(BINDING_ADVANCE_ANCHOR).count(), 1);
     let derived = derived.replace(BINDING_ADVANCE_ANCHOR, BINDING_ADVANCE);
+
+    // CAP-058 / H1M-2 stage 2a generalizes the semantic group to N items. Four
+    // anchored sites and no more: symbol emission, the fact loop's four new
+    // registers, the kind-19 chain rule, and the module invariant. Nothing in
+    // the parse group, the checked-IR group, the verifier or the emitter.
+    assert_eq!(derived.matches(SEMANTIC_SYMBOLS_ANCHOR).count(), 1);
+    let derived = derived.replace(SEMANTIC_SYMBOLS_ANCHOR, SEMANTIC_SYMBOLS);
+    assert_eq!(derived.matches(SEMANTIC_FACT_REGISTERS_ANCHOR).count(), 1);
+    let derived = derived.replace(SEMANTIC_FACT_REGISTERS_ANCHOR, SEMANTIC_FACT_REGISTERS);
+    assert_eq!(derived.matches(SEMANTIC_ITEM_RULE_ANCHOR).count(), 1);
+    let derived = derived.replace(SEMANTIC_ITEM_RULE_ANCHOR, SEMANTIC_ITEM_RULE);
+    assert_eq!(derived.matches(SEMANTIC_MODULE_INVARIANT_ANCHOR).count(), 1);
+    let derived = derived.replace(SEMANTIC_MODULE_INVARIANT_ANCHOR, SEMANTIC_MODULE_INVARIANT);
 
     // CAP-055 / H1B-6. The uniform parse-group capacity raise, applied last and
     // as one step rather than as thirty-two anchored fragments.
@@ -8136,17 +8778,41 @@ fn focused_module_probes_exercise_every_rule_of_the_admitted_shape() {
             continue;
         }
         let code = if target.status == 0 {
-            let semantic = oracle::module_semantic_stop(&target);
+            // CAP-058 / H1M-2 inverts this rather than weakening it. CAP-056's
+            // model is still asserted to refuse every multi-item shape, and the
+            // product is now graded against CAP-058's, which accepts the
+            // semantic phase and is refused one authority down at C1.
+            let cap056 = oracle::module_semantic_stop(&target);
             assert_ne!(
-                semantic.status, 0,
-                "probe `{label}` must be refused by the semantic phase"
+                cap056.status, 0,
+                "probe `{label}` must be refused by the CAP-056 semantic model"
             );
-            run_module_expectation("module-probe", source, &target, &semantic, "-O0")
+            let semantic = oracle::module_semantic_meaning(&target);
+            run_meaning_expectation("module-probe", source, &target, &semantic, "-O0")
         } else {
             run_expectation("module-probe", compiled_h1a(), source, &target, "-O0")
         };
-        assert_eq!(code, 91, "probe `{label}` diverged from the CAP-056 target");
+        assert_eq!(code, 91, "probe `{label}` diverged from the CAP-058 target");
     }
+}
+
+/// CAP-058 / H1M-2. The same thing against *this* checkpoint's model, which
+/// unlike CAP-056's has two outcomes to build a vector for: a module the
+/// semantic phase accepts and the checked group refuses at C1, and a module the
+/// semantic phase refuses.
+fn run_meaning_expectation(
+    label: &str,
+    source: &[u8],
+    stopped: &oracle::Ingestion,
+    semantic: &oracle::SemanticStop,
+    optimization: &str,
+) -> i32 {
+    let expected = if semantic.status == 0 {
+        oracle::c1_refused_expectation_vector(source, stopped, semantic)
+    } else {
+        oracle::refused_expectation_vector(source, stopped, semantic)
+    };
+    run_vector_expectation(label, source, stopped.consumed, &expected, optimization)
 }
 
 /// Link the product against a completed-parse expectation and return the exit
@@ -8250,9 +8916,32 @@ fn the_two_item_module_separates_the_base_product_from_this_one() {
     assert_eq!(assert_module_item_chain("two-items", &module), 2);
 
     // The product must agree with the second and contradict the first.
+    //
+    // CAP-058 / H1M-2 inverts the first of these three assertions rather than
+    // weakening it. Until this checkpoint the product refused a two-item module
+    // in semantic pass 4 and CAP-056's `module_semantic_stop` predicted that
+    // refusal exactly. The semantic group is now generalized, so the same model
+    // must **still** predict `27` / `3` - it is kept verbatim - and the product
+    // must now reject it. The vector the product does agree with is the one
+    // CAP-058's own model builds, and it is asserted here on the same bytes so
+    // the pair is visible in one place.
     let semantic = oracle::module_semantic_stop(&module);
-    assert_eq!(
+    assert_eq!((semantic.status, semantic.code), (27, 3));
+    assert_ne!(
         run_module_expectation("two-item-gate", source, &module, &semantic, "-O0"),
+        91,
+        "CAP-056's semantic prediction must no longer describe the product"
+    );
+    let meaning = oracle::module_semantic_meaning(&module);
+    assert_eq!(meaning.status, 0, "CAP-058 accepts both items");
+    assert_eq!(
+        run_vector_expectation(
+            "two-item-gate-meaning",
+            source,
+            module.consumed,
+            &oracle::c1_refused_expectation_vector(source, &module, &meaning),
+            "-O0"
+        ),
         91
     );
     assert_ne!(
@@ -8369,15 +9058,27 @@ fn the_canonical_fourteen_item_prefix_is_a_complete_module() {
     );
     assert_eq!(semantic.node, 1);
     assert_eq!(semantic.line, 3);
+    // CAP-058 / H1M-2. Fourteen items, so fourteen symbols are emitted before
+    // pass 3 refuses at node 1. CAP-056's model is kept and still says one, and
+    // the product must now reject its vector.
+    let meaning = oracle::module_semantic_meaning(&target);
+    assert_eq!(meaning.symbols, 14, "one symbol per item, before pass 3");
+    assert_eq!(semantic.symbols, 1, "CAP-056's model is kept verbatim");
+    assert_eq!((meaning.status, meaning.code, meaning.node), (17, 2, 1));
+    assert_ne!(
+        run_module_expectation(
+            "canonical-fourteen-previous",
+            probe,
+            &target,
+            &semantic,
+            "-O0"
+        ),
+        91,
+        "the product must no longer agree with a one-symbol fourteen-item module"
+    );
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
-            run_module_expectation(
-                "canonical-fourteen",
-                probe,
-                &target,
-                &semantic,
-                optimization
-            ),
+            run_meaning_expectation("canonical-fourteen", probe, &target, &meaning, optimization),
             91,
             "the fourteen-item prefix diverged from the oracle at {optimization}"
         );
@@ -9768,11 +10469,16 @@ fn the_binding_types_leave_the_fourteen_item_prefix_untouched() {
         "fourteen items, unmoved"
     );
     assert_eq!(reachable_nodes(&target), 62, "CAP-056's census, unmoved");
-    let semantic = oracle::module_semantic_stop(&target);
+    let semantic = oracle::module_semantic_meaning(&target);
     assert_eq!((semantic.status, semantic.code), (17, 2));
     assert_eq!(semantic.node, 1);
+    // CAP-058 / H1M-2: the located refusal is unmoved and the symbol count is
+    // fourteen rather than one. Both are asserted so neither can be cited for
+    // the other.
+    assert_eq!(semantic.symbols, 14);
+    assert_eq!(oracle::module_semantic_stop(&target).symbols, 1);
     assert_eq!(
-        run_module_expectation("binding-fourteen", probe, &target, &semantic, "-O0"),
+        run_meaning_expectation("binding-fourteen", probe, &target, &semantic, "-O0"),
         91,
         "the fourteen-item prefix diverged from the oracle"
     );
@@ -9900,12 +10606,48 @@ const CANONICAL_ARENA_DELTA: (usize, usize, usize, usize, usize) = (285, 237, 11
 /// Derived, not observed: it is [`PRE_EDIT_CANONICAL_ARENAS`] plus
 /// [`CANONICAL_ARENA_DELTA`], and the sum is asserted rather than written, so a
 /// column cannot be quietly retyped to match a run.
+/// CAP-058 / H1M-2 stage 2a. What *this* checkpoint's diff costs, hand-derived
+/// from the diff before any run.
+///
+/// The derivation is an independent cost instrument rather than a by-hand tally,
+/// because 192 added lines of dense byte-reading is not a thing a person counts
+/// reliably. The instrument implements the accounting rules
+/// [`CANONICAL_ARENA_DELTA`] transcribes - an operand or a reduction is one node
+/// and one value push, a binary or prefix operator is one of each, a grouping
+/// `(` and a call each push an **operator record only**, a call additionally
+/// pushes one node and one value for its result plus one node per argument
+/// cell, a nested block is one block record, and each item costs two nodes for
+/// its own return and function nodes - and it was validated before it was used:
+/// it reproduces all fourteen cumulative rows of [`CANONICAL_ITEM_ARENAS`] and
+/// the whole pre-edit file's `(17_985, 16_158, 6_165, 1_302, 1_152)` exactly, on
+/// all five arenas.
+///
+/// **Three corrections to the instrument, found by that validation and fixed at
+/// the mechanism rather than at the number.** Each was found before any product
+/// figure was written, and each was a mispriced *rule*, not a tuned constant:
+///
+/// 1. An assignment target is free. `x = expr;` pushes nothing for `x`; only
+///    the right side costs. Counting it made the whole file 4,170 nodes high.
+/// 2. A `match` scrutinee is free. `match result { ... }` pushes nothing for
+///    `result`; the construct reduces to its arm bodies. This is visible in
+///    `result_value` alone, whose six nodes leave no room for it.
+/// 3. A grouping `(` and a call push an operator record but **no node and no
+///    value**. Folding them into the node formula made every item carrying a
+///    parenthesis or a call read high by exactly the count of those two.
+///
+/// **And the byte count is again the wrong instrument, with the same sign.**
+/// This diff is 7,501 bytes and costs 665 nodes - 11.3 bytes per node, against
+/// CAP-057's 13.4 and CAP-056's 37. Node cost tracks expression structure: this
+/// edit is two arena walks made of four-byte reads, and a four-byte read is
+/// 38 nodes in four lines.
+const H1M2_ARENA_DELTA: (usize, usize, usize, usize, usize) = (665, 569, 285, 19, 64);
+
 const CANONICAL_ARENAS: (usize, usize, usize, usize, usize) = (
-    PRE_EDIT_CANONICAL_ARENAS.0 + CANONICAL_ARENA_DELTA.0,
-    PRE_EDIT_CANONICAL_ARENAS.1 + CANONICAL_ARENA_DELTA.1,
-    PRE_EDIT_CANONICAL_ARENAS.2 + CANONICAL_ARENA_DELTA.2,
-    PRE_EDIT_CANONICAL_ARENAS.3 + CANONICAL_ARENA_DELTA.3,
-    PRE_EDIT_CANONICAL_ARENAS.4 + CANONICAL_ARENA_DELTA.4,
+    PRE_EDIT_CANONICAL_ARENAS.0 + CANONICAL_ARENA_DELTA.0 + H1M2_ARENA_DELTA.0,
+    PRE_EDIT_CANONICAL_ARENAS.1 + CANONICAL_ARENA_DELTA.1 + H1M2_ARENA_DELTA.1,
+    PRE_EDIT_CANONICAL_ARENAS.2 + CANONICAL_ARENA_DELTA.2 + H1M2_ARENA_DELTA.2,
+    PRE_EDIT_CANONICAL_ARENAS.3 + CANONICAL_ARENA_DELTA.3 + H1M2_ARENA_DELTA.3,
+    PRE_EDIT_CANONICAL_ARENAS.4 + CANONICAL_ARENA_DELTA.4 + H1M2_ARENA_DELTA.4,
 );
 
 /// The module's item count, unchanged by this checkpoint.
@@ -9918,6 +10660,14 @@ const CANONICAL_ITEMS: usize = 23;
 /// statement's expression subtree plus the item's own two nodes, and this
 /// checkpoint's diff adds no return statement and touches no return
 /// expression. Every one of the 289 nodes it adds is an orphan.
+///
+/// CAP-058 / H1M-2 stage 2a re-derives the same 240 for the same reason, and it
+/// is a **constraint on the diff** rather than an observation about it: the
+/// edit adds no `return` statement - zero added lines contain one - and touches
+/// no function's final return expression, so the derivation stands. The 665
+/// nodes it adds are all orphans, which makes the census ratio worse by design:
+/// 240 of 18,650 rather than 240 of 17,985. A worsening ratio here is expected,
+/// not a regression, and no record may cite it as either progress or decay.
 const CANONICAL_REACHABLE: usize = 240;
 
 /// CAP-057 / H1M-1b. The canonical source parses **end to end**, for the first
@@ -10029,7 +10779,54 @@ fn the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it() {
     );
 
     // 3. The stop, relocated one phase later. Predicted and not modified.
-    let semantic = oracle::module_semantic_stop(&target);
+    //
+    // CAP-058 / H1M-2's negative control. The canonical source's node 1 is a
+    // kind-2 identifier - `result_value`'s arm-1 body - and semantic pass 3
+    // refuses any kind-2 node outright, so this checkpoint's capability cannot
+    // be demonstrated here at all. What is required of the canonical run is
+    // that its located refusal does not move, which is a real guard rather than
+    // a formality: pass 2 runs *before* pass 3 and pass 2 is one of the two
+    // things CAP-058 rewrites, over 23 items and the largest node arena this
+    // project has.
+    //
+    // One field does move, and it is predicted rather than discovered.
+    // `symbol_count` goes from 1 to 23, because pass 2 now emits one symbol per
+    // item and completes before pass 3 refuses. CAP-056's model is kept and is
+    // asserted to still predict 1, and the product must now contradict it -
+    // which is half two of the out-of-table grading, applied to the one shape
+    // the contract's own table did not enumerate.
+    let cap056 = oracle::module_semantic_stop(&target);
+    assert_eq!(cap056.symbols, 1, "CAP-056's model is kept verbatim");
+    assert_ne!(
+        run_module_expectation("self-ingestion-previous", &source, &target, &cap056, "-O0"),
+        91,
+        "the product must no longer agree with a one-symbol module here"
+    );
+    let semantic = oracle::module_semantic_meaning(&target);
+    assert_eq!(
+        semantic.symbols,
+        i32::try_from(CANONICAL_ITEMS).expect("bounded items"),
+        "one symbol per item, emitted before pass 3 refuses"
+    );
+    assert_eq!(
+        (
+            cap056.status,
+            cap056.node,
+            cap056.offset,
+            cap056.line,
+            cap056.column,
+            cap056.code
+        ),
+        (
+            semantic.status,
+            semantic.node,
+            semantic.offset,
+            semantic.line,
+            semantic.column,
+            semantic.code
+        ),
+        "and the located refusal is identical field for field"
+    );
     assert_eq!(
         (semantic.status, semantic.code),
         (17, 2),
@@ -10062,7 +10859,7 @@ fn the_end_to_end_parse_is_not_a_compile() {
     let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
     let ingested = module_ingest(&source);
     let target = oracle::binding_parser_stop(&ingested, &source, &module_caps());
-    let semantic = oracle::module_semantic_stop(&target);
+    let semantic = oracle::module_semantic_meaning(&target);
     assert_ne!(
         semantic.status, 0,
         "the semantic phase refuses the module at its first node"
@@ -10079,5 +10876,641 @@ fn the_end_to_end_parse_is_not_a_compile() {
         orphans * 1000 / target.nodes.len() >= 986,
         "no binding, assignment, statement sequence, conditional or loop has \
          any representation at all"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CAP-058 / H1M-2. Module meaning: the semantic and checked-IR groups over N
+// function items.
+// ---------------------------------------------------------------------------
+
+/// One row of the checkpoint's own probe table.
+///
+/// `nodes`, `root` and `items` are hand-derived from the grammar before the
+/// oracle is consulted; `semantic` is `(status, code, node, expected, actual)`
+/// and is hand-derived from the accepted rule table and from Decision 4.
+struct MeaningProbe {
+    label: &'static str,
+    source: &'static [u8],
+    nodes: usize,
+    root: i32,
+    items: i32,
+    semantic: (i32, i32, i32, i32, i32),
+    symbols: i32,
+    facts: i32,
+    root_type: i32,
+}
+
+/// The seven shapes CAP-058 carries, A through G of the frozen contract.
+///
+/// A, B and C re-derive node counts that [`MODULE_PROBES`] already holds; the
+/// agreement is asserted in
+/// `the_meaning_probes_agree_with_the_module_table_where_they_overlap` rather
+/// than assumed, because a table that copied its neighbour would grade nothing.
+///
+/// **E, F and G are the probes that carry the checkpoint.** A count of two does
+/// not prove item 2 was processed rather than item 1 twice; each of these three
+/// does, at a different phase, and each is located in item 2's own bytes.
+const MEANING_PROBES: &[MeaningProbe] = &[
+    // A. The anti-fitting guard. One item is still a module, and the accepted
+    // single-item path must not move by one field or one byte of LLVM.
+    MeaningProbe {
+        label: "one-item",
+        source: b"fn f() -> int { return 1; }",
+        nodes: 3,
+        root: 3,
+        items: 1,
+        semantic: (0, 0, 0, 0, 0),
+        symbols: 1,
+        facts: 3,
+        root_type: 1,
+    },
+    // B. The gate. Two items, two symbols, six facts.
+    MeaningProbe {
+        label: "two-items",
+        source: b"fn f() -> int { return 1; } fn g() -> int { return 2; }",
+        nodes: 6,
+        root: 6,
+        items: 2,
+        semantic: (0, 0, 0, 0, 0),
+        symbols: 2,
+        facts: 6,
+        root_type: 1,
+    },
+    // C. The chain is a chain, not a pair.
+    MeaningProbe {
+        label: "three-items",
+        source:
+            b"fn f() -> int { return 1; } fn g() -> int { return 2; } fn h() -> int { return 3; }",
+        nodes: 9,
+        root: 9,
+        items: 3,
+        semantic: (0, 0, 0, 0, 0),
+        symbols: 3,
+        facts: 9,
+        root_type: 1,
+    },
+    // D. Item 1 is `1+2` (kind 8) and item 2 is `3*4` (kind 5): five nodes each,
+    // three of them expressions. Ten facts, because every node gets one.
+    MeaningProbe {
+        label: "two-items-with-expressions",
+        source: b"fn f() -> int { return 1+2; } fn g() -> int { return 3*4; }",
+        nodes: 10,
+        root: 10,
+        items: 2,
+        semantic: (0, 0, 0, 0, 0),
+        symbols: 2,
+        facts: 10,
+        root_type: 1,
+    },
+    // E. The semantic phase accepts a division by zero - it is a *checked-IR*
+    // refusal, not a typing one - so this row is `0` here and carries its weight
+    // one authority further down.
+    MeaningProbe {
+        label: "two-items-second-divides-by-zero",
+        source: b"fn f() -> int { return 1; } fn g() -> int { return 1/0; }",
+        nodes: 8,
+        root: 8,
+        items: 2,
+        semantic: (0, 0, 0, 0, 0),
+        symbols: 2,
+        facts: 8,
+        root_type: 1,
+    },
+    // F. `1 < 2` is one of kinds 10-15 and yields complete type 2, and a kind-18
+    // node requires 1. Refused at node 7, which is **item 2's** return node, on
+    // **item 2's** own expression type. A generalization that carried item 1's
+    // `semantic_left_type` forward would accept it. Six facts are appended
+    // before the refusal - one for each of nodes 1 through 6.
+    MeaningProbe {
+        label: "two-items-second-returns-bool",
+        source: b"fn f() -> int { return 1; } fn g() -> int { return 1 < 2; }",
+        nodes: 8,
+        root: 8,
+        items: 2,
+        semantic: (25, 18, 7, 1, 2),
+        symbols: 2,
+        facts: 6,
+        root_type: 0,
+    },
+    // G. Pass 3 is not widened. `a` is a kind-2 node and stays refused at
+    // `17` / `2`, and `symbol_count` is still 2 because pass 2 precedes pass 3.
+    // No fact is appended at all.
+    MeaningProbe {
+        label: "two-items-second-has-identifier",
+        source: b"fn f() -> int { return 1; } fn g() -> int { return a; }",
+        nodes: 6,
+        root: 6,
+        items: 2,
+        semantic: (17, 2, 4, 0, 0),
+        symbols: 2,
+        facts: 0,
+        root_type: 0,
+    },
+];
+
+fn meaning_probe_targets() -> Vec<oracle::Ingestion> {
+    MEANING_PROBES
+        .iter()
+        .map(|probe| {
+            let ingested = module_ingest(probe.source);
+            let target = oracle::binding_parser_stop(&ingested, probe.source, &module_caps());
+            assert_eq!(target.status, 0, "probe `{}` must parse", probe.label);
+            assert_eq!(
+                target.nodes.len(),
+                probe.nodes,
+                "probe `{}` node count",
+                probe.label
+            );
+            assert_eq!(target.root, probe.root, "probe `{}` root", probe.label);
+            assert_eq!(
+                assert_module_item_chain(probe.label, &target),
+                usize::try_from(probe.items).expect("bounded items"),
+                "probe `{}` item count",
+                probe.label
+            );
+            target
+        })
+        .collect()
+}
+
+/// Every expectation in [`MEANING_PROBES`] is a hand derivation, checked
+/// against the independent oracle and never read out of a run.
+#[test]
+fn every_meaning_probe_expectation_is_derived_twice() {
+    assert_eq!(meaning_probe_targets().len(), MEANING_PROBES.len());
+}
+
+/// The shared shapes are cited from [`MODULE_PROBES`] rather than trusted.
+#[test]
+fn the_meaning_probes_agree_with_the_module_table_where_they_overlap() {
+    let mut shared = 0usize;
+    for probe in MEANING_PROBES {
+        let Some((label, _, _, _, _, _, _, nodes, root)) = MODULE_PROBES
+            .iter()
+            .find(|(_, source, ..)| *source == probe.source)
+        else {
+            continue;
+        };
+        shared += 1;
+        assert_eq!(*nodes, probe.nodes, "`{label}` node count across tables");
+        assert_eq!(*root, probe.root, "`{label}` root across tables");
+    }
+    assert_eq!(
+        shared, 3,
+        "A, B and C are the three shapes both tables carry"
+    );
+}
+
+/// The generalized semantic phase, modelled, against the hand-derived table.
+///
+/// Model-only and product-free. What the product does with the same shapes is
+/// the next two tests.
+#[test]
+fn every_meaning_probe_is_classified_where_the_contract_predicted() {
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        let stop = oracle::module_semantic_meaning(&target);
+        assert_eq!(
+            (
+                stop.status,
+                stop.code,
+                stop.node,
+                stop.expected,
+                stop.actual
+            ),
+            probe.semantic,
+            "probe `{}` semantic stop",
+            probe.label
+        );
+        assert_eq!(
+            stop.symbols, probe.symbols,
+            "probe `{}` symbols",
+            probe.label
+        );
+        assert_eq!(stop.facts, probe.facts, "probe `{}` facts", probe.label);
+        assert_eq!(
+            stop.root_type, probe.root_type,
+            "probe `{}` root type",
+            probe.label
+        );
+        assert_eq!(
+            stop.symbol_words.len(),
+            usize::try_from(probe.symbols).expect("bounded symbols") * 4,
+            "probe `{}` emits four words per symbol",
+            probe.label
+        );
+        assert_eq!(
+            stop.fact_words.len(),
+            usize::try_from(probe.facts).expect("bounded facts") * 3,
+            "probe `{}` appends three words per fact",
+            probe.label
+        );
+        if stop.status == 0 {
+            assert_eq!(
+                stop.facts,
+                i32::try_from(target.nodes.len()).expect("bounded nodes"),
+                "`fact_count == node_count` on probe `{}`",
+                probe.label
+            );
+        }
+    }
+}
+
+/// Grade a prebuilt expectation vector against the linked product.
+fn run_vector_expectation(
+    label: &str,
+    source: &[u8],
+    consumed: i32,
+    expected: &[i32],
+    optimization: &str,
+) -> i32 {
+    let workspace = TestWorkspace::new(label);
+    let llvm = workspace.write("product.ll", renamed_product(compiled_h1a()));
+    let harness = workspace.write(
+        "expectation.c",
+        expectation_harness(expected, source, consumed),
+    );
+    let runtime = repository_path("../../src/compiler/runtime/aero_test_runtime.c");
+    let executable = clang_link(
+        &workspace,
+        label,
+        optimization,
+        &[llvm.as_path(), runtime.as_path(), harness.as_path()],
+    );
+    let output = Command::new(executable)
+        .output()
+        .expect("run CAP-058 expectation harness");
+    assert!(
+        output.stdout.is_empty(),
+        "CAP-058 harness wrote stdout: {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    output.status.code().expect("CAP-058 harness exit code")
+}
+
+/// **Stage 2a's whole product-visible claim.**
+///
+/// A multi-item module reaches `semantic_status = 0` with N symbols and one
+/// fact per node, and the refusal has moved one authority down to C1 -
+/// `compiler.aero:4583`, `symbol_count != 1` - which stage 2a **predicts and
+/// does not modify**. That is the "the next phase's own refusal is the gate"
+/// structure CAP-056 derived and CAP-057 reused, and it means stage 2a crosses
+/// exactly one authority.
+///
+/// This test is red against the unmodified product by construction: `:4576`
+/// gates `checked_attempted` on `semantic_status == 0`, and before this
+/// checkpoint pass 4 refused every multi-item module at item 1's function node.
+#[test]
+fn a_multi_item_module_reaches_the_checked_group_and_is_refused_there() {
+    let mut graded = 0usize;
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        let stop = oracle::module_semantic_meaning(&target);
+        if stop.status != 0 || probe.items < 2 {
+            continue;
+        }
+        graded += 1;
+        let expected = oracle::c1_refused_expectation_vector(probe.source, &target, &stop);
+        assert_eq!(
+            expected[24], 1,
+            "`{}`: the checked group is attempted",
+            probe.label
+        );
+        assert_eq!(
+            expected[25], 4,
+            "`{}`: and refuses with status 4",
+            probe.label
+        );
+        assert_eq!(
+            expected[26], target.root,
+            "`{}`: located at `root`",
+            probe.label
+        );
+        assert_eq!(expected[30], 3, "`{}`: with code 3", probe.label);
+        assert_eq!(
+            expected[43], 0,
+            "`{}`: the verifier is not attempted at stage 2a",
+            probe.label
+        );
+        assert_eq!(
+            run_vector_expectation(
+                &format!("h1m2-{}", probe.label),
+                probe.source,
+                target.consumed,
+                &expected,
+                "-O0"
+            ),
+            91,
+            "`{}` diverged from the independent oracle",
+            probe.label
+        );
+    }
+    assert_eq!(
+        graded, 4,
+        "B, C, D and E are the four shapes the semantic phase now accepts"
+    );
+}
+
+/// The two probes that must **stay** refused inside the semantic phase, each
+/// located in item 2's own bytes.
+///
+/// F proves pass 4 classifies item 2's return against item 2's own expression
+/// type. G proves pass 3 was not widened: it is the one shape where a careless
+/// "make the semantic phase handle modules" change would quietly start
+/// resolving identifiers.
+#[test]
+fn the_semantic_phase_still_refuses_item_two_on_its_own_bytes() {
+    let mut graded = 0usize;
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        let stop = oracle::module_semantic_meaning(&target);
+        if stop.status == 0 {
+            continue;
+        }
+        graded += 1;
+        // The located node belongs to item 2, not item 1: it is at or past the
+        // second item's first node, which is item 1's function node plus one.
+        let first_item = target
+            .nodes
+            .iter()
+            .position(|node| node[0] == 19)
+            .expect("a completed module has a function node");
+        assert!(
+            stop.node > i32::try_from(first_item + 1).expect("bounded node"),
+            "`{}` must refuse inside item 2, not item 1",
+            probe.label
+        );
+        let expected = oracle::refused_expectation_vector(probe.source, &target, &stop);
+        assert_eq!(
+            expected[24], 0,
+            "`{}`: a refused module never reaches the checked group",
+            probe.label
+        );
+        assert_eq!(
+            run_vector_expectation(
+                &format!("h1m2-{}", probe.label),
+                probe.source,
+                target.consumed,
+                &expected,
+                "-O0"
+            ),
+            91,
+            "`{}` diverged from the independent oracle",
+            probe.label
+        );
+    }
+    assert_eq!(graded, 2, "F and G are the two shapes still refused here");
+}
+
+/// Whether CAP-056's model declines a shape, and with what message.
+///
+/// `module_semantic_stop` states its own limit as an assertion rather than as
+/// prose, and this reads that limit back. The panic hook is serialized so a
+/// concurrently failing test keeps its own output.
+fn cap056_model_declines(target: &oracle::Ingestion) -> Option<String> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        oracle::module_semantic_stop(target)
+    }));
+    std::panic::set_hook(previous);
+    drop(guard);
+    match outcome {
+        Ok(_) => None,
+        Err(payload) => Some(
+            payload
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| {
+                    payload
+                        .downcast_ref::<&str>()
+                        .map(|text| (*text).to_string())
+                })
+                .unwrap_or_default(),
+        ),
+    }
+}
+
+/// **The deliberate out-of-table grading, half two: the contradiction.**
+///
+/// A probe suite passing is evidence about the probe suite. CAP-056's model is
+/// kept, still asserted to produce exactly `27` / `3` at item 1's function
+/// node, and then graded against the real product - where it must now
+/// **contradict** it. A refactor that collapsed the two models into one would
+/// pass every test above and fail this one.
+#[test]
+fn the_product_contradicts_the_previous_model_on_every_shape_it_now_accepts() {
+    let mut contradicted = 0usize;
+    let mut accepted = 0usize;
+    let mut symbol_only = 0usize;
+    let mut relocated = 0usize;
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        if cap056_model_declines(&target).is_some() {
+            continue;
+        }
+        let cap056 = oracle::module_semantic_stop(&target);
+        let now = oracle::module_semantic_meaning(&target);
+        if cap056 == now {
+            continue;
+        }
+        contradicted += 1;
+        // Whatever else changed, CAP-056's own prediction is kept verbatim. It
+        // has two shapes, and which one fires is decided by whether the module
+        // contains an identifier at all - pass 3 precedes the fact loop in both
+        // models.
+        let node = usize::try_from(cap056.node).expect("bounded node") - 1;
+        if target.nodes.iter().any(|word| word[0] == 2) {
+            assert_eq!((cap056.status, cap056.code), (17, 2), "`{}`", probe.label);
+            assert_eq!(target.nodes[node][0], 2, "at an identifier use");
+        } else {
+            assert_eq!((cap056.status, cap056.code), (27, 3), "`{}`", probe.label);
+            assert_eq!(target.nodes[node][0], 19, "at item 1's function node");
+            assert_ne!(cap056.node, target.root);
+        }
+        if now.status == 0 {
+            // B, C and E. CAP-056 predicted a refusal where the product now
+            // completes the phase.
+            accepted += 1;
+        } else if cap056.node == now.node {
+            // G. The located refusal is identical and the *symbol count* is
+            // not, because pass 2 now emits one symbol per item and pass 2 runs
+            // before pass 3. A checkpoint that only compared located refusals
+            // would have missed this one entirely.
+            symbol_only += 1;
+            assert_eq!(
+                (
+                    cap056.status,
+                    cap056.offset,
+                    cap056.line,
+                    cap056.column,
+                    cap056.code
+                ),
+                (now.status, now.offset, now.line, now.column, now.code),
+                "`{}`: the located refusal must not move",
+                probe.label
+            );
+            assert_eq!(cap056.symbols, 1);
+            assert_eq!(now.symbols, probe.items);
+            assert_eq!(cap056.facts, now.facts);
+        } else {
+            // F. Both models refuse and they refuse in different places: the
+            // old one at item 1's function node, the product at item 2's
+            // return node, on item 2's own expression type.
+            relocated += 1;
+            assert_eq!((now.status, now.code), (25, 18));
+            assert!(now.node > cap056.node, "the refusal moved into item 2");
+        }
+        assert_ne!(
+            run_module_expectation(
+                &format!("h1m2-previous-{}", probe.label),
+                probe.source,
+                &target,
+                &cap056,
+                "-O0"
+            ),
+            91,
+            "the product still agrees with CAP-056's model on `{}`, so the \
+             generalization did not reach it",
+            probe.label
+        );
+    }
+    assert_eq!(
+        contradicted, 5,
+        "B, C, E, F and G are every shape CAP-056's model can express, and it          now gets all five wrong"
+    );
+    assert_eq!(
+        accepted, 3,
+        "B, C and E: refusal predicted, phase completes"
+    );
+    assert_eq!(relocated, 1, "F: the refusal moved into item 2");
+    assert_eq!(symbol_only, 1, "G: same refusal, different symbol count");
+}
+
+/// **The deliberate out-of-table grading, half three.**
+///
+/// CAP-056's model `panic!`s on any node kind its probes never reached, and
+/// declines a single-item module by a separate assertion. Grading a declined
+/// shape against it is not a vector comparison at all: it is a demonstration
+/// that the old model **cannot express** what this checkpoint admits. Asserted
+/// as a caught panic with the message read back, or the model's stated limit is
+/// undocumented in code.
+///
+/// **A correction to the contract, found by this test going red for its own
+/// reason rather than the product's, and fixed at the mechanism.** The contract
+/// predicts that D, E **and F** are all declined for carrying kinds 5, 6, 8 and
+/// one of 10-15. Only D is. CAP-056's model returns at the **first** kind-19
+/// node that is not `root`, and in E and F that node is item 1's function node
+/// at id 3, which it meets *before* item 2's `/` at node 6 or `<` at node 6. D
+/// is declined because its unseen kind - the `+` at node 3 - sits in item 1 and
+/// is therefore met first. So the property is not "the probe contains an unseen
+/// kind"; it is "the probe contains an unseen kind **before item 1's function
+/// node**". The contract's reasoning did not account for its own early return.
+/// Both halves are asserted below so neither can be cited for the other.
+#[test]
+fn the_previous_model_cannot_express_the_shapes_this_checkpoint_admits() {
+    let mut declined = Vec::new();
+    let mut expressed = Vec::new();
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        match cap056_model_declines(&target) {
+            Some(message) => declined.push((probe.label, message)),
+            None => expressed.push((probe.label, target)),
+        }
+    }
+    let labels: Vec<&str> = declined.iter().map(|(label, _)| *label).collect();
+    assert_eq!(
+        labels,
+        vec!["one-item", "two-items-with-expressions"],
+        "the single-item shape, and the one whose unseen kind precedes item 1's          function node"
+    );
+    assert!(
+        declined[0].1.contains("a module of exactly one item"),
+        "A is declined by the single-item assertion, not by an unseen kind: {}",
+        declined[0].1
+    );
+    assert!(
+        declined[1].1.contains("node kind"),
+        "D must be declined for a node kind CAP-056 never reached: {}",
+        declined[1].1
+    );
+
+    // The other half of the correction: E and F *do* carry unseen kinds, and
+    // the old model never reaches them, because it stops at item 1's function
+    // node first. That is why they are expressible and D is not.
+    let mut at_item_one = 0usize;
+    for (label, target) in &expressed {
+        let stop = oracle::module_semantic_stop(target);
+        if target.nodes.iter().any(|node| node[0] == 2) {
+            // G. Pass 3 precedes the fact loop in both models, so the old one
+            // never reaches a node kind at all.
+            assert_eq!((stop.status, stop.code), (17, 2), "`{label}`");
+            continue;
+        }
+        at_item_one += 1;
+        assert_eq!(
+            (stop.status, stop.code),
+            (27, 3),
+            "`{label}`: CAP-056 refuses at the first function node that is not              `root`"
+        );
+        let node = usize::try_from(stop.node).expect("bounded node") - 1;
+        assert_eq!(target.nodes[node][0], 19, "`{label}`: at a function node");
+        assert_eq!(
+            stop.node, 3,
+            "`{label}`: item 1's function node, met before item 2's operators"
+        );
+    }
+    assert_eq!(expressed.len(), 5, "B, C, E, F and G are expressible");
+    assert_eq!(
+        at_item_one, 4,
+        "B, C, E and F all stop at item 1's function node, which is exactly why          E's and F's unseen kinds are never met"
+    );
+}
+
+/// **Half one, as far as it can actually be executed, and a correction.**
+///
+/// The contract asks for zero churn between the two models "on every shape
+/// whose parse does not complete, and on every single-item shape". Neither
+/// model is *defined* on either set: `module_semantic_stop` asserts a completed
+/// parse **and** more than one item, and `module_semantic_meaning` asserts a
+/// completed parse. So that comparison is vacuous rather than strong, and it is
+/// recorded here rather than dressed up.
+///
+/// What is executable, and is strictly stronger, is the churn grading on the
+/// shapes both models can express *and refuse in the same place*: a multi-item
+/// module refused by pass 3. The located refusal must be identical field for
+/// field, and the two models must differ in exactly one place - `symbols`, and
+/// the `symbol_words` behind it.
+///
+/// **A second correction, same origin.** The first draft of this test filtered
+/// only on "both models refuse", which admits F as well as G, and the two
+/// models disagree on F in the located refusal itself. That disagreement is
+/// half two's contradiction, not churn, and mixing the two would have let a
+/// relocated refusal pass as a one-field difference. The filter now names the
+/// property it means.
+#[test]
+fn the_two_models_churn_in_exactly_one_field_where_both_are_defined() {
+    let mut graded = 0usize;
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        if cap056_model_declines(&target).is_some() {
+            continue;
+        }
+        let cap056 = oracle::module_semantic_stop(&target);
+        let now = oracle::module_semantic_meaning(&target);
+        if now.status == 0 || cap056.node != now.node {
+            continue;
+        }
+        graded += 1;
+        let mut widened = cap056.clone();
+        widened.symbols = now.symbols;
+        widened.symbol_words = now.symbol_words.clone();
+        assert_eq!(
+            widened, now,
+            "`{}`: the only churn CAP-058 may produce on a refused module is \
+             the symbol count",
+            probe.label
+        );
+    }
+    assert_eq!(
+        graded, 1,
+        "G is the one shape both models express and refuse in the same place"
     );
 }

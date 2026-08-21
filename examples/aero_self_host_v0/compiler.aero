@@ -4105,7 +4105,17 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         origin_index = origin_index + 1;
     }
 
-    // Emit the one bounded function symbol before name/type classification.
+    // Emit one bounded function symbol per module item, in source order.
+    //
+    // CAP-058/H1M-2 Decision 4. The item chain is walked from `root` for its
+    // count - CAP-056 gave a kind-19 node's `right` the previous item's node
+    // id - and the symbols are appended by a separate ascending scan, which is
+    // source order and the order the fact loop meets the items in. The two
+    // walks are independent, so `symbol_count != semantic_item_count` below
+    // is a real
+    // check rather than a tautology. For one item both reduce to the accepted
+    // path term by term: the single item is first and last, and its `right`
+    // is zero.
     let mut symbol_count: int = 0;
     let mut fact_count: int = 0;
     let mut semantic_append_field: int = 0;
@@ -4113,61 +4123,145 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut semantic_append_word: int = 0;
     let mut semantic_append_value: int = 0;
     let mut function_payload: int = 0;
+    let mut semantic_item_count: int = 0;
+    let mut semantic_item_link: int = 0;
+    let mut semantic_item_previous: int = 0;
+    let mut semantic_item_kind: int = 0;
+    let mut semantic_item_node: int = 0;
     if status == 0 && semantic_status == 0 {
-        word_offset = (root - 1) * 16 + 4;
-        byte_0 = result_value(bytes_get(&nodes, word_offset));
-        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
-        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
-        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
-        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
-            semantic_status = 27;
-            semantic_node = root;
-            semantic_offset = function_start;
-            semantic_line = function_line;
-            semantic_column = function_column;
-            semantic_code = 3;
-        } else {
-            function_payload = byte_0 + byte_1 * 256 + byte_2 * 65536
-                + byte_3 * 16777216;
+        semantic_item_link = root;
+        while semantic_status == 0 && semantic_item_link > 0 {
+            word_offset = (semantic_item_link - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            semantic_item_kind = 0;
+            semantic_item_previous = 0;
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_node = semantic_item_link;
+                semantic_code = 3;
+            } else {
+                semantic_item_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
+                word_offset = (semantic_item_link - 1) * 16 + 12;
+                byte_0 = result_value(bytes_get(&nodes, word_offset));
+                byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+                byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+                byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_node = semantic_item_link;
+                    semantic_code = 3;
+                } else {
+                    semantic_item_previous = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
+                }
+            }
+            if semantic_status == 0 && (semantic_item_kind != 19 || semantic_item_previous < 0
+                || semantic_item_previous >= semantic_item_link) {
+                semantic_status = 27;
+                semantic_node = semantic_item_link;
+                semantic_code = 3;
+            }
+            if semantic_status == 0 {
+                semantic_item_count = semantic_item_count + 1;
+                semantic_item_link = semantic_item_previous;
+            }
         }
     }
     if status == 0 && semantic_status == 0 {
-        semantic_append_field = 0;
-        while semantic_status == 0 && semantic_append_field < 4 {
-            semantic_append_word = 1;
-            if semantic_append_field == 1 {
-                semantic_append_word = function_payload;
-            } else if semantic_append_field == 2 {
-                semantic_append_word = root;
-            } else if semantic_append_field == 3 {
-                semantic_append_word = 1;
+        semantic_item_node = 1;
+        while semantic_status == 0 && semantic_item_node <= node_count {
+            word_offset = (semantic_item_node - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            semantic_item_kind = 0;
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                semantic_status = 27;
+                semantic_node = semantic_item_node;
+                semantic_code = 3;
+            } else {
+                semantic_item_kind = byte_0 + byte_1 * 256 + byte_2 * 65536
+                    + byte_3 * 16777216;
             }
-            semantic_append_byte = 0;
-            while semantic_status == 0 && semantic_append_byte < 4 {
-                semantic_append_value = word_byte_0(semantic_append_word);
-                if semantic_append_byte == 1 {
-                    semantic_append_value = word_byte_1(semantic_append_word);
-                } else if semantic_append_byte == 2 {
-                    semantic_append_value = word_byte_2(semantic_append_word);
-                } else if semantic_append_byte == 3 {
-                    semantic_append_value = word_byte_3(semantic_append_word);
+            if semantic_status == 0 && semantic_item_kind == 19 {
+                word_offset = (semantic_item_node - 1) * 16 + 4;
+                byte_0 = result_value(bytes_get(&nodes, word_offset));
+                byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+                byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+                byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_node = semantic_item_node;
+                    semantic_code = 3;
+                } else {
+                    function_payload = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
                 }
-                push_result = result_value(bytes_push(&mut symbols, semantic_append_value));
-                if push_result < 0 {
-                    semantic_status = 26;
-                    semantic_node = root;
-                    semantic_offset = function_start;
-                    semantic_line = function_line;
-                    semantic_column = function_column;
-                    semantic_code = 2;
+                semantic_append_field = 0;
+                while semantic_status == 0 && semantic_append_field < 4 {
+                    semantic_append_word = 1;
+                    if semantic_append_field == 1 {
+                        semantic_append_word = function_payload;
+                    } else if semantic_append_field == 2 {
+                        semantic_append_word = semantic_item_node;
+                    } else if semantic_append_field == 3 {
+                        semantic_append_word = 1;
+                    }
+                    semantic_append_byte = 0;
+                    while semantic_status == 0 && semantic_append_byte < 4 {
+                        semantic_append_value = word_byte_0(semantic_append_word);
+                        if semantic_append_byte == 1 {
+                            semantic_append_value = word_byte_1(semantic_append_word);
+                        } else if semantic_append_byte == 2 {
+                            semantic_append_value = word_byte_2(semantic_append_word);
+                        } else if semantic_append_byte == 3 {
+                            semantic_append_value = word_byte_3(semantic_append_word);
+                        }
+                        push_result = result_value(bytes_push(&mut symbols, semantic_append_value));
+                        if push_result < 0 {
+                            semantic_status = 26;
+                            semantic_node = semantic_item_node;
+                            semantic_code = 2;
+                        }
+                        semantic_append_byte = semantic_append_byte + 1;
+                    }
+                    semantic_append_field = semantic_append_field + 1;
                 }
-                semantic_append_byte = semantic_append_byte + 1;
+                if semantic_status == 0 {
+                    symbol_count = symbol_count + 1;
+                }
             }
-            semantic_append_field = semantic_append_field + 1;
+            semantic_item_node = semantic_item_node + 1;
         }
-        if semantic_status == 0 {
-            symbol_count = 1;
-        }
+    }
+    // A per-item failure is located at that item own origin record. The
+    // function_start / function_line / function_column registers hold the
+    // *last* signature location after a completed multi-item parse, which is
+    // right for a whole-module check and wrong for one item.
+    if status == 0 && semantic_node > 0 && semantic_offset < 0
+        && (semantic_status == 26 || semantic_status == 27) {
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
     }
 
     // Match the accepted semantic phase order: all identifier uses first.
@@ -4222,6 +4316,10 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut semantic_complete_type: int = 0;
     let mut semantic_ownership: int = 0;
     let mut semantic_rule_found: int = 0;
+    let mut semantic_item_index: int = 0;
+    let mut semantic_previous_function: int = 0;
+    let mut symbol_name_word: int = 0;
+    let mut symbol_function_word: int = 0;
     while status == 0 && semantic_status == 0 && semantic_index < node_count {
         semantic_node = semantic_index + 1;
         origin_offset = semantic_index * 20 + 4;
@@ -4389,11 +4487,50 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         }
         if semantic_status == 0 && semantic_kind == 19 {
             semantic_rule_found = 1;
-            if semantic_node != root || semantic_payload != function_payload
-                || semantic_left != semantic_node - 1 || semantic_right != 0
-                || semantic_left_type != 0 {
+            symbol_name_word = 0;
+            symbol_function_word = 0;
+            if semantic_item_index >= symbol_count {
                 semantic_status = 27;
                 semantic_code = 3;
+            } else {
+                word_offset = semantic_item_index * 16 + 4;
+                byte_0 = result_value(bytes_get(&symbols, word_offset));
+                byte_1 = result_value(bytes_get(&symbols, word_offset + 1));
+                byte_2 = result_value(bytes_get(&symbols, word_offset + 2));
+                byte_3 = result_value(bytes_get(&symbols, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
+                    || byte_3 > 127 {
+                    semantic_status = 27;
+                    semantic_code = 3;
+                } else {
+                    symbol_name_word = byte_0 + byte_1 * 256 + byte_2 * 65536
+                        + byte_3 * 16777216;
+                }
+                word_offset = semantic_item_index * 16 + 8;
+                byte_0 = result_value(bytes_get(&symbols, word_offset));
+                byte_1 = result_value(bytes_get(&symbols, word_offset + 1));
+                byte_2 = result_value(bytes_get(&symbols, word_offset + 2));
+                byte_3 = result_value(bytes_get(&symbols, word_offset + 3));
+                if semantic_status == 0 && (byte_0 < 0 || byte_1 < 0 || byte_2 < 0
+                    || byte_3 < 0 || byte_3 > 127) {
+                    semantic_status = 27;
+                    semantic_code = 3;
+                } else if semantic_status == 0 {
+                    symbol_function_word = byte_0 + byte_1 * 256
+                        + byte_2 * 65536 + byte_3 * 16777216;
+                }
+            }
+            if semantic_status == 0 && (symbol_name_word != semantic_payload
+                || symbol_function_word != semantic_node
+                || semantic_left != semantic_node - 1
+                || semantic_right != semantic_previous_function
+                || semantic_left_type != 0) {
+                semantic_status = 27;
+                semantic_code = 3;
+            }
+            if semantic_status == 0 {
+                semantic_previous_function = semantic_node;
+                semantic_item_index = semantic_item_index + 1;
             }
         }
         if semantic_status == 0 && semantic_rule_found == 0 {
@@ -4440,7 +4577,10 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
 
     let mut semantic_root_type: int = 0;
     if status == 0 && semantic_status == 0 {
-        if symbol_count != 1 || bytes_len(&symbols) != 16
+        if symbol_count != semantic_item_count
+            || bytes_len(&symbols) != semantic_item_count * 16
+            || semantic_item_index != semantic_item_count
+            || semantic_previous_function != root
             || fact_count != node_count || bytes_len(&facts) != fact_count * 12 {
             semantic_status = 27;
             semantic_node = root;

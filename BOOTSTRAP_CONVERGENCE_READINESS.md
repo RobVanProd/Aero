@@ -501,11 +501,18 @@ none edits.
 | Checkpoint | Required result | Frozen exclusions |
 |---|---|---|
 | H1M-1 — module item list (locally green from 12:40 on 2026-08-19, CAP-056; see the retraction below for why that time is stated) | A module is one or more `fn` items. A function item closes at its own `}` and the module then takes another `fn` item or end-of-input. The item list is **represented**: a kind-19 node's `right`, previously required to be `0`, carries the previous item's node id, so every item is reachable from `root` and `root == node_count` is preserved exactly. Crosses the parse group only. The semantic phase refuses a multi-item module with `semantic_status = 27` / `semantic_code = 3` where the module has no identifier, and with `semantic_status = 17` / `semantic_code = 2` where it has one — both predicted and asserted, neither modified | No new node kind; `1..=23` unchanged. No capacity change; the five parse-group bounds stay at 65,536 and the verifier's `512` stays at 512. No grammar change inside a function body. No `ByteBuffer` or `Result<int, int>` binding type. No zero-item module. No claim that the canonical source parses |
-| H1M-2 — module meaning | The semantic and checked-IR groups over N function items: N symbols, one fact per node, and the `node_count - 2` arithmetic at `compiler.aero:4480` generalized. Crosses two authorities. The verifier refuses a multi-function checked module by authentication; predicted and asserted, not modified | Not authorized here |
+| H1M-2 — module meaning (**stage 2a locally green, the checkpoint incomplete**, CAP-058) | The semantic and checked-IR groups over N function items: N symbols, one fact per node, and the `node_count - 2` arithmetic at `compiler.aero:4480` generalized. Crosses two authorities. The verifier refuses a multi-function checked module by authentication; predicted and asserted, not modified. **Stage 2a implements the semantic group alone** — N symbols in source order, the kind-19 rule as a chain rule cross-checked against the symbol record, and `N` / `16N` for the module invariant — and a multi-item module is then refused by the checked-IR group's own `symbol_count != 1` at `compiler.aero:4583`, which is predicted and unmodified, so stage 2a crosses **one** authority. Stage 2b, the checked-IR group, is not started, and the verifier refusal that pins the checkpoint has **not** been observed | Not authorized here |
 | H1M-3 — module verification and emission | The verifier and emitter groups over N function items. Crosses two authorities. Takes ownership of the verifier's `512` at `compiler.aero:5557` or keeps every probe under 512 nodes, explicitly rather than by discovery | Not authorized here |
 
-**H1M-2 is contracted under CAP-058, authored and not implemented; see
-`TASK_LEDGER.md`.** Three corrections to this document's own H1M-2 row follow
+**H1M-2 is contracted under CAP-058 with stage 2a implemented and the
+checkpoint incomplete; see `TASK_LEDGER.md`.** Stage 2a discharges the three
+semantic single-function assumptions below — S1, S2 and S3 — and **none** of the
+five checked-IR ones, including `node_count - 2`, which this row names and which
+is still exactly as it was. A fourth correction to this row follows from
+implementing it: the contract's own out-of-table grading predicts that CAP-056's
+semantic model is undefined on probes D, E and F for carrying node kinds it has
+never met, and it is undefined only on D, because that model returns at item 1's
+function node before it reaches item 2's operators. Three corrections to this document's own H1M-2 row follow
 from that contract and are recorded here rather than restated in it. The row
 names three things to generalize - "N symbols, one fact per node, and the
 `node_count - 2` arithmetic" - and a transcription of the semantic and
