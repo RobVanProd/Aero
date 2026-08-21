@@ -504,6 +504,37 @@ none edits.
 | H1M-2 — module meaning | The semantic and checked-IR groups over N function items: N symbols, one fact per node, and the `node_count - 2` arithmetic at `compiler.aero:4480` generalized. Crosses two authorities. The verifier refuses a multi-function checked module by authentication; predicted and asserted, not modified | Not authorized here |
 | H1M-3 — module verification and emission | The verifier and emitter groups over N function items. Crosses two authorities. Takes ownership of the verifier's `512` at `compiler.aero:5557` or keeps every probe under 512 nodes, explicitly rather than by discovery | Not authorized here |
 
+**H1M-2 is contracted under CAP-058, authored and not implemented; see
+`TASK_LEDGER.md`.** Three corrections to this document's own H1M-2 row follow
+from that contract and are recorded here rather than restated in it. The row
+names three things to generalize - "N symbols, one fact per node, and the
+`node_count - 2` arithmetic" - and a transcription of the semantic and
+checked-IR groups against the current source finds **eight** single-function
+assumptions, of which two are not consequences of the three named: the
+result-derivation loop at `compiler.aero:5229-5257` assumes result `i` is
+instruction record `i`, which fails as soon as per-item Return instructions
+interleave, and the `instructions == results + 1` invariant at `:5305` counts
+the one Return. The row also says "the `node_count - 2` arithmetic at
+`compiler.aero:4480`"; the arithmetic is at **`:4619`** on the current tree, and
+`:4480` names a line inside the semantic checksum. And the row's claim that "the
+verifier refuses a multi-function checked module by authentication" is correct
+and can now be stated exactly: `:5555` refuses `verified_function_count != 1`
+with `verified_status = 1`, `verified_word_index = 1`, `verified_code = 2`,
+`verified_expected = 1` and `verified_actual = N`, before it consults any other
+header word.
+
+One property of H1M-2 is not shared by any checkpoint before it and is recorded
+because it changes what evidence is available. **The canonical source cannot
+demonstrate H1M-2's capability at all.** The semantic phase refuses every kind-2
+identifier node at `:4173-4216`, before the fact loop runs; the canonical
+source's node 1 is such a node; and the two passes H1M-2 generalizes are symbol
+emission and the fact loop, which sit either side of that refusal. So the
+canonical run is refused before either generalization can be observed. Its role
+at this checkpoint is a **negative control** - a 23-item, 17,985-node stress
+input whose located refusal at node 1, offset 98, line 3, column 22 must be
+unchanged - and the capability itself is evidenced only by hand-written
+identifier-free multi-item probes.
+
 H1M-1 does not complete the gate and does not make the canonical source parse.
 The construct that does is the `ByteBuffer` / `Result<int, int>` binding type at
 19 sites in two functions, and it is the last grammar work before the canonical

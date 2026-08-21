@@ -597,6 +597,672 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-058-H1M2-MODULE-MEANING - the semantic and checked-IR groups over N function items
+
+- Date/task/status: 2026-08-20, `CAP-058-H1M2-MODULE-MEANING`, authored
+  ledger-first from `aaaf6a8367a28e8bc549fff42df07fa1a75ef602`, which
+  `git ls-remote origin claude/self-hosting-analysis-be3f72`, run from the
+  worktree and querying that branch by name, confirms is both the local `HEAD`
+  and the remote head. The session prompt named `aaaf6a8` and warned not to
+  trust it, on the standing rule that a session's own handoff cannot name its
+  last commit. `ls-remote` says `aaaf6a8` is the tip. **The warning did not fire
+  this time either**; CAP-057 recorded the same non-firing, and two consecutive
+  non-firings are worth stating so the rule is read as a reason to verify rather
+  than as a prediction. It was verified rather than assumed.
+- It is the checkpoint `BOOTSTRAP_CONVERGENCE_READINESS.md:504` names as "H1M-2
+  - module meaning": the semantic and checked-IR groups over N function items.
+  It crosses **two** authorities and no more, which is the cap `:331` sets.
+  H1M-3 owns the verifier and the emitter, and this checkpoint predicts the
+  verifier's refusal and does not modify it - the discipline CAP-056 and CAP-057
+  each applied to the phase below them.
+
+### Why this checkpoint is not like the eight before it, and the framing that matters most
+
+Every checkpoint from CAP-049 to CAP-057 could point at the canonical source and
+say what it would do. CAP-057 ended that, and not in the way its own outcome
+section anticipated. **This is the first checkpoint in the project whose
+capability the canonical source cannot demonstrate at all.**
+
+The reason is mechanical and is derivable from the accepted product without
+running anything. The semantic phase runs four passes in a fixed order:
+
+| pass | `compiler.aero` | what it does |
+|---|---|---|
+| 1 | `:3890-4105` | authenticate one provenance record per node against the token stream |
+| 2 | `:4116-4171` | emit **one** function symbol, read from `root` |
+| 3 | `:4173-4216` | a linear scan that refuses **any** kind-2 node with `17` / `2` |
+| 4 | `:4218-4460` | classify one node per iteration and append one fact |
+
+Pass 3 refuses identifiers outright. There is no name resolution anywhere in
+this compiler. The canonical source's node 1 is the arm-1 body `value` in
+`result_value` - offset 98, line 3, column 22, hand-verified against the bytes
+for this contract and agreeing with CAP-057 - and it is a kind-2 node. So pass 3
+fires at node 1 and **pass 4 never runs on the canonical source**. Passes 2 and
+4 are exactly what this checkpoint generalizes. The canonical run cannot observe
+either generalization, before or after.
+
+Two further facts follow and both are load-bearing.
+
+**The semantic phase does not walk the tree.** Passes 3 and 4 are linear over
+the arena - `while ... semantic_index < node_count` at `:4178` and `:4223` - and
+`:4444` requires `fact_count == node_count`. So the phase classifies every
+orphan, and the canonical refusal is a refusal **of an orphan**: node 1 is
+arm-1's body, which nothing's `left` or `right` names. 98.665% of the facts this
+phase would append are facts about nodes no node references.
+
+**The canonical source is this checkpoint's negative control, not its
+evidence.** Its role is to be a 17,985-node, 23-item stress input whose located
+refusal must not move. That is a real and falsifiable requirement - see
+Decision 1 - and it is not a demonstration of module meaning. The demonstration
+has to come from somewhere else, and Decision 1 says where.
+
+### Decision 1 - what replaces the canonical stop as this phase's falsifiable prediction
+
+The question the session prompt puts first, answered before anything else is
+decided, because the rest depends on it.
+
+**The honest answer is that the semantic phase admits no single predictable stop
+on the canonical source, and pretending otherwise would be worse than saying
+so.** CAP-057 relocated the canonical refusal from the parser to the semantic
+phase and treated that as continuity - the same shape of assertion, one
+authority further down. It is not continuity for H1M-2, because the relocated
+refusal is produced by pass 3, which this checkpoint does not own and must not
+touch. A checkpoint cannot be pinned by an assertion it is forbidden to move.
+
+Three things replace it. The first is invariance, the second is a family, and
+the third is the one that actually has the property the canonical stop had.
+
+**1. Invariance on the canonical source, and it is a stronger guard than it
+looks.** After this checkpoint the canonical run's located refusal must be
+identical to CAP-057's: `status = 0`, `root == node_count`, 23 items walked,
+`semantic_status = 17`, `semantic_code = 2`, node 1, offset 98, line 3, column
+22, `checked_attempted = 0`. Node 1 lives in item 1 at `compiler.aero:1-6`; this
+checkpoint's edits land at `:4116` and beyond, so node 1's identity and origin
+cannot move.
+
+  This is not a formality. Pass 2 runs **before** pass 3, and pass 2 is one of
+  the two things this checkpoint rewrites. A generalization that walks the item
+  chain wrongly, or that appends past a bound, changes the canonical run's
+  semantic status from `17` to `26` or `27` - and it does so on the largest
+  structure this project has, 23 items and 17,985 node records. The canonical
+  source is therefore the **stress test for N-symbol emission**, and its
+  expected result is "unchanged", which nothing in this checkpoint can produce
+  by accident.
+
+**2. A per-item family, in place of a located token.** For a module of N items
+of the accepted shape, five quantities are derivable from the parse alone before
+any run, and none of them is a byte offset:
+
+| quantity | derivation | N=1 | N=2 | N=3 |
+|---|---|---|---|---|
+| `symbol_count` | one per kind-19 node | 1 | 2 | 3 |
+| `bytes_len(&symbols)` | `16 * N` | 16 | 32 | 48 |
+| symbol i's four words | `[1, payload(F_i), F_i, 1]` | | | |
+| `fact_count` | `node_count`, unchanged | 3 | 6 | 9 |
+| `semantic_root_type` | `1` | 1 | 1 | 1 |
+
+  These are counts, and counts are weaker evidence than a located stop: a count
+  of 2 does not prove item 2 was processed rather than item 1 twice. The
+  fail-before-IR negatives below are what close that hole, and they are required
+  for exactly that reason.
+
+**3. The refusal relocates again, and this is the replacement with the
+canonical stop's own property.** The canonical stop was predictable from the
+source bytes and observable exactly. One assertion in this checkpoint has both
+properties:
+
+| after | what refuses a multi-item module | vector |
+|---|---|---|
+| CAP-057, today | semantic pass 4, kind-19 rule at `:4390` | `semantic_status = 27` / `code = 3` at item 1's function node |
+| stage 2a | checked-IR authentication at `:4583`, `symbol_count != 1` | `checked_attempted = 1`, `checked_status = 4`, `checked_node = root`, `checked_code = 3` |
+| stage 2b, the whole checkpoint | **the verifier**, `:5555`, `verified_function_count != 1` | `verified_status = 1`, `verified_word_index = 1`, `verified_code = 2`, `verified_expected = 1`, **`verified_actual = N`** |
+
+  `verified_actual = N` is the number of `fn` items in the source. Its
+  **location is fixed** - checked-IR word 1, the module's declared function
+  count - and its **value varies with the input in a way derivable from the
+  source bytes by counting `fn` keywords**. That is precisely the shape the
+  canonical stop had, moved one authority further down, and it is a
+  **fail-before-emitter negative**: it proves the checked module was constructed
+  well enough for the verifier to read its header and reject it on its own
+  declared count, rather than on a malformed view. A checked module the verifier
+  could not parse would refuse at `verified_view_words < 9` or at
+  `verified_format != 1`, both of which are different vectors, and both of which
+  this checkpoint must **not** produce. That is stop condition 8.
+
+**How every row above is falsifiable before the product is edited.** Today a
+completed multi-item parse never reaches the checked group at all, because
+`:4576` gates `checked_attempted` on `semantic_status == 0` and pass 4 refuses
+first. So a test asserting `checked_attempted = 1` for `two-items` fails today
+by construction, and a test asserting `verified_actual = 2` fails today by
+construction. Both go red against the unmodified product and green after. That
+is the whole of what "falsifiable before the product is edited" can mean here,
+and it is checked in that order rather than asserted.
+
+### Decision 2 - the representation debt: H1M-2 discharges none of it, and the census must not move
+
+Stated plainly because the session prompt requires the number not to drift
+unremarked.
+
+**H1M-2 discharges none of the representation debt.** Two independent reasons:
+
+1. The orphan census is a **parse-group** property - node records reachable from
+   `root`. This checkpoint edits no parse-group line, adds no node kind, and
+   appends no node. It cannot change reachability.
+2. It could not discharge the debt even if it were allowed to try. Giving
+   parameters, statements, assignments, conditionals and loops a representation
+   means new node kinds, new appends, new origin token-kind mappings at
+   `compiler.aero:2987` onward, and a raised `1..=23` bound. All of that is
+   parse-group authority. It is the missing checkpoint the representation-gap
+   section above records, and this is not it.
+
+**What the census must read afterwards.** Reachable nodes stay at **exactly
+240**. The node count does **not** stay at 17,985, and the reason is CAP-057's
+own finding turned on this checkpoint: `compiler.aero` is both the product and
+the canonical source, this checkpoint's edit lands inside item 22
+(`run_runtime_ascii_llvm_emitter`, `:483-6916`), and an end-to-end parse
+measures the edit. So the census becomes **240 of 17,985 + delta**, and the
+ratio gets *worse*.
+
+  Reachable stays 240 because reachability per item is bounded by the last
+  completed return statement's expression subtree plus the item's own two nodes,
+  and this checkpoint's diff adds no return statement and must not modify any
+  function's final return expression. **That is a constraint on the diff, not an
+  observation about it**, and it is stop condition 6: if the edit touches item
+  22's final return expression, this derivation is void and must be redone.
+
+  `delta` is **not** written here. CAP-057 established the procedure and the
+  reason: the acceptance figure cannot exist before the diff does. Write the
+  edit, hand-derive the delta from the diff, check it against the instrument,
+  then run the product, and do not adjust a table to match a run.
+
+  **And do not size `delta` from a byte count.** CAP-057's contract offered a
+  byte-proportional band and the diff came in at 13.6 bytes per node against the
+  estimate's 37 - wrong by roughly 4x - because node cost tracks expression
+  structure, not bytes. This checkpoint's edit is dense conditional code in the
+  same style, so the same failure mode applies with the same sign.
+
+**One new fact about the debt, recorded because it is not in the gap section and
+it changes what that section's future checkpoint costs.** `:4444` requires
+`fact_count == node_count`, and pass 4 has a rule per node kind with a
+catch-all: `:4399` refuses any kind for which `semantic_rule_found == 0` with
+`27` / `2`. **The representation checkpoint and the semantic phase are therefore
+coupled through `:4444`**, in both directions:
+
+- every node kind the representation checkpoint adds is a kind pass 4 must have
+  a rule for, or the module is refused with "no rule found"; and
+- the fact count grows by exactly the node count the representation adds - the
+  gap section's own figure is +10,319 under the floor policy - so the semantic
+  phase's work grows with it.
+
+That coupling is not recorded anywhere, and it means the representation
+checkpoint is **not** a parse-group checkpoint after all: it crosses the parse
+group and the semantic group, which is two authorities and exactly at the cap.
+Noted here as a finding for whoever owns it; it authorizes nothing.
+
+**Frozen: `fact_count == node_count` is not weakened, relaxed or made
+conditional by this checkpoint**, precisely because it is the mechanism that
+will force that coupling to be honoured.
+
+### Decision 3 - the eight single-function assumptions, enumerated, and a correction to the readiness document
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:504` names three things to generalize: "N
+symbols, one fact per node, and the `node_count - 2` arithmetic at
+`compiler.aero:4480`". A transcription of both groups against the current source
+finds **eight**, and two of them are not consequences of the three named.
+
+Semantic group:
+
+| | site | assumption |
+|---|---|---|
+| S1 | `:4116-4171` | one symbol, read from `root`; `symbol_count = 1` |
+| S2 | `:4390-4397` | the kind-19 rule requires `semantic_node == root`, `semantic_right == 0`, and `semantic_payload == function_payload` |
+| S3 | `:4443` | `symbol_count != 1` or `bytes_len(&symbols) != 16` |
+
+Checked-IR group:
+
+| | site | assumption |
+|---|---|---|
+| C1 | `:4583` | `symbol_count != 1` or `bytes_len(&symbols) != 16`, again |
+| C2 | `:4592-4610` | one symbol read at fixed byte offsets 0..15; `checked_symbol_function != root` |
+| C3 | `:4619` | `checked_expression_count = node_count - 2` - the one the readiness document names |
+| C4 | `:5043-5115` | the terminal Return/Function authentication treats nodes `node_count - 1` and `node_count` as the only return and function nodes |
+| C5 | `:5115-5159` | exactly one Return instruction, appended after the loop |
+| C6 | `:5163-5227` | a 25-word header carrying exactly one 9-word function record and one 7-word block record |
+| C7 | `:5229-5257` | **the result-derivation loop assumes result `i` is instruction record `i`** |
+| C8 | `:5300-5306` | `checked_expected_words = 25 + instructions * 11 + results * 6`; `checked_instruction_count != checked_result_count + 1`; `bytes_len(&checked_values) != checked_value_count * 24` |
+
+**C7 is the correction.** It is not a consequence of `node_count - 2` and it is
+not "N symbols". It is a positional assumption that holds only while every
+value-producing instruction precedes the single Return. With N items the Returns
+interleave, so instruction record 1 is item 1's Return, whose result word is 0
+where the loop expects 2, and the module is refused with `checked_status = 5` /
+`code = 3` - a refusal that looks like a corrupt instruction stream and is not.
+**A session that generalized only the three named items would find this in the
+implementation rather than in the contract**, which is the failure mode the
+ledger-first rule exists to prevent. It is reported rather than smoothed.
+
+C8's `+ 1` is the same shape and is the second unnamed one: the
+instruction/result invariant is `instructions == results + 1` because there is
+one Return. For N items it is `instructions == results + N`.
+
+### Decision 4 - the semantic generalization
+
+Minimal and mechanical. No new arena, no new bound, no new checksum input, no
+new node kind.
+
+- **The item list is walked, not counted.** The item chain is already
+  represented: CAP-056 made a kind-19 node's `right` carry the previous item's
+  node id, and `root` is the last item. `item_count` is obtained by walking that
+  chain, which is the same structure `assert_module_item_chain` already asserts
+  in the oracle.
+- **S1 becomes N symbols, in source order.** For each kind-19 node `F_i` in
+  ascending node id, append `[1, payload(F_i), F_i, 1]`. Ascending node id is
+  source order, is the reverse of the chain walked from `root`, and is the order
+  pass 4 will meet the items in. Choosing it makes symbol index, item order and
+  future function id the same number. `symbol_count = N`.
+- **S2 becomes a chain rule.** The kind-19 rule keeps `semantic_left ==
+  semantic_node - 1` and `semantic_left_type == 0` verbatim - a function node's
+  `left` is always its own return node - and replaces the other three:
+  `semantic_right` must equal the node id of the **previous** kind-19 node met
+  in this loop, which is `0` for the first; the `semantic_payload ==
+  function_payload` comparison becomes the item's own symbol payload; and
+  `semantic_node == root` is asserted **only for the last** kind-19 node, after
+  the loop.
+- **S3 becomes** `symbol_count != N` or `bytes_len(&symbols) != N * 16`.
+- Pass 3 is untouched. Pass 1 is untouched. `fact_count == node_count` is
+  untouched.
+
+For N = 1 every rule above reduces to the accepted one, term by term: the single
+item is both first and last, its `right` is 0, and `16 * 1 = 16`.
+
+### Decision 5 - the checked-IR generalization
+
+- **C3 and C4 dissolve into one linear loop.** The accepted product has an
+  expression loop bounded by `node_count - 2` and a separate terminal block. The
+  generalization runs one loop over all `node_count` nodes and dispatches on
+  kind: kind 18 authenticates the return and appends that item's Return
+  instruction; kind 19 authenticates the function and closes its record;
+  everything else is an expression, unchanged. This is a restructure of existing
+  code rather than new logic, and for N = 1 it executes the same operations in
+  the same order.
+- **The value-record index stays the node id.** `:4745` and `:4799` look a
+  child's value up at `(checked_left - 1) * 24`, which is correct only while
+  value record index equals node id minus one. Once return and function nodes
+  are skipped it is not. **Append a placeholder record `[node, 0, 0, 0, 0, 0]`
+  for every kind-18 and kind-19 node**, which restores the identity exactly and
+  leaves every existing lookup verbatim. The placeholder must **not** increment
+  `checked_value_count` and must **not** latch
+  `checked_candidate_root_kind`/`checked_candidate_root_payload`, or the
+  module's root value becomes the last function node's zero instead of the last
+  expression's operand.
+- **C8's storage invariant follows**: `bytes_len(&checked_values)` becomes
+  `node_count * 24`. `checked_value_count` continues to count expression records
+  only and is therefore **unchanged for every module including the canonical
+  one**, which is what keeps it out of the expectation vector's way. It is a
+  folded field of `checked_checksum` at `:5359`; `bytes_len(&checked_values)` is
+  not folded and is not compared outside `:5301`.
+- **C5**: one Return instruction per item, appended when its kind-18 node is
+  met. C8's arithmetic becomes `instructions == results + N`.
+- **C6**: the header becomes 9 words, then N 9-word function records, then N
+  7-word block records. **For N = 1 that is `9 + 9 + 7 = 25` words, byte for
+  byte the accepted header**, which is why the accepted canonical module's
+  emitted LLVM cannot move.
+- **C7**: the result-derivation loop stops indexing and starts scanning. Walk
+  all `checked_instruction_count` instruction records in order; for each whose
+  result word is non-zero, authenticate `result == emitted_index + 1` and emit
+  it. For N = 1 this visits the same records in the same order and emits the
+  same bytes, because the single Return's result word is 0 and it is last.
+- **C1 and C2**: `symbol_count != N`, `bytes_len(&symbols) != N * 16`, and
+  symbol `i` read at `i * 16`, with `symbol_function` required to equal item
+  `i`'s function node rather than `root`.
+
+### Decision 6 - the entry function is written, not decided
+
+The header's word 5 is `entry_function` and words 6-8 are the module's root
+value and type. With one function there is nothing to choose. With N there is,
+and **this checkpoint must not claim to have chosen it.**
+
+What it writes: function ids `1..N` in source order; `entry_function = N`; the
+root value latched from the last expression node in node order, which is item
+N's return expression. That is the mechanical continuation of the accepted code,
+which reads `(root - 1)` and latches the last value appended, and `root` is the
+last item.
+
+Why it is not a decision: **no evidence available at this checkpoint can
+distinguish it from any other choice**, because the verifier refuses at word 1
+(`function_count != 1`) before it ever consults word 5, and the emitter is never
+reached. Recorded as an implemented default with no evidence behind it. **H1M-3
+owns the entry-point question** and should expect to change this, particularly
+because the canonical source's `main` is item 23 and "last item" and "the entry
+point" agreeing there is a coincidence of layout, not a rule.
+
+### Decision 7 - staged 2a then 2b, with an independently gated boundary
+
+The checkpoint is one contract and is not narrowed. It is **implemented** in two
+ordered stages, each of which is a complete, green, independently evidenced
+tree:
+
+- **Stage 2a - the semantic group alone.** Decision 4 only. A multi-item module
+  then reaches the checked group and is refused by C1, which is already
+  implemented and is **predicted and not modified**: `checked_attempted = 1`,
+  `checked_status = 4`, `checked_node = root`, `checked_code = 3`,
+  `checked_offset = -1`. This is the same "the next phase's own refusal is the
+  gate" structure CAP-056 derived and CAP-057 reused, and it means stage 2a
+  crosses **one** authority.
+- **Stage 2b - the checked-IR group.** Decisions 5 and 6. The refusal relocates
+  to the verifier, per Decision 1 row 3.
+
+The staging exists because a session that runs out of capacity mid-checkpoint
+must land on a coherent boundary rather than a half-generalized pipeline, and
+because two one-authority stages are strictly safer than one two-authority
+change. **If only 2a lands, the checkpoint is incomplete and must be recorded as
+incomplete** - H1M-2 is not green until the verifier refusal in Decision 1 row 3
+is observed.
+
+### Implementation notes, established read-only against the accepted product
+
+None of this is a decision; it is what the source already does, transcribed so
+the implementing session does not re-derive it, and confirmed against
+`compiler.aero` at `aaaf6a8` without running anything.
+
+- **Per-item locations already exist and do not need to be invented.** A
+  kind-19 node's origin record is written at append time from that item's own
+  `function_start` / `function_line` / `function_column` - `:3041-3043` writes
+  `parser_append_1..3`, with origin token kind 3 (`fn`) at `parser_append_4`.
+  So the semantic phase can locate any item at `origins[(id - 1) * 20 + 4]`,
+  which is exactly the read the fact loop already performs at `:4222-4241`.
+- **The `function_start` / `function_line` / `function_column` registers are
+  not per-item at the point the semantic phase runs.** They are latched at
+  `:1690` when a signature's name token is read and are never reset, so after a
+  completed multi-item parse they hold the **last** item's location. The
+  accepted symbol-emission error paths at `:4125-4127` use them, which is
+  correct today because there is one item and wrong-by-accident for N. Per-item
+  failures must read the origins arena instead; the whole-module checks at
+  `:4443` may keep them, because a module-level failure is not located at an
+  item.
+- **A kind-19 node's payload is the function's name id**, `function_name_id` at
+  `:3031`, not a type or an arity. That is the word the symbol record's second
+  field carries today and the word S2's generalized payload check compares.
+- **The generalized kind-19 fact rule can be a stronger check than the one it
+  replaces, not a weaker one.** Today `:4392` compares `semantic_payload`
+  against `function_payload`, a register the symbol pass computed. Generalized,
+  the fact loop can read symbol record `i` back out of the `symbols` arena and
+  require its name word to equal `semantic_payload` and its function word to
+  equal `semantic_node`. That is a genuine cross-check between pass 2 and pass
+  4 over the same item, where today's is a comparison against a single
+  register.
+- **`checked_values` is not folded into any checksum and is compared in exactly
+  one place**, `:5302`. `checked_value_count` *is* folded, at `:5359`, and is a
+  field of the expectation vector. That asymmetry is what makes the placeholder
+  value record in Decision 5 free: the byte length changes, the counted figure
+  does not, and no asserted output moves.
+- **The instruction record is 44 bytes / 11 words and its result word is field
+  3**; the Return instruction writes 0 there - `:5124` writes fields 3 and 4 as
+  zero - which is what lets C7's scan distinguish a value-producing instruction
+  from a Return without a second table.
+
+### What is authorized
+
+- `examples/aero_self_host_v0/compiler.aero`, **semantic and checked-IR groups
+  only** - `:4116-4171`, `:4390-4397`, `:4443`, and `:4552-5320`.
+- `src/compiler/tests/self_host_source_ingestion_tests.rs`, the oracle and its
+  probes.
+- `TASK_LEDGER.md`, `PROJECT_STATE.md`, `BOOTSTRAP_CONVERGENCE_READINESS.md`.
+
+Nothing else. Not one line inside the parse, verifier, emitter or driver groups.
+Not `main`.
+
+### Frozen exclusions
+
+- **No parse-group change of any kind.** No new node kind; `1..=23` unchanged.
+  No arena bound moves. The census's reachable count is not a target.
+- **The verifier's `512` at `:5557` is not touched.** It belongs to H1M-3 under
+  H1M-3's own authority and independent oracle, and it cannot bite here because
+  the verifier refuses at word 1 first.
+- **Pass 3 is not touched.** Identifiers stay refused at `17` / `2`. No name
+  resolution, no scope, no symbol lookup by name. `symbol_count = N` is a count
+  of items, not a name table.
+- **`fact_count == node_count` is not weakened.** See Decision 2.
+- No type checking beyond the accepted rule table. No ownership, borrow,
+  lifetime or layout. No call between functions - a call to another item is
+  still a kind-2 identifier and is still refused.
+- **No claim that the canonical source is understood.** It is refused at node 1
+  before either generalization runs, and this checkpoint does not change that.
+- No new checksum input in either group. The fold order in both checksums is
+  unchanged; only the counts folded into it move.
+
+### What must go red first, and the predictions, hand-derived
+
+Every expectation below is derived from the grammar, the accepted phases and
+this contract independently of any run, and must be checked against the oracle
+before the product is touched. Corrections get reported, not smoothed. Node
+counts for A, B and C are re-derived here and agree with the accepted
+`MODULE_PROBES` table, which is cited rather than trusted; D through G are new
+and their node counts are derivations this contract owns.
+
+| probe | source | nodes / root / N |
+|---|---|---|
+| A `one-item` | `fn f() -> int { return 1; }` | 3 / 3 / 1 |
+| B `two-items` | `fn f() -> int { return 1; } fn g() -> int { return 2; }` | 6 / 6 / 2 |
+| C `three-items` | three such items | 9 / 9 / 3 |
+| D `two-items-with-expressions` | `fn f() -> int { return 1+2; } fn g() -> int { return 3*4; }` | 10 / 10 / 2 |
+| E `two-items-second-divides-by-zero` | `fn f() -> int { return 1; } fn g() -> int { return 1/0; }` | 8 / 8 / 2 |
+| F `two-items-second-returns-bool` | `fn f() -> int { return 1; } fn g() -> int { return 1 < 2; }` | 8 / 8 / 2 |
+| G `two-items-second-has-identifier` | `fn f() -> int { return 1; } fn g() -> int { return a; }` | 6 / 6 / 2 |
+| H | the canonical source, whole | 23 items |
+
+Predicted, after the complete checkpoint:
+
+| probe | semantic | checked | verified |
+|---|---|---|---|
+| A | `0`; symbols 1, facts 3, root_type 1 | completes; values 1, instructions 1, results 0, **36 words** | **accepted, and the emitted LLVM is byte-identical to the frozen text** |
+| B | `0`; symbols 2, facts 6, root_type 1 | completes; values 2, instructions 2, results 0, **63 words**, root kind 1 payload 2 | `1` / word `1` / code `2` / expected `1` / **actual `2`** |
+| C | `0`; symbols 3, facts 9, root_type 1 | completes; values 3, instructions 3, results 0, **90 words**, root kind 1 payload 3 | `1` / word `1` / code `2` / expected `1` / **actual `3`** |
+| D | `0`; symbols 2, facts 10, root_type 1 | completes; values 6, instructions 4, results 2, **97 words**, root kind 2 payload 2 | `1` / word `1` / code `2` / expected `1` / **actual `2`** |
+| E | `0`; symbols 2, facts 8, root_type 1 | **refused, `checked_status = 2` / `code = 6`** at node 6, item 2's `/` | not attempted |
+| F | **refused, `semantic_status = 25` / `code = 18`** at node 7, item 2's return, expected `1` actual `2` | not attempted | not attempted |
+| G | **refused, `semantic_status = 17` / `code = 2`** at node 4, item 2's `a`; `symbol_count` is still 2, because pass 2 precedes pass 3 | not attempted | not attempted |
+| H | **unchanged from CAP-057**: `17` / `2`, node 1, offset 98, line 3, column 22 | not attempted | not attempted |
+
+The word counts are `9 + 16N + 11 * instructions + 6 * results`. A: `9 + 16 + 11
+= 36`, which is the accepted 25-word header plus one instruction **exactly** -
+the arithmetic that guarantees A cannot move. B: `9 + 32 + 22 = 63`. C: `9 + 48
++ 33 = 90`. D: `9 + 32 + 44 + 12 = 97`.
+
+**E, F and G are the probes that carry the checkpoint**, and they are worth more
+than B, C and D put together. A count of 2 does not prove item 2 was processed;
+these do, each at a different phase:
+
+- **E** proves the checked-IR group evaluates item 2's expressions rather than
+  copying item 1's: only item 2 contains the division, and only item 2's
+  operands can produce `checked_status = 2`.
+- **F** proves semantic pass 4 classifies item 2's return node against item 2's
+  own expression type. `1 < 2` is one of kinds 10-15, which yields complete type
+  2, and `:4383` requires 1 under a kind-18 node. It also proves the per-item
+  reset: a generalization that carried item 1's `semantic_left_type` forward
+  would accept it.
+- **G** proves pass 3 was not widened. It is the one shape where a careless
+  "make the semantic phase handle modules" change would quietly start resolving
+  identifiers, and it must stay refused at `17` / `2`.
+
+**A is the anti-fitting guard**, and it is stronger than CAP-057's probe I
+because it is not a vector comparison: the accepted single-item canonical module
+is run end to end and its emitted LLVM is **byte-compared against the frozen
+text**, by the existing
+`canonical_self_host_source_preserves_the_accepted_canonical_module`. If any
+figure in the single-item path moves, that test fails on bytes.
+
+**H is the negative control**, per Decision 1 row 1.
+
+### The deliberate out-of-table grading, against CAP-056's model
+
+A probe suite passing is evidence about the probe suite. Both halves are
+required, and a third is added because this checkpoint has a shape the previous
+two did not.
+
+- **Half one, zero churn.** On every shape whose parse does **not** complete,
+  and on every single-item shape, CAP-056's `oracle::module_semantic_stop` and
+  this checkpoint's model must agree exactly, in every field of `SemanticStop`.
+  Zero churn is the expectation and any churn is a finding.
+- **Half two, the contradiction.** On B and C, CAP-056's model predicts `27` /
+  `3` at item 1's function node. It must be **kept, still asserted to produce
+  exactly that**, and then graded against the real product, where it must now
+  **contradict** it - the product reaches `semantic_status = 0`. A refactor that
+  collapsed the two models into one would pass half one and fail this.
+- **Half three, the out-of-table one.** CAP-056's model `panic!`s on any node
+  kind its probes never reached - `:1991` of the test file. Probes D, E and F
+  carry kinds 5, 6, 8 and one of 10-15, which it has never seen. Grading them
+  against it is therefore not a vector comparison at all; it is a demonstration
+  that the old model **cannot express** the shapes this checkpoint admits. That
+  must be asserted as a caught panic rather than left as an unreached branch, or
+  the model's own stated limit is undocumented in code.
+
+### Mandatory stop conditions
+
+1. Any edit outside the authorized files, or inside the parse, verifier,
+   emitter or driver groups of `compiler.aero`.
+2. Any change to the node-kind bound, any arena bound, the verifier's `512`,
+   `fact_count == node_count`, or the checksum inputs of either group.
+3. Probe G passing, or any identifier reaching a fact.
+4. Probe A moving by one byte of LLVM, or by one field of its vector.
+5. Probe H's located refusal moving from node 1, offset 98, line 3, column 22.
+6. The diff touching any function's **final return expression**, which voids the
+   "reachable stays 240" derivation in Decision 2. Redo the derivation before
+   continuing; do not adjust the expected census.
+7. Any divergence between the instrument and the product on the post-edit tree
+   that was not hand-derived from the diff first. Record which arena and by how
+   much before changing anything.
+8. The verifier refusing at `verified_view_words < 9` or `verified_format != 1`
+   instead of at word 1. That is a malformed checked module, not the predicted
+   refusal, and it means C6 or C8 is wrong.
+9. A red gate. Revert and record; do not stack.
+10. **A figure written before its run completed.** See the method note.
+
+### Gate discipline and method
+
+- Tripwire manifest of SHA-256 over all tracked files plus `HEAD` before
+  starting; re-verified before each commit. A file changing that this session
+  did not change is a stop-and-report, and any in-flight gate result is
+  discarded.
+- Red-first, with expectations derived from the grammar, the frozen contract and
+  the accepted phases independently rather than read out of a run. When a
+  hand-derivation disagrees with the instrument, fix it **at the mechanism**
+  rather than at the number - CAP-057 localised a four-node error to a
+  miscounted register block that way, with the pricing left untouched.
+- If a test's premise expires, **invert it rather than weakening it**: keep
+  asserting the old model and require the product to contradict it, which is
+  what CAP-057 did with five inherited tests and what half two above requires
+  here.
+- If the oracle is extracted or refactored, confirm it behaviour-preserving with
+  `compiler.aero` byte-identical and hash-verified before and after, and all
+  inherited probes green, before writing new ones.
+- `./tools/test.sh` green from the repository root before any commit;
+  correctness clippy blocking; no test weakened, skipped or deleted.
+- The canonical source stays exactly reconstructible from accepted B1C byte for
+  byte.
+- **A claim of a test result is written after reading that run's completed exit
+  status, never before, in any record a later reader could cite.** `AGENTS.md`
+  carries this. Write each run's row with its result column empty and fill it
+  only from a read exit status. Recording a gate edits the tree that gate
+  verified, so the last gate before a commit goes in the **commit message**.
+- Push after each green commit, plain, no force, no tags, no PR, confirmed with
+  `ls-remote`.
+- Operationally: `tools/test.sh` defaults `CARGO_BUILD_JOBS=2` and
+  `RUST_TEST_THREADS=2` per OPS-002. `~/.cargo/env` does not exist on this
+  machine and `cargo` is not on the Git Bash `PATH`, so
+  `%USERPROFILE%\.cargo\bin` must be prepended by hand or the gate cannot find
+  the toolchain. **LLVM 22.1.8 is not on the `PATH` either**, and it is the
+  fault this contract's own first gate hit: `D:\AeroToolchains\llvm-22.1.8\bin`
+  must be on `PATH`, because `owned_byte_buffer_contract_test` finds its
+  verifier by searching `PATH` for `opt-22`, `llvm-as-22`, `opt`, `llvm-as`,
+  and `AERO_LLVM_BIN` alone does not satisfy it. Without it the gate returns
+  **exit 101** ten seconds in with two library failures reading "required
+  LLVM 22 opt/llvm-as verifier was not found", which looks exactly like a
+  product regression and is not one.
+  `D:\Aero-build-targets\cap057` is the live warm target root at 11 GB;
+  the worktree's own `target/` holds 16 KB, so a gate that does not export
+  `CARGO_TARGET_DIR` pays a full cold rebuild. An OOM, a missing toolchain or
+  a missing verifier is an environment fault and is reported as one, not as a
+  test failure.
+- **And read the gate's exit status from the gate, not from whatever reported
+  it.** This session's first run was reported as exiting 0 by the shell
+  wrapper that invoked it, because the wrapper exited 0; the gate itself
+  exited 101. The procedure that catches it is to append `EXIT=$?` to the
+  gate's own log and read that line, which is what the run table below
+  records.
+
+### Gate
+
+Result columns were written from a read exit status and not before.
+
+| run | target | tree | result |
+|---|---|---|---|
+| 1 | `./tools/test.sh` from the repository root | contract records, `compiler.aero` untouched at `aaaf6a8` | **exit 101**, 310 passed / 2 failed, read at 23:34:01 UTC on 2026-08-20. **Environment fault, not a test failure**: both failures read "required LLVM 22 opt/llvm-as verifier was not found". Recorded rather than discarded, because the run that finds an environment fault is the one a later reader needs to see |
+| 2 | `./tools/test.sh` from the repository root | the same records, LLVM 22.1.8 on `PATH` | **exit 0**, 117 `test result:` lines totalling **1,005 passed, 0 failed, 16 ignored**, read from the log at 00:16:36 UTC on 2026-08-21 |
+| 3 | `./tools/test.sh` from the repository root | the records tree plus the implementation notes, the operational correction and this table | **exit 101**, 311 passed / 1 failed, read at 00:18:30 UTC on 2026-08-21. **A timing flake, not a regression** - see below |
+| 4 | `./tools/test.sh` from the repository root | **byte-identical to run 3** | **exit 0**, 117 `test result:` lines totalling **1,005 passed, 0 failed, 16 ignored**, read from the log at 01:07:45 UTC on 2026-08-21 |
+| 5 | `./tools/test.sh` from the repository root | **the exact tree committed**, carrying this corrected table | **result recorded in the commit message**, which is the only record written after this tree was fixed. No result is claimed in this cell |
+
+Run 2 does not cover this table, the implementation notes above, or the
+operational correction, because writing them changed a gated input - four test
+targets check the *content* of `TASK_LEDGER.md`, `PROJECT_STATE.md` and
+`BOOTSTRAP_CONVERGENCE_READINESS.md`. Run 5 covers the committed tree, and its
+result is named in the commit message rather than here for the reason CAP-057
+recorded: a gate row naming its own run cannot be written into the tree that run
+covered. Exactly one unrecorded run is in flight at commit time, by construction
+rather than oversight.
+
+**Run 3's failure was `llvm_verifier::tests::completed_wrapper_with_inherited_pipes_still_obeys_the_process_deadline`,
+and it is recorded rather than re-run into silence.** That test writes a
+temporary `wrapper.cmd`, spawns a detached child and asserts the spawn returned
+in under one second of wall clock - `src/compiler/src/llvm_verifier.rs:1096`,
+"inherited verifier pipes outlived the configured deadline". Two independent
+facts establish that this contract's edit cannot be its cause: the test reads no
+repository markdown and touches no product path, and run 2 passed it on a `src/`
+tree byte-identical to run 3's, which the tripwire confirms differs from the base
+commit in three markdown files and nothing else. Run 3 was started roughly one
+hundred seconds after a forty-one-minute gate finished. It is a **timing flake
+under machine load**, which is an environment fault in the sense OPS-001 and
+OPS-002 use the term, and run 4 on the byte-identical tree is the evidence for
+that rather than the assumption behind it. Recorded here because this project had
+no record of a flaky test before, and a later reader meeting this failure should
+re-run and read the result rather than revert a record that cannot have caused
+it.
+
+**A correction to the run-table template itself, inherited from CAP-057 and
+found by this checkpoint's own stop condition 10.** Row 5 originally read
+"green; its timestamp is in the commit message", copying CAP-057's run 6 row
+verbatim. That word "green" is a **result written before the run existed**, which
+is exactly what `AGENTS.md` forbids in "any record a later reader could cite" and
+what stop condition 10 of this contract forbids by name. Run 3 then returned 101,
+so the pre-written cell was not merely premature but false. The row now claims no
+result at all: the commit message is the only record written after the tree is
+fixed, so it is the only place the committed tree's result may appear. CAP-057's
+own row is left as it stands - it is that checkpoint's record to correct, not
+this one's - but the template it set should not be copied again.
+
+The tripwire over all 493 tracked files was verified before run 1 and before the
+commit, and was byte-identical across runs 3 and 4. Exactly three files differ - `TASK_LEDGER.md`, `PROJECT_STATE.md` and
+`BOOTSTRAP_CONVERGENCE_READINESS.md` - and `HEAD` never moved. **No product line
+was changed under this contract**, which is the state H1M-2 is in: contracted,
+gated, and not implemented.
+
+### What is explicitly not claimed
+
+A module is not a program. If this checkpoint is green, the compiler will accept
+a module of N functions through semantic analysis and construct one checked-IR
+module containing N function records - and it will still refuse the canonical
+source at its first node, still resolve no identifier, still call no function
+from another, and still represent no binding, assignment, statement sequence,
+conditional or loop. The verifier will refuse every multi-function module it is
+handed. 98.665% or worse of the canonical arena remains unreachable and this
+checkpoint does not improve it.
+
+This is module **meaning** for the shape H1M-1 admitted, over a value universe
+of integer literals and arithmetic. It is not H1B's `:223` obligation, not stage
+convergence, not self-hosting, and not a claim that any language feature is
+stable.
+
 ## CAP-057-H1M1B-SELF-SOURCE-BINDING-TYPES - admit the `ByteBuffer` and `Result<int, int>` binding types
 
 - Date/task/status: 2026-08-19, `CAP-057-H1M1B-SELF-SOURCE-BINDING-TYPES`,
