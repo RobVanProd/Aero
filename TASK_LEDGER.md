@@ -839,6 +839,92 @@ construction.
 The tripwire over all 493 tracked files was taken before anything was read and
 re-verified before the commit. No file changed that this session did not change.
 
+### Handoff to stage 2b, written from a deliberate stop rather than from exhaustion
+
+**The base.** `c1076e7bfcb579dc871e4313dfb9e72b771481a7` on
+`claude/self-hosting-analysis-be3f72`. Confirm it the way this project always
+does and do not trust this line: `git ls-remote origin
+claude/self-hosting-analysis-be3f72`, **run from the worktree** and querying the
+branch by name, because a checkout on another branch answers about the wrong
+thing. Runs 5 and 6 of the gate table above are recorded in that commit's own
+message, which is the only place they may be, and run 7 - this handoff's gate -
+is in the message of whichever commit carries this section.
+
+**What is proved.** The semantic phase accepts a module of N function items:
+`symbol_count = N` in source order, one fact per node, `semantic_root_type = 1`,
+and the module invariant generalized to `N` and `16N`. The refusal has moved one
+authority down, to the checked-IR group's own `symbol_count != 1` at
+`compiler.aero:4583`, predicted and unmodified. F and G hold the two
+per-item refusals inside the semantic phase, each located in item 2's own bytes.
+The canonical negative control's located refusal did not move.
+
+**What is ruled out, and it is the more useful half.**
+
+- **The checkpoint is not green.** `verified_actual = N` at
+  `compiler.aero:5555` has not been observed and no record here may be read as
+  if it had.
+- **Probe E is currently inert.** It exists to prove the checked-IR group
+  evaluates *item 2's* expressions, and C1 refuses before the expression loop
+  runs, so at stage 2a it is indistinguishable from B. Stage 2b's first job is
+  to make E mean something.
+- **Five of the eight single-function assumptions are untouched**, including
+  `checked_expression_count = node_count - 2`, the one the readiness table names,
+  and C7, the one the contract itself had to correct.
+
+**Do this first, and in this order.**
+
+1. **Model the checked module before editing it.** This is the work stage 2b
+   actually costs, and it is larger than the product edit. `checked_checksum`
+   folds every word of `checked_ir` and `verified_checksum` folds them again, so
+   the oracle has to construct the module word for word rather than assert
+   counts: 9 header words, then N 9-word function records, then N 7-word block
+   records, then `instructions * 11`, then `results * 6`. The accepted layout is
+   transcribed by reading the serializer at `:5163` against the verifier's own
+   scan at `:5459-5535`, which names every one of the first 25 words. For N = 1
+   that is `9 + 9 + 7 = 25` words, byte for byte the accepted header, which is
+   the arithmetic that guarantees probe A cannot move.
+2. **Then Decisions 5 and 6**, at C1 through C8. The placeholder value record
+   `[node, 0, 0, 0, 0, 0]` for every kind-18 and kind-19 node is what keeps every
+   existing `(checked_left - 1) * 24` lookup verbatim, and it must **not**
+   increment `checked_value_count` and must **not** latch
+   `checked_candidate_root_kind` / `_payload`.
+3. **Then the vectors.** `oracle::c1_refused_expectation_vector` is the shape to
+   copy; stage 2b needs a sibling that fills the checked group with a completed
+   module and the verifier group with the word-1 refusal, and E needs a third
+   that stops at `checked_status = 2` / `code = 6`.
+
+**Five operational facts this session paid for.**
+
+1. **`cargo fmt --check` is the first thing `tools/test.sh` runs and it exits
+   before one test.** A gate that returns exit 1 in seconds with no
+   `test result:` line is formatting, not a regression. Run `cargo fmt` from
+   `src/compiler` and gate again.
+2. **The Aero subset scopes a function body as one scope**, and
+   `run_runtime_ascii_llvm_emitter` already owns `item_previous`, `item_count`
+   and friends. New registers need a prefix; stage 2a used `semantic_item_*`,
+   so stage 2b should use `checked_item_*` and grep before declaring.
+3. **The cost instrument's rules are the ones documented on
+   [`H1M2_ARENA_DELTA`]** and they are validated: an assignment target is free, a
+   `match` scrutinee is free, a grouping `(` and a call each push an operator
+   record but no node and no value. Rebuild it, revalidate it against the
+   fourteen per-item rows **and** the pre-edit whole-file figure, and only then
+   price stage 2b's diff. Do not size anything from a byte count: stage 2a came
+   in at 11.3 bytes per node against CAP-057's 13.4 and CAP-056's 37.
+4. **The census will get worse again and that is expected.** It is 240 of 18,650
+   here. Stage 2b's diff is larger, so the ratio moves further, and it is still
+   not a regression: every node either stage adds is an orphan by construction.
+5. **`D:\Aero-build-targets\cap057` is the live warm root**, LLVM 22.1.8 must be
+   on `PATH` or `owned_byte_buffer_contract_test` returns exit 101 ten seconds in
+   with what looks exactly like a product regression, and
+   `%USERPROFILE%\.cargo\bin` must be prepended by hand because `~/.cargo/env`
+   does not exist on this machine.
+
+**The one thing that would invalidate stage 2b's plan.** Stop condition 8: if
+the verifier refuses at `verified_view_words < 9` or at `verified_format != 1`
+rather than at word 1, the checked module is malformed and C6 or C8 is wrong.
+That is a different vector from the predicted one and it must not be accepted as
+"close enough".
+
 ## CAP-058-H1M2-MODULE-MEANING - the semantic and checked-IR groups over N function items
 
 - Date/task/status: 2026-08-20, `CAP-058-H1M2-MODULE-MEANING`, authored
