@@ -597,6 +597,644 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-059-H1M3-MODULE-VERIFICATION-AND-EMISSION - the verifier and emitter groups over N function items
+
+- Date/task/status: 2026-08-21, `CAP-059-H1M3-MODULE-VERIFICATION-AND-EMISSION`,
+  **contract authored ledger-first; no product line edited**. Authored from
+  `7d810d7f91602643f99becedf765dbb344683cee`, which
+  `git ls-remote origin claude/self-hosting-analysis-be3f72`, run from the
+  worktree and querying that branch by name, confirms is both the local `HEAD`
+  and the remote head. The session prompt named `7d810d7` and warned not to
+  trust it. **That is now five consecutive non-firings** - CAP-057, CAP-058's
+  contract, stage 2a, stage 2b and this - and it is still a reason to verify
+  rather than a prediction in either direction. It was verified.
+- It is the checkpoint `BOOTSTRAP_CONVERGENCE_READINESS.md:504` names as
+  "H1M-3 - module verification and emission": the verifier and emitter groups
+  over N function items. That is **two** authorities and exactly the cap `:331`
+  sets. The checked-IR group is frozen here, the way H1M-2 froze the verifier -
+  see stop condition 1, which is the strongest stop condition in this contract
+  because breaching it is the one failure that would not look like a failure.
+- **Every line number in this contract is against `7d810d7` and was read rather
+  than carried forward.** Several inherited citations are stale and are
+  corrected here: the verifier's `512` is at **`:6018`**, not `:5557` as
+  `BOOTSTRAP_CONVERGENCE_READINESS.md` and stage 2b's handoff both say;
+  `verified_function_count != 1` is at **`:5878`**, not `:5555`; and
+  `fact_count == node_count` is at **`:4584`**, not `:4444`.
+
+### The framing question the session prompt puts first, and it is a real end rather than a rhetorical one
+
+Every checkpoint from CAP-056 to CAP-058 pinned itself on a **located refusal**
+moving one authority further down: the parse group to the semantic group at
+CAP-057, the semantic group to the checked-IR group at stage 2a, the checked-IR
+group to the verifier at stage 2b. The prompt asks what pins H1M-3 when that
+chain ends, and asks it answered before implementing.
+
+**The chain does end here, and that is established rather than assumed.** Below
+the emitter is one more group, the CAP-047 B1C stdout driver at `:7091-7250`.
+It is not a candidate. Every check it makes is an *internal authentication* - it
+recomputes the emitter's own checksum over the emitter's own output and compares
+(`:7115-7139`) - and it makes no claim about function counts, item counts or
+module shape at all. A module of N functions whose emitter completed reaches
+`driven_status = 0` and writes its bytes. There is no next refusal for the
+refusal to move to. This is not "the refusal is hard to find"; it is that the
+product runs out of phases.
+
+Two distinctions have to be drawn before a replacement is chosen, because the
+premise compresses them and the compression is what would mislead.
+
+**First: there were always two kinds of located refusal, and only one of them
+dies.** There was the *canonical source's* stop, which died at CAP-057 and is
+not coming back - the canonical source is refused at semantic pass 3 on node 1,
+one authority above anything H1M-3 owns, and stays there. And there is the
+*probe's* refusal, which is what stage 2b actually used. Probe refusals do not
+die at H1M-3: E is still refused inside the checked group at item 2's own
+division, F and G are still refused inside the semantic phase, and all three
+must be **unmoved**. What dies is the located refusal as this checkpoint's
+**positive** instrument - the thing that says a new capability exists. The
+negative instrument survives intact and is stop condition 8.
+
+**Second, and this changes the shape of the contract: the replacement is
+stronger than what it replaces, and saying so is more honest than treating the
+end of the chain as a loss.** CAP-058's Decision 1 had to argue that its
+per-item family of counts was *weaker* evidence than a located stop, and it was
+right to. H1M-3 is the first checkpoint in H1 whose primary instrument is
+stronger than a located stop, for a structural rather than lucky reason: a
+located refusal asserts five integers about where a compiler *stopped*, and
+emitted LLVM text asserts every byte of what a compiler *produced*. A refusal
+cannot distinguish a compiler that declined correctly from a compiler that
+cannot do the work at all. Output can.
+
+### Decision 1 - what pins this checkpoint
+
+Three candidates, graded against each other, one named load-bearing.
+
+**Candidate 1 - the emitted LLVM bytes, hand-derived per probe and byte-compared
+against the linked product's stdout. LOAD-BEARING.**
+
+For each accepting probe the exact byte string of the emitted module is
+determined by the source and derivable before any run, from the fragment table
+at `:344-482` and the instruction stream the checked group already builds.
+Probe B's is **99 bytes** and probe H's is **145**, both derived in Decision 9
+below; every one of those bytes is forced, and none can be produced by a wrong
+implementation by accident.
+
+  It has the two properties the canonical stop had - fixed in advance, valued
+  from the source bytes - and a third the canonical stop did not: it is
+  **positive**. It says a module of two functions was compiled, not that a
+  module of two functions was correctly declined.
+
+  It has one real weakness the refusal did not have, and the weakness is stated
+  rather than argued away: **a byte comparison does not locate.** A mismatch at
+  offset 40 of 145 names no mechanism and no site. That is why the instrument
+  is a pair rather than a single assertion: each probe is graded by its emitted
+  bytes *and* by the full expectation vector, whose exit code still locates to a
+  group - `92` at `:7201` the checked group, `93` at `:7215` the verifier, `94`
+  at `:7223` the emitter, `95` at `:7231` the driver, `91` at `:7233` all four
+  agreeing. The bytes say what was produced; the code says which authority
+  disagreed.
+
+  **A second, independent grader is available and is required rather than
+  treated as optional.** The emitted text is fed to the same `clang` the tests
+  already link with (`llvm_bin()`, `:3176`) as LLVM IR and must compile. That is
+  a third-party checker with no knowledge of this project's model, and it
+  catches exactly the failure mode Decision 3's E3 describes - a reference to an
+  undefined register - which **no exit code in this product reports**, because
+  the verifier validates the checked IR rather than the text and the driver
+  checksums the bytes without parsing them. A checkpoint whose worst failure
+  mode is invisible to its own product must borrow an oracle that can see it.
+
+**Candidate 2 - the fault-injected located refusal. SUPPORTING, and
+load-bearing for exactly one decision.**
+
+`run_runtime_ascii_llvm_emitter` takes `verification_fault_word` and
+`verification_fault_value` (`:502`), which substitute one word as the verifier
+reads it, at four sites - `:5780`, `:6138`, `:6562` and `:6631`. That yields a
+located refusal with a fixed word index and a predictable vector, and it is the
+**only** instrument that can falsify a rule about a header word whose correct
+value is never wrong in a well-formed module. Decision 5 needs exactly that for
+the entry function at word 5, and nothing else in this checkpoint does.
+
+  Its weakness is precise and disqualifies it as the primary: **the value comes
+  from the test, not from the source.** The canonical stop's whole authority was
+  that the input determined the answer. A fault-injected vector is a statement
+  about the verifier's rule, not about the source's meaning, and it is graded as
+  such.
+
+**Candidate 3 - invariance of the accepted single-item module. SUPPORTING, and
+the strongest guard in the checkpoint.**
+
+`canonical_self_host_source_preserves_the_accepted_canonical_module` (`:7309` of
+the test file) links the canonical product against the real runtime, feeds it
+`fn score()->int{return 1+2*3-4/2;}`, and byte-compares stdout against the
+frozen `CANONICAL_LLVM` at `-O0` and `-O2`. **H1M-3 puts that test at more risk
+than any checkpoint before it**, because H1M-3 rewrites the code that produces
+those exact bytes - E1 and E5 are the `define` prologue and the `}` epilogue
+themselves.
+
+  It cannot be the primary, for a reason of kind rather than degree: **it grades
+  the absence of change.** A checkpoint that did nothing at all passes it.
+
+**The decision.** Candidate 1 pins the checkpoint. Candidate 2 pins Decision 5
+and nothing else. Candidate 3 is the anti-fitting guard. Stop condition 9
+requires both graders on candidate 1, because one grader the checkpoint also
+authored is one derivation, not two.
+
+### Decision 2 - the representation debt: H1M-3 discharges none of it either
+
+**H1M-3 discharges none of the representation debt**, for the two reasons H1M-2
+did not, neither weaker here:
+
+1. The orphan census is a **parse-group** property - node records reachable from
+   `root`. This checkpoint edits no parse-group line, adds no node kind and
+   appends no node.
+2. It could not discharge it if it were allowed to try. Giving parameters,
+   statements, assignments, conditionals and loops a representation means new
+   node kinds, new appends, new origin token-kind mappings in the parse group
+   and a raised `1..=23` bound - all parse-group authority - and by CAP-058's
+   Decision 2 finding it also crosses the semantic group through `:4584`. That
+   is the missing checkpoint the representation-gap section records, and this is
+   not it.
+
+**What the census reads today: 240 of 18,718, and 98.718% of the canonical arena
+is orphaned.** It will get worse, because `compiler.aero` is both the product
+and the canonical source and this checkpoint's edit lands inside item 22, so an
+end-to-end parse measures the edit. **The movement may not be cited as progress
+or as decay, by this record or any later one.**
+
+**On the 240 holding across three checkpoints, which the session prompt asks to
+be noted rather than admired.** It has held partly *by constraint*: reachability
+per item is bounded by the last completed return statement's expression subtree
+plus the item's own two nodes, so a diff that adds no `return` statement and
+touches no function's final return expression cannot move it. Stage 2b met that
+constraint in a way worth restating exactly - of its 318 added lines, six
+contained the word `return` and **all six were comments**. That is a fact about
+the diffs this project has been writing, not a property of the compiler, and a
+reader who took 240-across-three-checkpoints as stability would be reading a
+constraint as a measurement. The same constraint is stop condition 6 here.
+
+**The delta is not written in this contract.** CAP-057 established the procedure
+and the reason: the acceptance figure cannot exist before the diff does. Write
+the edit, hand-derive the delta from the diff, check it against the instrument,
+run the product, and do not adjust a table to match a run. **And do not size it
+from a byte count** - CAP-057's byte-proportional band came in wrong by roughly
+4x because node cost tracks expression structure rather than bytes, and this
+checkpoint's edit is dense conditional code in the same style, so the same
+failure mode applies with the same sign.
+
+### Decision 3 - the single-function assumptions in the verifier and the emitter, transcribed
+
+`BOOTSTRAP_CONVERGENCE_READINESS.md:504` names one thing for H1M-3: the
+verifier's `512`. **A transcription of both groups against the current source
+finds thirty-two**, and three of them are not consequences of "N function
+records" at all. Recording that here rather than discovering it in the
+implementation is the entire purpose of the ledger-first rule, and stage 2b's C7
+is the precedent: it was found in the contract, and a session that found it in
+the implementation would have read it as a corrupt instruction stream.
+
+**Verifier group, `:5709-6767`. Twenty-five sites.**
+
+| | site | assumption |
+|---|---|---|
+| V1 | `:5811-5858` | the header scan latches **one** function record from fixed words 9-17 and **one** block record from fixed words 18-24 |
+| V2 | `:5878` | `verified_function_count != 1` - the vector H1M-2 is pinned by, and Decision 7's |
+| V3 | `:5885` | `verified_block_count != 1` |
+| V4 | `:5893` | `verified_entry_function != 1` - Decision 5 |
+| V5 | `:5931` | `instructions != results + 1` - one Return |
+| V6 | `:5940` | `expected_words = 25 + 11i + 6r` - a 25-word header |
+| V7 | `:5962` | `verified_function_id != 1` |
+| V8 | `:5986` | `verified_function_entry_block != 1` |
+| V9 | `:5994` | `verified_function_first_instruction != 1` |
+| V10 | `:6002` | `verified_function_instructions != verified_instruction_count` - one function owns every instruction |
+| V11 | `:6018` | `verified_function_node` in `3..=512` - Decision 4 |
+| V12 | `:6032` | `verified_block_id != 1` |
+| V13 | `:6040` | `verified_block_function != 1` |
+| V14 | `:6064` | `verified_block_first_instruction != 1` |
+| V15 | `:6072` | `verified_block_instructions != verified_instruction_count` |
+| V16 | `:6129` | the instruction record base is `25 + 11i` |
+| V17 | `:6181` | `verified_instruction_function != 1` |
+| V18 | `:6191` | **`verified_is_last` means "last of the module"** - see below |
+| V19 | `:6212` | **the expected result word is the instruction id** - see below |
+| V20 | `:6232-6250` | origin monotonicity is compared against **the** function node: a non-final instruction's origin is `< function_node - 1` and the final one's is `== function_node - 1` |
+| V21 | `:6553` | the result record base is `25 + 11 * instruction_count + 6i` |
+| V22 | `:6589` | `verified_result_function != 1` |
+| V23 | `:6613` | **`verified_definition_id != verified_expected_result_id`** - see below |
+| V24 | `:6623` | the result's origin is read at `34 + 11i` - result `i` is instruction record `i`, again |
+| V25 | `:6648-6725` | the module root is compared against the `verified_return_*` registers, which the instruction loop leaves holding **the last instruction of the module** |
+
+**Emitter group, `:6769-7089`. Seven sites.**
+
+| | site | assumption |
+|---|---|---|
+| E1 | `:6816` | one `define` prologue, emitted once before the loop, with `@aero_b1_entry` hard-coded inside fragment 1 |
+| E2 | `:6838-6840` | one flat loop over every instruction with the record base `25 + 11i`; no function boundary exists in the emitter at all |
+| E3 | `:6904` | **the defined register is named by the instruction id** - see below |
+| E4 | `:6926` | opcode 6 emits `ret` and nothing follows it inside the loop |
+| E5 | `:7048` | one `}` epilogue, emitted once after the loop |
+| E6 | `:7002` | an operand of kind 2 emits `%r` + the **result id** |
+| E7 | the whole group | the emitter reads no function record: `function_count`, `entry_function`, the per-function ranges and each instruction's `function` word are all present in the checked IR and all unused |
+
+**The three that are not consequences of "N function records", named here so
+they are not found in a run.**
+
+1. **V19 with V23 and V24 - the C7 shape, one authority down.** With per-item
+   Returns the instruction ids and the result ids diverge. On probe D the `mul`
+   is instruction record **3** and result **2**, because instruction 2 is item
+   1's Return and a Return writes zero into its result word. `:6212` expects the
+   result word to equal the instruction id, `:6613` expects result `i`'s
+   `definition_id` to be `i`, and `:6623` reads result `i`'s origin out of
+   instruction record `i`. A verifier generalized only for "N function records"
+   refuses probe D at `verified_status = 3` / `code = 2`, word `29 + 2*11 = 51`
+   - which reads exactly like a corrupt instruction stream and is not one. This
+   is the same defect stage 2b's C7 fixed in the checked group, in a group that
+   never saw the fix.
+2. **V18 - a positional claim, not a count.** `verified_is_last` is computed as
+   `index + 1 == instruction_count`, and everything downstream keys off it: a
+   non-last instruction must have opcode `1..=5` (`:6201`), so **every Return
+   but the module's final one is refused as an illegal opcode**. With N items a
+   Return ends each item's range. No amount of "N function records" reasoning
+   reaches this site.
+3. **E3 with E6 - the one whose failure mode is not a refusal.** The emitter
+   names the register it defines with `emitted_instruction_id` and names the
+   register it references with `emitted_operand_payload`, which is a **result
+   id**. Those agree today only because result id and instruction id coincide
+   when there is one Return and it is last. On probe D the emitter would define
+   `%r3` and reference `%r2`. **The product would not refuse that.** The
+   verifier had already passed, the driver checksums bytes without parsing them,
+   and the emitted text is syntactically well-formed LLVM that references an
+   undefined value. It would exit `91` and print garbage. That is a worse
+   outcome than any refusal in this project's history, it is invisible to every
+   exit code the product has, and it is the reason Decision 1 requires a second
+   grader the checkpoint did not author.
+
+  **The fix is forced rather than chosen, and it is the fix that keeps the
+  frozen bytes frozen:** the defined register must be named by the instruction's
+  **result word** (field 3 of the 11-word record), because that is what an
+  operand of kind 2 refers to. At N = 1 result id and instruction id are equal,
+  so the accepted canonical LLVM does not move by one byte.
+
+### Decision 4 - the `verified_function_node` bound, raised under the verifier group's own authority
+
+The pair at `:6018` is `verified_function_node < 3 || verified_function_node >
+512`. It has been carried unraised through CAP-055's capacity checkpoint and
+through both H1M-2 stages, each time deliberately, because it belongs to the
+verifier group. H1M-3 owns the verifier, so H1M-3 raises it. **It is raised from
+`512` to `65,536`, and the derivation below is the verifier's own and is not the
+parse-group raise repeated.**
+
+1. `verified_function_node` is word 12 of a function record. The checked group
+   writes it from the symbol record's function-node word (`:5404-5407`), which
+   the semantic phase wrote from a kind-19 node's id. **It is a parse-group node
+   id and nothing else.**
+2. The parse group refuses a node append whenever `node_count >= 65536`, at
+   seven sites - `:2450`, `:2697`, `:2982`, `:3020`, `:3064`, `:3219`, `:3292` -
+   and each append does `node_count = node_count + 1; node_id = node_count`
+   immediately afterwards (`:2488` and six more). Hand-derived from that: a
+   parse holding 65,535 nodes passes the guard, appends, and issues id 65,536; a
+   parse holding 65,536 nodes is refused before it can append. **The largest
+   node id the parse group can issue is 65,536**, and `node_count <= 65,536`.
+3. A verifier range bound is a claim about what the verifier will **accept**.
+   Accepting less than a well-formed producer can emit makes the verifier refuse
+   valid modules; accepting more admits ids no arena can hold. The correct
+   ceiling is therefore exactly the producer's ceiling.
+4. The lower bound **stays 3**. A function node is preceded by at least its own
+   return node and that return's expression, so no function node can be node 1
+   or node 2. It is not raised, not lowered, and not made per-item.
+
+  **Why this is not an analogy to CAP-055.** CAP-055 raised five *record
+  capacity* bounds - how many records an arena may hold. This raises one *value
+  range* bound - what values a single word may carry. They are different kinds
+  of bound and they land on the same number only because the second is derived
+  from the first. The derivation is falsifiable in a way an analogy is not: had
+  the parse group refused at `> 65536` rather than `>= 65536`, this bound would
+  be **65,537**, and reading it off CAP-055's headline number would have been
+  wrong by one.
+
+  **The raise is a live path, and it is gradable without any N-function
+  machinery.** Probe I is a **single** item whose return expression is 256 `1`s
+  joined by `+`. Left-associative reduction appends `lit, lit, add, lit, add,
+  ...`, giving `2k - 1 = 511` expression nodes, then the return node at 512 and
+  the function node at **513**. Today that module is refused at
+  `verified_status = 2`, `verified_word_index = 12`, `verified_code = 1`,
+  `verified_expected = 512`, `verified_actual = 513` - a source-derived located
+  refusal, red before the edit - and after the raise it verifies, emits and
+  drives. Its instruction count is 255 adds plus one Return = **256**, inside
+  the untouched `<= 510`; its result count is **255**, inside the untouched
+  `<= 509`; its module is `9 + 16 + 11*256 + 6*255 = 4,371` words; and its
+  source is `23 + 511 + 3 = 537` bytes, far inside the 8,192 ingestion bound.
+
+  **One hazard recorded in advance rather than discovered.** Probe I is the
+  largest module this product has ever verified, and the verifier pushes twelve
+  bytes per evaluated result into `verified_results` - 3,060 bytes for 255
+  results. If that buffer cannot hold them the refusal is `verified_status = 8`
+  at `:6513`, which is a finding about **capacity** and not about this bound,
+  and must be reported as such rather than folded into Decision 4.
+
+  **What is deliberately not raised, and why that is a decision rather than an
+  omission.** `verified_header_instructions <= 510` (`:5909`) and
+  `verified_header_results <= 509` (`:5920`) are verifier bounds, so they are
+  inside this checkpoint's authority. They stay. They bound a different thing -
+  how many records the verifier will walk - nothing in this checkpoint needs
+  more, and raising them "because we are raising a bound" would be exactly the
+  analogy-driven raise the derivation above exists to avoid. **If a probe needs
+  more than 510 instructions, the probe is wrong for this checkpoint.** Stop
+  condition 3.
+
+### Decision 5 - the entry point: evidenced, not replaced, and made load-bearing
+
+Stage 2b writes `entry_function = N` at `:5334-5337` and recorded it as an
+implemented default with **no evidence behind it** - the verifier refused at
+word 1 before it read word 5, and the emitter never ran. It is an unfounded
+assumption sitting in the product, found rather than designed. **This checkpoint
+evidences it. It does not replace it, and it does not leave it unread.**
+
+**Why not replaced.** Two replacements are conceivable and both are refuted
+rather than declined.
+
+- **"The entry is the item named `main`."** Refuted by the frozen accepted
+  product. The accepted canonical module is `fn score()->int{return
+  1+2*3-4/2;}` - one item, not named `main` - and its emitted LLVM is frozen
+  byte for byte in `CANONICAL_LLVM` and gated at `-O0` and `-O2`. A
+  `main`-named entry rule refuses the only module this project has ever
+  accepted. It is also unimplementable here: there is no name resolution
+  anywhere in this compiler, which is the same fact that refuses the canonical
+  source at semantic pass 3.
+- **"The entry is item 1."** Refuted by a rule already in the product rather
+  than by preference. The module's root words 6 and 7 are latched from item
+  **N**'s return expression (`:5302-5305`), and the verifier already requires
+  the header root to equal the final instruction's return value (`:6648-6725`,
+  V25). Entry = 1 would make the header's entry function and the header's root
+  value describe two different functions, and nothing in the product would
+  notice.
+
+**How it is evidenced: the verifier stops trusting word 5 and starts deriving
+it.** `:5893` becomes a derivation rather than a constant. `entry_function` must
+be in `1..=function_count`, and the entry function's instruction range must
+**end at `instruction_count`**: `first + instructions - 1 == instruction_count`.
+The ranges are required non-empty, contiguous, in function order and covering -
+the checked group asserts this at `:5394-5451` and the verifier re-derives it
+independently from the serialized records - so exactly one function satisfies
+it, and it is function N. **The implemented default becomes a theorem the
+verifier checks against the function records rather than a word it accepts.**
+That is the difference between an assumption and a derivation, and it is the
+whole of what "evidence it" can mean for a word.
+
+**How it is falsified.** Candidate 2 of Decision 1, used here and nowhere else.
+Probe J is probe B's source with `verification_fault_word = 5` and
+`verification_fault_value = 1`: the verifier reads `entry_function = 1`,
+function 1's range is `1..1` where `instruction_count` is 2, and it refuses at
+`verified_status = 1`, `verified_word_index = 5`, `verified_code = 2`,
+`verified_expected = 2` - the derived entry, found by scanning the function
+records - and `verified_actual = 1`, the declared one. Written down before the
+product is edited; graded after.
+
+  Two costs of the fault mechanism, both acceptable and both stated so they are
+  not rediscovered. `emitted_attempted` is gated on `verification_fault_word ==
+  -1` (`:6810`), so probe J proves the verifier's rule and **cannot** also prove
+  anything about the emitter; it is not asked to. And `verified_checksum` is
+  accumulated over the *substituted* word at `:5783`, so the oracle must
+  substitute too - a model that checksums the true word and predicts the faulted
+  refusal will disagree with the product in one field and look like a rule
+  error.
+
+**And it is made observable, which is the part that matters most.** Before this
+checkpoint word 5 was written by the checked group, never read by the verifier
+and never printed by the emitter. Decision 6 makes the entry function's identity
+appear **in the emitted bytes**: the entry function emits `@aero_b1_entry` and
+every other function emits `@aero_b1_f<id>`. A wrong entry function becomes a
+byte difference in the primary instrument, not an unread integer.
+
+### Decision 6 - the emitter over N functions, and the arithmetic that protects the frozen bytes
+
+- **N `define`/`}` pairs**, one per function record, in function-id order, each
+  carrying its own function's instruction range read from the function record.
+  E1, E2, E4, E5 and E7.
+- **Naming.** Function `i` emits `@aero_b1_entry` when `i == entry_function` and
+  `@aero_b1_f<i>` otherwise, `<i>` being the decimal function id through the
+  existing `unsigned_decimal_length` / `unsigned_decimal_digit` pair.
+- **Two new fragments, with their lengths hand-derived from the existing table
+  rather than counted off a string literal.** Fragment 1 is 37 bytes and
+  decomposes exactly as `"define i32 @aero_b1_"` (indices 0-19, 20 bytes) +
+  `"entry"` (20-24, 5) + `"() {\nentry:\n"` (25-36, 12). Therefore **fragment 13
+  is `"define i32 @aero_b1_f"`, 21 bytes**, and **fragment 14 is
+  `"() {\nentry:\n"`, 12 bytes**. The decomposition was checked index by index
+  against `:372-410` before being written here.
+- **Registers are named by the instruction's result word**, not by its
+  instruction id. Decision 3, E3.
+
+**The arithmetic that guarantees the accepted single-item path cannot move, and
+it is the emitter's analogue of stage 2b's `9 + 9 + 7 = 25`:** for N = 1,
+`entry_function = 1` and function 1 *is* the entry, so it takes fragment 1
+verbatim - all 37 bytes - and fragments 13 and 14 are never reached. Result id 1
+equals instruction id 1, so every `%r` is unchanged. One `}` epilogue closes one
+function. **The emitted bytes for any single-item module are identical before
+and after this checkpoint**, and `CANONICAL_LLVM` is the test.
+
+**One consequence recorded rather than hidden.** Register names are `%r` +
+result id and result ids are module-global, so probe H's first function defines
+`%r1` and `%r2` while its entry function defines no register at all. Register
+numbering that is non-contiguous across functions is legal LLVM - `%rN` is a
+*named* value, and the sequential-numbering rule applies only to unnamed
+temporaries - and it is the choice that leaves N = 1 untouched. A renumbering
+scheme that restarted each function at `%r1` would be tidier and would move the
+frozen bytes for no gain. **Tidiness is not a reason to move a frozen product.**
+
+### Decision 7 - H1M-2's pinning test is inverted, not weakened
+
+`the_checked_group_builds_n_function_records_and_the_verifier_refuses_them` is
+stage 2b's whole product-visible claim, and this checkpoint expires its premise
+by construction: V2 is the exact check it asserts.
+
+**It is inverted the way stage 2b inverted stage 2a's C1 test and stage 2a
+inverted CAP-056's.** The vector is kept verbatim - `module_expectation_vector`
+and `verified_header_refusal` are not edited, and `verified_header_refusal`'s
+`assert_ne!(function_count, 1)` stays and stays asserted. Every checked-group
+assertion in the test stays. What changes is the graded code, and the code
+carries the finding.
+
+| code | site | what it would mean |
+|---|---|---|
+| `91` | `:7233` | the verifier still refuses at word 1: **the checkpoint did nothing** |
+| `92` | `:7201` | the **checked group** moved: forbidden by stop condition 1 |
+| **`93`** | `:7215` | the **verifier** moved, and only the verifier: **the expected result** |
+| `94` / `95` | `:7223` / `:7231` | the emitter or driver disagreed before the verifier comparison could fire - impossible, since the four comparisons run in order, and therefore a diagnostic that the test is wrong rather than the product |
+
+A test whose premise expires is evidence about the change. A test quietly
+relaxed is evidence about nothing.
+
+### Decision 8 - the emitting harness, and why it is not a third authority
+
+`expectation_harness` (`:3209` of the test file) returns **62** the moment the
+product writes one byte, because its `aero_stdout_write_byte` sets
+`wrote_output` and `main` checks it before returning the result. That is correct
+and deliberate for every checkpoint so far: no probe has ever reached the
+emitter, and the check proved it. **H1M-3 is the checkpoint where probes must
+write bytes**, so the check would turn every accepting probe into a 62.
+
+The resolution is a **second** harness, not an edit to the first:
+
+- `expectation_harness` is unchanged and every existing test keeps using it, so
+  wherever "no probe wrote a byte" was an assertion it remains one.
+- A new emitting harness forwards `aero_stdout_write_byte` to real stdout, drops
+  the `wrote_output` check, keeps every other check - input length, input index,
+  live allocations, size mismatches, alloc/dealloc parity - and returns the
+  product's own code. The test then grades **both** the exit code and the stdout
+  bytes.
+
+**This crosses no compiler authority.** It is a `format!` in a Rust test file;
+the product is untouched by it. The two-authority cap counts groups inside
+`compiler.aero`, and this checkpoint's count stays at two: verifier and emitter.
+
+### Decision 9 - the probes
+
+`nodes`, `root`, `items`, the instruction stream and the emitted text are
+hand-derived from the grammar and the fragment table before the oracle is
+consulted, and the oracle grades them rather than supplying them.
+
+| | label | source | what it is for |
+|---|---|---|---|
+| A | `one-item` | `fn f() -> int { return 1; }` | the anti-fitting guard: one item is still a module and its bytes must not move |
+| B | `two-items` | `fn f() -> int { return 1; } fn g() -> int { return 2; }` | the gate. Two `define`s, two `ret`s, no registers at all |
+| C | `three-items` | three items returning `1`, `2`, `3` | the chain is a chain rather than a pair |
+| D | `two-items-with-expressions` | `fn f() -> int { return 1+2; } fn g() -> int { return 3*4; }` | **the probe that carries E3**: item 2's `mul` is instruction 3 and result 2, so the emitter must define `%r2` and not `%r3` |
+| E | `two-items-second-divides-by-zero` | unchanged | still refused inside the checked group, at item 2's own `/`, offset 52. **Unmoved** |
+| F | `two-items-second-returns-bool` | unchanged | still refused in the semantic phase at node 7. **Unmoved** |
+| G | `two-items-second-has-identifier` | unchanged | still refused at `17` / `2`, node 4. **Unmoved** |
+| H | `two-items-uneven` | `fn f() -> int { return 1+2*3; } fn g() -> int { return 4; }` | **non-uniform ranges**: item 1 owns instructions 1-3 and item 2 owns instruction 4, so an implementation that divided `instruction_count` by N fails here and passes B, C and D. Its entry function has **zero** results, where D's has one |
+| I | `single-item-513-nodes` | one item, `return 1+1+...+1` with 256 terms | **Decision 4's live path**, single-item so it grades the bound with no N-function machinery |
+| J | `two-items-entry-fault` | B's bytes, fault at word 5 | **Decision 5's falsification**, and the only fault-injected probe |
+
+**Two hand-derivations written down now, to be graded rather than produced,
+which is the whole point of writing them before the edit.**
+
+Probe B - 2 items, 2 instructions (both Returns), 0 results, entry = 2,
+**99 bytes**:
+
+    define i32 @aero_b1_f1() {
+    entry:
+      ret i32 1
+    }
+    define i32 @aero_b1_entry() {
+    entry:
+      ret i32 2
+    }
+
+Probe H - 2 items, 4 instructions, 2 results, entry = 2, ranges `1..3` and
+`4..4`, **145 bytes**:
+
+    define i32 @aero_b1_f1() {
+    entry:
+      %r1 = mul i32 2, 3
+      %r2 = add i32 1, %r1
+      ret i32 %r2
+    }
+    define i32 @aero_b1_entry() {
+    entry:
+      ret i32 4
+    }
+
+  Both byte counts are hand-summed line by line - B is `27 + 7 + 12 + 2` twice
+  with the second `define` three bytes longer and its literal the same width,
+  and H is `27 + 7 + 21 + 23 + 14 + 2` then `30 + 7 + 12 + 2` - and they are
+  written here so that the instrument, not the model, is what corrects them if
+  they are wrong.
+
+  H's `mul` precedes its `add` because the parser reduces the higher-precedence
+  operator first, which is the same ordering the frozen `CANONICAL_LLVM` shows
+  for `1+2*3-4/2`. That ordering is cited from the accepted product rather than
+  assumed.
+
+### Decision 10 - the checkpoint is not split into two authorities, and the reason is not convenience
+
+CAP-058 staged 2a (semantic) then 2b (checked-IR) and each stage crossed one
+authority. **H1M-3 does not split verifier from emitter, and the reason is that
+the intermediate would be a wrong product rather than a refusing one.**
+
+After a verifier-only stage a two-item module would pass verification and reach
+the **unmodified** emitter, which would emit one prologue, both `ret`s inside
+one basic block, and one epilogue - LLVM with two terminators in a block, which
+is invalid, and which the product would exit `91` on. Stage 2a's intermediate
+was a *refusal* at C1, which is a safe thing to commit. **This project does not
+commit a wrong product in order to reach a right one.**
+
+There is, however, one stage that is safe, and it is taken:
+
+- **Stage 3a - Decision 4 alone.** The bound raise touches one pair at `:6018`.
+  V2 is untouched, so no multi-item module gets past word 1 and none can reach
+  the emitter. Probe I is single-item, so the stage is completely gradable by
+  itself: red at `expected 512` / `actual 513` before, green after. One
+  authority, one literal, its own oracle, its own probe.
+- **Stage 3b - Decisions 3, 5, 6 and 7 together.** The verifier and the emitter
+  in one edit, because they cannot safely be separated.
+
+### Stop conditions
+
+1. **No line between `:4692` and `:5708` may be edited.** That is the checked-IR
+   group, and editing it makes this a three-authority checkpoint. It is stated
+   first because it is the breach that would not look like one: a checked-group
+   edit that made a verifier test pass would read as success. If the
+   implementation appears to need one, **the contract is void and must be
+   re-authored**, not amended in flight. That it will not be needed is itself a
+   prediction of this contract, and it was checked rather than hoped: the
+   checked group already writes every word the generalized verifier and emitter
+   need - per-function ranges at `:5394-5451`, each instruction's `function`
+   word at field 10, each instruction's result word at field 3, and
+   `entry_function` at `:5334` - verified by reading the serializer against the
+   verifier's field map before this contract was written.
+2. No parse-group line, no semantic-group line, no driver line (`:7091` onward),
+   and not `main`.
+3. `verified_header_instructions <= 510` and `verified_header_results <= 509`
+   are not raised. Decision 4.
+4. `canonical_self_host_source_preserves_the_accepted_canonical_module` must
+   pass **byte for byte** at `-O0` and `-O2`. Decision 1, candidate 3.
+5. `fact_count == node_count` (`:4584`) is not weakened, relaxed or made
+   conditional.
+6. The census constraint: the diff adds no `return` statement and touches no
+   function's final return expression. If it does, the 240 derivation is void
+   and must be redone rather than restated.
+7. The canonical source's located refusal is unchanged: `semantic_status = 17`,
+   `semantic_code = 2`, node 1, offset 98, line 3, column 22,
+   `checked_attempted = 0`, `symbol_count = 23`. **The canonical source cannot
+   demonstrate this checkpoint's capability either** - pass 3 refuses its node 1
+   - so it is again the negative control and the 23-item stress input, not the
+   evidence.
+8. E, F and G's located refusals are unchanged in status, code, node and byte
+   offset. The negative instrument survives this checkpoint intact.
+9. Every accepting probe's emitted text is graded **twice**: byte-compared
+   against its hand-derived string, and compiled as LLVM IR by the same `clang`
+   the tests already link with. One grader the checkpoint authored is one
+   derivation, not two.
+10. No test weakened, skipped or deleted. The ignored count is unchanged.
+    Decision 7 inverts one test and weakens none.
+11. A gate row naming its own run may not be written into the tree that run
+    covered. Exactly one unrecorded run is in flight at commit time, by
+    construction rather than oversight.
+12. No estimate is sized from a byte count. Decision 2.
+
+### What this checkpoint will not claim, written before it can be tempted to
+
+A module is not a program. If H1M-3 lands, the compiler will accept a module of
+N function items and emit N LLVM function definitions over a value universe of
+integer literals and arithmetic. It will still refuse the canonical source at
+its first node, still resolve no identifier, still let no function call another
+- a call to a sibling item is a kind-2 node and is refused at `17` / `2` - and
+still represent no binding, assignment, statement sequence, conditional or loop.
+**N functions that cannot reach each other are not a linked program**, and the
+first module this compiler emits with more than one `define` in it will be one
+whose functions are mutually unreachable. That is worth stating plainly at the
+moment output starts existing, because output existing is exactly the point at
+which a reader is most likely to over-read it. 98.7% of the canonical arena will
+remain unreachable and this checkpoint will make that figure worse.
+
+### Gate
+
+The result column is written from a read exit status and not before.
+
+| run | target | tree | result |
+|---|---|---|---|
+| 1 | `./tools/test.sh` from the repository root | **the exact tree committed**, carrying this contract and no product change | **result recorded in the commit message.** No result is claimed in this cell |
+
+Run 1's row claims nothing, for the reason stop condition 11 gives.
+
 ## CAP-058-H1M2-MODULE-MEANING stage 2b - the checked-IR group over N function items
 
 - Date/task/status: 2026-08-21, `CAP-058-H1M2-MODULE-MEANING`, **stage 2b
