@@ -98,16 +98,20 @@ admit a construct without representing it and capacity represents nothing.
 CAP-056/H1M-1 is the first checkpoint of the module-shape gate that follows
 H1B, and it is one of that gate's three. H1M-2 (semantic and checked IR) is
 contracted as `CAP-058-H1M2-MODULE-MEANING` in `TASK_LEDGER.md` and is
-**partially implemented and incomplete**: its stage 2a, the semantic group
-alone, is implemented and locally green, and its stage 2b, the checked-IR
-group, is not started. **H1M-2 is not green and no capability is claimed for
-the checkpoint.** What stage 2a establishes is that the semantic phase accepts
-a module of N function items - N symbols in source order, one fact per node,
-`semantic_root_type = 1` - and that the refusal has moved one authority down to
-the checked-IR group's own `symbol_count != 1` at `compiler.aero:4583`, which is
-predicted and unmodified. The verifier is not reached by any multi-item module,
-so the `verified_actual = N` assertion the contract says pins this checkpoint
-has **not** been observed. H1M-3 (verifier and emitter) is not authorized. Its status is stated with its
+**implemented across both of its stages and locally green**: stage 2a, the
+semantic group, and stage 2b, the checked-IR group. What the checkpoint
+establishes is that the semantic phase accepts a module of N function items - N
+symbols in source order, one fact per node, `semantic_root_type = 1` - and that
+the checked-IR group then builds one module carrying N nine-word function
+records, N seven-word block records and one Return instruction per item, whose
+refusal has relocated to the **verifier**: `compiler.aero:5555` refuses
+`verified_function_count != 1` with `verified_status = 1`,
+`verified_word_index = 1`, `verified_code = 2`, `verified_expected = 1` and
+`verified_actual = N`. That vector was predicted before the product was edited
+and then observed on the linked product for N of 2 and 3, and it is the
+assertion the contract says pins the checkpoint. **The verifier's refusal is
+observed here, not owned**: every multi-function module is still refused, the
+emitter is never reached, and H1M-3 owns that phase. H1M-3 (verifier and emitter) is not authorized. Its status is stated with its
 evidence in the correction immediately below, and it is **not** claimed here.
 
 #### Retraction: this file asserted CAP-056 green before any run said so
@@ -526,8 +530,7 @@ product edited and the source parsed, a parse that runs end to end measures the
 edit itself, so the acceptance figure is a procedure rather than a number; every
 prior checkpoint escaped this only because its edits fell past its own stop.
 
-CAP-058/H1M-2 is **contracted, with stage 2a implemented and the checkpoint
-incomplete**. The contract was authored ledger-first from `aaaf6a8` and
+CAP-058/H1M-2 is **contracted and implemented across both stages**. The contract was authored ledger-first from `aaaf6a8` and
 committed at `529e931` with the gate green and no product edit; stage 2a is
 implemented from `529e931`, confirmed the branch tip by `git ls-remote` run from
 the worktree. Decision 7 of the contract stages the checkpoint 2a then 2b and
@@ -545,13 +548,30 @@ over the arena and not a walk of the tree**, and `compiler.aero:4444` requires
 one fact per node record, so it classifies every orphan and the canonical
 refusal is a refusal of an orphan - which also couples any future representation
 checkpoint to the semantic group, a coupling no record held before. And a
-transcription of both groups finds **eight** single-function assumptions where
-`BOOTSTRAP_CONVERGENCE_READINESS.md:504` names three; the two it does not name
-are the checked-IR result-derivation loop's assumption that result `i` is
-instruction record `i`, and the `instructions == results + 1` invariant. H1M-2
+transcription of both groups finds **eleven** single-function assumptions - three
+semantic and eight checked-IR - where `BOOTSTRAP_CONVERGENCE_READINESS.md:504`
+names three; the two it does not name are the checked-IR result-derivation
+loop's assumption that result `i` is instruction record `i`, and the
+`instructions == results + 1` invariant. **Eleven corrects an "eight" this
+document, the contract and stage 2a's record all carried**: eight is the size of
+the checked-IR table alone and was promoted to a total of both groups. All
+eleven are discharged by the completed checkpoint. H1M-2
 discharges **none** of the representation debt and its expected census is 240
 reachable nodes, unchanged, over a node count that grows by the cost of its own
 diff.
+
+Stage 2b's own figures, each read from a completed run and not before. The
+census is **240 reachable of 18,718**: the ratio worsens from 98.713% orphaned
+to 98.718%, which is expected by construction rather than a regression, because
+every node stage 2b adds is an orphan - of its 318 added lines, the six
+containing the word `return` are all comments, so no function's final return
+expression is touched. **The movement may not be cited as progress or as
+decay.** Stage 2b's five-arena delta is `+68` nodes, `+138` values, `-8`
+operators, `+41` blocks and `-44` calls; it is the first checkpoint whose diff
+makes two arenas smaller, because dissolving the terminal Return/Function block
+removed thirteen four-byte reads. That delta is **measured by the instrument
+rather than hand-derived per construct**, which is a weaker claim than stage 2a
+made and is recorded as weaker.
 
 Stage 2a's own figures, each read from a completed run and not before. The
 focused target `self_host_source_ingestion_tests` returned **exit 0** with

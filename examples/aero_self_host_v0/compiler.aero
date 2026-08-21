@@ -4718,45 +4718,54 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
 
     let mut checked_symbol_name: int = 0;
     let mut checked_symbol_function: int = 0;
+    // CAP-058 / H1M-2 stage 2b. C1 and C2 stop assuming one item.
+    //
+    // The checked group counts its own kind-19 nodes instead of trusting the
+    // semantic group's `symbol_count`, so `symbol_count != checked_item_count`
+    // below is a cross-check between two independent walks over two different
+    // arenas rather than a restatement of S3. C2 moves into the node loop,
+    // where symbol `i` is read at `i * 16` and is required to name item `i`'s
+    // own function node rather than `root`.
+    let mut checked_item_count: int = 0;
+    let mut checked_item_index: int = 0;
+    let mut checked_item_scan: int = 0;
+    let mut checked_item_kind: int = 0;
+    let mut checked_item_fact: int = 0;
+    let mut checked_item_first: int = 0;
+    let mut checked_item_records: int = 0;
+    let mut checked_item_previous: int = 0;
+    let mut checked_item_function: int = 0;
+    let mut checked_item_emitted: int = 0;
     if checked_attempted == 1 {
-        if node_count < 3 || root != node_count || origin_count != node_count
-            || fact_count != node_count || symbol_count != 1
+        while checked_item_scan < node_count {
+            word_offset = checked_item_scan * 16;
+            checked_item_kind = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if checked_item_kind == 19 {
+                checked_item_count = checked_item_count + 1;
+            }
+            checked_item_scan = checked_item_scan + 1;
+        }
+    }
+    if checked_attempted == 1 {
+        if checked_item_count < 1 || node_count < checked_item_count * 3
+            || root != node_count || origin_count != node_count
+            || fact_count != node_count || symbol_count != checked_item_count
             || bytes_len(&origins) != node_count * 20
-            || bytes_len(&facts) != node_count * 12 || bytes_len(&symbols) != 16 {
+            || bytes_len(&facts) != node_count * 12
+            || bytes_len(&symbols) != checked_item_count * 16 {
             checked_status = 4;
             checked_node = root;
             checked_code = 3;
-        }
-    }
-    if checked_attempted == 1 && checked_status == 0 {
-        let checked_symbol_kind: int = result_value(bytes_get(&symbols, 0))
-            + result_value(bytes_get(&symbols, 1)) * 256
-            + result_value(bytes_get(&symbols, 2)) * 65536
-            + result_value(bytes_get(&symbols, 3)) * 16777216;
-        checked_symbol_name = result_value(bytes_get(&symbols, 4))
-            + result_value(bytes_get(&symbols, 5)) * 256
-            + result_value(bytes_get(&symbols, 6)) * 65536
-            + result_value(bytes_get(&symbols, 7)) * 16777216;
-        checked_symbol_function = result_value(bytes_get(&symbols, 8))
-            + result_value(bytes_get(&symbols, 9)) * 256
-            + result_value(bytes_get(&symbols, 10)) * 65536
-            + result_value(bytes_get(&symbols, 11)) * 16777216;
-        let checked_symbol_result: int = result_value(bytes_get(&symbols, 12))
-            + result_value(bytes_get(&symbols, 13)) * 256
-            + result_value(bytes_get(&symbols, 14)) * 65536
-            + result_value(bytes_get(&symbols, 15)) * 16777216;
-        if checked_symbol_kind != 1 || checked_symbol_name <= 0
-            || checked_symbol_function != root || checked_symbol_result != 1 {
-            checked_status = 4;
-            checked_node = root;
-            checked_code = 2;
         }
     }
 
     let mut checked_index: int = 0;
     let mut checked_expression_count: int = 0;
     if checked_attempted == 1 && checked_status == 0 {
-        checked_expression_count = node_count - 2;
+        checked_expression_count = node_count - checked_item_count * 2;
     }
     let mut checked_kind: int = 0;
     let mut checked_payload: int = 0;
@@ -4789,7 +4798,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut checked_overflow: int = 0;
 
     while checked_attempted == 1 && checked_status == 0
-        && checked_index < checked_expression_count {
+        && checked_index < node_count {
         checked_node = checked_index + 1;
         word_offset = checked_index * 20;
         checked_origin_id = result_value(bytes_get(&origins, word_offset))
@@ -4827,11 +4836,6 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             + result_value(bytes_get(&facts, word_offset + 9)) * 256
             + result_value(bytes_get(&facts, word_offset + 10)) * 65536
             + result_value(bytes_get(&facts, word_offset + 11)) * 16777216;
-        if checked_status == 0 && (checked_fact_id != checked_node
-                || checked_fact_type != 1 || checked_fact_ownership != 1) {
-            checked_status = 4;
-            checked_code = 3;
-        }
 
         word_offset = checked_index * 16;
         checked_kind = result_value(bytes_get(&nodes, word_offset))
@@ -4850,6 +4854,19 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             + result_value(bytes_get(&nodes, word_offset + 13)) * 256
             + result_value(bytes_get(&nodes, word_offset + 14)) * 65536
             + result_value(bytes_get(&nodes, word_offset + 15)) * 16777216;
+        // The fact rule is kind-dependent now. An expression node carries a
+        // complete owned `int`; a return or function node carries neither, and
+        // the accepted product asserted that in its terminal block instead.
+        checked_item_fact = 1;
+        if checked_kind == 18 || checked_kind == 19 {
+            checked_item_fact = 0;
+        }
+        if checked_status == 0 && (checked_fact_id != checked_node
+                || checked_fact_type != checked_item_fact
+                || checked_fact_ownership != checked_item_fact) {
+            checked_status = 4;
+            checked_code = 3;
+        }
         if checked_status == 0 {
             if checked_kind == 1 {
                 if checked_payload < 0 || checked_left != 0 || checked_right != 0 {
@@ -4869,9 +4886,56 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     checked_status = 4;
                     checked_code = 3;
                 }
+            } else if checked_kind == 18 {
+                // C4 dissolved. A return node is authenticated where it is met
+                // rather than in a terminal block, and its `left` is the node
+                // appended immediately before it - its own item's return
+                // expression, never a previous item's.
+                if checked_payload != 0 || checked_left != checked_node - 1
+                    || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 19 {
+                // A function node's `left` is its own return node and its
+                // `right` is the previous item's function node, zero at item 1.
+                if checked_payload <= 0 || checked_left != checked_node - 1
+                    || checked_right < 0 || checked_right >= checked_node {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
             } else {
                 checked_status = 4;
                 checked_code = 3;
+            }
+        }
+        if checked_status == 0 && checked_kind == 19 {
+            // C2 generalized: symbol `i` at `i * 16`, cross-checked against
+            // item `i`'s own function node and its own name id.
+            word_offset = checked_item_index * 16;
+            let checked_symbol_kind: int = result_value(bytes_get(&symbols, word_offset))
+                + result_value(bytes_get(&symbols, word_offset + 1)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 2)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 3)) * 16777216;
+            checked_symbol_name = result_value(bytes_get(&symbols, word_offset + 4))
+                + result_value(bytes_get(&symbols, word_offset + 5)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 6)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 7)) * 16777216;
+            checked_symbol_function = result_value(bytes_get(&symbols, word_offset + 8))
+                + result_value(bytes_get(&symbols, word_offset + 9)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 10)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 11)) * 16777216;
+            let checked_symbol_result: int = result_value(bytes_get(&symbols, word_offset + 12))
+                + result_value(bytes_get(&symbols, word_offset + 13)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 14)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 15)) * 16777216;
+            if checked_item_index >= checked_item_count || checked_symbol_kind != 1
+                || checked_symbol_name <= 0
+                || checked_symbol_name != checked_payload
+                || checked_symbol_function != checked_node
+                || checked_symbol_result != 1 {
+                checked_status = 4;
+                checked_code = 2;
             }
         }
 
@@ -4881,7 +4945,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         checked_right_kind = 0;
         checked_right_payload = 0;
         checked_right_value = 0;
-        if checked_status == 0 && checked_left > 0 {
+        if checked_status == 0 && checked_left > 0 && checked_kind != 19 {
             word_offset = (checked_left - 1) * 24;
             let checked_child_id: int = result_value(bytes_get(&checked_values, word_offset))
                 + result_value(bytes_get(&checked_values, word_offset + 1)) * 256
@@ -4931,7 +4995,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 checked_code = 3;
             }
         }
-        if checked_status == 0 && checked_right > 0 {
+        if checked_status == 0 && checked_right > 0 && checked_kind != 19 {
             word_offset = (checked_right - 1) * 24;
             let checked_child_id: int = result_value(bytes_get(&checked_values, word_offset))
                 + result_value(bytes_get(&checked_values, word_offset + 1)) * 256
@@ -5064,7 +5128,60 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             checked_code = checked_kind;
         }
 
-        if checked_status == 0 && checked_kind != 1 {
+        if checked_status == 0 && checked_kind == 18 {
+            // C5 generalized: one Return instruction per item, appended when
+            // that item's own kind-18 node is met rather than once after the
+            // loop. Its operand is item `i`'s own value record, read above at
+            // `(checked_left - 1) * 24` - the record the accepted product had
+            // latched into `checked_candidate_root_*` - so a Return cannot
+            // carry a previous item's expression.
+            checked_instruction_id = checked_instruction_count + 1;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 11 {
+                checked_append_word = 3;
+                if checked_append_field == 1 {
+                    checked_append_word = checked_instruction_id;
+                } else if checked_append_field == 2 {
+                    checked_append_word = 6;
+                } else if checked_append_field == 3 || checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 5 {
+                    checked_append_word = checked_left_kind;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_left_payload;
+                } else if checked_append_field == 7 || checked_append_field == 8 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 9 {
+                    checked_append_word = checked_node;
+                } else if checked_append_field == 10 {
+                    checked_append_word = checked_item_index + 1;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(
+                        &mut checked_instructions, checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 2;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            if checked_status == 0 {
+                checked_instruction_count = checked_instruction_count + 1;
+            }
+        }
+        if checked_status == 0 && checked_kind != 1 && checked_kind != 18
+            && checked_kind != 19 {
             checked_instruction_id = checked_instruction_count + 1;
             checked_result_id = checked_result_count + 1;
             checked_append_field = 0;
@@ -5089,7 +5206,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 } else if checked_append_field == 9 {
                     checked_append_word = checked_node;
                 } else if checked_append_field == 10 {
-                    checked_append_word = 1;
+                    checked_append_word = checked_item_index + 1;
                 }
                 checked_append_byte = 0;
                 while checked_status == 0 && checked_append_byte < 4 {
@@ -5172,140 +5289,52 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 checked_append_field = checked_append_field + 1;
             }
-            if checked_status == 0 {
+            if checked_status == 0 && checked_kind != 18 && checked_kind != 19 {
+                // Decision 5. A return or function node still gets a value
+                // record - the placeholder `[node, 0, 0, 0, 0, 0]` the append
+                // above writes whenever the operand registers are zero - so
+                // that every `(checked_left - 1) * 24` lookup keeps reading
+                // value record `id - 1` verbatim. It must not be counted and
+                // must not latch the module's root value, or the root becomes
+                // the last function node's zero instead of item N's return
+                // expression.
                 checked_value_count = checked_value_count + 1;
                 checked_candidate_root_kind = checked_operand_kind;
                 checked_candidate_root_payload = checked_operand_payload;
             }
         }
+        if checked_status == 0 && checked_kind == 19 {
+            checked_item_index = checked_item_index + 1;
+        }
         checked_index = checked_index + 1;
     }
-    // Authenticate terminal Return/Function facts and append the one Return.
+    // C4 and C5 are dissolved into the loop above. What is left is the
+    // whole-module authentication that cannot be made per item.
     if checked_attempted == 1 && checked_status == 0 {
-        checked_node = checked_expression_count + 1;
-        word_offset = (checked_node - 1) * 20;
-        checked_origin_id = result_value(bytes_get(&origins, word_offset))
-            + result_value(bytes_get(&origins, word_offset + 1)) * 256
-            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
-            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
-        checked_offset = result_value(bytes_get(&origins, word_offset + 4))
-            + result_value(bytes_get(&origins, word_offset + 5)) * 256
-            + result_value(bytes_get(&origins, word_offset + 6)) * 65536
-            + result_value(bytes_get(&origins, word_offset + 7)) * 16777216;
-        checked_line = result_value(bytes_get(&origins, word_offset + 8))
-            + result_value(bytes_get(&origins, word_offset + 9)) * 256
-            + result_value(bytes_get(&origins, word_offset + 10)) * 65536
-            + result_value(bytes_get(&origins, word_offset + 11)) * 16777216;
-        checked_column = result_value(bytes_get(&origins, word_offset + 12))
-            + result_value(bytes_get(&origins, word_offset + 13)) * 256
-            + result_value(bytes_get(&origins, word_offset + 14)) * 65536
-            + result_value(bytes_get(&origins, word_offset + 15)) * 16777216;
-        word_offset = (checked_node - 1) * 16;
-        let checked_return_kind: int = result_value(bytes_get(&nodes, word_offset))
-            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
-            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
-            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
-        let checked_return_left: int = result_value(bytes_get(&nodes, word_offset + 8))
-            + result_value(bytes_get(&nodes, word_offset + 9)) * 256
-            + result_value(bytes_get(&nodes, word_offset + 10)) * 65536
-            + result_value(bytes_get(&nodes, word_offset + 11)) * 16777216;
-        word_offset = (checked_node - 1) * 12;
-        checked_fact_id = result_value(bytes_get(&facts, word_offset))
-            + result_value(bytes_get(&facts, word_offset + 1)) * 256
-            + result_value(bytes_get(&facts, word_offset + 2)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 3)) * 16777216;
-        checked_fact_type = result_value(bytes_get(&facts, word_offset + 4))
-            + result_value(bytes_get(&facts, word_offset + 5)) * 256
-            + result_value(bytes_get(&facts, word_offset + 6)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 7)) * 16777216;
-        checked_fact_ownership = result_value(bytes_get(&facts, word_offset + 8))
-            + result_value(bytes_get(&facts, word_offset + 9)) * 256
-            + result_value(bytes_get(&facts, word_offset + 10)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 11)) * 16777216;
-        word_offset = (root - 1) * 16;
-        let checked_function_kind: int = result_value(bytes_get(&nodes, word_offset))
-            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
-            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
-            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
-        word_offset = (root - 1) * 12;
-        let checked_function_fact_id: int = result_value(bytes_get(&facts, word_offset))
-            + result_value(bytes_get(&facts, word_offset + 1)) * 256
-            + result_value(bytes_get(&facts, word_offset + 2)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 3)) * 16777216;
-        let checked_function_fact_type: int = result_value(bytes_get(&facts, word_offset + 4))
-            + result_value(bytes_get(&facts, word_offset + 5)) * 256
-            + result_value(bytes_get(&facts, word_offset + 6)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 7)) * 16777216;
-        let checked_function_fact_ownership: int = result_value(bytes_get(&facts, word_offset + 8))
-            + result_value(bytes_get(&facts, word_offset + 9)) * 256
-            + result_value(bytes_get(&facts, word_offset + 10)) * 65536
-            + result_value(bytes_get(&facts, word_offset + 11)) * 16777216;
-        if checked_origin_id != checked_node || checked_value_count != checked_expression_count
-            || checked_return_kind != 18
-            || checked_return_left != checked_expression_count
-            || checked_fact_id != checked_node || checked_fact_type != 0
-            || checked_fact_ownership != 0 || checked_function_kind != 19
-            || checked_function_fact_id != root || checked_function_fact_type != 0
-            || checked_function_fact_ownership != 0
-            || checked_symbol_function != root {
+        if checked_item_index != checked_item_count
+            || checked_value_count != checked_expression_count
+            || checked_symbol_function != root
+            || checked_instruction_count != checked_result_count + checked_item_count {
             checked_status = 4;
+            checked_node = root;
             checked_code = 3;
-        }
-    }
-    if checked_attempted == 1 && checked_status == 0 {
-        checked_instruction_id = checked_instruction_count + 1;
-        checked_append_field = 0;
-        while checked_status == 0 && checked_append_field < 11 {
-            checked_append_word = 3;
-            if checked_append_field == 1 {
-                checked_append_word = checked_instruction_id;
-            } else if checked_append_field == 2 {
-                checked_append_word = 6;
-            } else if checked_append_field == 3 || checked_append_field == 4 {
-                checked_append_word = 0;
-            } else if checked_append_field == 5 {
-                checked_append_word = checked_candidate_root_kind;
-            } else if checked_append_field == 6 {
-                checked_append_word = checked_candidate_root_payload;
-            } else if checked_append_field == 7 || checked_append_field == 8 {
-                checked_append_word = 0;
-            } else if checked_append_field == 9 {
-                checked_append_word = checked_node;
-            } else if checked_append_field == 10 {
-                checked_append_word = 1;
-            }
-            checked_append_byte = 0;
-            while checked_status == 0 && checked_append_byte < 4 {
-                checked_append_value = word_byte_0(checked_append_word);
-                if checked_append_byte == 1 {
-                    checked_append_value = word_byte_1(checked_append_word);
-                } else if checked_append_byte == 2 {
-                    checked_append_value = word_byte_2(checked_append_word);
-                } else if checked_append_byte == 3 {
-                    checked_append_value = word_byte_3(checked_append_word);
-                }
-                push_result = result_value(bytes_push(
-                    &mut checked_instructions, checked_append_value));
-                if push_result < 0 {
-                    checked_status = 3;
-                    checked_code = 2;
-                }
-                checked_append_byte = checked_append_byte + 1;
-            }
-            checked_append_field = checked_append_field + 1;
-        }
-        if checked_status == 0 {
-            checked_instruction_count = checked_instruction_count + 1;
         }
     }
 
     // Serialize header/function/block, copy instructions, then derive results.
+    //
+    // C6 generalized. Nine header words, then N nine-word function records,
+    // then N seven-word block records. For N = 1 that is `9 + 9 + 7 = 25`
+    // words, byte for byte the accepted header, which is the arithmetic that
+    // guarantees the accepted single-item module's emitted LLVM cannot move.
     if checked_attempted == 1 && checked_status == 0 {
         checked_append_field = 0;
-        while checked_status == 0 && checked_append_field < 25 {
+        while checked_status == 0 && checked_append_field < 9 {
             checked_append_word = 1;
-            if checked_append_field == 3 || checked_append_field == 17
-                || checked_append_field == 24 {
+            if checked_append_field == 1 || checked_append_field == 2
+                || checked_append_field == 5 {
+                checked_append_word = checked_item_count;
+            } else if checked_append_field == 3 {
                 checked_append_word = checked_instruction_count;
             } else if checked_append_field == 4 {
                 checked_append_word = checked_result_count;
@@ -5313,16 +5342,6 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 checked_append_word = checked_candidate_root_kind;
             } else if checked_append_field == 7 {
                 checked_append_word = checked_candidate_root_payload;
-            } else if checked_append_field == 8 {
-                checked_append_word = 1;
-            } else if checked_append_field == 11 {
-                checked_append_word = checked_symbol_name;
-            } else if checked_append_field == 12 {
-                checked_append_word = checked_symbol_function;
-            } else if checked_append_field == 13 || checked_append_field == 22 {
-                checked_append_word = 0;
-            } else if checked_append_field == 18 {
-                checked_append_word = 2;
             }
             checked_append_byte = 0;
             while checked_status == 0 && checked_append_byte < 4 {
@@ -5343,6 +5362,147 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 checked_append_byte = checked_append_byte + 1;
             }
             checked_append_field = checked_append_field + 1;
+        }
+    }
+    // One function record per item. Its instruction range is derived from the
+    // instruction arena itself rather than from a bookkeeping register: the
+    // records carrying item `i`'s function word are counted, and the ranges are
+    // required to be non-empty, contiguous and in item order.
+    let mut checked_record_index: int = 0;
+    let mut checked_record_scan: int = 0;
+    if checked_attempted == 1 && checked_status == 0 {
+        while checked_status == 0 && checked_record_index < checked_item_count {
+            checked_item_first = 0;
+            checked_item_records = 0;
+            checked_record_scan = 0;
+            while checked_status == 0
+                && checked_record_scan < checked_instruction_count {
+                word_offset = checked_record_scan * 44 + 40;
+                checked_item_function = result_value(bytes_get(
+                    &checked_instructions, word_offset))
+                    + result_value(bytes_get(&checked_instructions, word_offset + 1)) * 256
+                    + result_value(bytes_get(&checked_instructions, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&checked_instructions, word_offset + 3)) * 16777216;
+                if checked_item_function == checked_record_index + 1 {
+                    if checked_item_records == 0 {
+                        checked_item_first = checked_record_scan + 1;
+                    }
+                    checked_item_records = checked_item_records + 1;
+                }
+                checked_record_scan = checked_record_scan + 1;
+            }
+            if checked_item_records < 1
+                || checked_item_first != checked_item_previous + 1 {
+                checked_status = 5;
+                checked_code = 4;
+            }
+            word_offset = checked_record_index * 16;
+            checked_symbol_name = result_value(bytes_get(&symbols, word_offset + 4))
+                + result_value(bytes_get(&symbols, word_offset + 5)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 6)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 7)) * 16777216;
+            checked_symbol_function = result_value(bytes_get(&symbols, word_offset + 8))
+                + result_value(bytes_get(&symbols, word_offset + 9)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 10)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 11)) * 16777216;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 9 {
+                checked_append_word = 1;
+                if checked_append_field == 1 {
+                    checked_append_word = checked_record_index + 1;
+                } else if checked_append_field == 2 {
+                    checked_append_word = checked_symbol_name;
+                } else if checked_append_field == 3 {
+                    checked_append_word = checked_symbol_function;
+                } else if checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_record_index + 1;
+                } else if checked_append_field == 7 {
+                    checked_append_word = checked_item_first;
+                } else if checked_append_field == 8 {
+                    checked_append_word = checked_item_records;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(&mut checked_ir,
+                        checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 3;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            checked_item_previous = checked_item_previous + checked_item_records;
+            checked_record_index = checked_record_index + 1;
+        }
+        if checked_status == 0
+            && checked_item_previous != checked_instruction_count {
+            checked_status = 5;
+            checked_code = 4;
+        }
+    }
+    // One block record per item. Its instruction range is read back out of the
+    // function record just written, which authenticates the serialized bytes
+    // rather than re-deriving them.
+    let mut checked_block_index: int = 0;
+    if checked_attempted == 1 && checked_status == 0 {
+        while checked_status == 0 && checked_block_index < checked_item_count {
+            word_offset = (9 + checked_block_index * 9 + 7) * 4;
+            checked_item_first = result_value(bytes_get(&checked_ir, word_offset))
+                + result_value(bytes_get(&checked_ir, word_offset + 1)) * 256
+                + result_value(bytes_get(&checked_ir, word_offset + 2)) * 65536
+                + result_value(bytes_get(&checked_ir, word_offset + 3)) * 16777216;
+            word_offset = (9 + checked_block_index * 9 + 8) * 4;
+            checked_item_records = result_value(bytes_get(&checked_ir, word_offset))
+                + result_value(bytes_get(&checked_ir, word_offset + 1)) * 256
+                + result_value(bytes_get(&checked_ir, word_offset + 2)) * 65536
+                + result_value(bytes_get(&checked_ir, word_offset + 3)) * 16777216;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 7 {
+                checked_append_word = 2;
+                if checked_append_field == 1 || checked_append_field == 2 {
+                    checked_append_word = checked_block_index + 1;
+                } else if checked_append_field == 3 {
+                    checked_append_word = 1;
+                } else if checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 5 {
+                    checked_append_word = checked_item_first;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_item_records;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(&mut checked_ir,
+                        checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 3;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            checked_block_index = checked_block_index + 1;
         }
     }
     let mut checked_copy_index: int = 0;
@@ -5367,7 +5527,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     }
     let mut checked_result_index: int = 0;
     if checked_attempted == 1 && checked_status == 0 {
-        while checked_status == 0 && checked_result_index < checked_result_count {
+        while checked_status == 0
+            && checked_result_index < checked_instruction_count {
             word_offset = checked_result_index * 44;
             let checked_definition_id: int = result_value(bytes_get(
                 &checked_instructions, word_offset + 4))
@@ -5389,14 +5550,27 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 + result_value(bytes_get(&checked_instructions, word_offset + 37)) * 256
                 + result_value(bytes_get(&checked_instructions, word_offset + 38)) * 65536
                 + result_value(bytes_get(&checked_instructions, word_offset + 39)) * 16777216;
-            if checked_definition_id != checked_result_index + 1
-                || checked_definition_result != checked_result_index + 1
-                || checked_definition_type != 1 || checked_definition_origin <= 0 {
+            // C7 generalized. With N items the Returns interleave, so
+            // result `i` is no longer instruction record `i`. Every record is
+            // walked in order and the ones with a non-zero result word - which
+            // is exactly the value-producing instructions, because a Return
+            // writes zero there - are authenticated against the emission
+            // counter and emitted. For N = 1 this visits the same records in
+            // the same order and emits the same bytes.
+            if checked_definition_id != checked_result_index + 1 {
+                checked_status = 5;
+                checked_code = 3;
+            }
+            if checked_status == 0 && checked_definition_result != 0
+                && (checked_definition_result != checked_item_emitted + 1
+                    || checked_definition_type != 1
+                    || checked_definition_origin <= 0) {
                 checked_status = 5;
                 checked_code = 3;
             }
             checked_append_field = 0;
-            while checked_status == 0 && checked_append_field < 6 {
+            while checked_status == 0 && checked_definition_result != 0
+                && checked_append_field < 6 {
                 checked_append_word = 4;
                 if checked_append_field == 1 {
                     checked_append_word = 1;
@@ -5429,7 +5603,14 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 checked_append_field = checked_append_field + 1;
             }
+            if checked_status == 0 && checked_definition_result != 0 {
+                checked_item_emitted = checked_item_emitted + 1;
+            }
             checked_result_index = checked_result_index + 1;
+        }
+        if checked_status == 0 && checked_item_emitted != checked_result_count {
+            checked_status = 5;
+            checked_code = 3;
         }
     }
 
@@ -5437,12 +5618,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         checked_word_count = signed_quotient(bytes_len(&checked_ir), 4);
     }
     if checked_attempted == 1 && checked_status == 0 {
-        let checked_expected_words: int = 25 + checked_instruction_count * 11
-            + checked_result_count * 6;
-        if bytes_len(&checked_values) != checked_value_count * 24
+        let checked_expected_words: int = 9 + checked_item_count * 16
+            + checked_instruction_count * 11 + checked_result_count * 6;
+        if bytes_len(&checked_values) != node_count * 24
             || bytes_len(&checked_instructions) != checked_instruction_count * 44
             || bytes_len(&checked_ir) != checked_expected_words * 4
-            || checked_instruction_count != checked_result_count + 1
+            || checked_instruction_count
+                != checked_result_count + checked_item_count
             || checked_word_count != checked_expected_words {
             checked_status = 5;
             checked_code = 1;

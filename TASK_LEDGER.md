@@ -597,6 +597,380 @@ it is that four correct deferrals compound into an obligation no checkpoint
 owns, and that the readiness table has no row for it. This section is that row's
 placeholder until the table gets one.
 
+## CAP-058-H1M2-MODULE-MEANING stage 2b - the checked-IR group over N function items
+
+- Date/task/status: 2026-08-21, `CAP-058-H1M2-MODULE-MEANING`, **stage 2b
+  implemented; the checkpoint is complete**. Implemented from
+  `63b3f3141d5565eb5e2f51db656cdc89209d369c`, which
+  `git ls-remote origin claude/self-hosting-analysis-be3f72`, run from the
+  worktree and querying that branch by name, confirms is both the local `HEAD`
+  and the remote head. The session prompt named `63b3f31` and warned not to
+  trust it. **The warning did not fire this time either** - four consecutive
+  non-firings now, CAP-057, CAP-058's contract, stage 2a and this - and it is
+  still a reason to verify rather than a prediction. It was verified. The same
+  `ls-remote` confirms `c1076e7` and `63b3f31` were pushed rather than merely
+  committed: `63b3f31` is the remote head and `c1076e7` is its parent.
+- The contract above is the authority and was followed rather than re-derived.
+  Decision 7 stages the checkpoint 2a then 2b. Stage 2a landed at `c1076e7` and
+  recorded itself incomplete. **Stage 2b closes it**: the refusal has relocated
+  to the verifier and Decision 1 row 3's vector has been observed on the real
+  linked product.
+
+### The assertion that pins the checkpoint, predicted then observed
+
+Decision 1 row 3 is the only instrument in this checkpoint with the property the
+canonical parser stop had - a location fixed in advance and a value derivable
+from the source bytes before any run. It was written down before the product was
+edited and was not adjusted afterwards.
+
+| | `verified_status` | `word_index` | `code` | `expected` | `actual` |
+|---|---|---|---|---|---|
+| predicted | 1 | 1 | 2 | 1 | **N** |
+| observed | 1 | 1 | 2 | 1 | **N** |
+
+Observed on B, C and D at `-O0` against the linked product, N being 2, 3 and 2.
+`verified_attempted = 1`, `verified_record_id = 0`, and every counted verifier
+field zero, because `:5555` refuses before `verified_instruction_count` is ever
+assigned. `actual` is re-derived inside the test from the probe's own raw bytes
+by counting `fn ` occurrences rather than read from the probe row, so the two
+derivations grade each other.
+
+**Stop condition 8 did not fire and is asserted rather than assumed.** A checked
+module the verifier could not parse refuses at `verified_view_words < 9` or at
+`verified_format != 1`, both of which run first, at `:5680` and `:5687`.
+`oracle::verified_header_refusal` asserts against both before it builds the
+vector, so "close enough" is not reachable: the refusal is on the module's own
+declared function count, which means the module was constructed well enough for
+the verifier to read its header.
+
+### Probe E, made to discriminate, and the demonstration
+
+Stage 2a's handoff put this first, and it was right to: **probe E was inert.**
+C1 fired before the expression loop ran, so E was probe B with longer bytes, and
+a suite containing it passed while proving less than it appeared to.
+
+The sharpest form of that is now asserted as history rather than described. At
+stage 2a **both** B and E reported `checked_value_count = 0` - not one
+expression of either item was evaluated - with the same status, the same code,
+and a located node that was `root` in both cases, which is the whole module and
+not anything in item 2.
+
+What they do now, both graded against the real linked product at 91 rather than
+compared as models:
+
+| | `checked_status` | node | `code` | values | verifier |
+|---|---|---|---|---|---|
+| B `two-items` | 0 | 0 | 0 | 2 | **attempted**, refused at word 1, `actual = 2` |
+| E `two-items-second-divides-by-zero` | **2** | **6** | **6** | **3** | **not attempted** |
+
+E's located refusal is at **offset 52, line 1, column 53**, hand-derived from the
+probe's own bytes before the instrument was asked and asserted as a literal in
+the test alongside `source[52] == b'/'`. Item 1 occupies bytes 0..26 and item 2
+opens at 28, so the refusal is inside item 2, on item 2's own operands, at a
+division only item 2 contains. That is the discrimination, and it is a
+demonstration rather than an assertion: two probes, two different observable
+outcomes, both read off the product.
+
+### What stage 2b changed
+
+Decisions 5 and 6, at C1 through C8, across **sixteen** anchored sites, every one
+inside `compiler.aero:4552-5320`. No parse-group line, no semantic-group line,
+no verifier line, no emitter line, no driver line, and not `main`.
+
+- **C3 and C4 dissolve into one loop over all `node_count` nodes**, dispatching
+  on kind. Kind 18 authenticates the return and appends that item's Return;
+  kind 19 authenticates the function against symbol record `i`; everything else
+  is an expression, unchanged. `checked_expression_count` becomes
+  `node_count - 2N` and is no longer the loop bound.
+- **Every node gets a value record**, the placeholder `[node, 0, 0, 0, 0, 0]`
+  for the two kinds that are not expressions, which the existing append already
+  writes when the operand registers are zero. It is neither counted nor latched
+  as the module root, so `(checked_left - 1) * 24` keeps reading record `id - 1`
+  verbatim and the root stays item N's return expression.
+- **C5**: one Return per item, appended at its own kind-18 node, taking its
+  operand from that item's own value record rather than from a latched register.
+- **C6**: nine header words, then N nine-word function records, then N seven-word
+  block records. Each item's instruction range is derived from the instruction
+  arena itself - the records carrying item `i`'s function word are counted - and
+  the ranges are required to be non-empty, contiguous and in item order, with a
+  post-loop check that they cover every instruction. The block records read
+  their range back out of the function record just written, which authenticates
+  the serialized bytes rather than re-deriving them.
+- **C7**: the result loop scans instead of indexing. Every instruction record is
+  walked in order and the ones with a non-zero result word are authenticated
+  against an emission counter and emitted.
+- **C1, C2 and C8**: the checked group counts its own kind-19 nodes and requires
+  `symbol_count` to equal that count, which is a cross-check between two
+  independent walks over two different arenas rather than a restatement of S3;
+  symbol `i` is read at `i * 16` and must name item `i`'s own function node and
+  carry its own name id; and the arithmetic becomes `9 + 16N + 11i + 6r` with
+  `instructions == results + N` and `bytes_len(&checked_values) == node_count * 24`.
+- **The verifier's `512` at `:5557` is untouched.** It belongs to H1M-3.
+
+For N = 1 every rule above executes the same operations in the same order and
+emits the same bytes: `9 + 9 + 7 = 25` header words, byte for byte the accepted
+header, and `9 + 16 + 11 = 36` words for the whole module.
+
+### What the probes establish, and what they do not
+
+**They establish**, on the real linked product at `-O0`:
+
+- B, C and D reach `checked_status = 0` with the row the contract predicted -
+  values/instructions/results/words of `(2,2,0,63)`, `(3,3,0,90)` and
+  `(6,4,2,97)`, and module roots `(1,2)`, `(1,3)` and `(2,2)` - and are then
+  refused by the verifier at word 1. Those four figures were hand-derived in the
+  contract from the grammar and are reproduced by a model written from the
+  serializer, which is two derivations agreeing rather than one being copied.
+- E is refused inside the checked group, in item 2's own bytes, at item 2's own
+  division.
+- F and G are unchanged: still refused inside the semantic phase, at node 7 and
+  node 4, each located in item 2.
+- A is unchanged. Its module is 36 words, its first 25 are the accepted header
+  asserted field by field, and
+  `canonical_self_host_source_preserves_the_accepted_canonical_module` runs the
+  accepted single-item canonical module end to end and byte-compares the emitted
+  LLVM against the frozen text.
+
+**They do not establish** any of the following, and no later record may read them
+as if they did:
+
+- **Nothing about the verifier as a phase.** Its refusal is *observed* here, not
+  owned. H1M-3 owns the verifier and the emitter, and the
+  `verified_function_node <= 512` pair stays unraised under its authority and
+  its own oracle. Every multi-function module is still refused.
+- **Nothing about a module of N functions being compiled.** The emitter is never
+  reached for any multi-item shape. No identifier is resolved and no function
+  calls another - a call to another item is still a kind-2 identifier and is
+  still refused at `17` / `2`.
+- Nothing about the canonical source's capability. See the negative control.
+- Nothing about ownership, borrowing, lifetimes, layout, or any binding,
+  assignment, statement sequence, conditional or loop having a representation.
+
+### The deliberate out-of-table grading, against stage 2a's own model
+
+Required by the contract and by the session prompt, and it is the one grading
+that a passing suite cannot supply for itself.
+
+**Stage 2a's `c1_refused_expectation_vector` is kept verbatim, is still asserted
+to predict `checked_attempted = 1`, `checked_status = 4` at `root` and
+`checked_code = 3`, and the product must now reject it.** It is inverted rather
+than weakened, which is what this project does with an expired premise. The
+rejection code carries the finding: **92** is `compiler.aero:7019`, the
+checked-group comparison and nothing else, so a 92 says the refusal moved inside
+the checked group and a 91 would say it had not moved at all. Observed 92 on B,
+C, D and E.
+
+**And it is a grading that is not a vector comparison.** Stage 2a's model cannot
+express a serialized module: every counted field it writes is zero, including
+`checked_word_count`. That limit is now asserted in code against the words this
+checkpoint's model builds, rather than left as prose - the same shape as stage
+2a's half three, where CAP-056's model was documented by a caught panic.
+
+CAP-056's model is untouched and still graded: it still predicts `27` / `3` at
+item 1's function node, still contradicts the product, and still declines the
+shapes it has never seen.
+
+### The negative control, unmoved
+
+`compiler.aero` itself, 23 items. Semantic pass 3 refuses any kind-2 node and its
+node 1 is one - `result_value`'s arm-1 body `value` - so **this checkpoint's
+capability cannot be demonstrated on the canonical source at all**, and its role
+is to be a stress input whose located refusal does not move.
+
+Its located refusal is **unchanged**: `semantic_status = 17`, `semantic_code = 2`,
+node 1, offset 98, line 3, column 22, `checked_attempted = 0`, `symbol_count = 23`.
+Nothing in stage 2b can run on it, and that is structural rather than lucky:
+`:4576` gates `checked_attempted` on `semantic_status == 0`, and pass 3 refuses
+first. The entire stage 2b diff is inert on the canonical source.
+
+This is why the probe suite is the whole positive case at this checkpoint, and
+why the discrimination work above came first.
+
+### The census, worse by design
+
+**240 of 18,718.** Reachable stays at exactly 240 and it is a constraint on the
+diff rather than an observation about it: of the 318 added lines, six contain the
+word `return` and **all six are comments**, so zero added lines are a `return`
+statement, and no function's final return expression is touched. Every node this
+diff adds is an orphan by construction.
+
+The ratio moves from 98.713% orphaned to **98.718%**. **A worsening ratio here is
+expected rather than a regression, and no record may cite the movement as
+progress or as decay.** H1M-2 discharges none of the representation debt and
+cannot: the census is parse-group authority, and this checkpoint edits no
+parse-group line.
+
+**Stage 2b is the first checkpoint whose diff makes two arenas smaller.** The
+five-arena delta is `+68` nodes, `+138` values, **`-8`** operators, `+41` blocks,
+**`-44`** calls. Dissolving C4's terminal Return/Function block removed thirteen
+four-byte reads, and a four-byte read is eight `result_value(bytes_get(..))`
+calls. The two directions are recorded separately rather than netted, because a
+single signed figure would hide that this diff deletes more call records than it
+adds.
+
+**One claim here is weaker than stage 2a's and is recorded as weaker.** Stage 2a
+hand-derived its delta per construct from the diff and only then checked it
+against an instrument, which required rebuilding and revalidating the cost model
+against all fourteen rows of `CANONICAL_ITEM_ARENAS` and the whole pre-edit file
+first. **This session did not rebuild that instrument, so stage 2b's delta is
+measured rather than hand-derived, and it says so rather than implying a
+derivation it did not perform.** What still grades is unchanged and is the check
+that matters: the sum is asserted against the linked product's own end-to-end
+parse, where the oracle and the Aero compiler are two independent
+implementations of the same count.
+
+### The eight - eleven - single-function assumptions, and a correction to the record
+
+**Stage 2a's prose is wrong and its table is right.** This is a counting
+inconsistency inside a record rather than a product defect, and it is corrected
+in place rather than overwritten, because a reader who cited the prose instead of
+the table would have understated the work by three sites.
+
+Stage 2a's prose reads "The contract found eight where
+`BOOTSTRAP_CONVERGENCE_READINESS.md:504` names three. Stage 2a discharges the
+three semantic ones and **none** of the five checked-IR ones". The table
+immediately beneath it enumerates S1 through S3 and C1 through C8 - **eleven
+rows, eight of them open C-sites, not five.**
+
+**The true counts are eleven: three semantic and eight checked-IR.** Stage 2a
+discharged three and left eight open; stage 2b discharges the remaining eight, so
+all eleven are now discharged. The error is traceable: the contract's Decision 3
+says "a transcription of both groups against the current source finds **eight**"
+and then enumerates eleven. Eight is the size of the *checked-IR* table alone,
+and the sentence promoted it to a total of both groups. Stage 2a then computed
+`8 - 3 = 5` from that wrong total and reported five open sites where its own
+table showed eight. `BOOTSTRAP_CONVERGENCE_READINESS.md` carries the same
+"eight" and the same "five" and is corrected the same way.
+
+| | site | state after stage 2b |
+|---|---|---|
+| S1 | `:4116` | discharged at stage 2a - N symbols, source order |
+| S2 | `:4390` | discharged at stage 2a - a chain rule, cross-checked against the symbol record |
+| S3 | `:4443` | discharged at stage 2a - `N` and `16N` |
+| C1 | `:4583` | **discharged** - `symbol_count == checked_item_count`, counted independently |
+| C2 | `:4592` | **discharged** - symbol `i` at `i * 16`, naming item `i`'s function node |
+| C3 | `:4619` | **discharged** - `node_count - 2N`; the one the readiness table names |
+| C4 | `:5043` | **discharged** - dissolved into the loop, per item |
+| C5 | `:5115` | **discharged** - one Return per item |
+| C6 | `:5163` | **discharged** - `9 + 16N` header words |
+| C7 | `:5229` | **discharged** - the result loop scans; the contract's own correction, now met |
+| C8 | `:5300` | **discharged** - `instructions == results + N`, `node_count * 24` |
+
+### Hand-derivations, their corrections, and where each was fixed
+
+Three disagreements between a hand-derivation and an instrument. **All three were
+fixed at the mechanism and none by tuning a number**, and all three are reported
+rather than smoothed.
+
+1. **The one that matters, and it was a transcription error rather than a design
+   error.** Decision 5 requires the child-value lookup to be skipped where a
+   child is a placeholder. It was written onto the **left** lookup and not onto
+   the **right**. A kind-19 node's `left` is its own return node and its `right`
+   is the previous item's function node; `right` is `0` at item 1 and non-zero
+   from item 2 onward, so the product read a placeholder value record, saw kind
+   `0`, and refused with `checked_status = 4` / `code = 3`. **That is exactly why
+   probe A and the canonical single-item LLVM byte comparison passed while every
+   N >= 2 probe failed** - at N = 1 there is no previous item to point at. The
+   independent oracle had the guard on both lookups and was right; the Aero
+   transcription had it on one. Found by run 2 and fixed by adding the sixteenth
+   anchored site, not by relaxing the model.
+2. **A brace lost to an anchor that stopped one line short.** The anchor for the
+   C1/C2 region was extracted as lines 4719-4753 when the block closes at 4754,
+   so the replacement was balanced and the anchor was not. The Aero parser caught
+   it - "Expected expression, found RightBrace" at 7235:1, a full 2,400 lines
+   from the edit. Fixed at the range. A brace-balance check across all sixteen
+   edit pairs now runs before any edit is applied, and it is what should have
+   caught this rather than the compiler.
+3. **A hand-derived byte offset that held.** E's located refusal was
+   hand-counted to offset 52, line 1, column 53 from the probe's own bytes before
+   the instrument was consulted, and the product agreed. Recorded because the
+   two corrections above are failures and this one is the same procedure
+   succeeding; a record that only reports the disagreements misrepresents the
+   method's hit rate.
+
+### Gate
+
+Result columns were written from a read exit status and not before. Times are
+UTC on 2026-08-21 and are the moment the result was read.
+
+| run | target | tree | result |
+|---|---|---|---|
+| 1 | `cargo test --test self_host_source_ingestion_tests`, whole | **`compiler.aero` unmodified at `63b3f31`**, plus the stage 2b oracle, probes and tests - the red-first run | **exit 101**, 58 passed / 5 failed, 518.57 s, read 14:47:28. The five failures are the five named in advance, each for the reason named and with the exit code named: four returning 92 where the stage 2b vector expects 91, and one returning 91 where the inverted C1 test expects 92 |
+| 2 | the same target, whole | the product edit applied, fifteen anchored sites | **exit 101**, 57 passed / 6 failed, 509.12 s, read 15:06:25. Two are the arena constants, expected. Four are correction 1 |
+| 3 | the four product-grading tests | the sixteenth site added | **exit 0**, 4 passed / 0 failed, 125.06 s, read 15:15:10 |
+| 4 | `the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it` | the census and arena constants updated | **exit 0**, 1 passed / 0 failed, 309.64 s. The wall-clock read time was not captured for this run and none is stated |
+| 5 | `./tools/test.sh` from the repository root | **the exact tree committed**, carrying these records | **result recorded in the commit message.** No result is claimed in this cell |
+
+Run 5's row claims nothing, for the reason stop condition 10 and CAP-057
+established: a gate row naming its own run cannot be written into the tree that
+run covered. Exactly one unrecorded run is in flight at commit time, by
+construction rather than oversight.
+
+The tripwire over all 493 tracked files was taken before anything was read and
+re-verified before the commit. No file changed that this session did not change.
+
+### What is explicitly not claimed
+
+A module is not a program. The compiler now accepts a module of N function items
+through semantic analysis and constructs one checked-IR module containing N
+function records, N block records and one Return instruction per item - and the
+verifier refuses every one of them. It still refuses the canonical source at its
+first node, still resolves no identifier, still calls no function from another,
+and still represents no binding, assignment, statement sequence, conditional or
+loop. 98.718% of the canonical arena is unreachable and this checkpoint makes
+that figure worse rather than better.
+
+This is module **meaning** for the shape H1M-1 admitted, over a value universe of
+integer literals and arithmetic. It is not H1B's `:223` obligation, not stage
+convergence, not self-hosting, and not a claim that any language feature is
+stable.
+
+### Handoff to H1M-3
+
+**The base.** Whichever commit carries this section. Confirm it the way this
+project always does and do not trust this line: `git ls-remote origin
+claude/self-hosting-analysis-be3f72`, **run from the worktree** and querying the
+branch by name.
+
+**What H1M-3 owns.** The verifier and the emitter over N function items, which is
+two authorities and exactly at the cap. Three things are waiting for it:
+
+1. **The `verified_function_node <= 512` pair at `:5557`.** Untouched here on
+   purpose. It cannot bite at this checkpoint because the verifier refuses at
+   word 1 first, and H1M-3 must either take ownership of it explicitly or keep
+   every probe under 512 nodes explicitly - not by discovery.
+2. **The entry point.** Decision 6 writes `entry_function = N` and latches the
+   module root from item N's return expression, and records itself as an
+   implemented default with **no evidence behind it**, because the verifier
+   refuses at word 1 before it consults word 5 and the emitter is never reached.
+   H1M-3 should expect to change it. The canonical source's `main` being item 23
+   is a coincidence of layout, not a rule.
+3. **The vector that will expire.** When H1M-3 admits N functions, the refusal
+   this checkpoint is pinned by stops firing, and
+   `the_checked_group_builds_n_function_records_and_the_verifier_refuses_them`
+   expires. Invert it rather than weakening it, the way stage 2b inverted stage
+   2a's C1 test and stage 2a inverted CAP-056's: keep the vector, keep asserting
+   it, and require the product to reject it with the code that names the group
+   where the refusal moved.
+
+**Four operational facts, three inherited and one new.**
+
+1. `cargo fmt --check` is the first thing `tools/test.sh` runs and it exits
+   before one test. A gate returning exit 1 in seconds with no `test result:`
+   line is formatting, not a regression.
+2. The Aero subset scopes a function body as one scope. Stage 2a used
+   `semantic_item_*` and stage 2b used `checked_item_*`; grep before declaring.
+3. `D:\Aero-build-targets\cap057` is the live warm root, LLVM 22.1.8 must be on
+   `PATH` or `owned_byte_buffer_contract_test` returns exit 101 ten seconds in
+   looking exactly like a product regression, and `%USERPROFILE%\.cargo\bin` must
+   be prepended by hand because `~/.cargo/env` does not exist on this machine.
+4. **New, and it cost this session a 509-second run.** When an edit to
+   `compiler.aero` is expressed as anchored replacements, check that every
+   replacement is brace-balanced against its anchor *before* applying, and check
+   that a guard added to one of a symmetric pair of blocks is added to both. Both
+   of this session's two failures were of exactly those two shapes, and both are
+   mechanically checkable in a second.
+
 ## CAP-058-H1M2-MODULE-MEANING stage 2a - the semantic group over N function items
 
 - Date/task/status: 2026-08-21, `CAP-058-H1M2-MODULE-MEANING`, **stage 2a
@@ -756,6 +1130,16 @@ The contract found eight where `BOOTSTRAP_CONVERGENCE_READINESS.md:504` names
 three. Stage 2a discharges the three semantic ones and **none** of the five
 checked-IR ones, which is exactly what one authority buys:
 
+> **Corrected by stage 2b, in place rather than by overwriting.** The two
+> sentences above are wrong and the table below them is right. "Eight" is the
+> size of the checked-IR table alone; a transcription of **both** groups finds
+> **eleven** - three semantic and eight checked-IR - and this paragraph promoted
+> the checked-IR figure to a total and then computed `8 - 3 = 5` from it. Stage
+> 2a discharged **three of eleven** and left **eight** checked-IR sites open, not
+> five, which the table beneath already showed. See stage 2b's section above for
+> the full derivation and for the same correction to
+> `BOOTSTRAP_CONVERGENCE_READINESS.md`.
+
 | | site | state after stage 2a |
 |---|---|---|
 | S1 | `:4116` | **discharged** - N symbols, source order |
@@ -869,7 +1253,8 @@ The canonical negative control's located refusal did not move.
   to make E mean something.
 - **Five of the eight single-function assumptions are untouched**, including
   `checked_expression_count = node_count - 2`, the one the readiness table names,
-  and C7, the one the contract itself had to correct.
+  and C7, the one the contract itself had to correct. **Corrected by stage 2b:
+  eight of eleven are untouched, not five of eight.** See the correction above.
 
 **Do this first, and in this order.**
 

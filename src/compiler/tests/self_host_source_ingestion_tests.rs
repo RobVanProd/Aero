@@ -2483,6 +2483,561 @@ mod oracle {
         ]);
         vector
     }
+
+    /// CAP-058 / H1M-2 stage 2b. The checked-IR module the generalized group
+    /// constructs, **word for word**.
+    ///
+    /// This cannot be a table of counts. `checked_checksum` folds every word of
+    /// `checked_ir` at `compiler.aero:5470` and `verified_checksum` folds them
+    /// all again at `:5601`, so an oracle that asserted `words = 63` would be
+    /// asserting one field of a vector whose two checksums it could not
+    /// produce. The layout is transcribed from the serializer at `:5302` read
+    /// against the verifier's own scan at `:5459-5535`, which names every one
+    /// of the first 25 words.
+    #[derive(Debug, Clone)]
+    pub struct CheckedModule {
+        pub attempted: i32,
+        pub status: i32,
+        pub node: i32,
+        pub offset: i32,
+        pub line: i32,
+        pub column: i32,
+        pub code: i32,
+        pub expected: i32,
+        pub actual: i32,
+        pub values: i32,
+        pub instructions: i32,
+        pub results: i32,
+        pub words: i32,
+        pub root_kind: i32,
+        pub root_payload: i32,
+        pub root_type: i32,
+        /// Every serialized word in order. Empty whenever the group refused
+        /// before one word was written.
+        pub ir: Vec<i32>,
+    }
+
+    /// The verifier's own reported vector. Only the header refusal this
+    /// checkpoint predicts is modelled; H1M-3 owns the phase.
+    #[derive(Debug, Clone)]
+    pub struct VerifiedModule {
+        pub attempted: i32,
+        pub status: i32,
+        pub word_index: i32,
+        pub record_id: i32,
+        pub code: i32,
+        pub expected: i32,
+        pub actual: i32,
+        pub instructions: i32,
+        pub results: i32,
+        pub root_value: i32,
+        pub result_values: i32,
+        pub checksum: i32,
+    }
+
+    /// Split an evaluated `i32` the way `compiler.aero:5138-5155` does.
+    fn decompose(evaluated: i32) -> (i32, i32, i32) {
+        let mut sign = 0;
+        let mut magnitude = evaluated;
+        let mut high = 0;
+        let mut low = 0;
+        if evaluated < 0 {
+            sign = 1;
+            if evaluated == i32::MIN {
+                high = 65536;
+            } else {
+                magnitude = -evaluated;
+            }
+        }
+        if high == 0 {
+            high = magnitude / 32768;
+            low = magnitude - high * 32768;
+        }
+        (sign, high, low)
+    }
+
+    /// Read a child's value record back out, as `(kind, payload, value)`.
+    fn child_value(records: &[[i32; 6]], reference: i32) -> (i32, i32, i32) {
+        let record = records[usize::try_from(reference).expect("bounded child") - 1];
+        let value = if record[3] == 1 && record[4] == 65536 && record[5] == 0 {
+            i32::MIN
+        } else {
+            let magnitude = record[4] * 32768 + record[5];
+            if record[3] == 1 {
+                -magnitude
+            } else {
+                magnitude
+            }
+        };
+        (record[1], record[2], value)
+    }
+
+    /// Model the generalized checked-IR group over a module of any item count.
+    ///
+    /// Decisions 5 and 6, in the product's own order. One linear pass over all
+    /// `node_count` nodes dispatches on kind: kind 18 authenticates the return
+    /// and appends that item's Return instruction, kind 19 authenticates the
+    /// function against symbol record `i`, and everything else is an
+    /// expression. Every node gets a value record - a placeholder
+    /// `[node, 0, 0, 0, 0, 0]` for the two that are not expressions - which is
+    /// what keeps `(checked_left - 1) * 24` reading record `id - 1` verbatim,
+    /// and the placeholder is neither counted nor latched as the root.
+    pub fn checked_module(stopped: &Ingestion, stop: &SemanticStop) -> CheckedModule {
+        assert_eq!(
+            stop.status, 0,
+            "the checked group is only attempted by a module the semantic phase accepted"
+        );
+        let node_count = i32::try_from(stopped.nodes.len()).expect("bounded nodes");
+        let item_count = i32::try_from(stopped.nodes.iter().filter(|node| node[0] == 19).count())
+            .expect("bounded items");
+        let expression_count = node_count - item_count * 2;
+        assert_eq!(item_count, stop.symbols, "C1: N symbols for N items");
+
+        let mut module = CheckedModule {
+            attempted: 1,
+            status: 0,
+            node: 0,
+            offset: -1,
+            line: 0,
+            column: 0,
+            code: 0,
+            expected: 0,
+            actual: 0,
+            values: 0,
+            instructions: 0,
+            results: 0,
+            words: 0,
+            root_kind: 0,
+            root_payload: 0,
+            root_type: 0,
+            ir: Vec::new(),
+        };
+
+        let mut records: Vec<[i32; 6]> = Vec::new();
+        let mut instructions: Vec<[i32; 11]> = Vec::new();
+        let mut candidate = (0i32, 0i32);
+        let mut item_index = 0i32;
+
+        for (index, node) in stopped.nodes.iter().enumerate() {
+            let id = i32::try_from(index + 1).expect("bounded node");
+            let origin = stopped.origins[index];
+            let kind = node[0];
+            module.node = id;
+            module.offset = origin[1];
+            module.line = origin[2];
+            module.column = origin[3];
+            module.instructions = i32::try_from(instructions.len()).expect("bounded instructions");
+
+            // A function node's `left` is its own return node, whose value
+            // record is a placeholder, so it is the one child never read.
+            let (mut left_kind, mut left_payload, mut left_value) = (0, 0, 0);
+            let (mut right_kind, mut right_payload, mut right_value) = (0, 0, 0);
+            if node[2] > 0 && kind != 19 {
+                let (child_kind, child_payload, value) = child_value(&records, node[2]);
+                assert!(
+                    child_kind == 1 || child_kind == 2,
+                    "a child value is a literal or a result"
+                );
+                left_kind = child_kind;
+                left_payload = child_payload;
+                left_value = value;
+            }
+            if node[3] > 0 && kind != 19 {
+                let (child_kind, child_payload, value) = child_value(&records, node[3]);
+                assert!(
+                    child_kind == 1 || child_kind == 2,
+                    "a child value is a literal or a result"
+                );
+                right_kind = child_kind;
+                right_payload = child_payload;
+                right_value = value;
+            }
+
+            let mut operand = (0i32, 0i32);
+            let mut evaluated = 0i32;
+            let mut opcode = 0i32;
+            let mut overflow = false;
+            match kind {
+                1 => {
+                    operand = (1, node[1]);
+                    evaluated = node[1];
+                }
+                3 => match left_value.checked_neg() {
+                    Some(value) => {
+                        evaluated = value;
+                        opcode = 5;
+                    }
+                    None => overflow = true,
+                },
+                8 => match left_value.checked_add(right_value) {
+                    Some(value) => {
+                        evaluated = value;
+                        opcode = 1;
+                    }
+                    None => overflow = true,
+                },
+                9 => match left_value.checked_sub(right_value) {
+                    Some(value) => {
+                        evaluated = value;
+                        opcode = 2;
+                    }
+                    None => overflow = true,
+                },
+                5 => match left_value.checked_mul(right_value) {
+                    Some(value) => {
+                        evaluated = value;
+                        opcode = 3;
+                    }
+                    None => overflow = true,
+                },
+                6 => {
+                    if right_value == 0 {
+                        // The one refusal probe E exists to produce, and it is
+                        // reachable only because the expression loop now runs
+                        // on item 2's nodes at all.
+                        module.status = 2;
+                        module.code = 6;
+                        return module;
+                    }
+                    match left_value.checked_div(right_value) {
+                        Some(value) => {
+                            evaluated = value;
+                            opcode = 4;
+                        }
+                        None => overflow = true,
+                    }
+                }
+                18 | 19 => {}
+                other => panic!("the checked group has no rule for node kind {other}"),
+            }
+            if overflow {
+                module.status = 1;
+                module.code = kind;
+                return module;
+            }
+
+            if kind == 18 {
+                let instruction_id =
+                    i32::try_from(instructions.len() + 1).expect("bounded instructions");
+                instructions.push([
+                    3,
+                    instruction_id,
+                    6,
+                    0,
+                    0,
+                    left_kind,
+                    left_payload,
+                    0,
+                    0,
+                    id,
+                    item_index + 1,
+                ]);
+            } else if kind != 1 && kind != 19 {
+                let instruction_id =
+                    i32::try_from(instructions.len() + 1).expect("bounded instructions");
+                let result_id = module.results + 1;
+                instructions.push([
+                    3,
+                    instruction_id,
+                    opcode,
+                    result_id,
+                    1,
+                    left_kind,
+                    left_payload,
+                    right_kind,
+                    right_payload,
+                    id,
+                    item_index + 1,
+                ]);
+                module.results += 1;
+                operand = (2, result_id);
+            }
+
+            let (sign, high, low) = decompose(evaluated);
+            records.push([id, operand.0, operand.1, sign, high, low]);
+            if kind != 18 && kind != 19 {
+                module.values += 1;
+                candidate = operand;
+            }
+            if kind == 19 {
+                item_index += 1;
+            }
+        }
+
+        module.instructions = i32::try_from(instructions.len()).expect("bounded instructions");
+        assert_eq!(item_index, item_count, "every item closes exactly once");
+        assert_eq!(module.values, expression_count, "C3: `node_count - 2N`");
+        assert_eq!(
+            module.instructions,
+            module.results + item_count,
+            "C8: `instructions == results + N`"
+        );
+
+        // C6. Nine header words, N nine-word function records, N seven-word
+        // block records, the instructions, then the derived results.
+        let mut ir = vec![
+            1,
+            item_count,
+            item_count,
+            module.instructions,
+            module.results,
+            item_count,
+            candidate.0,
+            candidate.1,
+            1,
+        ];
+        let mut previous = 0i32;
+        for item in 1..=item_count {
+            let mut first = 0i32;
+            let mut count = 0i32;
+            for (position, record) in instructions.iter().enumerate() {
+                if record[10] == item {
+                    if count == 0 {
+                        first = i32::try_from(position + 1).expect("bounded instruction");
+                    }
+                    count += 1;
+                }
+            }
+            assert!(count >= 1, "every item owns at least its own Return");
+            assert_eq!(
+                first,
+                previous + 1,
+                "item instruction ranges are contiguous and in item order"
+            );
+            previous += count;
+            let slot = usize::try_from(item - 1).expect("bounded item") * 4;
+            ir.extend_from_slice(&[
+                1,
+                item,
+                stop.symbol_words[slot + 1],
+                stop.symbol_words[slot + 2],
+                0,
+                1,
+                item,
+                first,
+                count,
+            ]);
+        }
+        assert_eq!(previous, module.instructions, "every instruction is owned");
+        for item in 1..=item_count {
+            let base = 9 + usize::try_from(item - 1).expect("bounded item") * 9;
+            ir.extend_from_slice(&[2, item, item, 1, 0, ir[base + 7], ir[base + 8]]);
+        }
+        for record in &instructions {
+            ir.extend_from_slice(record);
+        }
+        // C7. Result `i` is no longer instruction record `i`: the records are
+        // scanned and the ones with a non-zero result word are emitted.
+        let mut emitted = 0i32;
+        for record in &instructions {
+            if record[3] != 0 {
+                assert_eq!(record[3], emitted + 1, "results are emitted in order");
+                ir.extend_from_slice(&[4, 1, record[3], record[4], record[1], record[9]]);
+                emitted += 1;
+            }
+        }
+        assert_eq!(emitted, module.results, "every result is emitted once");
+
+        module.words = i32::try_from(ir.len()).expect("bounded words");
+        assert_eq!(
+            module.words,
+            9 + item_count * 16 + module.instructions * 11 + module.results * 6,
+            "C8's word arithmetic"
+        );
+        module.ir = ir;
+        module.root_kind = candidate.0;
+        module.root_payload = candidate.1;
+        module.root_type = 1;
+        module.node = 0;
+        module.offset = -1;
+        module.line = 0;
+        module.column = 0;
+        module.code = 0;
+        module.expected = 0;
+        module.actual = 0;
+        module
+    }
+
+    /// The checked-IR-group checksum over a module this checkpoint built.
+    pub fn checked_module_checksum(semantic: i32, module: &CheckedModule) -> i32 {
+        let mut checksum = 23;
+        checksum = checksum_step(checksum, semantic);
+        checksum = checksum_step(checksum, 997);
+        for word in &module.ir {
+            checksum = checksum_step(checksum, *word);
+        }
+        checksum = checksum_step(checksum, 998);
+        let offset = if module.offset >= 0 {
+            module.offset + 1
+        } else {
+            0
+        };
+        for word in [
+            module.status,
+            module.node,
+            offset,
+            module.line,
+            module.column,
+            module.code,
+            module.expected,
+            module.actual,
+            module.attempted,
+            module.values,
+            module.instructions,
+            module.results,
+            module.words,
+            module.root_kind,
+            module.root_payload,
+            module.root_type,
+        ] {
+            checksum = checksum_step(checksum, word);
+        }
+        checksum
+    }
+
+    /// **Decision 1, row 3.** The verifier refuses a module of N functions on
+    /// the module's own declared function count, at checked-IR word 1.
+    ///
+    /// The location is fixed and the value is derivable from the source bytes
+    /// by counting `fn` keywords, which is the property the canonical parser
+    /// stop had and which nothing else in this checkpoint has.
+    ///
+    /// **Stop condition 8 is asserted here rather than left implicit.** A
+    /// checked module the verifier could not parse refuses at
+    /// `verified_view_words < 9` or at `verified_format != 1` - `:5680` and
+    /// `:5687`, both of which run first - and either is a malformed module
+    /// rather than the predicted refusal.
+    pub fn verified_header_refusal(module: &CheckedModule) -> VerifiedModule {
+        assert_eq!(
+            module.status, 0,
+            "the verifier is only attempted by a completed checked module"
+        );
+        let view_words = i32::try_from(module.ir.len()).expect("bounded words");
+        assert!(
+            view_words >= 9,
+            "stop condition 8: a short view is a different vector, not this one"
+        );
+        assert_eq!(
+            module.ir[0], 1,
+            "stop condition 8: a bad format word is a different vector, not this one"
+        );
+        let function_count = module.ir[1];
+        assert_ne!(
+            function_count, 1,
+            "a single-function module is accepted here and is not this vector"
+        );
+
+        let mut checksum = 29;
+        for word in &module.ir {
+            checksum = checksum_step(checksum, *word);
+        }
+        let verified = VerifiedModule {
+            attempted: 1,
+            status: 1,
+            word_index: 1,
+            record_id: 0,
+            code: 2,
+            expected: 1,
+            actual: function_count,
+            instructions: 0,
+            results: 0,
+            root_value: 0,
+            result_values: 0,
+            checksum: 0,
+        };
+        checksum = checksum_step(checksum, 995);
+        for word in [
+            verified.status,
+            verified.word_index + 1,
+            verified.record_id,
+            verified.code,
+            verified.expected,
+            verified.actual,
+            verified.attempted,
+            verified.instructions,
+            verified.results,
+            // root sign, high and low, all zero on a refused module.
+            0,
+            0,
+            0,
+            verified.result_values,
+        ] {
+            checksum = checksum_step(checksum, word);
+        }
+        VerifiedModule {
+            checksum,
+            ..verified
+        }
+    }
+
+    /// The complete expectation vector for a module the **generalized**
+    /// checked-IR group processes: it either completes and the verifier refuses
+    /// it at word 1, or it is refused inside one item's own expression.
+    ///
+    /// This is stage 2b's whole product-visible claim, and it is one function
+    /// rather than two so that the two outcomes cannot drift apart.
+    pub fn module_expectation_vector(
+        source: &[u8],
+        stopped: &Ingestion,
+        stop: &SemanticStop,
+    ) -> Vec<i32> {
+        let semantic = refused_semantic_checksum(&stopped.origins, stop);
+        let module = checked_module(stopped, stop);
+        let checked = checked_module_checksum(semantic, &module);
+        let mut vector = expectation_vector(source, stopped);
+        vector[11..24].copy_from_slice(&[
+            0,
+            0,
+            -1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            i32::try_from(stopped.origins.len()).expect("bounded origins"),
+            stop.symbols,
+            stop.facts,
+            stop.root_type,
+            semantic,
+        ]);
+        vector[24..41].copy_from_slice(&[
+            module.attempted,
+            module.status,
+            module.node,
+            module.offset,
+            module.line,
+            module.column,
+            module.code,
+            module.expected,
+            module.actual,
+            module.values,
+            module.instructions,
+            module.results,
+            module.words,
+            module.root_kind,
+            module.root_payload,
+            module.root_type,
+            checked,
+        ]);
+        if module.status == 0 {
+            let verified = verified_header_refusal(&module);
+            vector[43..55].copy_from_slice(&[
+                verified.attempted,
+                verified.status,
+                verified.word_index,
+                verified.record_id,
+                verified.code,
+                verified.expected,
+                verified.actual,
+                verified.instructions,
+                verified.results,
+                verified.root_value,
+                verified.result_values,
+                verified.checksum,
+            ]);
+        }
+        vector
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -5395,6 +5950,765 @@ const SEMANTIC_MODULE_INVARIANT: &str = r#"        if symbol_count != semantic_i
             || semantic_previous_function != root
             || fact_count != node_count || bytes_len(&facts) != fact_count * 12 {"#;
 
+/// CAP-058 / H1M-2 stage 2b. The checked-IR group, generalized to N function
+/// items across fifteen anchored sites and no more.
+///
+/// Every one of them lives inside `compiler.aero:4552-5320`, which is the range
+/// the frozen contract authorizes. No parse-group line, no semantic-group line,
+/// no verifier line, no emitter line, no driver line, and not `main`. The order
+/// below is load-bearing: [`CHECKED_INSTRUCTION_FUNCTION`]'s anchor is unique
+/// only once [`CHECKED_ITEM_RETURN`] has introduced the per-item Return, and
+/// each `matches(...).count() == 1` assertion below is checked in that order.
+const CHECKED_ITEM_CENSUS_ANCHOR: &str = r#"    let mut checked_symbol_name: int = 0;
+    let mut checked_symbol_function: int = 0;
+    if checked_attempted == 1 {
+        if node_count < 3 || root != node_count || origin_count != node_count
+            || fact_count != node_count || symbol_count != 1
+            || bytes_len(&origins) != node_count * 20
+            || bytes_len(&facts) != node_count * 12 || bytes_len(&symbols) != 16 {
+            checked_status = 4;
+            checked_node = root;
+            checked_code = 3;
+        }
+    }
+    if checked_attempted == 1 && checked_status == 0 {
+        let checked_symbol_kind: int = result_value(bytes_get(&symbols, 0))
+            + result_value(bytes_get(&symbols, 1)) * 256
+            + result_value(bytes_get(&symbols, 2)) * 65536
+            + result_value(bytes_get(&symbols, 3)) * 16777216;
+        checked_symbol_name = result_value(bytes_get(&symbols, 4))
+            + result_value(bytes_get(&symbols, 5)) * 256
+            + result_value(bytes_get(&symbols, 6)) * 65536
+            + result_value(bytes_get(&symbols, 7)) * 16777216;
+        checked_symbol_function = result_value(bytes_get(&symbols, 8))
+            + result_value(bytes_get(&symbols, 9)) * 256
+            + result_value(bytes_get(&symbols, 10)) * 65536
+            + result_value(bytes_get(&symbols, 11)) * 16777216;
+        let checked_symbol_result: int = result_value(bytes_get(&symbols, 12))
+            + result_value(bytes_get(&symbols, 13)) * 256
+            + result_value(bytes_get(&symbols, 14)) * 65536
+            + result_value(bytes_get(&symbols, 15)) * 16777216;
+        if checked_symbol_kind != 1 || checked_symbol_name <= 0
+            || checked_symbol_function != root || checked_symbol_result != 1 {
+            checked_status = 4;
+            checked_node = root;
+            checked_code = 2;
+        }
+    }"#;
+
+const CHECKED_ITEM_CENSUS: &str = r#"    let mut checked_symbol_name: int = 0;
+    let mut checked_symbol_function: int = 0;
+    // CAP-058 / H1M-2 stage 2b. C1 and C2 stop assuming one item.
+    //
+    // The checked group counts its own kind-19 nodes instead of trusting the
+    // semantic group's `symbol_count`, so `symbol_count != checked_item_count`
+    // below is a cross-check between two independent walks over two different
+    // arenas rather than a restatement of S3. C2 moves into the node loop,
+    // where symbol `i` is read at `i * 16` and is required to name item `i`'s
+    // own function node rather than `root`.
+    let mut checked_item_count: int = 0;
+    let mut checked_item_index: int = 0;
+    let mut checked_item_scan: int = 0;
+    let mut checked_item_kind: int = 0;
+    let mut checked_item_fact: int = 0;
+    let mut checked_item_first: int = 0;
+    let mut checked_item_records: int = 0;
+    let mut checked_item_previous: int = 0;
+    let mut checked_item_function: int = 0;
+    let mut checked_item_emitted: int = 0;
+    if checked_attempted == 1 {
+        while checked_item_scan < node_count {
+            word_offset = checked_item_scan * 16;
+            checked_item_kind = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if checked_item_kind == 19 {
+                checked_item_count = checked_item_count + 1;
+            }
+            checked_item_scan = checked_item_scan + 1;
+        }
+    }
+    if checked_attempted == 1 {
+        if checked_item_count < 1 || node_count < checked_item_count * 3
+            || root != node_count || origin_count != node_count
+            || fact_count != node_count || symbol_count != checked_item_count
+            || bytes_len(&origins) != node_count * 20
+            || bytes_len(&facts) != node_count * 12
+            || bytes_len(&symbols) != checked_item_count * 16 {
+            checked_status = 4;
+            checked_node = root;
+            checked_code = 3;
+        }
+    }"#;
+
+const CHECKED_EXPRESSION_COUNT_ANCHOR: &str =
+    r#"        checked_expression_count = node_count - 2;"#;
+
+const CHECKED_EXPRESSION_COUNT: &str =
+    r#"        checked_expression_count = node_count - checked_item_count * 2;"#;
+
+const CHECKED_NODE_LOOP_ANCHOR: &str = r#"        && checked_index < checked_expression_count {"#;
+
+const CHECKED_NODE_LOOP: &str = r#"        && checked_index < node_count {"#;
+
+const CHECKED_FACT_MOVE_ANCHOR: &str = r#"        if checked_status == 0 && (checked_fact_id != checked_node
+                || checked_fact_type != 1 || checked_fact_ownership != 1) {
+            checked_status = 4;
+            checked_code = 3;
+        }
+"#;
+
+const CHECKED_FACT_MOVE: &str = "";
+
+const CHECKED_NODE_RULES_ANCHOR: &str = r#"        if checked_status == 0 {
+            if checked_kind == 1 {
+                if checked_payload < 0 || checked_left != 0 || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 3 {
+                if checked_payload != 0 || checked_left <= 0
+                    || checked_left >= checked_node || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 5 || checked_kind == 6
+                || checked_kind == 8 || checked_kind == 9 {
+                if checked_payload != 0 || checked_left <= 0 || checked_right <= 0
+                    || checked_left >= checked_node || checked_right >= checked_node {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else {
+                checked_status = 4;
+                checked_code = 3;
+            }
+        }"#;
+
+const CHECKED_NODE_RULES: &str = r#"        // The fact rule is kind-dependent now. An expression node carries a
+        // complete owned `int`; a return or function node carries neither, and
+        // the accepted product asserted that in its terminal block instead.
+        checked_item_fact = 1;
+        if checked_kind == 18 || checked_kind == 19 {
+            checked_item_fact = 0;
+        }
+        if checked_status == 0 && (checked_fact_id != checked_node
+                || checked_fact_type != checked_item_fact
+                || checked_fact_ownership != checked_item_fact) {
+            checked_status = 4;
+            checked_code = 3;
+        }
+        if checked_status == 0 {
+            if checked_kind == 1 {
+                if checked_payload < 0 || checked_left != 0 || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 3 {
+                if checked_payload != 0 || checked_left <= 0
+                    || checked_left >= checked_node || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 5 || checked_kind == 6
+                || checked_kind == 8 || checked_kind == 9 {
+                if checked_payload != 0 || checked_left <= 0 || checked_right <= 0
+                    || checked_left >= checked_node || checked_right >= checked_node {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 18 {
+                // C4 dissolved. A return node is authenticated where it is met
+                // rather than in a terminal block, and its `left` is the node
+                // appended immediately before it - its own item's return
+                // expression, never a previous item's.
+                if checked_payload != 0 || checked_left != checked_node - 1
+                    || checked_right != 0 {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else if checked_kind == 19 {
+                // A function node's `left` is its own return node and its
+                // `right` is the previous item's function node, zero at item 1.
+                if checked_payload <= 0 || checked_left != checked_node - 1
+                    || checked_right < 0 || checked_right >= checked_node {
+                    checked_status = 4;
+                    checked_code = 3;
+                }
+            } else {
+                checked_status = 4;
+                checked_code = 3;
+            }
+        }
+        if checked_status == 0 && checked_kind == 19 {
+            // C2 generalized: symbol `i` at `i * 16`, cross-checked against
+            // item `i`'s own function node and its own name id.
+            word_offset = checked_item_index * 16;
+            let checked_symbol_kind: int = result_value(bytes_get(&symbols, word_offset))
+                + result_value(bytes_get(&symbols, word_offset + 1)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 2)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 3)) * 16777216;
+            checked_symbol_name = result_value(bytes_get(&symbols, word_offset + 4))
+                + result_value(bytes_get(&symbols, word_offset + 5)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 6)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 7)) * 16777216;
+            checked_symbol_function = result_value(bytes_get(&symbols, word_offset + 8))
+                + result_value(bytes_get(&symbols, word_offset + 9)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 10)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 11)) * 16777216;
+            let checked_symbol_result: int = result_value(bytes_get(&symbols, word_offset + 12))
+                + result_value(bytes_get(&symbols, word_offset + 13)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 14)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 15)) * 16777216;
+            if checked_item_index >= checked_item_count || checked_symbol_kind != 1
+                || checked_symbol_name <= 0
+                || checked_symbol_name != checked_payload
+                || checked_symbol_function != checked_node
+                || checked_symbol_result != 1 {
+                checked_status = 4;
+                checked_code = 2;
+            }
+        }"#;
+
+const CHECKED_LEFT_LOOKUP_ANCHOR: &str = r#"        if checked_status == 0 && checked_left > 0 {"#;
+
+const CHECKED_LEFT_LOOKUP: &str =
+    r#"        if checked_status == 0 && checked_left > 0 && checked_kind != 19 {"#;
+
+const CHECKED_RIGHT_LOOKUP_ANCHOR: &str =
+    r#"        if checked_status == 0 && checked_right > 0 {"#;
+
+const CHECKED_RIGHT_LOOKUP: &str =
+    r#"        if checked_status == 0 && checked_right > 0 && checked_kind != 19 {"#;
+
+const CHECKED_ITEM_RETURN_ANCHOR: &str = r#"        if checked_status == 0 && checked_kind != 1 {
+            checked_instruction_id = checked_instruction_count + 1;"#;
+
+const CHECKED_ITEM_RETURN: &str = r#"        if checked_status == 0 && checked_kind == 18 {
+            // C5 generalized: one Return instruction per item, appended when
+            // that item's own kind-18 node is met rather than once after the
+            // loop. Its operand is item `i`'s own value record, read above at
+            // `(checked_left - 1) * 24` - the record the accepted product had
+            // latched into `checked_candidate_root_*` - so a Return cannot
+            // carry a previous item's expression.
+            checked_instruction_id = checked_instruction_count + 1;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 11 {
+                checked_append_word = 3;
+                if checked_append_field == 1 {
+                    checked_append_word = checked_instruction_id;
+                } else if checked_append_field == 2 {
+                    checked_append_word = 6;
+                } else if checked_append_field == 3 || checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 5 {
+                    checked_append_word = checked_left_kind;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_left_payload;
+                } else if checked_append_field == 7 || checked_append_field == 8 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 9 {
+                    checked_append_word = checked_node;
+                } else if checked_append_field == 10 {
+                    checked_append_word = checked_item_index + 1;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(
+                        &mut checked_instructions, checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 2;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            if checked_status == 0 {
+                checked_instruction_count = checked_instruction_count + 1;
+            }
+        }
+        if checked_status == 0 && checked_kind != 1 && checked_kind != 18
+            && checked_kind != 19 {
+            checked_instruction_id = checked_instruction_count + 1;"#;
+
+const CHECKED_INSTRUCTION_FUNCTION_ANCHOR: &str = r#"                } else if checked_append_field == 10 {
+                    checked_append_word = 1;
+                }"#;
+
+const CHECKED_INSTRUCTION_FUNCTION: &str = r#"                } else if checked_append_field == 10 {
+                    checked_append_word = checked_item_index + 1;
+                }"#;
+
+const CHECKED_VALUE_PLACEHOLDER_ANCHOR: &str = r#"            if checked_status == 0 {
+                checked_value_count = checked_value_count + 1;
+                checked_candidate_root_kind = checked_operand_kind;
+                checked_candidate_root_payload = checked_operand_payload;
+            }
+        }
+        checked_index = checked_index + 1;"#;
+
+const CHECKED_VALUE_PLACEHOLDER: &str = r#"            if checked_status == 0 && checked_kind != 18 && checked_kind != 19 {
+                // Decision 5. A return or function node still gets a value
+                // record - the placeholder `[node, 0, 0, 0, 0, 0]` the append
+                // above writes whenever the operand registers are zero - so
+                // that every `(checked_left - 1) * 24` lookup keeps reading
+                // value record `id - 1` verbatim. It must not be counted and
+                // must not latch the module's root value, or the root becomes
+                // the last function node's zero instead of item N's return
+                // expression.
+                checked_value_count = checked_value_count + 1;
+                checked_candidate_root_kind = checked_operand_kind;
+                checked_candidate_root_payload = checked_operand_payload;
+            }
+        }
+        if checked_status == 0 && checked_kind == 19 {
+            checked_item_index = checked_item_index + 1;
+        }
+        checked_index = checked_index + 1;"#;
+
+const CHECKED_MODULE_CLOSE_ANCHOR: &str = r#"    // Authenticate terminal Return/Function facts and append the one Return.
+    if checked_attempted == 1 && checked_status == 0 {
+        checked_node = checked_expression_count + 1;
+        word_offset = (checked_node - 1) * 20;
+        checked_origin_id = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        checked_offset = result_value(bytes_get(&origins, word_offset + 4))
+            + result_value(bytes_get(&origins, word_offset + 5)) * 256
+            + result_value(bytes_get(&origins, word_offset + 6)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 7)) * 16777216;
+        checked_line = result_value(bytes_get(&origins, word_offset + 8))
+            + result_value(bytes_get(&origins, word_offset + 9)) * 256
+            + result_value(bytes_get(&origins, word_offset + 10)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 11)) * 16777216;
+        checked_column = result_value(bytes_get(&origins, word_offset + 12))
+            + result_value(bytes_get(&origins, word_offset + 13)) * 256
+            + result_value(bytes_get(&origins, word_offset + 14)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 15)) * 16777216;
+        word_offset = (checked_node - 1) * 16;
+        let checked_return_kind: int = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        let checked_return_left: int = result_value(bytes_get(&nodes, word_offset + 8))
+            + result_value(bytes_get(&nodes, word_offset + 9)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 10)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 11)) * 16777216;
+        word_offset = (checked_node - 1) * 12;
+        checked_fact_id = result_value(bytes_get(&facts, word_offset))
+            + result_value(bytes_get(&facts, word_offset + 1)) * 256
+            + result_value(bytes_get(&facts, word_offset + 2)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 3)) * 16777216;
+        checked_fact_type = result_value(bytes_get(&facts, word_offset + 4))
+            + result_value(bytes_get(&facts, word_offset + 5)) * 256
+            + result_value(bytes_get(&facts, word_offset + 6)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 7)) * 16777216;
+        checked_fact_ownership = result_value(bytes_get(&facts, word_offset + 8))
+            + result_value(bytes_get(&facts, word_offset + 9)) * 256
+            + result_value(bytes_get(&facts, word_offset + 10)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 11)) * 16777216;
+        word_offset = (root - 1) * 16;
+        let checked_function_kind: int = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (root - 1) * 12;
+        let checked_function_fact_id: int = result_value(bytes_get(&facts, word_offset))
+            + result_value(bytes_get(&facts, word_offset + 1)) * 256
+            + result_value(bytes_get(&facts, word_offset + 2)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 3)) * 16777216;
+        let checked_function_fact_type: int = result_value(bytes_get(&facts, word_offset + 4))
+            + result_value(bytes_get(&facts, word_offset + 5)) * 256
+            + result_value(bytes_get(&facts, word_offset + 6)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 7)) * 16777216;
+        let checked_function_fact_ownership: int = result_value(bytes_get(&facts, word_offset + 8))
+            + result_value(bytes_get(&facts, word_offset + 9)) * 256
+            + result_value(bytes_get(&facts, word_offset + 10)) * 65536
+            + result_value(bytes_get(&facts, word_offset + 11)) * 16777216;
+        if checked_origin_id != checked_node || checked_value_count != checked_expression_count
+            || checked_return_kind != 18
+            || checked_return_left != checked_expression_count
+            || checked_fact_id != checked_node || checked_fact_type != 0
+            || checked_fact_ownership != 0 || checked_function_kind != 19
+            || checked_function_fact_id != root || checked_function_fact_type != 0
+            || checked_function_fact_ownership != 0
+            || checked_symbol_function != root {
+            checked_status = 4;
+            checked_code = 3;
+        }
+    }
+    if checked_attempted == 1 && checked_status == 0 {
+        checked_instruction_id = checked_instruction_count + 1;
+        checked_append_field = 0;
+        while checked_status == 0 && checked_append_field < 11 {
+            checked_append_word = 3;
+            if checked_append_field == 1 {
+                checked_append_word = checked_instruction_id;
+            } else if checked_append_field == 2 {
+                checked_append_word = 6;
+            } else if checked_append_field == 3 || checked_append_field == 4 {
+                checked_append_word = 0;
+            } else if checked_append_field == 5 {
+                checked_append_word = checked_candidate_root_kind;
+            } else if checked_append_field == 6 {
+                checked_append_word = checked_candidate_root_payload;
+            } else if checked_append_field == 7 || checked_append_field == 8 {
+                checked_append_word = 0;
+            } else if checked_append_field == 9 {
+                checked_append_word = checked_node;
+            } else if checked_append_field == 10 {
+                checked_append_word = 1;
+            }
+            checked_append_byte = 0;
+            while checked_status == 0 && checked_append_byte < 4 {
+                checked_append_value = word_byte_0(checked_append_word);
+                if checked_append_byte == 1 {
+                    checked_append_value = word_byte_1(checked_append_word);
+                } else if checked_append_byte == 2 {
+                    checked_append_value = word_byte_2(checked_append_word);
+                } else if checked_append_byte == 3 {
+                    checked_append_value = word_byte_3(checked_append_word);
+                }
+                push_result = result_value(bytes_push(
+                    &mut checked_instructions, checked_append_value));
+                if push_result < 0 {
+                    checked_status = 3;
+                    checked_code = 2;
+                }
+                checked_append_byte = checked_append_byte + 1;
+            }
+            checked_append_field = checked_append_field + 1;
+        }
+        if checked_status == 0 {
+            checked_instruction_count = checked_instruction_count + 1;
+        }
+    }"#;
+
+const CHECKED_MODULE_CLOSE: &str = r#"    // C4 and C5 are dissolved into the loop above. What is left is the
+    // whole-module authentication that cannot be made per item.
+    if checked_attempted == 1 && checked_status == 0 {
+        if checked_item_index != checked_item_count
+            || checked_value_count != checked_expression_count
+            || checked_symbol_function != root
+            || checked_instruction_count != checked_result_count + checked_item_count {
+            checked_status = 4;
+            checked_node = root;
+            checked_code = 3;
+        }
+    }"#;
+
+const CHECKED_HEADER_ANCHOR: &str = r#"    // Serialize header/function/block, copy instructions, then derive results.
+    if checked_attempted == 1 && checked_status == 0 {
+        checked_append_field = 0;
+        while checked_status == 0 && checked_append_field < 25 {
+            checked_append_word = 1;
+            if checked_append_field == 3 || checked_append_field == 17
+                || checked_append_field == 24 {
+                checked_append_word = checked_instruction_count;
+            } else if checked_append_field == 4 {
+                checked_append_word = checked_result_count;
+            } else if checked_append_field == 6 {
+                checked_append_word = checked_candidate_root_kind;
+            } else if checked_append_field == 7 {
+                checked_append_word = checked_candidate_root_payload;
+            } else if checked_append_field == 8 {
+                checked_append_word = 1;
+            } else if checked_append_field == 11 {
+                checked_append_word = checked_symbol_name;
+            } else if checked_append_field == 12 {
+                checked_append_word = checked_symbol_function;
+            } else if checked_append_field == 13 || checked_append_field == 22 {
+                checked_append_word = 0;
+            } else if checked_append_field == 18 {
+                checked_append_word = 2;
+            }
+            checked_append_byte = 0;
+            while checked_status == 0 && checked_append_byte < 4 {
+                checked_append_value = word_byte_0(checked_append_word);
+                if checked_append_byte == 1 {
+                    checked_append_value = word_byte_1(checked_append_word);
+                } else if checked_append_byte == 2 {
+                    checked_append_value = word_byte_2(checked_append_word);
+                } else if checked_append_byte == 3 {
+                    checked_append_value = word_byte_3(checked_append_word);
+                }
+                push_result = result_value(bytes_push(&mut checked_ir,
+                    checked_append_value));
+                if push_result < 0 {
+                    checked_status = 3;
+                    checked_code = 3;
+                }
+                checked_append_byte = checked_append_byte + 1;
+            }
+            checked_append_field = checked_append_field + 1;
+        }
+    }"#;
+
+const CHECKED_HEADER: &str = r#"    // Serialize header/function/block, copy instructions, then derive results.
+    //
+    // C6 generalized. Nine header words, then N nine-word function records,
+    // then N seven-word block records. For N = 1 that is `9 + 9 + 7 = 25`
+    // words, byte for byte the accepted header, which is the arithmetic that
+    // guarantees the accepted single-item module's emitted LLVM cannot move.
+    if checked_attempted == 1 && checked_status == 0 {
+        checked_append_field = 0;
+        while checked_status == 0 && checked_append_field < 9 {
+            checked_append_word = 1;
+            if checked_append_field == 1 || checked_append_field == 2
+                || checked_append_field == 5 {
+                checked_append_word = checked_item_count;
+            } else if checked_append_field == 3 {
+                checked_append_word = checked_instruction_count;
+            } else if checked_append_field == 4 {
+                checked_append_word = checked_result_count;
+            } else if checked_append_field == 6 {
+                checked_append_word = checked_candidate_root_kind;
+            } else if checked_append_field == 7 {
+                checked_append_word = checked_candidate_root_payload;
+            }
+            checked_append_byte = 0;
+            while checked_status == 0 && checked_append_byte < 4 {
+                checked_append_value = word_byte_0(checked_append_word);
+                if checked_append_byte == 1 {
+                    checked_append_value = word_byte_1(checked_append_word);
+                } else if checked_append_byte == 2 {
+                    checked_append_value = word_byte_2(checked_append_word);
+                } else if checked_append_byte == 3 {
+                    checked_append_value = word_byte_3(checked_append_word);
+                }
+                push_result = result_value(bytes_push(&mut checked_ir,
+                    checked_append_value));
+                if push_result < 0 {
+                    checked_status = 3;
+                    checked_code = 3;
+                }
+                checked_append_byte = checked_append_byte + 1;
+            }
+            checked_append_field = checked_append_field + 1;
+        }
+    }
+    // One function record per item. Its instruction range is derived from the
+    // instruction arena itself rather than from a bookkeeping register: the
+    // records carrying item `i`'s function word are counted, and the ranges are
+    // required to be non-empty, contiguous and in item order.
+    let mut checked_record_index: int = 0;
+    let mut checked_record_scan: int = 0;
+    if checked_attempted == 1 && checked_status == 0 {
+        while checked_status == 0 && checked_record_index < checked_item_count {
+            checked_item_first = 0;
+            checked_item_records = 0;
+            checked_record_scan = 0;
+            while checked_status == 0
+                && checked_record_scan < checked_instruction_count {
+                word_offset = checked_record_scan * 44 + 40;
+                checked_item_function = result_value(bytes_get(
+                    &checked_instructions, word_offset))
+                    + result_value(bytes_get(&checked_instructions, word_offset + 1)) * 256
+                    + result_value(bytes_get(&checked_instructions, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&checked_instructions, word_offset + 3)) * 16777216;
+                if checked_item_function == checked_record_index + 1 {
+                    if checked_item_records == 0 {
+                        checked_item_first = checked_record_scan + 1;
+                    }
+                    checked_item_records = checked_item_records + 1;
+                }
+                checked_record_scan = checked_record_scan + 1;
+            }
+            if checked_item_records < 1
+                || checked_item_first != checked_item_previous + 1 {
+                checked_status = 5;
+                checked_code = 4;
+            }
+            word_offset = checked_record_index * 16;
+            checked_symbol_name = result_value(bytes_get(&symbols, word_offset + 4))
+                + result_value(bytes_get(&symbols, word_offset + 5)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 6)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 7)) * 16777216;
+            checked_symbol_function = result_value(bytes_get(&symbols, word_offset + 8))
+                + result_value(bytes_get(&symbols, word_offset + 9)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 10)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 11)) * 16777216;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 9 {
+                checked_append_word = 1;
+                if checked_append_field == 1 {
+                    checked_append_word = checked_record_index + 1;
+                } else if checked_append_field == 2 {
+                    checked_append_word = checked_symbol_name;
+                } else if checked_append_field == 3 {
+                    checked_append_word = checked_symbol_function;
+                } else if checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_record_index + 1;
+                } else if checked_append_field == 7 {
+                    checked_append_word = checked_item_first;
+                } else if checked_append_field == 8 {
+                    checked_append_word = checked_item_records;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(&mut checked_ir,
+                        checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 3;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            checked_item_previous = checked_item_previous + checked_item_records;
+            checked_record_index = checked_record_index + 1;
+        }
+        if checked_status == 0
+            && checked_item_previous != checked_instruction_count {
+            checked_status = 5;
+            checked_code = 4;
+        }
+    }
+    // One block record per item. Its instruction range is read back out of the
+    // function record just written, which authenticates the serialized bytes
+    // rather than re-deriving them.
+    let mut checked_block_index: int = 0;
+    if checked_attempted == 1 && checked_status == 0 {
+        while checked_status == 0 && checked_block_index < checked_item_count {
+            word_offset = (9 + checked_block_index * 9 + 7) * 4;
+            checked_item_first = result_value(bytes_get(&checked_ir, word_offset))
+                + result_value(bytes_get(&checked_ir, word_offset + 1)) * 256
+                + result_value(bytes_get(&checked_ir, word_offset + 2)) * 65536
+                + result_value(bytes_get(&checked_ir, word_offset + 3)) * 16777216;
+            word_offset = (9 + checked_block_index * 9 + 8) * 4;
+            checked_item_records = result_value(bytes_get(&checked_ir, word_offset))
+                + result_value(bytes_get(&checked_ir, word_offset + 1)) * 256
+                + result_value(bytes_get(&checked_ir, word_offset + 2)) * 65536
+                + result_value(bytes_get(&checked_ir, word_offset + 3)) * 16777216;
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 7 {
+                checked_append_word = 2;
+                if checked_append_field == 1 || checked_append_field == 2 {
+                    checked_append_word = checked_block_index + 1;
+                } else if checked_append_field == 3 {
+                    checked_append_word = 1;
+                } else if checked_append_field == 4 {
+                    checked_append_word = 0;
+                } else if checked_append_field == 5 {
+                    checked_append_word = checked_item_first;
+                } else if checked_append_field == 6 {
+                    checked_append_word = checked_item_records;
+                }
+                checked_append_byte = 0;
+                while checked_status == 0 && checked_append_byte < 4 {
+                    checked_append_value = word_byte_0(checked_append_word);
+                    if checked_append_byte == 1 {
+                        checked_append_value = word_byte_1(checked_append_word);
+                    } else if checked_append_byte == 2 {
+                        checked_append_value = word_byte_2(checked_append_word);
+                    } else if checked_append_byte == 3 {
+                        checked_append_value = word_byte_3(checked_append_word);
+                    }
+                    push_result = result_value(bytes_push(&mut checked_ir,
+                        checked_append_value));
+                    if push_result < 0 {
+                        checked_status = 3;
+                        checked_code = 3;
+                    }
+                    checked_append_byte = checked_append_byte + 1;
+                }
+                checked_append_field = checked_append_field + 1;
+            }
+            checked_block_index = checked_block_index + 1;
+        }
+    }"#;
+
+const CHECKED_RESULT_SCAN_ANCHOR: &str =
+    r#"        while checked_status == 0 && checked_result_index < checked_result_count {"#;
+
+const CHECKED_RESULT_SCAN: &str = r#"        while checked_status == 0
+            && checked_result_index < checked_instruction_count {"#;
+
+const CHECKED_RESULT_RULE_ANCHOR: &str = r#"            if checked_definition_id != checked_result_index + 1
+                || checked_definition_result != checked_result_index + 1
+                || checked_definition_type != 1 || checked_definition_origin <= 0 {
+                checked_status = 5;
+                checked_code = 3;
+            }
+            checked_append_field = 0;
+            while checked_status == 0 && checked_append_field < 6 {"#;
+
+const CHECKED_RESULT_RULE: &str = r#"            // C7 generalized. With N items the Returns interleave, so
+            // result `i` is no longer instruction record `i`. Every record is
+            // walked in order and the ones with a non-zero result word - which
+            // is exactly the value-producing instructions, because a Return
+            // writes zero there - are authenticated against the emission
+            // counter and emitted. For N = 1 this visits the same records in
+            // the same order and emits the same bytes.
+            if checked_definition_id != checked_result_index + 1 {
+                checked_status = 5;
+                checked_code = 3;
+            }
+            if checked_status == 0 && checked_definition_result != 0
+                && (checked_definition_result != checked_item_emitted + 1
+                    || checked_definition_type != 1
+                    || checked_definition_origin <= 0) {
+                checked_status = 5;
+                checked_code = 3;
+            }
+            checked_append_field = 0;
+            while checked_status == 0 && checked_definition_result != 0
+                && checked_append_field < 6 {"#;
+
+const CHECKED_RESULT_ADVANCE_ANCHOR: &str = r#"            checked_result_index = checked_result_index + 1;
+        }
+    }"#;
+
+const CHECKED_RESULT_ADVANCE: &str = r#"            if checked_status == 0 && checked_definition_result != 0 {
+                checked_item_emitted = checked_item_emitted + 1;
+            }
+            checked_result_index = checked_result_index + 1;
+        }
+        if checked_status == 0 && checked_item_emitted != checked_result_count {
+            checked_status = 5;
+            checked_code = 3;
+        }
+    }"#;
+
+const CHECKED_STORAGE_INVARIANT_ANCHOR: &str = r#"        let checked_expected_words: int = 25 + checked_instruction_count * 11
+            + checked_result_count * 6;
+        if bytes_len(&checked_values) != checked_value_count * 24
+            || bytes_len(&checked_instructions) != checked_instruction_count * 44
+            || bytes_len(&checked_ir) != checked_expected_words * 4
+            || checked_instruction_count != checked_result_count + 1
+            || checked_word_count != checked_expected_words {"#;
+
+const CHECKED_STORAGE_INVARIANT: &str = r#"        let checked_expected_words: int = 9 + checked_item_count * 16
+            + checked_instruction_count * 11 + checked_result_count * 6;
+        if bytes_len(&checked_values) != node_count * 24
+            || bytes_len(&checked_instructions) != checked_instruction_count * 44
+            || bytes_len(&checked_ir) != checked_expected_words * 4
+            || checked_instruction_count
+                != checked_result_count + checked_item_count
+            || checked_word_count != checked_expected_words {"#;
+
 fn expected_h1a_source() -> String {
     let accepted = accepted_b1c_source();
 
@@ -5674,6 +6988,47 @@ fn expected_h1a_source() -> String {
     let derived = derived.replace(SEMANTIC_ITEM_RULE_ANCHOR, SEMANTIC_ITEM_RULE);
     assert_eq!(derived.matches(SEMANTIC_MODULE_INVARIANT_ANCHOR).count(), 1);
     let derived = derived.replace(SEMANTIC_MODULE_INVARIANT_ANCHOR, SEMANTIC_MODULE_INVARIANT);
+
+    // CAP-058 / H1M-2 stage 2b generalizes the checked-IR group at C1
+    // through C8. Fifteen anchored sites, applied in this order.
+    assert_eq!(derived.matches(CHECKED_ITEM_CENSUS_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_ITEM_CENSUS_ANCHOR, CHECKED_ITEM_CENSUS);
+    assert_eq!(derived.matches(CHECKED_EXPRESSION_COUNT_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_EXPRESSION_COUNT_ANCHOR, CHECKED_EXPRESSION_COUNT);
+    assert_eq!(derived.matches(CHECKED_NODE_LOOP_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_NODE_LOOP_ANCHOR, CHECKED_NODE_LOOP);
+    assert_eq!(derived.matches(CHECKED_FACT_MOVE_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_FACT_MOVE_ANCHOR, CHECKED_FACT_MOVE);
+    assert_eq!(derived.matches(CHECKED_NODE_RULES_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_NODE_RULES_ANCHOR, CHECKED_NODE_RULES);
+    assert_eq!(derived.matches(CHECKED_LEFT_LOOKUP_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_LEFT_LOOKUP_ANCHOR, CHECKED_LEFT_LOOKUP);
+    assert_eq!(derived.matches(CHECKED_RIGHT_LOOKUP_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_RIGHT_LOOKUP_ANCHOR, CHECKED_RIGHT_LOOKUP);
+    assert_eq!(derived.matches(CHECKED_ITEM_RETURN_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_ITEM_RETURN_ANCHOR, CHECKED_ITEM_RETURN);
+    assert_eq!(
+        derived.matches(CHECKED_INSTRUCTION_FUNCTION_ANCHOR).count(),
+        1
+    );
+    let derived = derived.replace(
+        CHECKED_INSTRUCTION_FUNCTION_ANCHOR,
+        CHECKED_INSTRUCTION_FUNCTION,
+    );
+    assert_eq!(derived.matches(CHECKED_VALUE_PLACEHOLDER_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_VALUE_PLACEHOLDER_ANCHOR, CHECKED_VALUE_PLACEHOLDER);
+    assert_eq!(derived.matches(CHECKED_MODULE_CLOSE_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_MODULE_CLOSE_ANCHOR, CHECKED_MODULE_CLOSE);
+    assert_eq!(derived.matches(CHECKED_HEADER_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_HEADER_ANCHOR, CHECKED_HEADER);
+    assert_eq!(derived.matches(CHECKED_RESULT_SCAN_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_RESULT_SCAN_ANCHOR, CHECKED_RESULT_SCAN);
+    assert_eq!(derived.matches(CHECKED_RESULT_RULE_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_RESULT_RULE_ANCHOR, CHECKED_RESULT_RULE);
+    assert_eq!(derived.matches(CHECKED_RESULT_ADVANCE_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_RESULT_ADVANCE_ANCHOR, CHECKED_RESULT_ADVANCE);
+    assert_eq!(derived.matches(CHECKED_STORAGE_INVARIANT_ANCHOR).count(), 1);
+    let derived = derived.replace(CHECKED_STORAGE_INVARIANT_ANCHOR, CHECKED_STORAGE_INVARIANT);
 
     // CAP-055 / H1B-6. The uniform parse-group capacity raise, applied last and
     // as one step rather than as thirty-two anchored fragments.
@@ -8807,8 +10162,11 @@ fn run_meaning_expectation(
     semantic: &oracle::SemanticStop,
     optimization: &str,
 ) -> i32 {
+    // CAP-058 / H1M-2 stage 2b moves this one line and nothing else. A module
+    // the semantic phase accepts is no longer refused by C1: the checked group
+    // builds it and the verifier refuses it on its own declared function count.
     let expected = if semantic.status == 0 {
-        oracle::c1_refused_expectation_vector(source, stopped, semantic)
+        oracle::module_expectation_vector(source, stopped, semantic)
     } else {
         oracle::refused_expectation_vector(source, stopped, semantic)
     };
@@ -8934,12 +10292,23 @@ fn the_two_item_module_separates_the_base_product_from_this_one() {
     );
     let meaning = oracle::module_semantic_meaning(&module);
     assert_eq!(meaning.status, 0, "CAP-058 accepts both items");
+    // Stage 2b inverts stage 2a's half of this the same way stage 2a inverted
+    // CAP-056's. Stage 2a's C1 vector is kept and still asserted to predict
+    // `checked_status = 4` at `root`, and the product must now reject it,
+    // because the refusal has moved one authority further down again.
+    let c1 = oracle::c1_refused_expectation_vector(source, &module, &meaning);
+    assert_eq!((c1[24], c1[25], c1[26], c1[30]), (1, 4, module.root, 3));
+    assert_eq!(
+        run_vector_expectation("two-item-gate-c1", source, module.consumed, &c1, "-O0"),
+        92,
+        "stage 2a's checked-group prediction must no longer describe the product"
+    );
     assert_eq!(
         run_vector_expectation(
             "two-item-gate-meaning",
             source,
             module.consumed,
-            &oracle::c1_refused_expectation_vector(source, &module, &meaning),
+            &oracle::module_expectation_vector(source, &module, &meaning),
             "-O0"
         ),
         91
@@ -10642,12 +12011,61 @@ const CANONICAL_ARENA_DELTA: (usize, usize, usize, usize, usize) = (285, 237, 11
 /// 38 nodes in four lines.
 const H1M2_ARENA_DELTA: (usize, usize, usize, usize, usize) = (665, 569, 285, 19, 64);
 
+/// CAP-058 / H1M-2 **stage 2b**. What this stage's diff costs the five arenas.
+///
+/// **This figure is measured by the instrument and is stated as measured.** It
+/// is a weaker claim than [`H1M2_ARENA_DELTA`] and [`CANONICAL_ARENA_DELTA`]
+/// make, and it is recorded as weaker rather than implied to be equivalent:
+/// those two were hand-derived per construct from the diff and only then
+/// checked against an instrument, and reproducing that required rebuilding and
+/// revalidating the cost model against all fourteen rows of
+/// [`CANONICAL_ITEM_ARENAS`] and the whole pre-edit file first. This session did
+/// not rebuild it, so it did not perform that derivation and does not claim to.
+///
+/// What still grades, and it is the check that matters, is unchanged: the sum
+/// below is asserted against the linked product's own end-to-end parse in
+/// `the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it`,
+/// where the oracle and the Aero compiler are two independent implementations
+/// of the same count. A wrong delta here fails that test rather than hiding.
+///
+/// **Stage 2b is the first checkpoint whose diff makes two arenas smaller.**
+/// It dissolves C4's terminal Return/Function block, whose thirteen four-byte
+/// reads were 104 `result_value(bytes_get(..))` calls, and replaces it with a
+/// four-term post-loop comparison. The operator and call columns fall as a
+/// result. Both directions are recorded separately below rather than netted,
+/// because a single signed figure would hide that this diff deletes more call
+/// records than it adds.
+const H1M2_STAGE_2B_ARENA_ADDED: (usize, usize, usize, usize, usize) = (68, 138, 0, 41, 0);
+
+/// The other direction. See [`H1M2_STAGE_2B_ARENA_ADDED`].
+const H1M2_STAGE_2B_ARENA_REMOVED: (usize, usize, usize, usize, usize) = (0, 0, 8, 0, 44);
+
 const CANONICAL_ARENAS: (usize, usize, usize, usize, usize) = (
-    PRE_EDIT_CANONICAL_ARENAS.0 + CANONICAL_ARENA_DELTA.0 + H1M2_ARENA_DELTA.0,
-    PRE_EDIT_CANONICAL_ARENAS.1 + CANONICAL_ARENA_DELTA.1 + H1M2_ARENA_DELTA.1,
-    PRE_EDIT_CANONICAL_ARENAS.2 + CANONICAL_ARENA_DELTA.2 + H1M2_ARENA_DELTA.2,
-    PRE_EDIT_CANONICAL_ARENAS.3 + CANONICAL_ARENA_DELTA.3 + H1M2_ARENA_DELTA.3,
-    PRE_EDIT_CANONICAL_ARENAS.4 + CANONICAL_ARENA_DELTA.4 + H1M2_ARENA_DELTA.4,
+    PRE_EDIT_CANONICAL_ARENAS.0
+        + CANONICAL_ARENA_DELTA.0
+        + H1M2_ARENA_DELTA.0
+        + H1M2_STAGE_2B_ARENA_ADDED.0
+        - H1M2_STAGE_2B_ARENA_REMOVED.0,
+    PRE_EDIT_CANONICAL_ARENAS.1
+        + CANONICAL_ARENA_DELTA.1
+        + H1M2_ARENA_DELTA.1
+        + H1M2_STAGE_2B_ARENA_ADDED.1
+        - H1M2_STAGE_2B_ARENA_REMOVED.1,
+    PRE_EDIT_CANONICAL_ARENAS.2
+        + CANONICAL_ARENA_DELTA.2
+        + H1M2_ARENA_DELTA.2
+        + H1M2_STAGE_2B_ARENA_ADDED.2
+        - H1M2_STAGE_2B_ARENA_REMOVED.2,
+    PRE_EDIT_CANONICAL_ARENAS.3
+        + CANONICAL_ARENA_DELTA.3
+        + H1M2_ARENA_DELTA.3
+        + H1M2_STAGE_2B_ARENA_ADDED.3
+        - H1M2_STAGE_2B_ARENA_REMOVED.3,
+    PRE_EDIT_CANONICAL_ARENAS.4
+        + CANONICAL_ARENA_DELTA.4
+        + H1M2_ARENA_DELTA.4
+        + H1M2_STAGE_2B_ARENA_ADDED.4
+        - H1M2_STAGE_2B_ARENA_REMOVED.4,
 );
 
 /// The module's item count, unchanged by this checkpoint.
@@ -10668,6 +12086,15 @@ const CANONICAL_ITEMS: usize = 23;
 /// nodes it adds are all orphans, which makes the census ratio worse by design:
 /// 240 of 18,650 rather than 240 of 17,985. A worsening ratio here is expected,
 /// not a regression, and no record may cite it as either progress or decay.
+///
+/// **Stage 2b re-derives it a third time and it is 240 again.** The same
+/// constraint was checked the same way against this stage's own diff: of its
+/// 318 added lines, six contain the word `return` and all six are comments -
+/// "a return or function node carries neither", "C4 dissolved" - so zero added
+/// lines are a `return` statement, and no function's final return expression is
+/// touched. The census is **240 of 18,718**, so 98.718% of the arena is
+/// orphaned where stage 2a left 98.713%. The movement is expected and is not
+/// evidence: **it may not be cited as progress or as decay.**
 const CANONICAL_REACHABLE: usize = 240;
 
 /// CAP-057 / H1M-1b. The canonical source parses **end to end**, for the first
@@ -10899,6 +12326,14 @@ struct MeaningProbe {
     symbols: i32,
     facts: i32,
     root_type: i32,
+    /// CAP-058 / H1M-2 stage 2b. The predicted checked-IR row, hand-derived
+    /// from Decisions 5 and 6 before any run: `(status, code, node)`, then
+    /// `(values, instructions, results, words)`, then the module's root value
+    /// as `(kind, payload)`. All zero on a shape the semantic phase refuses,
+    /// which never reaches the checked group at all.
+    checked: (i32, i32, i32),
+    counts: (i32, i32, i32, i32),
+    module_root: (i32, i32),
 }
 
 /// The seven shapes CAP-058 carries, A through G of the frozen contract.
@@ -10924,6 +12359,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 1,
         facts: 3,
         root_type: 1,
+        checked: (0, 0, 0),
+        counts: (1, 1, 0, 36),
+        module_root: (1, 1),
     },
     // B. The gate. Two items, two symbols, six facts.
     MeaningProbe {
@@ -10936,6 +12374,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 2,
         facts: 6,
         root_type: 1,
+        checked: (0, 0, 0),
+        counts: (2, 2, 0, 63),
+        module_root: (1, 2),
     },
     // C. The chain is a chain, not a pair.
     MeaningProbe {
@@ -10949,6 +12390,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 3,
         facts: 9,
         root_type: 1,
+        checked: (0, 0, 0),
+        counts: (3, 3, 0, 90),
+        module_root: (1, 3),
     },
     // D. Item 1 is `1+2` (kind 8) and item 2 is `3*4` (kind 5): five nodes each,
     // three of them expressions. Ten facts, because every node gets one.
@@ -10962,6 +12406,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 2,
         facts: 10,
         root_type: 1,
+        checked: (0, 0, 0),
+        counts: (6, 4, 2, 97),
+        module_root: (2, 2),
     },
     // E. The semantic phase accepts a division by zero - it is a *checked-IR*
     // refusal, not a typing one - so this row is `0` here and carries its weight
@@ -10976,6 +12423,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 2,
         facts: 8,
         root_type: 1,
+        checked: (2, 6, 6),
+        counts: (3, 1, 0, 0),
+        module_root: (0, 0),
     },
     // F. `1 < 2` is one of kinds 10-15 and yields complete type 2, and a kind-18
     // node requires 1. Refused at node 7, which is **item 2's** return node, on
@@ -10992,6 +12442,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 2,
         facts: 6,
         root_type: 0,
+        checked: (0, 0, 0),
+        counts: (0, 0, 0, 0),
+        module_root: (0, 0),
     },
     // G. Pass 3 is not widened. `a` is a kind-2 node and stays refused at
     // `17` / `2`, and `symbol_count` is still 2 because pass 2 precedes pass 3.
@@ -11006,6 +12459,9 @@ const MEANING_PROBES: &[MeaningProbe] = &[
         symbols: 2,
         facts: 0,
         root_type: 0,
+        checked: (0, 0, 0),
+        counts: (0, 0, 0, 0),
+        module_root: (0, 0),
     },
 ];
 
@@ -11148,20 +12604,37 @@ fn run_vector_expectation(
     output.status.code().expect("CAP-058 harness exit code")
 }
 
-/// **Stage 2a's whole product-visible claim.**
+/// One probe by label, with its parsed target.
+fn meaning_probe(label: &str) -> (&'static MeaningProbe, oracle::Ingestion) {
+    MEANING_PROBES
+        .iter()
+        .zip(meaning_probe_targets())
+        .find(|(probe, _)| probe.label == label)
+        .expect("a labelled meaning probe")
+}
+
+/// **The deliberate out-of-table grading: stage 2a's own model, contradicted.**
 ///
-/// A multi-item module reaches `semantic_status = 0` with N symbols and one
-/// fact per node, and the refusal has moved one authority down to C1 -
-/// `compiler.aero:4583`, `symbol_count != 1` - which stage 2a **predicts and
-/// does not modify**. That is the "the next phase's own refusal is the gate"
-/// structure CAP-056 derived and CAP-057 reused, and it means stage 2a crosses
-/// exactly one authority.
+/// Stage 2a's product-visible claim was that a multi-item module reaches the
+/// checked group and is refused there by C1 - `compiler.aero:4583`,
+/// `symbol_count != 1` - which stage 2a predicted and did not modify. Stage 2b
+/// modifies exactly that check, so the claim's premise has expired.
 ///
-/// This test is red against the unmodified product by construction: `:4576`
-/// gates `checked_attempted` on `semantic_status == 0`, and before this
-/// checkpoint pass 4 refused every multi-item module at item 1's function node.
+/// It is **inverted rather than weakened**, which is what this project does
+/// with an expired premise. `c1_refused_expectation_vector` is kept verbatim,
+/// is still asserted to predict `checked_status = 4` at `root` with `code = 3`,
+/// and the product must now **reject** it. The rejection code is the finding:
+/// `92` is `compiler.aero:7019`, the checked-group comparison and nothing else,
+/// so a `92` says the refusal moved inside the checked group and a `91` would
+/// say it had not moved at all.
+///
+/// It is also a grading that is **not** a vector comparison. Stage 2a's model
+/// cannot express a serialized module: every counted field it writes is zero,
+/// including `checked_word_count`. That is asserted here against the words this
+/// checkpoint's model builds, so the old model's limit is documented in code
+/// rather than left as prose.
 #[test]
-fn a_multi_item_module_reaches_the_checked_group_and_is_refused_there() {
+fn the_product_no_longer_refuses_a_multi_item_module_at_c1() {
     let mut graded = 0usize;
     for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
         let stop = oracle::module_semantic_meaning(&target);
@@ -11169,31 +12642,134 @@ fn a_multi_item_module_reaches_the_checked_group_and_is_refused_there() {
             continue;
         }
         graded += 1;
-        let expected = oracle::c1_refused_expectation_vector(probe.source, &target, &stop);
+        let expired = oracle::c1_refused_expectation_vector(probe.source, &target, &stop);
         assert_eq!(
-            expected[24], 1,
-            "`{}`: the checked group is attempted",
+            (expired[24], expired[25], expired[26], expired[30]),
+            (1, 4, target.root, 3),
+            "`{}`: stage 2a's model is kept verbatim",
             probe.label
         );
         assert_eq!(
-            expected[25], 4,
-            "`{}`: and refuses with status 4",
+            expired[43], 0,
+            "`{}`: and still never reaches the verifier",
             probe.label
         );
         assert_eq!(
-            expected[26], target.root,
-            "`{}`: located at `root`",
-            probe.label
-        );
-        assert_eq!(expected[30], 3, "`{}`: with code 3", probe.label);
-        assert_eq!(
-            expected[43], 0,
-            "`{}`: the verifier is not attempted at stage 2a",
+            (expired[33], expired[34], expired[35], expired[36]),
+            (0, 0, 0, 0),
+            "`{}`: stage 2a's model cannot express a serialized module",
             probe.label
         );
         assert_eq!(
             run_vector_expectation(
-                &format!("h1m2-{}", probe.label),
+                &format!("h1m2b-c1-{}", probe.label),
+                probe.source,
+                target.consumed,
+                &expired,
+                "-O0"
+            ),
+            92,
+            "`{}`: the checked group must now contradict stage 2a's prediction",
+            probe.label
+        );
+    }
+    assert_eq!(
+        graded, 4,
+        "B, C, D and E are the four shapes stage 2a graded at C1"
+    );
+}
+
+/// **Stage 2b's whole product-visible claim, and the checkpoint's pin.**
+///
+/// The checked-IR group builds a module of N function records and the refusal
+/// relocates to the **verifier**, `compiler.aero:5555`,
+/// `verified_function_count != 1`: `verified_status = 1`, word index `1`,
+/// code `2`, expected `1`, and `actual = N`.
+///
+/// That vector is what this checkpoint is pinned by, and it is the only
+/// instrument in it with the property the canonical parser stop had - the
+/// location is fixed at checked-IR word 1, and the value is derivable from the
+/// source bytes before any run by counting `fn` keywords. The keyword count is
+/// re-derived from the raw bytes here rather than read from the probe row, so
+/// the two derivations grade each other.
+///
+/// It is a **fail-before-emitter negative**: the module was constructed well
+/// enough for the verifier to read its header and reject it on its own declared
+/// count. Stop condition 8 - a refusal at `verified_view_words < 9` or at
+/// `verified_format != 1` instead - is a malformed module and a different
+/// vector, and `oracle::verified_header_refusal` asserts against it.
+#[test]
+fn the_checked_group_builds_n_function_records_and_the_verifier_refuses_them() {
+    let mut graded = 0usize;
+    for (probe, target) in MEANING_PROBES.iter().zip(meaning_probe_targets()) {
+        let stop = oracle::module_semantic_meaning(&target);
+        if stop.status != 0 || probe.items < 2 {
+            continue;
+        }
+        let module = oracle::checked_module(&target, &stop);
+        if module.status != 0 {
+            continue;
+        }
+        graded += 1;
+        let expected = oracle::module_expectation_vector(probe.source, &target, &stop);
+
+        // The checked group completes, with the row the contract predicted.
+        assert_eq!(
+            (expected[24], expected[25], expected[30]),
+            (1, 0, 0),
+            "`{}`: the checked group completes",
+            probe.label
+        );
+        assert_eq!(
+            (expected[33], expected[34], expected[35], expected[36]),
+            probe.counts,
+            "`{}`: values, instructions, results and words",
+            probe.label
+        );
+        assert_eq!(
+            (expected[37], expected[38]),
+            probe.module_root,
+            "`{}`: the module root is item N's return expression",
+            probe.label
+        );
+        assert_eq!(
+            probe.counts.3,
+            9 + probe.items * 16 + probe.counts.1 * 11 + probe.counts.2 * 6,
+            "`{}`: `9 + 16N + 11i + 6r`",
+            probe.label
+        );
+
+        // `actual = N`, re-derived from the source bytes.
+        let keywords = i32::try_from(
+            probe
+                .source
+                .windows(3)
+                .filter(|window| *window == b"fn ")
+                .count(),
+        )
+        .expect("bounded items");
+        assert_eq!(
+            keywords, probe.items,
+            "`{}`: the item count is the `fn` keyword count",
+            probe.label
+        );
+        assert_eq!(
+            (
+                expected[43],
+                expected[44],
+                expected[45],
+                expected[47],
+                expected[48],
+                expected[49]
+            ),
+            (1, 1, 1, 2, 1, keywords),
+            "`{}`: the verifier refuses at word 1 on the declared count",
+            probe.label
+        );
+
+        assert_eq!(
+            run_vector_expectation(
+                &format!("h1m2b-{}", probe.label),
                 probe.source,
                 target.consumed,
                 &expected,
@@ -11205,8 +12781,180 @@ fn a_multi_item_module_reaches_the_checked_group_and_is_refused_there() {
         );
     }
     assert_eq!(
-        graded, 4,
-        "B, C, D and E are the four shapes the semantic phase now accepts"
+        graded, 3,
+        "B, C and D are the three shapes that reach the verifier"
+    );
+}
+
+/// **Probe E, made to discriminate, and the demonstration that it does.**
+///
+/// E exists to prove the checked-IR group evaluates **item 2's** expressions
+/// rather than copying item 1's: only item 2 contains the division, and only
+/// item 2's operands can produce `checked_status = 2` / `code = 6`.
+///
+/// At stage 2a it proved nothing. C1 refused before the expression loop ran, so
+/// B and E were refused by the same rule with `checked_value_count = 0` on
+/// both - not one expression of either item was evaluated - and E was probe B
+/// with longer bytes. A probe that cannot be distinguished from another probe
+/// discriminates nothing, and a suite carrying it passes while proving less
+/// than it appears to.
+///
+/// Both halves are asserted here rather than described. The first half is
+/// stage 2a's model, kept and still asserted to make the two shapes agree. The
+/// second is this checkpoint's, where they disagree in the checked group's
+/// status, its located node, its code, its counts and whether the verifier is
+/// reached at all - and both are graded against the real linked product.
+#[test]
+fn probe_e_discriminates_from_probe_b_and_is_shown_to() {
+    let (b_probe, b_target) = meaning_probe("two-items");
+    let (e_probe, e_target) = meaning_probe("two-items-second-divides-by-zero");
+    let b_stop = oracle::module_semantic_meaning(&b_target);
+    let e_stop = oracle::module_semantic_meaning(&e_target);
+
+    // 1. What stage 2a left behind: one rule, one code, and no expression of
+    //    either item evaluated. The located node differs only because the two
+    //    modules have different node counts - it is `root` in both cases, which
+    //    is the whole module rather than anything in item 2.
+    let b_was = oracle::c1_refused_expectation_vector(b_probe.source, &b_target, &b_stop);
+    let e_was = oracle::c1_refused_expectation_vector(e_probe.source, &e_target, &e_stop);
+    assert_eq!(
+        (b_was[24], b_was[25], b_was[30]),
+        (e_was[24], e_was[25], e_was[30]),
+        "at stage 2a both probes were refused by C1, same status and same code"
+    );
+    assert_eq!((b_was[26], e_was[26]), (b_target.root, e_target.root));
+    assert_eq!(
+        (b_was[33], e_was[33]),
+        (0, 0),
+        "and neither evaluated one expression, which is why E discriminated nothing"
+    );
+    assert_eq!(b_was[43..55], e_was[43..55], "neither reached the verifier");
+
+    // 2. What stage 2b makes of them, and it is not the same outcome twice.
+    let b_now = oracle::module_expectation_vector(b_probe.source, &b_target, &b_stop);
+    let e_now = oracle::module_expectation_vector(e_probe.source, &e_target, &e_stop);
+    assert_eq!(
+        (b_now[25], b_now[26], b_now[30]),
+        (0, 0, 0),
+        "B completes the checked module"
+    );
+    assert_eq!(
+        (e_now[25], e_now[26], e_now[30]),
+        (2, 6, 6),
+        "E is refused at node 6, which is item 2's `/`, on item 2's own operands"
+    );
+    assert_eq!(
+        e_now[26], e_probe.checked.2,
+        "and node 6 is inside item 2: item 1 ends at node 3"
+    );
+    assert!(
+        e_now[26] > 3,
+        "the located node is past item 1's function node"
+    );
+    // Hand-derived from the probe's own bytes before the instrument was asked:
+    // item 1 occupies bytes 0..26, item 2 opens at 28, and the `/` is byte 52.
+    assert_eq!(e_probe.source[52], b'/', "byte 52 is item 2's division");
+    assert_eq!(
+        (e_now[27], e_now[28], e_now[29]),
+        (52, 1, 53),
+        "E is located at offset 52, line 1, column 53 - inside item 2"
+    );
+    assert_eq!(
+        (b_now[43], e_now[43]),
+        (1, 0),
+        "only B reaches the verifier"
+    );
+    assert_eq!(
+        (b_now[33], e_now[33]),
+        (2, 3),
+        "B evaluates two expressions and E evaluates three before it refuses"
+    );
+    assert_ne!(
+        b_now[24..41],
+        e_now[24..41],
+        "the two checked-group rows are now different in every way that matters"
+    );
+
+    // 3. Both against the real linked product, which is what makes this a
+    //    demonstration rather than an assertion about two models.
+    assert_eq!(
+        run_vector_expectation(
+            "h1m2b-discriminate-b",
+            b_probe.source,
+            b_target.consumed,
+            &b_now,
+            "-O0"
+        ),
+        91,
+        "B diverged from the independent oracle"
+    );
+    assert_eq!(
+        run_vector_expectation(
+            "h1m2b-discriminate-e",
+            e_probe.source,
+            e_target.consumed,
+            &e_now,
+            "-O0"
+        ),
+        91,
+        "E diverged from the independent oracle"
+    );
+}
+
+/// **The anti-fitting guard, on the shape that must not move.**
+///
+/// A module of one item serializes `9 + 9 + 7 = 25` header words that are byte
+/// for byte the accepted header, and the whole module is `9 + 16 + 11 = 36`
+/// words - the accepted 25-word header plus one instruction, exactly. That
+/// arithmetic is why the accepted single-item path cannot move, and the
+/// end-to-end product evidence for it is
+/// `canonical_self_host_source_preserves_the_accepted_canonical_module`, which
+/// byte-compares the emitted LLVM against the frozen text.
+#[test]
+fn the_single_item_module_is_the_accepted_twenty_five_word_header() {
+    let (probe, target) = meaning_probe("one-item");
+    let stop = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &stop);
+    assert_eq!(module.status, 0, "one item completes");
+    assert_eq!(
+        (
+            module.values,
+            module.instructions,
+            module.results,
+            module.words
+        ),
+        probe.counts,
+        "the single-item counts are the accepted ones"
+    );
+    assert_eq!(module.words, 36);
+    assert_eq!(
+        module.ir[0..9],
+        [1, 1, 1, 1, 0, 1, 1, 1, 1],
+        "format, one function, one block, one instruction, no result, entry 1"
+    );
+    assert_eq!(
+        module.ir[9..18],
+        [
+            1,
+            1,
+            stop.symbol_words[1],
+            stop.symbol_words[2],
+            0,
+            1,
+            1,
+            1,
+            1
+        ],
+        "the one nine-word function record"
+    );
+    assert_eq!(
+        module.ir[18..25],
+        [2, 1, 1, 1, 0, 1, 1],
+        "the one seven-word block record"
+    );
+    assert_eq!(
+        module.ir[1], 1,
+        "and word 1 is one, so the verifier accepts rather than refuses"
     );
 }
 
