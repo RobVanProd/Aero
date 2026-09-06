@@ -1,5 +1,44 @@
 # Aero Task Ledger
 
+## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
+
+- Date/task/status: 2026-09-05, user-authorized phase 1 only; ledger-first.
+- Accepted base: master `b987cd27f18df752e9c89dd951daae89ef5b854f`.
+  Integration source: `2d99ca7e3f791295db1d1fd4f933cfb650b05e10` on
+  `claude/self-hosting-analysis-be3f72`, 47 unmerged commits. The source branch
+  has successful compiler CI but is not an accepted master checkpoint.
+- Observed behavior: master omits H1 ingestion/module progress, CORE-093 stack
+  allocation repair, and gate resource controls. Front-page prose leads with
+  historical benchmarks and stale status rather than an accessible introduction.
+- Hypothesis: preserve and merge the existing checkpoint history, validate its
+  exact combined tree, and clarify current versus historical records without
+  implementing another language feature.
+- Frozen semantics: all source-branch contracts and accepted exclusions remain;
+  CAP-059/H1M-3 is contract only, not implementation. Self-source parsing is not
+  complete representation, semantics, emission, or self-hosting. No new language,
+  runtime, backend, stability, safety, performance, or accelerator claim.
+- Allowed files: merge the 17 files already changed by the integration source;
+  reconcile README.md, PROJECT_STATE.md, SELF_HOSTING_ROADMAP.md,
+  BOOTSTRAP_CONVERGENCE_READINESS.md, TASK_LEDGER.md, BUILD.md, and directly
+  affected status documentation. Preserve historical records and regression
+  assertions. Any newly discovered production defect requires a separate frozen
+  regression contract before repair; do not stack changes on a red gate.
+- Acceptance: inspect the production diff and original red-first tests; focused
+  entry-block allocation, self-source ingestion, README/claim/quick-start tests;
+  repository-root ./tools/test.sh with LLVM 22.1.8, all generated artifacts on D:,
+  bounded build/test parallelism; exact-head required platform/security checks;
+  normal protected PR merge; accepted-head replay and rendered README/PR review;
+  local master synchronized to the accepted public head.
+- Risks: historical documentation sentinels, orphan AST representation, stale
+  source counts, Windows path/toolchain requirements, system-drive/commit-limit
+  exhaustion, and source-branch acceptance being mistaken for self-hosting.
+- Stop conditions: semantic ambiguity, lost existing work, failing required gate,
+  weakened tests, protection bypass, or phase-2 implementation needed. Never push
+  directly to master or rewrite source history. Phase 1 ends after accepted-head
+  verification; phase 2 requires a subsequent user decision.
+- Results: pending; record only completed observed exit statuses. Final-tree
+  gate evidence belongs in the subsequent commit message, not a premature claim.
+
 ## CAP-048-H1-BOOTSTRAP-CONVERGENCE-CONTRACT - freeze the self-hosting boundary and stage protocol
 
 - Date/task/status: 2026-08-16,
