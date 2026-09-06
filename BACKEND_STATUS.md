@@ -1,5 +1,15 @@
 # Aero Backend Status
 
+## Phase 1 integration note - 2026-09-05
+
+See [PROJECT_STATE.md](PROJECT_STATE.md) for the integration acceptance record.
+The integrated CORE-093 work moves generated static allocations to function entry
+blocks and carries native long-loop regression tests. The Aero-authored bootstrap
+work still lacks multi-function verification/emission and cannot compile itself.
+No backend capability class changes: CPU evidence remains bounded, and no Aero
+ROCm or CUDA device execution, performance, or general safety claim is added.
+The dated audit records below retain their original checkpoint scope.
+
 Audit basis: `8f8c7337a4008082fd2a443fcc814b5847b8663f`.
 
 Backend stages are deliberately independent. A selectable label or transformed

@@ -1,0 +1,35 @@
+fn result_value(result: Result<int, int>) -> int {
+    return match result {
+        Ok(value) => value,
+        Err(code) => 0 - code,
+    };
+}
+
+fn main() -> int {
+    let mut bytes: ByteBuffer = bytes_new();
+    let mut index: int = 0;
+    while index < 400000 {
+        let pushed: Result<int, int> = bytes_push(&mut bytes, 65);
+        if result_value(pushed) < 0 {
+            return 2;
+        }
+        index = index + 1;
+    }
+    let mut observed: int = 0;
+    let mut read_index: int = 0;
+    while read_index < 400000 {
+        let found: Result<int, int> = bytes_get(&bytes, read_index);
+        if result_value(found) != 65 {
+            return 3;
+        }
+        observed = observed + 1;
+        read_index = read_index + 1;
+    }
+    if bytes_len(&bytes) != 400000 {
+        return 4;
+    }
+    if observed != 400000 {
+        return 5;
+    }
+    return 91;
+}

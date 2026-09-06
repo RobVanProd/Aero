@@ -54,6 +54,25 @@ The compiler executable is `src\compiler\target\release\aero.exe`. Before using
 `aero run`, ensure `clang.exe`, `llc.exe`, and either `opt.exe` or `llvm-as.exe`
 from the same LLVM 22 distribution are also on PATH.
 
+## Repository test gate
+
+Run `./tools/test.sh` from the repository root in Bash. On Windows, use Git Bash
+and make sure `%USERPROFILE%\.cargo\bin` and the LLVM 22 `bin` directory are
+inherited on PATH. Bootstrap driver tests require LLVM/Clang 22.1.8 specifically;
+set `AERO_LLVM_BIN` to its `bin` directory when it is not the first toolchain on PATH.
+
+The gate runs formatting, correctness Clippy checks, and Rust tests, including
+native compiler products. It is a substantial suite, not the source-only `aero test`
+command. It defaults to two build jobs and two test threads to limit memory pressure.
+`CARGO_BUILD_JOBS` and `RUST_TEST_THREADS` can override these defaults on larger hosts.
+
+By default, gate builds go to the repository's `target/` directory and temporary
+files to `target/gate-tmp/`. Set `CARGO_TARGET_DIR` and `GATE_TMP` explicitly to reuse
+an existing build cache or choose a work drive. The gate also sets Windows `TMP` and
+`TEMP`; setting `TMPDIR` alone does not redirect Clang's Windows temporary files.
+Gate output paths on `C:` are rejected. These gate paths differ from the standalone
+`cargo build` paths above unless you export the same `CARGO_TARGET_DIR` for both.
+
 ## CLI command summary
 
 - `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--backend <cpu|rocm|cuda>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata

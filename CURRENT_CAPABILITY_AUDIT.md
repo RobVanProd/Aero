@@ -1,5 +1,20 @@
 # Aero Current Capability Audit
 
+## Integration snapshot - 2026-09-05
+
+For the current integration head and acceptance status, use
+[PROJECT_STATE.md](PROJECT_STATE.md). INTEGRATION-001 reconciles protected master
+`b987cd2` with existing self-hosting branch `2d99ca7`; it does not widen a language
+profile or promote a capability class. The Rust bootstrap compiler remains required.
+The Aero-authored self-source parses but fails semantic analysis; bounded
+multi-function probes produce checked IR and fail verification. CAP-059 is contract
+only. Complete syntax representation, semantics, emission and stage convergence
+remain open. CORE-093 repairs loop stack allocation, not general memory safety.
+
+The dated audit sections below are retained historical evidence. Their claims about
+"current" master, latest work, or next tasks apply to their named checkpoints and
+are superseded by the integration snapshot, not silently reclassified.
+
 Audit commit: `8f8c7337a4008082fd2a443fcc814b5847b8663f`
 
 Audit date: 2026-08-02; latest corrective checkpoint: 2026-08-14
