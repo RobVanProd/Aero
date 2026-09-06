@@ -2,6 +2,37 @@
 
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 
+### INTEGRATION-001-W1 - repair the scorer workflow's allocation-placement oracle
+
+- Observed red on exact candidate `67ba195`: Rust CI `34007823211` fails its
+  Linux and Windows exact-array product steps. Windows reports "scorer omitted
+  its affine accumulator chain". The workflow still requires the accumulator
+  alloca between bias load and initializer store, contrary to integrated CORE-093.
+- Frozen behavior: the accumulator is allocated exactly once in the entry block;
+  the original bias-home load, initializing store, loop accumulator/load/multiply/
+  add/store dependencies and their identities remain mandatory. No source,
+  compiler, runtime, profile, or arithmetic changes. No assertion is waived.
+- Allowed repair files: .github/workflows/rust.yml, a new focused
+  src/compiler/tests/integration_workflow_alloca_tests.rs, and TASK_LEDGER.md.
+- Red-first acceptance: the focused test must execute the actual workflow regex
+  against the actual emitted scorer LLVM and fail on the old oracle. Both Linux
+  PCRE and Windows .NET expressions must agree. Corrupting the entry allocation,
+  moving it to another block, or breaking the accumulator dependency must fail.
+  Preserve all downstream native and trap checks; then full root/platform replay.
+- Stop if this requires compiler production changes, loosening the dependency
+  chain, accepting a non-entry allocation, or phase-2 work. This is a phase-1
+  integration-test adaptation to a previously contracted layout change.
+
+- W1 scope extension from the completed local native-step replay: after the scorer
+  repair, the exact workflow proceeds through kernel/wrapping/matvec/scorer and
+  fails on inference payload offset 3. The same hoisting mismatch affects six
+  inference pattern families on each platform. Extend the same regression file
+  and workflow repair to their entry allocations, preserving every existing
+  named identity, distinct-pointer condition, bounds guard, arithmetic and native
+  oracle. Execute all five payload offsets plus header/ReLU/argmax/two matvec
+  patterns against real inference LLVM, with allocation, block and store mutations.
+  No compiler production or semantic authority is added to this repair.
+
 - Date/task/status: 2026-09-05, user-authorized phase 1 only; ledger-first.
 - Accepted base: master `b987cd27f18df752e9c89dd951daae89ef5b854f`.
   Integration source: `2d99ca7e3f791295db1d1fd4f933cfb650b05e10` on
