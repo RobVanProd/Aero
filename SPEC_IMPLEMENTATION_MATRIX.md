@@ -1,5 +1,16 @@
 # Aero Specification-to-Implementation Matrix
 
+## Reading this matrix after phase 1 integration
+
+Current review/acceptance identities are in [PROJECT_STATE.md](PROJECT_STATE.md).
+INTEGRATION-001 combines master `b987cd2` and self-hosting work `2d99ca7` without
+changing any capability class or public language profile. The Aero-authored
+self-source parser and bounded multi-function checked-IR progress are not a full
+compiler: self-source semantics still fail and multi-function verification/emission
+is not implemented. General collections, modules and reproducible self-hosting
+remain incomplete. The detailed checkpoint rows and older current-head labels below
+are historical, scoped to the commits that established them.
+
 Latest accepted public master is protected CAP-024 merge.
 
 Exact CAP-024 reviewed candidate

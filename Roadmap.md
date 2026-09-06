@@ -1,5 +1,17 @@
 # Aero Development Roadmap
 
+## Current priority - phase 1 integration
+
+INTEGRATION-001 consolidates existing work through self-hosting branch `2d99ca7`
+against protected master `b987cd2`; [PROJECT_STATE.md](PROJECT_STATE.md) records
+review versus acceptance. Phase 1 includes validation and readable documentation,
+not another compiler feature. Once accepted, stop and review phase 2: the existing
+CAP-059 multi-function verifier/emitter contract, followed by connected syntax
+representation, real compiler-subset semantics/lowering, and stage convergence.
+The [self-hosting roadmap](SELF_HOSTING_ROADMAP.md) is the focused dependency path.
+The milestones and historical "current" labels below retain their checkpoint scope;
+the old CAP-024 priority ranking is not an instruction to restart finished work.
+
 Last updated: 2026-08-13 (America/New_York)
 
 This roadmap translates Aero's founding Design -> Minimal Prototype -> Self-Host

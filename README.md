@@ -1,6 +1,7 @@
 <div align="center">
   <h1>Aero</h1>
-  <p><strong>Experimental systems language and compiler repository</strong></p>
+  <p><strong>A systems language growing toward a compiler written in Aero itself</strong></p>
+  <p>Experimental systems language and compiler repository</p>
   <a href="https://github.com/RobVanProd/Aero/stargazers">
     <img src="https://img.shields.io/github/stars/RobVanProd/Aero?style=social" alt="GitHub stars">
   </a>
@@ -11,6 +12,55 @@
     <img src="https://github.com/RobVanProd/Aero/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
 </div>
+
+Welcome to Aero! This is an experimental programming language project for people
+interested in systems programming, compiler construction, and building a language
+from the ground up. The long-term aim is an expressive, efficient language with a
+useful standard library. Today, the focus is getting the compiler foundations right
+and working toward **self-hosting**: an Aero compiler that can compile its own source.
+
+**Start here:** [Try Aero](#-quick-start) · [Build guide](BUILD.md) ·
+[Examples](examples/) · [Project status](PROJECT_STATE.md) ·
+[Self-hosting roadmap](SELF_HOSTING_ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+
+## What can I do with Aero today?
+
+- Build the Rust-based bootstrap compiler and check, compile, and run small CPU programs.
+- Explore examples of exact integers, arrays, records, typed results, and owned byte buffers.
+- Follow an Aero-written compiler pipeline from source bytes through tokens, syntax,
+  semantic checks, checked intermediate representation, and LLVM output.
+- Help improve examples, diagnostics, tests, documentation, and the compiler itself.
+
+Aero is **not yet self-hosted or production-ready**. Supported features have deliberately
+bounded combinations; a parsed feature or an experimental interface is not a guarantee
+that every program using it will compile. Linux and Windows have native CPU checks.
+ROCm and CUDA remain separate experimental efforts, not working Aero GPU execution.
+
+## Where development stands
+
+Phase 1 brings together the existing self-hosting work and refreshes the documentation;
+its review and acceptance are tracked in [the project state](PROJECT_STATE.md).
+The Aero-written frontend can consume and parse its own source, but cannot yet compile
+that source: important syntax still needs a complete connected representation and
+the corresponding semantic, ownership, verification, and code-generation support.
+Small multi-function probes reach checked IR and are currently rejected by the verifier.
+
+The next implementation checkpoint is multi-function verification and LLVM emission
+(CAP-059/H1M-3). It is a **contract, not an implemented feature**. After that come the
+remaining compiler-language support, stage-1/stage-2 reproducibility, and a maintainable
+multi-file compiler and standard library. Owned bytes and typed errors are foundations;
+general collections, text, and file/path APIs are not a finished standard library.
+
+For exact supported combinations, see the
+[capability matrix](SPEC_IMPLEMENTATION_MATRIX.md). For what counts as self-hosting,
+see the [bootstrap convergence contract](BOOTSTRAP_CONVERGENCE_READINESS.md).
+
+<details>
+<summary>Historical design and benchmark evidence (not current performance promises)</summary>
+
+The records below preserve the scope and dates of earlier measurements. External
+llama.cpp results are not Aero compiler or Aero GPU performance. Historical uses of
+“latest” or “current” in this section refer to the recorded checkpoint, not today's head.
 
 Aero contains a compiler, language examples, benchmark harnesses, and
 experimental GPU/runtime interfaces. This README only lists benchmark claims
@@ -82,6 +132,8 @@ Blocked or omitted claims:
 - HIP/vector-add claims are omitted here because no current Aero artifact or
   rerun in this repo verified them.
 
+</details>
+
 ## 📦 Quick Start
 
 Use a POSIX shell from a machine with Rust and the documented LLVM 22/Clang
@@ -111,6 +163,38 @@ The final command must complete successfully and print `Output: Hello, Aero!`.
 See the [Windows PowerShell instructions](BUILD.md) for the equivalent Windows
 build and PATH commands, and consult the [backend capability status](BACKEND_STATUS.md)
 before using an accelerator target.
+
+## Find your way around
+
+| If you want to… | Start with… |
+|---|---|
+| Install prerequisites or troubleshoot a build | [Build guide](BUILD.md) and [Troubleshooting](TROUBLESHOOTING.md) |
+| Read and run sample programs | [Examples](examples/) and [Getting started](tutorials/01-getting-started.md) |
+| Understand the compiler's current limits | [Capability matrix](SPEC_IMPLEMENTATION_MATRIX.md) and [Backend status](BACKEND_STATUS.md) |
+| Follow the path to self-hosting | [Self-hosting roadmap](SELF_HOSTING_ROADMAP.md) |
+| Contribute a change | [Contributing](CONTRIBUTING.md) and [Agent rules](AGENTS.md) |
+| Inspect the evidence behind a checkpoint | [Task ledger](TASK_LEDGER.md) and [Claim verification](claim-verification/) |
+
+## Help build Aero
+
+Small, reproducible contributions are welcome. Try an example, report a diagnostic
+that could be clearer, or bring a failing program with the command you ran, platform,
+compiler commit, and expected result. Discuss new language semantics before implementing
+them so that the compiler, tests, and specification stay aligned.
+
+The repository's baseline check is `./tools/test.sh` from the root in Bash; it runs
+formatting, correctness Clippy checks, and the Rust tests. See [BUILD.md](BUILD.md) for
+toolchain and Windows setup. The full native suite is substantial: the gate limits
+parallelism by default and keeps generated files on the repository drive. The `aero test`
+command checks source test files; it is **not** a substitute for running this suite.
+
+<details>
+<summary>Detailed experimental interfaces and historical capability checkpoints</summary>
+
+These retained records describe individual bounded checkpoints. Their historical
+“current,” “latest,” and “next” labels do not override the status at the top of this page.
+They remain available for contributors and regression audits without requiring a new
+visitor to read the full implementation history.
 
 ## Experimental Command Examples
 
@@ -1333,6 +1417,8 @@ Formal spec: `docs/language/aero_formal_language_specification.md`
 - GGUF-native model loader and runtime benchmarks on CUDA/ROCm
 - Expanded optimizer and fused-kernel library coverage
 - Additional formal semantics proofs beyond deterministic conformance checks
+
+</details>
 
 ## License
 MIT © RobVanProd and contributors. See LICENSE for details.
