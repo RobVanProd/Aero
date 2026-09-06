@@ -33,6 +33,15 @@
   patterns against real inference LLVM, with allocation, block and store mutations.
   No compiler production or semantic authority is added to this repair.
 
+- W1 companion-assertion repair: completed CI `34008617659` on `1f5f3f6`
+  reports 19/20 fixed-array tests passing; the remaining test requires two old
+  inline-allocation fragments in the workflow text (ReLU and argmax). Extend the
+  allowed test scope to src/compiler/tests/fixed_int_array_profile_tests.rs only
+  for those fragments: require each hoisted allocation's entry-block prefix and
+  retain the exact adjacent initializer/load/compare or zero-store dataflow.
+  The original local gate is diagnostic for that superseded candidate; rerun the
+  entire gate on the final corrected tree. No existing native assertion is removed.
+
 - Date/task/status: 2026-09-05, user-authorized phase 1 only; ledger-first.
 - Accepted base: master `b987cd27f18df752e9c89dd951daae89ef5b854f`.
   Integration source: `2d99ca7e3f791295db1d1fd4f933cfb650b05e10` on

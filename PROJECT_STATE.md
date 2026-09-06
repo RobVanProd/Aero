@@ -7,9 +7,10 @@ Last updated: 2026-09-05 (America/New_York)
 INTEGRATION-001 reconciles accepted master `b987cd27f18df752e9c89dd951daae89ef5b854f`
 (protected H1 contract PR #90) with self-hosting branch head
 `2d99ca7e3f791295db1d1fd4f933cfb650b05e10`. This is an integration candidate until
-its protected PR is merged and exact accepted-head checks finish; it is not a new
+its protected [PR #91](https://github.com/RobVanProd/Aero/pull/91) is merged and
+exact accepted-head checks finish; it is not a new
 language-feature checkpoint or a self-hosting claim. The final immutable candidate,
-merge, and replay identities are recorded in the integration PR and commit checks.
+merge, and replay identities are recorded in that integration PR and commit checks.
 
 Included work: CORE-093 entry-block allocation, H1A self-source ingestion, H1B
 bounded grammar/capacity work, CAP-056/057 module parsing, CAP-058 semantic and
