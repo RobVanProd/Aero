@@ -23,6 +23,15 @@ byte output. Six Linux native ABI tests pass at O0/O2; it is not yet available
 through an Aero source profile. Windows cases have not been executed locally.
 The existing runtime is byte-identical.
 
+H1E-CHECKED-001 adds the `exact-i32-byte-diagnostics-v0` profile and a distinct
+checked stderr instruction, strict verification and authenticated LLVM lowering.
+Its seven new backend tests pass within 319 library and 36 binary unit tests;
+stdout compatibility also passes. The profile currently inherits byte-I/O source
+behavior: stderr source admission and CLI runtime linkage remain deferred.
+Three historical whole-file IR/verifier sentinels were explicitly updated for
+the reviewed addition; all three compatibility regressions pass, with runtime
+and LLVM sentinels unchanged. Full integration validation remains in progress.
+
 The canonical compiler still fails semantic analysis at its first identifier.
 Its parser does not yet connect parameters, bindings, statements or control flow
 into a complete AST; `H1_CONNECTED_AST_DESIGN.md` is a design for that work.

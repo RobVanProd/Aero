@@ -24,6 +24,7 @@ pub(crate) const EXACT_I32_RECORD_RESULT_V0_NAME: &str = "exact-i32-record-resul
 pub(crate) const EXACT_I32_BYTE_BUFFER_V0_NAME: &str = "exact-i32-byte-buffer-v0";
 pub(crate) const EXACT_I32_BYTE_INPUT_V0_NAME: &str = "exact-i32-byte-input-v0";
 pub(crate) const EXACT_I32_BYTE_IO_V0_NAME: &str = "exact-i32-byte-io-v0";
+pub(crate) const EXACT_I32_BYTE_DIAGNOSTICS_V0_NAME: &str = "exact-i32-byte-diagnostics-v0";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum LanguageProfile {
@@ -35,6 +36,7 @@ pub enum LanguageProfile {
     ExactI32ByteBufferV0,
     ExactI32ByteInputV0,
     ExactI32ByteIoV0,
+    ExactI32ByteDiagnosticsV0,
 }
 
 impl LanguageProfile {
@@ -47,6 +49,7 @@ impl LanguageProfile {
             Self::ExactI32ByteBufferV0 => EXACT_I32_BYTE_BUFFER_V0_NAME,
             Self::ExactI32ByteInputV0 => EXACT_I32_BYTE_INPUT_V0_NAME,
             Self::ExactI32ByteIoV0 => EXACT_I32_BYTE_IO_V0_NAME,
+            Self::ExactI32ByteDiagnosticsV0 => EXACT_I32_BYTE_DIAGNOSTICS_V0_NAME,
         }
     }
 
@@ -60,6 +63,7 @@ impl LanguageProfile {
                 | Self::ExactI32ByteBufferV0
                 | Self::ExactI32ByteInputV0
                 | Self::ExactI32ByteIoV0
+                | Self::ExactI32ByteDiagnosticsV0
         )
     }
 
@@ -70,22 +74,37 @@ impl LanguageProfile {
                 | Self::ExactI32ByteBufferV0
                 | Self::ExactI32ByteInputV0
                 | Self::ExactI32ByteIoV0
+                | Self::ExactI32ByteDiagnosticsV0
         )
     }
 
     pub(crate) fn enables_byte_buffer_source(self) -> bool {
         matches!(
             self,
-            Self::ExactI32ByteBufferV0 | Self::ExactI32ByteInputV0 | Self::ExactI32ByteIoV0
+            Self::ExactI32ByteBufferV0
+                | Self::ExactI32ByteInputV0
+                | Self::ExactI32ByteIoV0
+                | Self::ExactI32ByteDiagnosticsV0
         )
     }
 
     pub(crate) fn enables_byte_input_source(self) -> bool {
-        matches!(self, Self::ExactI32ByteInputV0 | Self::ExactI32ByteIoV0)
+        matches!(
+            self,
+            Self::ExactI32ByteInputV0 | Self::ExactI32ByteIoV0 | Self::ExactI32ByteDiagnosticsV0
+        )
     }
 
     pub(crate) fn enables_byte_output_source(self) -> bool {
-        self == Self::ExactI32ByteIoV0
+        matches!(
+            self,
+            Self::ExactI32ByteIoV0 | Self::ExactI32ByteDiagnosticsV0
+        )
+    }
+
+    /// Checked backend capability only; stderr source admission is separate.
+    pub(crate) fn allows_checked_stderr_output(self) -> bool {
+        self == Self::ExactI32ByteDiagnosticsV0
     }
 
     /// Whether this profile admits the exact, flat, nonempty i32-array shape.
@@ -97,6 +116,7 @@ impl LanguageProfile {
                 | Self::ExactI32ByteBufferV0
                 | Self::ExactI32ByteInputV0
                 | Self::ExactI32ByteIoV0
+                | Self::ExactI32ByteDiagnosticsV0
         ) && matches!(
             classify_profile_logical_type(logical_type),
             ProfileTypeShape::ExactI32Array { .. }
@@ -122,8 +142,9 @@ impl FromStr for LanguageProfile {
             EXACT_I32_BYTE_BUFFER_V0_NAME => Ok(Self::ExactI32ByteBufferV0),
             EXACT_I32_BYTE_INPUT_V0_NAME => Ok(Self::ExactI32ByteInputV0),
             EXACT_I32_BYTE_IO_V0_NAME => Ok(Self::ExactI32ByteIoV0),
+            EXACT_I32_BYTE_DIAGNOSTICS_V0_NAME => Ok(Self::ExactI32ByteDiagnosticsV0),
             _ => Err(format!(
-                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME}|{EXACT_I32_RECORD_RESULT_V0_NAME}|{EXACT_I32_BYTE_BUFFER_V0_NAME}|{EXACT_I32_BYTE_INPUT_V0_NAME}|{EXACT_I32_BYTE_IO_V0_NAME})"
+                "unsupported language profile `{value}` (expected experimental|{STABLE_SCALAR_V0_NAME}|{EXACT_I32_ARRAY_V0_NAME}|{EXACT_I32_RECORD_RESULT_V0_NAME}|{EXACT_I32_BYTE_BUFFER_V0_NAME}|{EXACT_I32_BYTE_INPUT_V0_NAME}|{EXACT_I32_BYTE_IO_V0_NAME}|{EXACT_I32_BYTE_DIAGNOSTICS_V0_NAME})"
             )),
         }
     }
@@ -166,6 +187,7 @@ pub(crate) fn profile_type_shape_is_admitted(
                     | LanguageProfile::ExactI32ByteBufferV0
                     | LanguageProfile::ExactI32ByteInputV0
                     | LanguageProfile::ExactI32ByteIoV0
+                    | LanguageProfile::ExactI32ByteDiagnosticsV0
             ) && usage != ProfileTypeUse::OwnedAssignment
         }
         ProfileTypeShape::Unsupported => false,
@@ -243,7 +265,7 @@ pub(crate) fn validate_language_profile(
         | LanguageProfile::ExactI32RecordResultV0
         | LanguageProfile::ExactI32ByteBufferV0
         | LanguageProfile::ExactI32ByteInputV0 => Ok(()),
-        LanguageProfile::ExactI32ByteIoV0 => Ok(()),
+        LanguageProfile::ExactI32ByteIoV0 | LanguageProfile::ExactI32ByteDiagnosticsV0 => Ok(()),
         LanguageProfile::StableScalarV0 | LanguageProfile::ExactI32ArrayV0 => {
             ProfileValidator::validate(ast, profile)
         }
@@ -272,10 +294,10 @@ pub(crate) fn validate_resolved_language_profile(
             )?;
             ExactByteBufferProfileValidator::validate(program, LanguageProfile::ExactI32ByteInputV0)
         }
-        LanguageProfile::ExactI32ByteIoV0 => {
-            ExactByteOutputProfileValidator::validate(program)?;
-            ExactByteInputProfileValidator::validate(program, LanguageProfile::ExactI32ByteIoV0)?;
-            ExactByteBufferProfileValidator::validate(program, LanguageProfile::ExactI32ByteIoV0)
+        LanguageProfile::ExactI32ByteIoV0 | LanguageProfile::ExactI32ByteDiagnosticsV0 => {
+            ExactByteOutputProfileValidator::validate(program, profile)?;
+            ExactByteInputProfileValidator::validate(program, profile)?;
+            ExactByteBufferProfileValidator::validate(program, profile)
         }
         _ => Ok(()),
     }
@@ -319,7 +341,7 @@ impl ExactByteInputProfileValidator {
 struct ExactByteOutputProfileValidator;
 
 impl ExactByteOutputProfileValidator {
-    fn validate(program: &ResolvedProfileProgram) -> Result<(), String> {
+    fn validate(program: &ResolvedProfileProgram, profile: LanguageProfile) -> Result<(), String> {
         for observation in &program.surface {
             let ResolvedProfileSurfaceObservation::Expression {
                 context,
@@ -336,13 +358,13 @@ impl ExactByteOutputProfileValidator {
                 ResolvedProfileSurfaceContext::Function(ResolvedProfileOrigin::Source { .. })
             ) {
                 return Err(profile_named_error(
-                    LanguageProfile::ExactI32ByteIoV0,
+                    profile,
                     "byte-output intrinsic outside a direct source function",
                 ));
             }
             if arguments.len() != 1 {
                 return Err(profile_named_error(
-                    LanguageProfile::ExactI32ByteIoV0,
+                    profile,
                     &format!("byte-output intrinsic `{STDOUT_WRITE_BYTE}` argument topology"),
                 ));
             }

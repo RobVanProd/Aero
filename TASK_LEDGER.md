@@ -206,7 +206,7 @@
 | Stage 3b first compatibility | Ten selected old-boundary and canonical tests | Exit 101, 9 passed / 1 failed / 58 filtered, 82.77 s. The B half described above used the old no-output harness and returned 62 on correct module output. No production defect or arena-prediction correction was observed. |
 | Stage 3b first complete focused target | All 68 ingestion-target tests after the first harness correction | Exit 101, 67 passed / 1 failed, 224.71 s. Canonical arenas matched the unchanged independent prediction and canonical semantic refusal passed. The only failure was the second named expired-positive harness caller above. |
 | Stage 3b caller and boundary replay | Corrected two-item caller, 510-function module and later-function Return faults | Exit 0, 3 passed / 0 failed / 67 filtered, 61.88 s. Expired/current vectors returned 92/93/91 with the exact 99-byte module. The 510-function module matched all 67 expectation fields and 26,305 exact emitted bytes, and its entry returned 510 after independent O0/O2 compilation. Both Return faults matched the frozen refusal with no output. Product digest remained unchanged. |
-| Stage 3b complete focused replay | All 70 ingestion-target tests on the frozen product and corrected harnesses | |
+| Stage 3b complete focused replay | All 70 ingestion-target tests on the frozen product and corrected harnesses | Exit 0, 70 passed / 0 failed / 0 ignored / 0 filtered, 230.65 s. All original 63 and seven added regressions passed. Native canonical arenas exactly matched the unchanged independent 19,589/17,647/6,778/1,403/1,230 prediction, with 240 reachable nodes and the same first-identifier semantic refusal. |
 | CAP-059 and runtime full gate | Immutable combined checkpoint, excluding later diagnostic-profile development | |
 
 Before canonical-source replay, an independent Rust AST visitor and lexer-based
@@ -349,12 +349,83 @@ integration into a source profile and the complete repository gate remain open.
 - Risks/stop conditions: crossing a third compiler phase, changing authentication
   or C transport semantics, widening an old profile, allowing source stderr
   prematurely, or claiming Windows execution from Linux fixtures.
+- Lead-owned digest-scope amendment after the intended checked schema change:
+  the existing complete-file sentinels in `stdin_byte_input_profile_tests.rs`,
+  `source_byte_buffer_profile_tests.rs` and `compiler_storage_arena_tests.rs`
+  also cover the deliberately extended IR enum and verifier. The stdin replay
+  completed exit 101 with seven passing cases and this sole sentinel failure;
+  the diagnostic runtime target separately passed all six cases. Independent
+  diff review confirms the IR change adds only the checked stderr variant and
+  verifier changes add its detection, reservation, result classification and
+  existing strict Int-use validation, retaining stdout's prior diagnostic text.
+  Authorize only those two current-file digest updates in the three arrays:
+  IR `2b8288bcbb2825586a0e406f37fbe12d` to
+  `8506e185ecae87c8e50e2eb43729fd03`; verifier
+  `d5fae602214665b724c48c9ae8090a06` to
+  `e6632f76c4264369160f7a17e1de1010`. Preserve predecessor digests in comments,
+  all runtime digests, source/LLVM sentinels and executable assertions. This
+  records the explicitly reviewed extension, not unspecified authority drift.
 
 | Run | Command / scope | Result |
 |---|---|---|
 | Profile selector red | New diagnostic profile regression before production changes | Exit 101, 0 passed / 1 failed / 312 filtered. The selector rejects `exact-i32-byte-diagnostics-v0` as unsupported. Only the new crate-local test file and a test-only module registration were added; production behavior remained unchanged. |
-| Checked backend red | Typed fixture after passive schema/profile scaffolding | |
-| Checked/backend focused | Verification, authentication, LLVM and native fixtures | |
+| Checked backend red | Typed fixture after passive schema/profile scaffolding | Exit 101, 0 passed / 1 failed / 318 filtered. The verifier rejects the actual fixture at main/entry with `UnsupportedInstruction("checked stderr byte write (not implemented)")`. A preceding scaffold compile exposed an omitted exhaustive register-seed arm; its mechanical coverage was added before this completed red. |
+| Checked/backend focused | Verification, authentication, LLVM and native fixtures plus existing library/binary units | Exit 0, 319 library and 36 binary tests passed. All seven new checked/backend cases pass, including O0/O2 native output/status checks, computed operands and strict authentication/SSA. Unresolved source and ABI names fail directly and in helper bodies; ordinary user-defined `stderr_write_byte` preserves byte-I/O LLVM without acquiring a runtime call. Formatting exited 0. |
+| Stdout compatibility | Complete existing stdout target | Exit 0, 8 passed / 0 failed, 94.22 s. Frozen B1B/B1C LLVM, native execution and transactional driver tests pass. |
+| Historical authority compatibility | Three `accepted_` regressions after the explicit IR/verifier digest amendment | Exit 0, one passing test in each of compiler-storage, source-byte-buffer and stdin targets. All existing executable assertions and unchanged runtime/LLVM sentinels pass. |
+| Diagnostic checked/backend full gate | Immutable combined snapshot, excluding later connected-AST observation tests and source-intrinsic development | |
+
+### SELFHOST-AST-OBSERVE-001 - actual native AST regression fixtures
+
+- Observed: CAP-059's native source parses but only 240 nodes are reachable.
+  Counts/checksums do not independently demonstrate statement, parameter,
+  assignment, branch or binder ownership. A real native arena observer is
+  needed before the parser representation changes.
+- Hypothesis: a test-only forwarding allocator can capture the actual named
+  owner bytes before cleanup without changing the production ABI or runtime.
+- Allowed files for the canonical compiler owner in this preparation slice:
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` and new
+  `src/compiler/tests/support/self_host_connected_ast.rs`. A child test module
+  may reuse existing native build/input helpers. No Aero product or compiler
+  implementation edit is authorized by this observation-only task.
+- Frozen observer: include the unchanged test runtime in the generated harness
+  with only its allocator export names renamed, then forward through wrappers.
+  Track identities across reallocations; initialize unused capacity to prevent
+  uninitialized-byte artifacts; preserve counters, failure injection, exact
+  input/forbidden product output, size and leak checks. Capture before release,
+  write a separate binary artifact only after the product returns. Capacities
+  are not logical lengths. Identify owners by a pre-derived first-use and
+  cleanup trace, never by declaration order or searching for expected contents.
+- To prove logical node/origin length, poison newly allocated capacity with
+  `0xA5`, including only the added tail on successful reallocation. Valid
+  serialized AST/origin words are nonnegative, so their high byte is below
+  128; an untouched poison word cannot be a written valid word. Recover the
+  aligned prefix, require all remaining bytes to retain poison, and require
+  complete 16-byte node / 20-byte origin records. Partial writes fail the
+  observer instead of being trimmed. Failed reallocations preserve the old
+  owner and bytes. This distinguishes logical length from capacity without
+  modifying the production ABI or selecting an owner by its contents.
+- Freeze `H1_CONNECTED_AST_DESIGN.md`'s node table, deferred Return, eager Match
+  arms, 20-word control records and postorder interval proof for these expected
+  fixtures. Three independent hand arrays cover two typed parameters (10 nodes),
+  mutable let/assignment/Return (13 nodes), nested If/else (27 nodes). Normalize
+  actual captured records and compare with Rust's parsed AST as well as those
+  exact arrays. Preserve arm, binder, branch and statement source order.
+- A parser-only capture may deliberately use a mismatching expectation vector
+  and require the existing parse-check return 80, allowing arena observation
+  before semantic authentication. Label it precisely; it is not evidence of
+  successful semantics or compiler output. If used, every arena and origin
+  prefix must still match independently derived expected records. Later full
+  vectors must exercise origin/connectivity authentication and rich refusal.
+- Acceptance: verify owner selection first on an unchanged compact arithmetic
+  product, then read a completed native red against the disconnected product
+  for at least the parameter and statement fixtures at O0/O2. Do not retune
+  expected arrays to captured bytes. Keep these intentional reds isolated;
+  they are excluded from the already running immutable acceptance gates.
+- Stop conditions: production instrumentation, allocator semantics changes,
+  content-based owner selection, treating capacity as used length, or calling
+  a checksum/count comparison normalized structural equality. Report a concrete
+  observation limitation rather than adding a production debug API.
 
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 

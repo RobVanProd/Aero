@@ -15,6 +15,12 @@ and Windows execution remain outstanding. Connected AST design, compiler-subset
 semantics/lowering and actual self-hosting are still incomplete. The historical
 integration and acceptance records below do not describe these local changes.
 
+H1E-CHECKED-001 adds a separate diagnostic profile and one verified checked
+stderr instruction with authenticated LLVM lowering. Linux O0/O2 backend
+fixtures pass; source calls and CLI diagnostic-runtime linkage are not yet
+implemented. Every earlier public profile retains its behavior. The ordinary
+source name `stderr_write_byte` remains an ordinary user helper at this stage.
+
 ## Reading this matrix after phase 1 integration
 
 Current review/acceptance identities are in [PROJECT_STATE.md](PROJECT_STATE.md).

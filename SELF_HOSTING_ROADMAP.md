@@ -17,6 +17,12 @@ transport has passed Linux ABI tests; source-profile and process-protocol
 integration remain open. The canonical source still stops at its first identifier.
 All six self-hosting conditions below remain mandatory.
 
+The additive diagnostic profile now has typed checked-IR/backend support with
+native O0/O2 evidence. Source admission and native CLI linkage are the next
+separate diagnostic slice; the current profile still inherits only the earlier
+byte-I/O source capabilities. The connected-AST observer and representation work
+proceed independently of this Rust bootstrap support.
+
 ## Historical handoff: integrate before the next implementation
 
 Phase 1 / INTEGRATION-001 reconciles protected master `b987cd2` with the existing

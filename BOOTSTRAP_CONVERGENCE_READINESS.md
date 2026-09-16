@@ -15,6 +15,12 @@ evidence but no source-profile or process-protocol integration. Windows executio
 same-source stage convergence and H2 acceptance remain open. The frozen stage
 protocol below is unchanged.
 
+The additive `exact-i32-byte-diagnostics-v0` profile now verifies and lowers a
+checked stderr operation with mandatory type/layout authentication. Seven new
+backend tests, inherited-profile compatibility and Linux O0/O2 native output
+pass. It still has no stderr source intrinsic or CLI runtime linkage. These
+backend fixtures do not prove source-body correspondence or H1 convergence.
+
 ## Current integration boundary - 2026-09-05
 
 INTEGRATION-001 consolidates the existing work through `2d99ca7`; see

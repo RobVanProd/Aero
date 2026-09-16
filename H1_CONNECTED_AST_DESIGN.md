@@ -1,8 +1,10 @@
 # Connected AST for the canonical Aero compiler
 
 Task: `SELFHOST-AST-DESIGN-001`. **Design only; no executable capability or
-test result is claimed.** The lead must review and freeze this representation
-before implementation. CAP-059 stage 3b must finish before AST product edits.
+test result is claimed.** The lead reviewed the representation on 2026-09-16;
+the precise decisions below supersede the initial proposal. Implementation
+still requires its own ledger entry and a failing native regression. CAP-059's
+full gate must finish before AST product edits.
 
 ## Purpose and existing authority
 
@@ -32,11 +34,11 @@ before CAP-059 edits; use the named parser states when line numbers move.
 Calls, argument order and references already have nodes 20-23. Module items
 already link through kind-19 `right`. Retain these representations.
 
-## Proposed node records
+## Node records
 
 Keep four nonnegative words `[kind, payload, left, right]`, one-based IDs, and
 zero for absent links. Every nonzero node link points to an earlier node.
-Existing kinds 1-23 retain their meanings; the table proposes additions.
+Existing kinds 1-23 retain their meanings; the table defines additions.
 
 | Kind | Role | Payload | Left | Right |
 |---|---|---|---|---|
@@ -85,9 +87,14 @@ creating a statement cell. When another statement starts, promote the held
 statement into the first cell and continue the sequence. At function close,
 emit no wrapper for the compact case; otherwise materialize any pending cell,
 the Block, and the descriptor. Nested blocks always materialize their Block.
-Do not construct wrappers and then abandon them. Emit the Return once, at its
-semicolon; remove the duplicate function-close Return append. Parameter nodes
-and annotations are created only when actual parameters occur.
+Do not construct wrappers and then abandon them. A Return's semicolon stores
+its expression and exact return-token origin. Append the Return only after its
+own block's closing brace is validated. The admitted grammar already requires
+Return to be terminal in its block, so nothing can consume it before that
+close. This preserves the compact predecessor's successful and malformed-input
+append ordering. Parameter nodes and annotations are created only for actual
+parameters. Rich partial-parse products necessarily acquire their new nodes;
+preserve syntax error priority and location, not obsolete rich arena counts.
 
 ## Parser continuation and origin changes
 
@@ -97,19 +104,41 @@ name, mutability and annotation. State 18 routes a completed expression to its
 statement, condition or match arm. State 49 appends ordinary statements rather
 than overwriting `body_root`. States 21-23 finalize the body and module item.
 
-The three-word block frame in states 52-54 is insufficient. Freeze an expanded
-continuation record containing kind, parent frame, parent statement state,
-parent pending-first statement, parent sequence tail/count, condition, pending
-then block, and construct start/line/column. Restore all parent state when a
-child closes. Finalize a While immediately; delay an If until lookahead proves
-whether an else follows. An else-if uses a nested If continuation. A token read
-to prove there is no else must be reused for the enclosing statement dispatch.
-Replacement continuation records may be appended; they are parser work records,
-not AST nodes. No AST node requires back-patching.
+The three-word block frame in states 52-54 becomes a 20-word immutable
+continuation record. Field indices are:
+
+| Fields | Meaning |
+|---|---|
+| 0 | Construct: 1=If, 2=While |
+| 1 | Previous active continuation or 0 |
+| 2 | Resume: 0=complete enclosing statement, 1=complete parent's else-if child |
+| 3 | Phase: 1=then/while body, 2=await else, 3=else body, 4=await else-if child |
+| 4–7 | Parent block state, statement count, held first statement, cell tail |
+| 8–10 | Parent opening-brace offset, line, column |
+| 11–14 | Parent pending Return expression, return offset, line, column |
+| 15–16 | Condition node and completed then-block node (or 0) |
+| 17–19 | Construct's original if/while offset, line, column |
+
+Push only after condition and opening brace validate; reset the active child
+block registers. Complete the child Block before restoring every saved parent
+register. While completion immediately completes the parent statement. An If
+appends a phase-2 replacement record and reads, without consuming, its possible
+else token. A non-else token is reused by parent statement dispatch. An else
+body uses phase 3. Else-if uses phase 4 with child resume 1, returning its If
+node directly to the parent's branch pair without an enclosing statement cell.
+Several else-if frames may unwind using the same unconsumed lookahead.
+
+Every physical replacement record consumes the existing 65,536-record capacity;
+replacement does not increase logical depth. The maximum control store is
+5,242,880 bytes. Reset transient statement/expression dispatch registers after
+restoration; this grammar cannot suspend an enclosing expression across a
+control-flow block. These are work records, not AST nodes; no node is back-patched.
 
 States 41/43 retain the match subject, constructor/binder names and locations,
-and each completed arm root. Build both arms and then the Match node after the
-closing brace. Never reuse the second arm's expression as the whole match.
+and each completed arm root. Append the scrutinee identifier before either arm,
+each binder at its token, and each arm at its comma before the next binder or
+expression. At the closing brace append the arm-sequence and Match nodes.
+Never reuse the second arm's expression as the whole match.
 
 Every AST node receives one authenticated origin. Retain exact declaration and
 binder locations, not the interner's first occurrence of their name. Structural
@@ -118,6 +147,46 @@ anchors are explicit: Block uses `{`, descriptor uses `fn`, branch pair uses
 `match`. Validate these role-dependent mappings against source and tokens;
 synthetic wrappers do not have one universal token kind. Keep node/origin counts
 equal. Extend the validators near lines 3730-3826 and 3980-4059 accordingly.
+
+Authenticate new name payloads against the specific declaration/binder token,
+not merely its token kind or the interner's first occurrence. Type annotations
+authenticate their full allowed spelling. Let nodes use the leading let token;
+the adjacent optional mut token and following name retain and authenticate the
+precise declaration location. Statement cells copy their child's exact origin.
+Branch pairs share their owning If's origin; descriptors share their Function's
+origin. Match and arm-sequence share the exact identifier spelled `match`.
+
+## Linear connectivity authentication
+
+The append order above forms contiguous postorder occurrence subtrees. Maintain
+an append-only start-index store with one i32 per AST node, bounded by 65,536
+words (262,144 bytes). It needs no mutable bitmap or quadratic ownership scan.
+First validate payload domains, legal child kinds and strictly backward edges.
+Then enforce the following independently of logical left/right ordering:
+
+- Leaf: its start is its own ID.
+- One child: the child ID must equal this ID minus one; inherit its start.
+- Two children: IDs must differ. The later child's ID must equal this ID minus
+  one; the earlier child's ID must equal the later child's stored start minus
+  one. Inherit the earlier child's start.
+- Complete module: root equals node count and its stored start is one.
+
+These local interval checks and the root condition prove that every occurrence
+belongs to the module exactly once. Reversed parameter/module links and
+reverse-built argument cells retain their semantic ordering; only the interval
+check orders the two child IDs numerically. Missing nodes, duplicated ownership,
+overlapping subtrees and gaps are rejected before meaning or checked IR.
+
+## Located refusal before meaning
+
+Preserve parser/structural authentication, complete origin authentication,
+function-symbol construction and the existing identifier-use scan in that order.
+Then scan new kinds 24–38 in ascending node order before inference. If found,
+report semantic status 28, code equal to that first node's kind, at its exact
+authenticated origin; facts remain empty and downstream phases unattempted.
+Identifier refusal remains status 17/code 2 and retains priority. Truthful match
+structure changes the canonical first use to scrutinee node 3 at offset 68,
+line 2, column 18; preserving its former location would conceal the new syntax.
 
 ## Invariants and acceptance probes
 
@@ -152,7 +221,7 @@ and thus cross three phases; that is why the compact encoding is deliberate.
 
 Later contracts separately cover scoped names/types/ownership, checked lowering,
 and matching verifier/emitter support. Parse success is never a meaning claim.
-Before implementation the lead must freeze refusal priority/code, tag numbers,
-continuation layout, capacity accounting, and exact probe vectors. New source
-and arena totals require measurement after the representation is selected;
-historical census numbers are not acceptance values for the forthcoming diff.
+Before implementation the lead must freeze exact probe vectors and observable
+native AST capture. New source and arena totals require an independent derivation
+from this representation before native replay; historical census numbers are
+not acceptance values for the forthcoming diff.
