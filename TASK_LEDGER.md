@@ -1,5 +1,206 @@
 # Aero Task Ledger
 
+## SELFHOST-2026-09 - local self-hosting execution
+
+- User objective: copy this repository and work toward a self-hosting Aero
+  language using the repository as the source of requirements. This supersedes
+  the earlier phase-1-only session boundary; it does not change language semantics.
+- Starting copy: upstream master `df0fecea13e9f28c5065e092973aa34d5ac055c9`,
+  local branch `agent/aero-integration`. No public acceptance is claimed for
+  subsequent local work. Work and toolchains reside under `/home/lsd/Aero` on
+  this Linux host; historical Windows D: placement is not a Linux path rule.
+- Observed behavior from source inspection: the canonical 318,003-byte source
+  has 23 functions, parses, and is refused at semantic identifier node 1. Small
+  multi-function arithmetic probes stop at verifier word 1. Runtime evidence is
+  pending the initial baseline; source inspection is not a fresh test result.
+- First hypothesis and frozen semantics: execute the existing CAP-059 contract
+  below, first its separately safe stage 3a bound repair, then the coupled
+  verifier/emitter stage 3b. Preserve source grammar, semantics, checked IR,
+  accepted one-function LLVM, and all negative boundaries. This checkpoint is
+  a prerequisite, not self-hosting or convergence.
+- Allowed files for CAP-059: `examples/aero_self_host_v0/compiler.aero`
+  (only contracted verifier/emitter and fragment helpers),
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`, this ledger,
+  `PROJECT_STATE.md`, `SELF_HOSTING_ROADMAP.md`,
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`, `SPEC_IMPLEMENTATION_MATRIX.md`.
+  Lead owns the ledger, contracts, integration, and result claims. One vertical
+  implementation owner owns the Aero product and focused tests.
+- Pre-implementation harness correction: CAP-059 Decisions 7 and 8 conflict.
+  The existing no-output harness returns 62 on any write before returning the
+  product's expected-vector result. Thus the expired multi-function refusal
+  test must use the new emitting harness to observe the contracted 93 while
+  preserving its old vector and checked-group assertions. All negative tests
+  retain the original no-output harness; that harness remains unchanged. This
+  corrects test plumbing only and is approved before product changes.
+- Pre-implementation verifier correction for stage 3b: the historical list of
+  32 sites omits an obligation exposed by multiple functions. The existing
+  left/right operand checks accept preceding module-global result IDs; LLVM
+  result values belong to individual functions. At each function boundary,
+  derive its first result ID from the preceding functions' completed result
+  count. A result operand must be at least that ID and at most the already
+  evaluated result count. Keep global numbering for serialized IDs and LLVM
+  names. This adds no source form or phase. Single-word mutations that replace
+  a second function's left or right result operand with a first-function result
+  must stop verification before emission, with exact located diagnostics.
+  Frozen independent probe: `fn f()->int{return 1+2;} fn g()->int{return
+  (3+4)+(5+6);}` has header length 41, six instructions and four results.
+  Function 2's final add is instruction 5 (base word 85); change word 91 from
+  2 to 1 for the left operand, or word 93 from 3 to 1 for the right operand.
+  Each must report status 4, word 91/93 respectively, record 5, code 3,
+  expected lower bound 2, actual 1. Both mutations preserve every other word.
+- Acceptance: completed clean baseline before checkpoint acceptance, failing regression first for each
+  behavior change, focused native tests including exact bytes and independent
+  LLVM compilation at O0/O2, diff/scope audit, then `./tools/test.sh`. Keep each
+  result blank until its completed exit status is read. Final recorded-tree
+  verification belongs in the commit message after the tree is fixed.
+- Risks/stop conditions: no implementation on a red baseline; no third compiler
+  phase, invented semantics, weakening or skipping tests, dirty-source
+  convergence claim, or canonical refusal drift. Further representation and
+  semantics work requires its own bounded ledger contract and regression.
+- Execution ordering clarified before product edits: baseline 1's sole observed
+  environmental failure has been resolved and the previously failing CAP-024
+  target completed 6/6 in baseline 2. The remaining full gate continues against
+  an immutable separate checkout. With no unresolved baseline failure, the
+  independently red-tested two-literal stage 3a repair may run concurrently in
+  the isolated development target. Any new baseline failure suspends further
+  production work; no checkpoint is accepted until both full gates complete.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Baseline 1 | `./tools/test.sh` in immutable upstream worktree, Rust 1.98.1 / LLVM 22.1.8 | Exit 101: CAP-024 contract tests could not execute `python`; host provides `python3` only. Fmt, correctness Clippy, 312 library and 36 binary tests passed before the environmental failure. |
+| Baseline 2 | Same upstream gate with workspace-local `python` alias to `/usr/bin/python3` | Exit 0. Formatting and correctness Clippy passed; 1,021 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets (312 library, 36 binary). Immutable upstream worktree remains clean. No ignored test was added or changed. |
+
+### CAP-059P - repair checked result ownership before stage 3b
+
+- Inspection invalidates one premise of the historical CAP-059 contract:
+  `compiler.aero`'s checked result serializer writes function 1 into every
+  result record, including results defined by subsequent functions. The old
+  Rust oracle duplicates that constant. Generalizing the verifier truthfully
+  would therefore refuse valid probes. Historical stop condition 1 applies:
+  stage 3b cannot be implemented against that producer without re-authoring.
+- This separate prerequisite changes only checked-IR construction. Stage 3a
+  remains independently valid. After its focused acceptance, first repair
+  result ownership here; only then execute the original two-phase stage 3b
+  against the corrected producer, with the explicit harness and operand-scope
+  corrections above. No combined three-phase implementation is authorized.
+- Frozen semantics: result field 1 is the owning function ID, equal to field
+  10 of its defining instruction and consistent with that function's range.
+  Read the owner from the defining instruction, validate it in `1..=N`, and
+  serialize it. Preserve global result IDs, all other fields, N=1 bytes,
+  verifier/emitter behavior and the located N>1 header refusal.
+- Allowed files: the same vertical owner may edit only the checked-result
+  serializer in `examples/aero_self_host_v0/compiler.aero` and its independent
+  model/regressions/reconstruction in
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`. Lead owns this
+  ledger and the affected capability/state/readiness records.
+- Red-first acceptance: derive result ownership from per-function expression
+  sources and instruction ranges, independently of the serializer. For
+  `fn f()->int{return 1+2;} fn g()->int{return 3*4;}`, result 2 starts at word
+  91 and its owner at word 92 must be 2; the current producer emits 1. Also
+  cover a literal-only first function followed by result-producing functions
+  (result ID differs from owner ID), unequal counts, and a final literal-only
+  function. Grade corrected full checked expectation vectors against linked
+  Aero at O0/O2 while preserving the downstream header refusal and no output.
+  The old vector must locate the change to checked IR rather than parser,
+  semantics or verifier. Preserve the accepted one-function LLVM exactly.
+- Risks/stop conditions: do not conceal the duplicated oracle defect by changing
+  both constants without source/range-derived assertions; no parser, semantic,
+  verifier, emitter, driver or main edits; no weakening existing assertions.
+  Derive canonical arena delta from the edit and record completed exits only.
+
+### CAP-059 stage 3b - re-authored verifier/emitter prerequisites
+
+- The historical stage 3b contract resumes only after CAP-059P focused tests
+  establish truthful result owners. Its checked-IR group is then frozen again.
+  The same single vertical owner has only verifier/emitter/fragment helpers and
+  the focused Rust target; every other compiler phase remains unchanged.
+- In addition to the original positive probes, retain literal-only first and
+  middle functions and unequal result counts. Per-function ranges, rather than
+  result position, determine instruction/result ownership. Validate every
+  function and block record, contiguous nonempty covering ranges, exactly one
+  terminal Return per range, and the entry function derived from the final
+  range. Preserve module-global monotonic origins or an equivalent prior-
+  function lower bound. Never reset provenance to an unconstrained zero at a
+  function boundary.
+- Validate count bounds before multiplication or addition: function count is
+  in `1..=510` and cannot exceed instruction count; instruction/result ceilings
+  stay 510/509. Check spans against remaining instructions before computing
+  endpoints. Invalid function counts 0 or `i32::MAX` report header status 1,
+  word 1, code 2, expected ceiling 510, actual injected value. Keep the earlier
+  format, byte-view and existing N=1 negative diagnostics unchanged.
+- Every result's owner, defining instruction ID and origin must equal the
+  corresponding uniquely matched value-producing instruction, and that
+  instruction must lie inside its owner's validated range. A Return cannot
+  define a result. All repeated metadata reads must apply the same fault view.
+- For probe D, independently derived mutation offsets are: function 2 first
+  instruction at word 25 (3 -> 2 overlap), length at 26 (2 -> 0 or
+  `i32::MAX`); block 2 owner at 36 (2 -> 1), first instruction at 39 (3 -> 1);
+  instruction 3 origin at 72 (8 -> 3), owner at 73 (2 -> 1); result 2 owner at
+  92 (2 -> 1), definition at 95 (3 -> 2, a Return), origin at 96 (8 -> 3).
+  Instruction-owner corruption must report `(3,73,3,1,2,1)` and result-owner
+  corruption `(6,92,2,1,2,1)` in status/word/record/code/expected/actual order.
+  Each other corruption must fail verification before emission; its located
+  vector is derived from its explicit validation rule before product edits.
+- Original probes E/F/G, canonical semantic refusal, all one-function LLVM,
+  the non-orphan census derivation and zero-output negative harness remain
+  frozen. The only expired-positive harness changes are those explicitly
+  required by successful module emission. No corruption can become a success
+  because its tested word was subsequently reread without the fault.
+- Exact new D vectors, frozen before stage 3b edits, use
+  status/word/record/code/expected/actual order: overlap at 25 is
+  `(2,25,0,1,3,2)`; length at 26 is `(2,26,0,1,2,0)` or the same tuple with
+  actual `i32::MAX`; block owner is `(2,36,0,2,2,1)`; block first instruction
+  is `(2,39,0,2,3,1)`; instruction origin is `(3,72,3,3,6,3)`, deriving lower
+  bound 6 from prior function node 5; result definition is `(6,95,2,2,3,2)`;
+  result origin is `(6,96,2,3,8,3)`. An instruction count below N is
+  `(1,3,0,2,N,actual)`, after the existing absolute instruction-count check.
+  Entry probe J is refused after validated ranges prove entry 2, so its
+  reported instruction/result counts are 2/0. An out-of-range entry is still
+  rejected early, preserving the earlier single-function behavior.
+- Additional expired-positive harness callers are explicitly covered:
+  `the_product_no_longer_refuses_a_multi_item_module_at_c1` probes B/C/D,
+  successful module probes in `run_meaning_expectation`, and CAP-059P's
+  correct/obsolete owner vectors. Preserve every checked assertion and old
+  expectation vector; route only emitting positive paths through the binary
+  emitting harness and independently byte-grade their output. Old checked
+  disagreements remain 92; expired verifier disagreements become 93. Probe E
+  and all other source/semantic/checked failures keep the no-output harness.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Stage 3a red | Isolated-target focused `a_single_item_with_513_nodes_verifies_emits_and_drives` | Exit 101, intended native assertion: old full refusal vector returned 91 instead of required 93 at O0 (0 passed, 1 failed, 63 filtered; 50.63 s). Product unchanged. |
+| Stage 3a focused | Same isolated-target regression after the two verifier literals changed | Exit 0, 1 passed / 0 failed / 63 filtered, 54.93 s. O0/O2 complete vectors and exact LLVM passed; independent Clang built and ran the emitted entry, returning 256. Full baseline and compatibility still pending at this record. |
+| Stage 3a compatibility | Five focused reconstruction, canonical-output, bound-separation, source-census/refusal and existing multi-function-refusal tests | Exit 0, 5 passed / 0 failed / 59 filtered, 103.04 s. The canonical refusal/census and one-function output remain unchanged. |
+| CAP-059P red | Isolated-target `checked_results_belong_to_the_function_that_defines_them` before producer/model repair | Exit 101, 0 passed / 1 failed / 64 filtered, 51.09 s. Source-derived corrected ownership returned 92 instead of 91 at O0, locating the mismatch in checked IR. |
+| CAP-059P focused and stage 3a compatibility | Nine selected tests after producer-only repair | Exit 0, 9 passed / 0 failed / 56 filtered, 113.40 s. Four ownership sources passed O0/O2 with exact expired checked disagreement 92; old canonical output, 513-node emission, E/F/G refusals and canonical source census/refusal passed. Predicted arena delta +57 nodes / +45 values / +26 operators / +0 blocks / +8 calls matched unchanged prediction; 240 reachable nodes remain. |
+| Stage 3a/P full gate | Immutable local snapshot of the completed two prerequisites; separate from subsequent stage 3b development | |
+
+### SELFHOST-AST-DESIGN-001 - connected representation design
+
+- Observed: the parser consumes rich syntax but retains only 240 reachable
+  nodes out of its canonical 18,718-node arena. Parameter ownership, statement
+  order, bindings, assignment targets, branch/loop bodies and match arms are
+  not faithfully connected. The Rust AST already distinguishes these forms.
+- Hypothesis: a complete append-only structural encoding can retain the old
+  compact arithmetic representation while rich functions carry a signature
+  and body descriptor. This permits a later parser/authentication checkpoint
+  without simultaneously changing checked IR and emission.
+- Scope now is design only. Allowed file: `H1_CONNECTED_AST_DESIGN.md`.
+  The architecture auditor may write that document; the lead retains this
+  ledger and all semantic decisions. No production or test edits under this ID.
+- Frozen meaning: preserve the existing admitted grammar and source semantics;
+  internal node tags and structural encoding do not add source features.
+  Rich forms must remain refused before checked IR until their meaning and
+  lowering are separately implemented. Preserve every node's provenance and
+  lower-child-ID invariant, and require zero unreachable syntax nodes.
+- Acceptance: map each represented form to existing Rust AST/parser evidence;
+  specify hand-derived small trees, independent normalized-AST comparisons,
+  corruption/bounds/allocation cases, and compatibility tests. Review the
+  document against actual source. No executable capability is claimed.
+- Risks/stop conditions: ambiguous existing semantics, orphan nodes, lost
+  declaration provenance or ordering, hidden parser-to-backend third phase,
+  or relabeling a design as an implementation.
+
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 
 ### INTEGRATION-001-W1 - repair the scorer workflow's allocation-placement oracle

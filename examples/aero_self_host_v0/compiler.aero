@@ -5550,6 +5550,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 + result_value(bytes_get(&checked_instructions, word_offset + 37)) * 256
                 + result_value(bytes_get(&checked_instructions, word_offset + 38)) * 65536
                 + result_value(bytes_get(&checked_instructions, word_offset + 39)) * 16777216;
+            let checked_definition_function: int = result_value(bytes_get(
+                &checked_instructions, word_offset + 40))
+                + result_value(bytes_get(&checked_instructions, word_offset + 41)) * 256
+                + result_value(bytes_get(&checked_instructions, word_offset + 42)) * 65536
+                + result_value(bytes_get(&checked_instructions, word_offset + 43)) * 16777216;
             // C7 generalized. With N items the Returns interleave, so
             // result `i` is no longer instruction record `i`. Every record is
             // walked in order and the ones with a non-zero result word - which
@@ -5557,7 +5562,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             // writes zero there - are authenticated against the emission
             // counter and emitted. For N = 1 this visits the same records in
             // the same order and emits the same bytes.
-            if checked_definition_id != checked_result_index + 1 {
+            if checked_definition_id != checked_result_index + 1
+                || checked_definition_function < 1
+                || checked_definition_function > checked_item_count {
                 checked_status = 5;
                 checked_code = 3;
             }
@@ -5573,7 +5580,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 && checked_append_field < 6 {
                 checked_append_word = 4;
                 if checked_append_field == 1 {
-                    checked_append_word = 1;
+                    checked_append_word = checked_definition_function;
                 } else if checked_append_field == 2 {
                     checked_append_word = checked_definition_result;
                 } else if checked_append_field == 3 {
@@ -6015,11 +6022,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         verified_actual = verified_function_name;
     }
     if verified_attempted == 1 && verified_status == 0
-        && (verified_function_node < 3 || verified_function_node > 512) {
+        && (verified_function_node < 3 || verified_function_node > 65536) {
         verified_status = 2;
         verified_word_index = 12;
         verified_code = 1;
-        verified_expected = 512;
+        verified_expected = 65536;
         verified_actual = verified_function_node;
     }
     if verified_attempted == 1 && verified_status == 0 && verified_block_kind != 2 {
