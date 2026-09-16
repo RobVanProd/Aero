@@ -1,5 +1,26 @@
 # Aero Specification-to-Implementation Matrix
 
+## Local capability delta - 2026-09-16
+
+Unpublished work on `agent/aero-integration`, based on integration merge
+`df0fece`, adds focused Linux native evidence for the CAP-059 513-node bound,
+correct checked-result ownership, and multiple arithmetic function verification
+and emission. Exact O0/O2 LLVM/native probes and corrupted metadata/foreign-result
+refusals pass. Full local validation is tracked in TASK_LEDGER.md. This remains
+the bounded arithmetic subset; it does not compile the canonical compiler.
+
+A separate C stderr byte transport passes six Linux native ABI tests at O0/O2.
+It changes no existing runtime bytes or public source profile. Source integration
+and Windows execution remain outstanding. Connected AST design, compiler-subset
+semantics/lowering and actual self-hosting are still incomplete. The historical
+integration and acceptance records below do not describe these local changes.
+
+H1E-CHECKED-001 adds a separate diagnostic profile and one verified checked
+stderr instruction with authenticated LLVM lowering. Linux O0/O2 backend
+fixtures pass; source calls and CLI diagnostic-runtime linkage are not yet
+implemented. Every earlier public profile retains its behavior. The ordinary
+source name `stderr_write_byte` remains an ordinary user helper at this stage.
+
 ## Reading this matrix after phase 1 integration
 
 Current review/acceptance identities are in [PROJECT_STATE.md](PROJECT_STATE.md).

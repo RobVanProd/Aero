@@ -1,8 +1,29 @@
 # Aero Self-Hosting Roadmap
 
-Last reviewed: 2026-09-05 (America/New_York)
+Last reviewed: 2026-09-16 (America/New_York)
 
-## Current handoff: integrate before the next implementation
+## Local execution after phase 1
+
+The local branch begins at the integration merge `df0fece`; continued H1 work
+is authorized. CAP-059's node-bound repair and corrected checked-result owners
+have focused native evidence. Multiple-function verification/emission now passes
+its focused O0/O2 emit/execute and corruption probes. Full local validation is
+tracked separately in `TASK_LEDGER.md`; no public acceptance is claimed.
+
+The next compiler representation work is the connected AST described in
+`H1_CONNECTED_AST_DESIGN.md`, followed by scoped names/types/ownership, checked
+lowering, and matching verification/emission. In parallel, a separate stderr
+transport has passed Linux ABI tests; source-profile and process-protocol
+integration remain open. The canonical source still stops at its first identifier.
+All six self-hosting conditions below remain mandatory.
+
+The additive diagnostic profile now has typed checked-IR/backend support with
+native O0/O2 evidence. Source admission and native CLI linkage are the next
+separate diagnostic slice; the current profile still inherits only the earlier
+byte-I/O source capabilities. The connected-AST observer and representation work
+proceed independently of this Rust bootstrap support.
+
+## Historical handoff: integrate before the next implementation
 
 Phase 1 / INTEGRATION-001 reconciles protected master `b987cd2` with the existing
 self-hosting work at `2d99ca7`. Its exact review/acceptance status is in

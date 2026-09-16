@@ -1,6 +1,42 @@
 # Aero Project State
 
-Last updated: 2026-09-05 (America/New_York)
+Last updated: 2026-09-16 (America/New_York)
+
+## Local self-hosting work after the integration merge
+
+This local checkout starts at upstream `df0fecea13e9f28c5065e092973aa34d5ac055c9`
+on `agent/aero-integration`. The user authorized continued self-hosting
+implementation. The phase-1-only boundary below is historical. Local changes
+have not been published or accepted by protected CI.
+
+The immutable upstream Linux baseline passes 1,021 tests with 16 existing
+ignored tests. CAP-059 stage 3a admits a 513-node arithmetic function, and the
+separate CAP-059P repair serializes each checked result's actual owning function.
+Stage 3b's focused native tests now verify and emit multiple arithmetic functions,
+preserve the single-function LLVM bytes, and reject corrupted ranges, owners,
+provenance and cross-function operands. Independent Clang execution passes at
+O0/O2. Compatibility and complete-tree validation are tracked in TASK_LEDGER.md;
+focused evidence is not full checkpoint acceptance.
+
+The new separate diagnostic runtime implements binary, sticky-error stderr
+byte output. Six Linux native ABI tests pass at O0/O2; it is not yet available
+through an Aero source profile. Windows cases have not been executed locally.
+The existing runtime is byte-identical.
+
+H1E-CHECKED-001 adds the `exact-i32-byte-diagnostics-v0` profile and a distinct
+checked stderr instruction, strict verification and authenticated LLVM lowering.
+Its seven new backend tests pass within 319 library and 36 binary unit tests;
+stdout compatibility also passes. The profile currently inherits byte-I/O source
+behavior: stderr source admission and CLI runtime linkage remain deferred.
+Three historical whole-file IR/verifier sentinels were explicitly updated for
+the reviewed addition; all three compatibility regressions pass, with runtime
+and LLVM sentinels unchanged. Full integration validation remains in progress.
+
+The canonical compiler still fails semantic analysis at its first identifier.
+Its parser does not yet connect parameters, bindings, statements or control flow
+into a complete AST; `H1_CONNECTED_AST_DESIGN.md` is a design for that work.
+Compiler-subset semantics and lowering, the process interface, same-source
+stage convergence and reproducible self-hosting remain open.
 
 ## Phase 1 integration status (supersedes historical current-head labels)
 

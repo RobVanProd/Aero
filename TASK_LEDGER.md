@@ -1,5 +1,432 @@
 # Aero Task Ledger
 
+## SELFHOST-2026-09 - local self-hosting execution
+
+- User objective: copy this repository and work toward a self-hosting Aero
+  language using the repository as the source of requirements. This supersedes
+  the earlier phase-1-only session boundary; it does not change language semantics.
+- Starting copy: upstream master `df0fecea13e9f28c5065e092973aa34d5ac055c9`,
+  local branch `agent/aero-integration`. No public acceptance is claimed for
+  subsequent local work. Work and toolchains reside under `/home/lsd/Aero` on
+  this Linux host; historical Windows D: placement is not a Linux path rule.
+- Observed behavior from source inspection: the canonical 318,003-byte source
+  has 23 functions, parses, and is refused at semantic identifier node 1. Small
+  multi-function arithmetic probes stop at verifier word 1. Runtime evidence is
+  pending the initial baseline; source inspection is not a fresh test result.
+- First hypothesis and frozen semantics: execute the existing CAP-059 contract
+  below, first its separately safe stage 3a bound repair, then the coupled
+  verifier/emitter stage 3b. Preserve source grammar, semantics, checked IR,
+  accepted one-function LLVM, and all negative boundaries. This checkpoint is
+  a prerequisite, not self-hosting or convergence.
+- Allowed files for CAP-059: `examples/aero_self_host_v0/compiler.aero`
+  (only contracted verifier/emitter and fragment helpers),
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`, this ledger,
+  `PROJECT_STATE.md`, `SELF_HOSTING_ROADMAP.md`,
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`, `SPEC_IMPLEMENTATION_MATRIX.md`.
+  Lead owns the ledger, contracts, integration, and result claims. One vertical
+  implementation owner owns the Aero product and focused tests.
+- Pre-implementation harness correction: CAP-059 Decisions 7 and 8 conflict.
+  The existing no-output harness returns 62 on any write before returning the
+  product's expected-vector result. Thus the expired multi-function refusal
+  test must use the new emitting harness to observe the contracted 93 while
+  preserving its old vector and checked-group assertions. All negative tests
+  retain the original no-output harness; that harness remains unchanged. This
+  corrects test plumbing only and is approved before product changes.
+- Pre-implementation verifier correction for stage 3b: the historical list of
+  32 sites omits an obligation exposed by multiple functions. The existing
+  left/right operand checks accept preceding module-global result IDs; LLVM
+  result values belong to individual functions. At each function boundary,
+  derive its first result ID from the preceding functions' completed result
+  count. A result operand must be at least that ID and at most the already
+  evaluated result count. Keep global numbering for serialized IDs and LLVM
+  names. This adds no source form or phase. Single-word mutations that replace
+  a second function's left or right result operand with a first-function result
+  must stop verification before emission, with exact located diagnostics.
+  Frozen independent probe: `fn f()->int{return 1+2;} fn g()->int{return
+  (3+4)+(5+6);}` has header length 41, six instructions and four results.
+  Function 2's final add is instruction 5 (base word 85); change word 91 from
+  2 to 1 for the left operand, or word 93 from 3 to 1 for the right operand.
+  Each must report status 4, word 91/93 respectively, record 5, code 3,
+  expected lower bound 2, actual 1. Both mutations preserve every other word.
+- Acceptance: completed clean baseline before checkpoint acceptance, failing regression first for each
+  behavior change, focused native tests including exact bytes and independent
+  LLVM compilation at O0/O2, diff/scope audit, then `./tools/test.sh`. Keep each
+  result blank until its completed exit status is read. Final recorded-tree
+  verification belongs in the commit message after the tree is fixed.
+- Risks/stop conditions: no implementation on a red baseline; no third compiler
+  phase, invented semantics, weakening or skipping tests, dirty-source
+  convergence claim, or canonical refusal drift. Further representation and
+  semantics work requires its own bounded ledger contract and regression.
+- Execution ordering clarified before product edits: baseline 1's sole observed
+  environmental failure has been resolved and the previously failing CAP-024
+  target completed 6/6 in baseline 2. The remaining full gate continues against
+  an immutable separate checkout. With no unresolved baseline failure, the
+  independently red-tested two-literal stage 3a repair may run concurrently in
+  the isolated development target. Any new baseline failure suspends further
+  production work; no checkpoint is accepted until both full gates complete.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Baseline 1 | `./tools/test.sh` in immutable upstream worktree, Rust 1.98.1 / LLVM 22.1.8 | Exit 101: CAP-024 contract tests could not execute `python`; host provides `python3` only. Fmt, correctness Clippy, 312 library and 36 binary tests passed before the environmental failure. |
+| Baseline 2 | Same upstream gate with workspace-local `python` alias to `/usr/bin/python3` | Exit 0. Formatting and correctness Clippy passed; 1,021 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets (312 library, 36 binary). Immutable upstream worktree remains clean. No ignored test was added or changed. |
+
+### CAP-059P - repair checked result ownership before stage 3b
+
+- Inspection invalidates one premise of the historical CAP-059 contract:
+  `compiler.aero`'s checked result serializer writes function 1 into every
+  result record, including results defined by subsequent functions. The old
+  Rust oracle duplicates that constant. Generalizing the verifier truthfully
+  would therefore refuse valid probes. Historical stop condition 1 applies:
+  stage 3b cannot be implemented against that producer without re-authoring.
+- This separate prerequisite changes only checked-IR construction. Stage 3a
+  remains independently valid. After its focused acceptance, first repair
+  result ownership here; only then execute the original two-phase stage 3b
+  against the corrected producer, with the explicit harness and operand-scope
+  corrections above. No combined three-phase implementation is authorized.
+- Frozen semantics: result field 1 is the owning function ID, equal to field
+  10 of its defining instruction and consistent with that function's range.
+  Read the owner from the defining instruction, validate it in `1..=N`, and
+  serialize it. Preserve global result IDs, all other fields, N=1 bytes,
+  verifier/emitter behavior and the located N>1 header refusal.
+- Allowed files: the same vertical owner may edit only the checked-result
+  serializer in `examples/aero_self_host_v0/compiler.aero` and its independent
+  model/regressions/reconstruction in
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`. Lead owns this
+  ledger and the affected capability/state/readiness records.
+- Red-first acceptance: derive result ownership from per-function expression
+  sources and instruction ranges, independently of the serializer. For
+  `fn f()->int{return 1+2;} fn g()->int{return 3*4;}`, result 2 starts at word
+  91 and its owner at word 92 must be 2; the current producer emits 1. Also
+  cover a literal-only first function followed by result-producing functions
+  (result ID differs from owner ID), unequal counts, and a final literal-only
+  function. Grade corrected full checked expectation vectors against linked
+  Aero at O0/O2 while preserving the downstream header refusal and no output.
+  The old vector must locate the change to checked IR rather than parser,
+  semantics or verifier. Preserve the accepted one-function LLVM exactly.
+- Risks/stop conditions: do not conceal the duplicated oracle defect by changing
+  both constants without source/range-derived assertions; no parser, semantic,
+  verifier, emitter, driver or main edits; no weakening existing assertions.
+  Derive canonical arena delta from the edit and record completed exits only.
+
+### CAP-059 stage 3b - re-authored verifier/emitter prerequisites
+
+- The historical stage 3b contract resumes only after CAP-059P focused tests
+  establish truthful result owners. Its checked-IR group is then frozen again.
+  The same single vertical owner has only verifier/emitter/fragment helpers and
+  the focused Rust target; every other compiler phase remains unchanged.
+- In addition to the original positive probes, retain literal-only first and
+  middle functions and unequal result counts. Per-function ranges, rather than
+  result position, determine instruction/result ownership. Validate every
+  function and block record, contiguous nonempty covering ranges, exactly one
+  terminal Return per range, and the entry function derived from the final
+  range. Preserve module-global monotonic origins or an equivalent prior-
+  function lower bound. Never reset provenance to an unconstrained zero at a
+  function boundary.
+- Validate count bounds before multiplication or addition: function count is
+  in `1..=510` and cannot exceed instruction count; instruction/result ceilings
+  stay 510/509. Check spans against remaining instructions before computing
+  endpoints. Invalid function counts 0 or `i32::MAX` report header status 1,
+  word 1, code 2, expected ceiling 510, actual injected value. Keep the earlier
+  format, byte-view and existing N=1 negative diagnostics unchanged.
+- Every result's owner, defining instruction ID and origin must equal the
+  corresponding uniquely matched value-producing instruction, and that
+  instruction must lie inside its owner's validated range. A Return cannot
+  define a result. All repeated metadata reads must apply the same fault view.
+- For probe D, independently derived mutation offsets are: function 2 first
+  instruction at word 25 (3 -> 2 overlap), length at 26 (2 -> 0 or
+  `i32::MAX`); block 2 owner at 36 (2 -> 1), first instruction at 39 (3 -> 1);
+  instruction 3 origin at 72 (8 -> 3), owner at 73 (2 -> 1); result 2 owner at
+  92 (2 -> 1), definition at 95 (3 -> 2, a Return), origin at 96 (8 -> 3).
+  Instruction-owner corruption must report `(3,73,3,1,2,1)` and result-owner
+  corruption `(6,92,2,1,2,1)` in status/word/record/code/expected/actual order.
+  Each other corruption must fail verification before emission; its located
+  vector is derived from its explicit validation rule before product edits.
+- Original probes E/F/G, canonical semantic refusal, all one-function LLVM,
+  the non-orphan census derivation and zero-output negative harness remain
+  frozen. The only expired-positive harness changes are those explicitly
+  required by successful module emission. No corruption can become a success
+  because its tested word was subsequently reread without the fault.
+- Exact new D vectors, frozen before stage 3b edits, use
+  status/word/record/code/expected/actual order: overlap at 25 is
+  `(2,25,0,1,3,2)`; length at 26 is `(2,26,0,1,2,0)` or the same tuple with
+  actual `i32::MAX`; block owner is `(2,36,0,2,2,1)`; block first instruction
+  is `(2,39,0,2,3,1)`; instruction origin is `(3,72,3,3,6,3)`, deriving lower
+  bound 6 from prior function node 5; result definition is `(6,95,2,2,3,2)`;
+  result origin is `(6,96,2,3,8,3)`. An instruction count below N is
+  `(1,3,0,2,N,actual)`, after the existing absolute instruction-count check.
+  Entry probe J is refused after validated ranges prove entry 2, so its
+  reported instruction/result counts are 2/0. An out-of-range entry is still
+  rejected early, preserving the earlier single-function behavior.
+- Additional expired-positive harness callers are explicitly covered:
+  `the_product_no_longer_refuses_a_multi_item_module_at_c1` probes B/C/D,
+  successful module probes in `run_meaning_expectation`, and CAP-059P's
+  correct/obsolete owner vectors. Preserve every checked assertion and old
+  expectation vector; route only emitting positive paths through the binary
+  emitting harness and independently byte-grade their output. Old checked
+  disagreements remain 92; expired verifier disagreements become 93. Probe E
+  and all other source/semantic/checked failures keep the no-output harness.
+- Compatibility replay identified one additional expired-positive caller:
+  the B half of `probe_e_discriminates_from_probe_b_and_is_shown_to`.
+  Its old vector remains unchanged, now requiring 93 and the independently
+  derived 99-byte module through the emitting harness. Every E-half assertion
+  and its no-output harness remain unchanged. This is the same pre-authorized
+  positive-output transition, not a relaxation of a negative boundary.
+- The full target then identified the same issue in
+  `the_two_item_module_separates_the_base_product_from_this_one`: preserve its
+  expired C1 checked vector (92) and module verifier vector (93), grade the
+  emitted 99 bytes independently, and add the current full successful vector
+  (91). Earlier semantic/base mismatches still return before output and retain
+  their existing harness. Audit remaining callers before another full replay.
+- Independent verifier/emitter review found no blocking defect. It identified
+  untested multi-digit non-entry names, the accepted 510-function bound, and
+  later-function Return corruption. Extend only the focused tests with a
+  source-derived literal-function boundary probe and independently specified
+  premature/missing terminal Return faults. Keep the frozen product unchanged;
+  no resource or producer bound may be widened to make those tests pass.
+- Frozen additional D faults: instruction 3 opcode at word 65 changes from 3
+  to 6, creating a premature Return in function 2, and reports
+  `(3,65,3,2,6,6)` with one result evaluated. Instruction 4 opcode at word 76
+  changes from 6 to 1, removing its terminal Return, and reports
+  `(3,76,4,2,6,1)` with two results evaluated. Each reports four instructions,
+  two results and root value 0, preserving the established opcode diagnostic.
+  The 510-literal-function source independently requires 1,530 syntax nodes,
+  510 instructions, no results and 13,779 checked words; no bound changes.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Stage 3a red | Isolated-target focused `a_single_item_with_513_nodes_verifies_emits_and_drives` | Exit 101, intended native assertion: old full refusal vector returned 91 instead of required 93 at O0 (0 passed, 1 failed, 63 filtered; 50.63 s). Product unchanged. |
+| Stage 3a focused | Same isolated-target regression after the two verifier literals changed | Exit 0, 1 passed / 0 failed / 63 filtered, 54.93 s. O0/O2 complete vectors and exact LLVM passed; independent Clang built and ran the emitted entry, returning 256. Full baseline and compatibility still pending at this record. |
+| Stage 3a compatibility | Five focused reconstruction, canonical-output, bound-separation, source-census/refusal and existing multi-function-refusal tests | Exit 0, 5 passed / 0 failed / 59 filtered, 103.04 s. The canonical refusal/census and one-function output remain unchanged. |
+| CAP-059P red | Isolated-target `checked_results_belong_to_the_function_that_defines_them` before producer/model repair | Exit 101, 0 passed / 1 failed / 64 filtered, 51.09 s. Source-derived corrected ownership returned 92 instead of 91 at O0, locating the mismatch in checked IR. |
+| CAP-059P focused and stage 3a compatibility | Nine selected tests after producer-only repair | Exit 0, 9 passed / 0 failed / 56 filtered, 113.40 s. Four ownership sources passed O0/O2 with exact expired checked disagreement 92; old canonical output, 513-node emission, E/F/G refusals and canonical source census/refusal passed. Predicted arena delta +57 nodes / +45 values / +26 operators / +0 blocks / +8 calls matched unchanged prediction; 240 reachable nodes remain. |
+| Stage 3a/P full gate | Immutable local snapshot tree `f7489ef5da80b587f245b8669d5fa8de037b058e`; separate from subsequent stage 3b development | Exit 0. Formatting and correctness Clippy passed; 1,023 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets. The snapshot was not edited to record this result; its final verification record belongs in its commit message. |
+| Stage 3b red | `small_modules_emit_exact_llvm_and_execute_each_entry`, before verifier/emitter edits | Exit 101, 0 passed / 1 failed / 65 filtered, 55.28 s. The one-function case passed O0/O2 before the two-function case returned verifier disagreement 93 instead of success 91 at O0. |
+| Stage 3b fault red | Two count/range/owner and foreign-result regressions, before product edits | Exit 101, 0 passed / 2 failed / 66 filtered, 52.05 s. Independent source/serialized-word checks passed; count 0 and a foreign left-result operand produced 93 instead of the required new diagnostic-vector result 91 at O0. |
+| Stage 3b focused | Eight exact module emit/execute probes plus count/range/provenance/owner/entry and cross-function operand mutations | Exit 0, 3 passed / 0 failed / 65 filtered, 94.50 s. Complete vectors, hand-derived LLVM bytes and independent native execution passed at O0/O2. Thirteen metadata mutations, the derived-entry mutation and both foreign-result operands matched exact refusals with no output. |
+| Stage 3b first compatibility | Ten selected old-boundary and canonical tests | Exit 101, 9 passed / 1 failed / 58 filtered, 82.77 s. The B half described above used the old no-output harness and returned 62 on correct module output. No production defect or arena-prediction correction was observed. |
+| Stage 3b first complete focused target | All 68 ingestion-target tests after the first harness correction | Exit 101, 67 passed / 1 failed, 224.71 s. Canonical arenas matched the unchanged independent prediction and canonical semantic refusal passed. The only failure was the second named expired-positive harness caller above. |
+| Stage 3b caller and boundary replay | Corrected two-item caller, 510-function module and later-function Return faults | Exit 0, 3 passed / 0 failed / 67 filtered, 61.88 s. Expired/current vectors returned 92/93/91 with the exact 99-byte module. The 510-function module matched all 67 expectation fields and 26,305 exact emitted bytes, and its entry returned 510 after independent O0/O2 compilation. Both Return faults matched the frozen refusal with no output. Product digest remained unchanged. |
+| Stage 3b complete focused replay | All 70 ingestion-target tests on the frozen product and corrected harnesses | Exit 0, 70 passed / 0 failed / 0 ignored / 0 filtered, 230.65 s. All original 63 and seven added regressions passed. Native canonical arenas exactly matched the unchanged independent 19,589/17,647/6,778/1,403/1,230 prediction, with 240 reachable nodes and the same first-identifier semantic refusal. |
+| CAP-059 and runtime full gate | Immutable combined checkpoint, excluding later diagnostic-profile development | |
+
+Before canonical-source replay, an independent Rust AST visitor and lexer-based
+parenthesis count predicted the frozen 334,106-byte stage 3b source's arenas:
+19,589 nodes, 17,647 values, 6,778 operators, 1,403 blocks and 1,230 calls.
+Relative to stage 3a/P this is +814/+737/+310/+41/+50. The derivation counts
+737 new expression nodes/value records, 77 argument cells and no function
+wrappers; operators add 254 binary/unary/borrow operations and 56 expression
+parentheses (50 calls, six groupings). Function count 23 and match-pattern
+parentheses 2 are unchanged. The same visitor exactly reconstructs the prior
+18,775/16,910/6,468/1,362/1,180 arenas without using the ingestion test oracle.
+Checked construction, final return expressions and module linkage remain
+unchanged, so reachable nodes remain 240. These are predictions until native
+replay completes; they must not be tuned to its output.
+
+### H1E-RUNTIME-001 - independent binary diagnostic stream ABI
+
+- Observed: H1 requires exact Aero-authored diagnostics on stderr, but existing
+  runtime/source profiles supply only stdin and stdout. The existing runtime
+  is byte-frozen by earlier tests. The standard-library RFC's eprint direction
+  and H1 process contract authorize the missing transport, not general text or
+  dynamic Display support.
+- Hypothesis: a separate small C translation unit can supply diagnostic bytes
+  while leaving every existing runtime byte and source-profile rule untouched.
+  This runtime-only prerequisite can proceed independently of CAP-059's Aero
+  verifier/emitter. It is not yet reachable from Aero source or a completed H1E.
+- Allowed files for the runtime owner:
+  `src/compiler/runtime/aero_diagnostic_runtime.c` and
+  `src/compiler/tests/stderr_runtime_abi_tests.rs`. Lead owns this ledger and
+  documentation. No existing runtime/compiler/profile/test/workflow may change.
+- Frozen ABI: `int32_t aero_stderr_write_byte(int32_t value)` writes exactly one
+  binary byte to stderr and flushes it, returning 0 only after success. Values
+  outside 0..=255 return -3 without writing. Write/flush failures and POSIX
+  SIGPIPE setup failure return -1; Windows invalid-handle/binary-mode setup
+  failure returns -2. Each error is sticky for that channel, checked before
+  new input; stderr state is independent of existing stdin/stdout state.
+  Windows uses fd2 in binary mode, preserving LF/CR/NUL/0x1a/high bytes; POSIX
+  broken pipes terminate this operation with an error rather than a signal.
+  No allocator, parser, formatter, source lookup or compiler decision exists
+  in this transport. Aero will choose and emit diagnostics in a later slice.
+- Acceptance: a direct native ABI regression must fail for the absent export
+  before adding the C file. At O0/O2, independently capture exact binary
+  stderr, empty stdout, success/range boundaries, sticky range/I/O failures,
+  closed descriptor/broken pipe handling and stdout/stderr isolation. Preserve
+  the complete existing runtime file byte-for-byte. Build the Rust target in
+  a separate development target; final integration still requires the full
+  repository gate. Windows-specific tests may be authored but are not local
+  Windows execution evidence on this Linux host.
+- Risks/stop conditions: no source intrinsic/profile, LLVM/IR integration or
+  change to existing transport semantics in this slice; no diagnostic content
+  chosen by C; no physical rollback claim for already-written bytes after a
+  transport failure. Stop if unrelated files or semantics must change.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Runtime ABI red | Native all-byte regression before adding the C implementation | Exit 101, 0 passed / 1 failed / 4 filtered. Clang reached the link step and reported the missing `aero_stderr_write_byte` export. |
+| Runtime initial focused | Complete new ABI target | Exit 101, 5 passed / 1 failed. Both isolation-mode arguments began with `e`, selecting the same harness branch. Corrected the harness argument without changing the ABI. |
+| Runtime focused | `cargo test --manifest-path src/compiler/Cargo.toml --test stderr_runtime_abi_tests -- --nocapture`, isolated target | Exit 0, 6 passed / 0 failed, 0.17 s. Every native case compiled with Clang 22.1.8 at O0/O2 and `-Wall -Wextra -Werror`. All binary bytes, flush-before-success, sticky range/write/flush/setup errors, descriptor restoration and channel isolation passed. Owned Rust formatting also exited 0. |
+
+The existing `aero_runtime.c` remains SHA-256
+`0d27a379b24bf5e5fe8c79e2008d0cd92c905db2fac9bf34f1b34e01e745efb3`.
+Windows-specific tests are authored, not executed on this Linux host. Runtime
+integration into a source profile and the complete repository gate remain open.
+
+### SELFHOST-AST-DESIGN-001 - connected representation design
+
+- Observed: the parser consumes rich syntax but retains only 240 reachable
+  nodes out of its canonical 18,718-node arena. Parameter ownership, statement
+  order, bindings, assignment targets, branch/loop bodies and match arms are
+  not faithfully connected. The Rust AST already distinguishes these forms.
+- Hypothesis: a complete append-only structural encoding can retain the old
+  compact arithmetic representation while rich functions carry a signature
+  and body descriptor. This permits a later parser/authentication checkpoint
+  without simultaneously changing checked IR and emission.
+- Scope now is design only. Allowed file: `H1_CONNECTED_AST_DESIGN.md`.
+  The architecture auditor may write that document; the lead retains this
+  ledger and all semantic decisions. No production or test edits under this ID.
+- Frozen meaning: preserve the existing admitted grammar and source semantics;
+  internal node tags and structural encoding do not add source features.
+  Rich forms must remain refused before checked IR until their meaning and
+  lowering are separately implemented. Preserve every node's provenance and
+  lower-child-ID invariant, and require zero unreachable syntax nodes.
+- Acceptance: map each represented form to existing Rust AST/parser evidence;
+  specify hand-derived small trees, independent normalized-AST comparisons,
+  corruption/bounds/allocation cases, and compatibility tests. Review the
+  document against actual source. No executable capability is claimed.
+- Risks/stop conditions: ambiguous existing semantics, orphan nodes, lost
+  declaration provenance or ordering, hidden parser-to-backend third phase,
+  or relabeling a design as an implementation.
+
+### H1E-CHECKED-001 - diagnostic checked operation and backend
+
+- Observed: the independently tested diagnostic runtime has no corresponding
+  checked instruction or LLVM lowering. CAP-047 freezes the old byte-I/O
+  profile as reserving exactly stdout output; preserve that public boundary.
+- Hypothesis: an additive `ExactI32ByteDiagnosticsV0` profile, spelled
+  `exact-i32-byte-diagnostics-v0`, can inherit all current byte-I/O source
+  capabilities and additionally admit a checked stderr operation in its backend.
+  Source stderr admission remains a separate later two-phase slice.
+- Allowed files for the runtime owner, now acting as the single checked/backend
+  owner: `src/compiler/src/ir.rs`, `ir_verifier.rs`, `code_generator.rs`,
+  `language_profile.rs`, `main.rs`, and new `stderr_checked_backend_tests.rs`
+  in that same directory. Register the new crate-local test module under the
+  code generator. Lead owns the ledger and state documents.
+- Phase boundary: checked schema/verification plus LLVM lowering only.
+  Profile identity, inherited capability predicates, help/cache/parser tests
+  and stdin-inheritance dispatch are mechanical plumbing. Do not edit semantic
+  analysis, source contracts, IR construction, authentication, runtime files,
+  canonical Aero source or ingestion tests. Do not link the new runtime into
+  the CLI in this slice.
+- Frozen checked ABI: `Inst::CheckedStderrWriteByte { result, value }` uses one
+  verified logical Int operand and defines an Int raw status. Preserve SSA
+  single-definition, prior-definition, dominance and type rules. Reject
+  `aero_stderr_write_byte` collisions in module entries and nested functions.
+  Only the new profile accepts this checked operation; all earlier profiles
+  reject it. Emit one conditional declaration and one call per operation,
+  `i32 @aero_stderr_write_byte(i32)`, using the frozen C ABI without wrapping
+  source Result values yet. No raw call or printing instruction substitutes.
+- Authentication remains strict. The existing protocol authenticates nominal
+  layouts, function signatures and actual result/place metadata, not equivalence
+  between source-body operations and IR. Tests may use an explicitly authored
+  matching logical-descriptor/IR fixture, obtain a token through the normal
+  authenticator and enter the normal authenticated backend. This is typed
+  backend coverage, not proof of source-body correspondence. Never attach an
+  unrelated source descriptor, construct a token directly or add a bypass.
+- Red-first order: run a new-profile selection regression before production
+  edits. After passive profile/schema scaffolding, capture the checked fixture's
+  missing verifier/backend handling before implementing it. Production edits
+  begin only once CAP-059's current focused-target compatibility failure is
+  resolved and its completed green exit has been read.
+- Acceptance: deterministic verified LLVM; exact conditional declaration and
+  call order; duplicate/nonidentifier result, type/undefined/forward/dominance
+  failures; runtime-symbol collisions; earlier-profile refusal; missing,
+  signature-mismatched and stale-metadata authentication refusal. Explicitly
+  link native fixtures to the frozen diagnostic runtime at O0/O2 and assert
+  binary stderr, empty stdout, raw success/range/sticky statuses. Existing
+  source compilation through the new profile inherits byte-I/O behavior;
+  unresolved source `stderr_write_byte` still fails. Finish focused tests and
+  the full repository gate. No source-output or H1 completion claim follows.
+- Risks/stop conditions: crossing a third compiler phase, changing authentication
+  or C transport semantics, widening an old profile, allowing source stderr
+  prematurely, or claiming Windows execution from Linux fixtures.
+- Lead-owned digest-scope amendment after the intended checked schema change:
+  the existing complete-file sentinels in `stdin_byte_input_profile_tests.rs`,
+  `source_byte_buffer_profile_tests.rs` and `compiler_storage_arena_tests.rs`
+  also cover the deliberately extended IR enum and verifier. The stdin replay
+  completed exit 101 with seven passing cases and this sole sentinel failure;
+  the diagnostic runtime target separately passed all six cases. Independent
+  diff review confirms the IR change adds only the checked stderr variant and
+  verifier changes add its detection, reservation, result classification and
+  existing strict Int-use validation, retaining stdout's prior diagnostic text.
+  Authorize only those two current-file digest updates in the three arrays:
+  IR `2b8288bcbb2825586a0e406f37fbe12d` to
+  `8506e185ecae87c8e50e2eb43729fd03`; verifier
+  `d5fae602214665b724c48c9ae8090a06` to
+  `e6632f76c4264369160f7a17e1de1010`. Preserve predecessor digests in comments,
+  all runtime digests, source/LLVM sentinels and executable assertions. This
+  records the explicitly reviewed extension, not unspecified authority drift.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Profile selector red | New diagnostic profile regression before production changes | Exit 101, 0 passed / 1 failed / 312 filtered. The selector rejects `exact-i32-byte-diagnostics-v0` as unsupported. Only the new crate-local test file and a test-only module registration were added; production behavior remained unchanged. |
+| Checked backend red | Typed fixture after passive schema/profile scaffolding | Exit 101, 0 passed / 1 failed / 318 filtered. The verifier rejects the actual fixture at main/entry with `UnsupportedInstruction("checked stderr byte write (not implemented)")`. A preceding scaffold compile exposed an omitted exhaustive register-seed arm; its mechanical coverage was added before this completed red. |
+| Checked/backend focused | Verification, authentication, LLVM and native fixtures plus existing library/binary units | Exit 0, 319 library and 36 binary tests passed. All seven new checked/backend cases pass, including O0/O2 native output/status checks, computed operands and strict authentication/SSA. Unresolved source and ABI names fail directly and in helper bodies; ordinary user-defined `stderr_write_byte` preserves byte-I/O LLVM without acquiring a runtime call. Formatting exited 0. |
+| Stdout compatibility | Complete existing stdout target | Exit 0, 8 passed / 0 failed, 94.22 s. Frozen B1B/B1C LLVM, native execution and transactional driver tests pass. |
+| Historical authority compatibility | Three `accepted_` regressions after the explicit IR/verifier digest amendment | Exit 0, one passing test in each of compiler-storage, source-byte-buffer and stdin targets. All existing executable assertions and unchanged runtime/LLVM sentinels pass. |
+| Diagnostic checked/backend full gate | Immutable combined snapshot, excluding later connected-AST observation tests and source-intrinsic development | |
+
+### SELFHOST-AST-OBSERVE-001 - actual native AST regression fixtures
+
+- Observed: CAP-059's native source parses but only 240 nodes are reachable.
+  Counts/checksums do not independently demonstrate statement, parameter,
+  assignment, branch or binder ownership. A real native arena observer is
+  needed before the parser representation changes.
+- Hypothesis: a test-only forwarding allocator can capture the actual named
+  owner bytes before cleanup without changing the production ABI or runtime.
+- Allowed files for the canonical compiler owner in this preparation slice:
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` and new
+  `src/compiler/tests/support/self_host_connected_ast.rs`. A child test module
+  may reuse existing native build/input helpers. No Aero product or compiler
+  implementation edit is authorized by this observation-only task.
+- Frozen observer: include the unchanged test runtime in the generated harness
+  with only its allocator export names renamed, then forward through wrappers.
+  Track identities across reallocations; initialize unused capacity to prevent
+  uninitialized-byte artifacts; preserve counters, failure injection, exact
+  input/forbidden product output, size and leak checks. Capture before release,
+  write a separate binary artifact only after the product returns. Capacities
+  are not logical lengths. Identify owners by a pre-derived first-use and
+  cleanup trace, never by declaration order or searching for expected contents.
+- To prove logical node/origin length, poison newly allocated capacity with
+  `0xA5`, including only the added tail on successful reallocation. Valid
+  serialized AST/origin words are nonnegative, so their high byte is below
+  128; an untouched poison word cannot be a written valid word. Recover the
+  aligned prefix, require all remaining bytes to retain poison, and require
+  complete 16-byte node / 20-byte origin records. Partial writes fail the
+  observer instead of being trimmed. Failed reallocations preserve the old
+  owner and bytes. This distinguishes logical length from capacity without
+  modifying the production ABI or selecting an owner by its contents.
+- Freeze `H1_CONNECTED_AST_DESIGN.md`'s node table, deferred Return, eager Match
+  arms, 20-word control records and postorder interval proof for these expected
+  fixtures. Three independent hand arrays cover two typed parameters (10 nodes),
+  mutable let/assignment/Return (13 nodes), nested If/else (27 nodes). Normalize
+  actual captured records and compare with Rust's parsed AST as well as those
+  exact arrays. Preserve arm, binder, branch and statement source order.
+- A parser-only capture may deliberately use a mismatching expectation vector
+  and require the existing parse-check return 80, allowing arena observation
+  before semantic authentication. Label it precisely; it is not evidence of
+  successful semantics or compiler output. If used, every arena and origin
+  prefix must still match independently derived expected records. Later full
+  vectors must exercise origin/connectivity authentication and rich refusal.
+- Acceptance: verify owner selection first on an unchanged compact arithmetic
+  product, then read a completed native red against the disconnected product
+  for at least the parameter and statement fixtures at O0/O2. Do not retune
+  expected arrays to captured bytes. Keep these intentional reds isolated;
+  they are excluded from the already running immutable acceptance gates.
+- Stop conditions: production instrumentation, allocator semantics changes,
+  content-based owner selection, treating capacity as used length, or calling
+  a checksum/count comparison normalized structural equality. Report a concrete
+  observation limitation rather than adding a production debug API.
+
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 
 ### INTEGRATION-001-W1 - repair the scorer workflow's allocation-placement oracle

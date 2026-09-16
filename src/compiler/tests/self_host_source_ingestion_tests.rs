@@ -2832,7 +2832,11 @@ mod oracle {
         for record in &instructions {
             if record[3] != 0 {
                 assert_eq!(record[3], emitted + 1, "results are emitted in order");
-                ir.extend_from_slice(&[4, 1, record[3], record[4], record[1], record[9]]);
+                assert!(
+                    (1..=item_count).contains(&record[10]),
+                    "result owner is a function"
+                );
+                ir.extend_from_slice(&[4, record[10], record[3], record[4], record[1], record[9]]);
                 emitted += 1;
             }
         }
@@ -3274,6 +3278,40 @@ int main(void) {{
         length = source.len(),
         consumed = consumed,
     )
+}
+
+/// CAP-059's emitting harness preserves all of the allocation and input
+/// checks in the refusal harness. Only the stdout implementation and its
+/// no-output assertion differ; negative probes keep the original harness.
+fn emitting_expectation_harness(expected: &[i32], source: &[u8], consumed: i32) -> String {
+    let harness = expectation_harness(expected, source, consumed);
+    let refusal_writer = "    (void)value;\n    wrote_output = 1;\n    return -1;";
+    assert_eq!(harness.matches(refusal_writer).count(), 1);
+    assert_eq!(
+        harness
+            .matches("    if (wrote_output != 0) return 62;\n")
+            .count(),
+        1
+    );
+    harness
+        .replace(
+            "#include <stdint.h>",
+            "#include <stdint.h>\n#include <stdio.h>\n#ifdef _WIN32\n#include <fcntl.h>\n#include <io.h>\n#endif",
+        )
+        .replace("static int wrote_output;\n", "")
+        .replace(
+            refusal_writer,
+            "    if (value < 0 || value > 255) return -3;\n    return putchar((unsigned char)value) == EOF ? -1 : 0;",
+        )
+        .replace("    if (wrote_output != 0) return 62;\n", "")
+        .replace(
+            "int main(void) {",
+            "int main(void) {\n#ifdef _WIN32\n    if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 68;\n#endif",
+        )
+        .replace(
+            "    return result;",
+            "    if (fflush(stdout) != 0 || ferror(stdout)) return 69;\n    return result;",
+        )
 }
 
 /// Link the product against the oracle harness and return the exit code.
@@ -6710,6 +6748,14 @@ const CHECKED_STORAGE_INVARIANT: &str = r#"        let checked_expected_words: i
             || checked_word_count != checked_expected_words {"#;
 
 fn expected_h1a_source() -> String {
+    generalize_module_verification_and_emission(&repair_checked_result_owners(
+        &raise_verified_function_node_bound(&expected_h1m2_source()),
+    ))
+}
+
+/// The complete predecessor remains reconstructible so the historical
+/// parse-capacity policy can still prove it did not widen verifier authority.
+fn expected_h1m2_source() -> String {
     let accepted = accepted_b1c_source();
 
     // 1. A lone `&` becomes token kind 37.
@@ -7043,6 +7089,644 @@ fn expected_h1a_source() -> String {
     raise_parse_record_bound(&derived)
 }
 
+/// CAP-059 stage 3a owns exactly this verifier comparison and its diagnostic.
+/// Changing two literal values adds no syntax node, value, operator, block, or
+/// call record to the canonical source, and changes no return expression.
+fn raise_verified_function_node_bound(source: &str) -> String {
+    let comparison = "verified_function_node < 3 || verified_function_node > 512";
+    let diagnostic = "verified_expected = 512;";
+    assert_eq!(source.matches(comparison).count(), 1);
+    assert_eq!(source.matches(diagnostic).count(), 1);
+    source
+        .replace(
+            comparison,
+            "verified_function_node < 3 || verified_function_node > 65536",
+        )
+        .replace(diagnostic, "verified_expected = 65536;")
+}
+
+/// CAP-059P changes only the checked result serializer. These three counted
+/// fragments preserve the predecessor independently of the current product.
+fn repair_checked_result_owners(source: &str) -> String {
+    let read = "                + result_value(bytes_get(&checked_instructions, word_offset + 39)) * 16777216;";
+    let added_read = r#"
+            let checked_definition_function: int = result_value(bytes_get(
+                &checked_instructions, word_offset + 40))
+                + result_value(bytes_get(&checked_instructions, word_offset + 41)) * 256
+                + result_value(bytes_get(&checked_instructions, word_offset + 42)) * 65536
+                + result_value(bytes_get(&checked_instructions, word_offset + 43)) * 16777216;"#;
+    let guard = "            if checked_definition_id != checked_result_index + 1 {";
+    let owned_guard = r#"            if checked_definition_id != checked_result_index + 1
+                || checked_definition_function < 1
+                || checked_definition_function > checked_item_count {"#;
+    let owner = r#"                checked_append_word = 4;
+                if checked_append_field == 1 {
+                    checked_append_word = 1;"#;
+    assert_eq!(source.matches(read).count(), 1);
+    assert_eq!(source.matches(guard).count(), 1);
+    assert_eq!(source.matches(owner).count(), 1);
+    source
+        .replace(read, &format!("{read}{added_read}"))
+        .replace(guard, owned_guard)
+        .replace(
+            owner,
+            &owner.replace(
+                "checked_append_word = 1;",
+                "checked_append_word = checked_definition_function;",
+            ),
+        )
+}
+
+fn replace_once(source: &mut String, old: &str, new: &str) {
+    assert_eq!(
+        source.matches(old).count(),
+        1,
+        "unique source transform: {old}"
+    );
+    *source = source.replace(old, new);
+}
+
+/// Every repeated verifier read uses the same substituted word view. The
+/// complete initial scan has already authenticated the byte encoding.
+const VERIFIED_WORD_READ: &str = r#"            word_offset = verified_scan_index * 4;
+            verified_byte_0 = result_value(bytes_get(&checked_ir, word_offset));
+            verified_byte_1 = result_value(bytes_get(&checked_ir, word_offset + 1));
+            verified_byte_2 = result_value(bytes_get(&checked_ir, word_offset + 2));
+            verified_byte_3 = result_value(bytes_get(&checked_ir, word_offset + 3));
+            verified_word = verified_byte_0 + verified_byte_1 * 256
+                + verified_byte_2 * 65536 + verified_byte_3 * 16777216;
+            if verification_fault_word == verified_scan_index {
+                verified_word = verification_fault_value;
+            }
+"#;
+
+/// CAP-059 stage 3b's exact reconstruction, confined to the verifier, emitter
+/// and the two fragment helpers. The checked producer remains CAP-059P's.
+fn generalize_module_verification_and_emission(source: &str) -> String {
+    let begin = "    // CAP-045 B1A VERIFIER BEGIN\n";
+    let end = "    // CAP-045 B1A VERIFIER END\n";
+    let original = source
+        .split_once(begin)
+        .expect("verifier start")
+        .1
+        .split_once(end)
+        .expect("verifier end")
+        .0;
+    let mut verifier = original.to_string();
+    replace_once(
+        &mut verifier,
+        "    let mut verified_block_instructions: int = 0;\n",
+        concat!(
+            "    let mut verified_block_instructions: int = 0;\n",
+            "    let mut verified_header_words: int = 0;\n",
+            "    let mut verified_function_index: int = 0;\n",
+            "    let mut verified_function_base: int = 0;\n",
+            "    let mut verified_block_base: int = 0;\n",
+            "    let mut verified_metadata_field: int = 0;\n",
+            "    let mut verified_range_cursor: int = 0;\n",
+            "    let mut verified_derived_entry: int = 0;\n",
+            "    let mut verified_function_last_instruction: int = 0;\n",
+            "    let mut verified_first_result: int = 1;\n",
+        ),
+    );
+    let dispatch_start = verifier
+        .find("            if verified_scan_index == 9 {")
+        .expect("record dispatch");
+    let dispatch_end = verifier[dispatch_start..]
+        .find("            verified_scan_index = verified_scan_index + 1;")
+        .expect("scan advance")
+        + dispatch_start;
+    let original_dispatch = verifier[dispatch_start..dispatch_end].to_string();
+    verifier.replace_range(dispatch_start..dispatch_end, "");
+    let mut dispatch = original_dispatch;
+    for index in 9..=24 {
+        dispatch = dispatch.replace(
+            &format!("verified_scan_index == {index}"),
+            &format!("verified_metadata_field == {}", index - 9),
+        );
+    }
+
+    replace_once(
+        &mut verifier,
+        "&& verified_function_count != 1 {",
+        "&& (verified_function_count < 1 || verified_function_count > 510) {",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = 1;\n        verified_actual = verified_function_count;",
+        "verified_expected = 510;\n        verified_actual = verified_function_count;",
+    );
+    replace_once(
+        &mut verifier,
+        "&& verified_block_count != 1 {",
+        "&& verified_block_count != verified_function_count {",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = 1;\n        verified_actual = verified_block_count;",
+        "verified_expected = verified_function_count;\n        verified_actual = verified_block_count;",
+    );
+    replace_once(
+        &mut verifier,
+        "&& verified_entry_function != 1 {",
+        "&& (verified_entry_function < 1 || verified_entry_function > verified_function_count) {",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = 1;\n        verified_actual = verified_entry_function;",
+        "verified_expected = verified_function_count;\n        verified_actual = verified_entry_function;",
+    );
+    let result_bound = "    if verified_attempted == 1 && verified_status == 0\n        && (verified_header_results < 0 || verified_header_results > 509) {";
+    replace_once(
+        &mut verifier,
+        result_bound,
+        &format!(
+            r#"    if verified_attempted == 1 && verified_status == 0
+        && verified_instruction_count < verified_function_count {{
+        verified_status = 1;
+        verified_word_index = 3;
+        verified_code = 2;
+        verified_expected = verified_function_count;
+        verified_actual = verified_instruction_count;
+    }}
+{result_bound}"#
+        ),
+    );
+    replace_once(
+        &mut verifier,
+        "verified_instruction_count != verified_result_count + 1",
+        "verified_instruction_count != verified_result_count + verified_function_count",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = verified_instruction_count - 1;",
+        "verified_expected = verified_instruction_count - verified_function_count;",
+    );
+    replace_once(
+        &mut verifier,
+        "        verified_expected_words = 25 + verified_instruction_count * 11",
+        "        verified_header_words = 9 + verified_function_count * 16;\n        verified_expected_words = verified_header_words + verified_instruction_count * 11",
+    );
+
+    let records_start = verifier.find("    if verified_attempted == 1 && verified_status == 0\n        && verified_function_kind != 1 {").expect("function validation");
+    let records_end = verifier
+        .find("    let mut verified_instruction_index: int = 0;")
+        .expect("instruction registers");
+    let mut records = verifier[records_start..records_end].to_string();
+    for word in 9..=24 {
+        let (base, field) = if word < 18 {
+            ("verified_function_base", word - 9)
+        } else {
+            ("verified_block_base", word - 18)
+        };
+        records = records.replace(
+            &format!("verified_word_index = {word};"),
+            &format!("verified_word_index = {base} + {field};"),
+        );
+    }
+    for variable in [
+        "verified_function_id",
+        "verified_function_entry_block",
+        "verified_block_id",
+        "verified_block_function",
+    ] {
+        records = records.replace(
+            &format!("{variable} != 1"),
+            &format!("{variable} != verified_function_index + 1"),
+        );
+        records = records.replace(&format!("verified_expected = 1;\n        verified_actual = {variable};"), &format!("verified_expected = verified_function_index + 1;\n        verified_actual = {variable};"));
+    }
+    replace_once(
+        &mut records,
+        "verified_function_first_instruction != 1",
+        "verified_function_first_instruction != verified_range_cursor + 1",
+    );
+    replace_once(
+        &mut records,
+        "verified_expected = 1;\n        verified_actual = verified_function_first_instruction;",
+        "verified_expected = verified_range_cursor + 1;\n        verified_actual = verified_function_first_instruction;",
+    );
+    replace_once(
+        &mut records,
+        "&& verified_function_instructions != verified_instruction_count {",
+        r#"&& (verified_function_instructions < 1
+            || verified_function_instructions > verified_instruction_count - verified_range_cursor
+            || (verified_function_index + 1 == verified_function_count
+                && verified_function_instructions != verified_instruction_count - verified_range_cursor)) {"#,
+    );
+    replace_once(
+        &mut records,
+        "verified_expected = verified_instruction_count;\n        verified_actual = verified_function_instructions;",
+        "verified_expected = verified_instruction_count - verified_range_cursor;\n        verified_actual = verified_function_instructions;",
+    );
+    replace_once(
+        &mut records,
+        "verified_block_first_instruction != 1",
+        "verified_block_first_instruction != verified_function_first_instruction",
+    );
+    replace_once(
+        &mut records,
+        "verified_expected = 1;\n        verified_actual = verified_block_first_instruction;",
+        "verified_expected = verified_function_first_instruction;\n        verified_actual = verified_block_first_instruction;",
+    );
+    replace_once(
+        &mut records,
+        "verified_block_instructions != verified_instruction_count",
+        "verified_block_instructions != verified_function_instructions",
+    );
+    replace_once(
+        &mut records,
+        "verified_expected = verified_instruction_count;\n        verified_actual = verified_block_instructions;",
+        "verified_expected = verified_function_instructions;\n        verified_actual = verified_block_instructions;",
+    );
+    let records = records
+        .lines()
+        .map(|line| {
+            if line.is_empty() {
+                String::new()
+            } else {
+                format!("    {line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let module_records = format!(
+        r#"    while verified_attempted == 1 && verified_status == 0
+        && verified_function_index < verified_function_count {{
+        verified_function_base = 9 + verified_function_index * 9;
+        verified_block_base = 9 + verified_function_count * 9 + verified_function_index * 7;
+        verified_metadata_field = 0;
+        while verified_metadata_field < 16 {{
+            verified_scan_index = verified_function_base + verified_metadata_field;
+            if verified_metadata_field >= 9 {{
+                verified_scan_index = verified_block_base + verified_metadata_field - 9;
+            }}
+{VERIFIED_WORD_READ}{dispatch}            verified_metadata_field = verified_metadata_field + 1;
+        }}
+{records}
+        if verified_status == 0 {{
+            verified_range_cursor = verified_range_cursor + verified_function_instructions;
+            if verified_range_cursor == verified_instruction_count {{
+                verified_derived_entry = verified_function_id;
+            }}
+        }}
+        verified_function_index = verified_function_index + 1;
+    }}
+    if verified_attempted == 1 && verified_status == 0
+        && verified_entry_function != verified_derived_entry {{
+        verified_status = 1;
+        verified_word_index = 5;
+        verified_code = 2;
+        verified_expected = verified_derived_entry;
+        verified_actual = verified_entry_function;
+    }}
+
+"#
+    );
+    verifier.replace_range(records_start..records_end, &module_records);
+
+    let instruction_loop = "    while verified_attempted == 1 && verified_status == 0\n        && verified_instruction_index < verified_instruction_count {\n";
+    replace_once(
+        &mut verifier,
+        instruction_loop,
+        &format!(
+            r#"    verified_function_index = 0;
+    verified_function_node = 0;
+{instruction_loop}        if verified_instruction_index == verified_function_last_instruction {{
+            verified_previous_origin = verified_function_node;
+            verified_first_result = verified_result_values + 1;
+            verified_function_id = verified_function_index + 1;
+            verified_metadata_field = 0;
+            while verified_metadata_field < 2 {{
+                verified_scan_index = 12 + verified_function_index * 9;
+                if verified_metadata_field == 1 {{
+                    verified_scan_index = 17 + verified_function_index * 9;
+                }}
+{reader}                if verified_metadata_field == 0 {{
+                    verified_function_node = verified_word;
+                }} else {{
+                    verified_function_last_instruction = verified_function_last_instruction + verified_word;
+                }}
+                verified_metadata_field = verified_metadata_field + 1;
+            }}
+            verified_function_index = verified_function_index + 1;
+        }}
+"#,
+            reader = VERIFIED_WORD_READ
+                .lines()
+                .map(|line| format!("    {line}\n"))
+                .collect::<String>()
+        ),
+    );
+    replace_once(
+        &mut verifier,
+        "verified_instruction_function != 1",
+        "verified_instruction_function != verified_function_id",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = 1;\n            verified_actual = verified_instruction_function;",
+        "verified_expected = verified_function_id;\n            verified_actual = verified_instruction_function;",
+    );
+    replace_once(
+        &mut verifier,
+        "if verified_instruction_index + 1 == verified_instruction_count {",
+        "if verified_instruction_index + 1 == verified_function_last_instruction {",
+    );
+    replace_once(
+        &mut verifier,
+        "let mut verified_expected_result: int = verified_expected_instruction_id;",
+        "let mut verified_expected_result: int = verified_result_values + 1;",
+    );
+    for side in ["left", "right"] {
+        replace_once(
+            &mut verifier,
+            &format!(
+                "if verified_{side}_payload <= 0\n                    || verified_{side}_payload >= verified_expected_instruction_id {{"
+            ),
+            &format!(
+                "if verified_{side}_payload < verified_first_result\n                    || verified_{side}_payload > verified_result_values {{"
+            ),
+        );
+        replace_once(
+            &mut verifier,
+            &format!(
+                "verified_expected = verified_expected_instruction_id - 1;\n                    verified_actual = verified_{side}_payload;"
+            ),
+            &format!(
+                "verified_expected = verified_result_values;\n                    if verified_{side}_payload < verified_first_result && verified_first_result > 1 {{\n                        verified_expected = verified_first_result;\n                    }}\n                    verified_actual = verified_{side}_payload;"
+            ),
+        );
+    }
+    for offset in 25..=35 {
+        verifier = verifier.replace(
+            &format!("{offset} + verified_instruction_index * 11"),
+            &format!(
+                "verified_header_words + {} + verified_instruction_index * 11",
+                offset - 25
+            ),
+        );
+    }
+
+    replace_once(
+        &mut verifier,
+        "    let mut verified_result_index: int = 0;",
+        "    let mut verified_result_index: int = 0;\n    let mut verified_definition_cursor: int = 0;\n    let mut verified_matched_definition: int = 0;\n    let mut verified_definition_function: int = 0;",
+    );
+    let expected_result =
+        "        let verified_expected_result_id: int = verified_result_index + 1;\n";
+    replace_once(
+        &mut verifier,
+        expected_result,
+        &format!(
+            r#"{expected_result}        verified_matched_definition = 0;
+        while verified_matched_definition == 0
+            && verified_definition_cursor < verified_instruction_count {{
+            verified_scan_index = verified_header_words + verified_definition_cursor * 11 + 3;
+{VERIFIED_WORD_READ}            if verified_word != 0 {{
+                verified_matched_definition = verified_definition_cursor + 1;
+            }}
+            verified_definition_cursor = verified_definition_cursor + 1;
+        }}
+        verified_scan_index = verified_header_words + (verified_matched_definition - 1) * 11 + 10;
+{read_owner}        verified_definition_function = verified_word;
+"#,
+            read_owner = VERIFIED_WORD_READ
+                .lines()
+                .map(|line| format!("{}\n", &line[4..]))
+                .collect::<String>()
+        ),
+    );
+    replace_once(
+        &mut verifier,
+        "verified_result_function != 1",
+        "verified_result_function != verified_definition_function",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = 1;\n            verified_actual = verified_result_function;",
+        "verified_expected = verified_definition_function;\n            verified_actual = verified_result_function;",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_definition_id != verified_expected_result_id",
+        "verified_definition_id != verified_matched_definition",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_expected = verified_expected_result_id;\n            verified_actual = verified_definition_id;",
+        "verified_expected = verified_matched_definition;\n            verified_actual = verified_definition_id;",
+    );
+    replace_once(
+        &mut verifier,
+        "verified_scan_index = 34 + verified_result_index * 11;",
+        "verified_scan_index = verified_header_words + 9 + (verified_matched_definition - 1) * 11;",
+    );
+    for offset in 25..=30 {
+        verifier = verifier.replace(
+            &format!("{offset} + verified_instruction_count * 11"),
+            &format!(
+                "verified_header_words + {} + verified_instruction_count * 11",
+                offset - 25
+            ),
+        );
+    }
+
+    let mut derived = source.to_string();
+    replace_once(&mut derived, original, &verifier);
+    generalize_module_emission(&derived)
+}
+
+fn generalize_module_emission(source: &str) -> String {
+    let begin = "    // CAP-046 B1B LLVM EMITTER BEGIN\n";
+    let end = "    // CAP-046 B1B LLVM EMITTER END\n";
+    let original = source
+        .split_once(begin)
+        .expect("emitter start")
+        .1
+        .split_once(end)
+        .expect("emitter end")
+        .0;
+    let mut emitter = original.to_string();
+    replace_once(
+        &mut emitter,
+        "    let mut emitted_instruction_id: int = 0;\n",
+        concat!(
+            "    let mut emitted_instruction_id: int = 0;\n",
+            "    let mut emitted_instruction_result: int = 0;\n",
+            "    let mut emitted_function_index: int = 0;\n",
+            "    let mut emitted_function_id: int = 0;\n",
+            "    let mut emitted_function_first: int = 0;\n",
+            "    let mut emitted_function_count: int = 0;\n",
+            "    let mut emitted_function_end: int = 0;\n",
+        ),
+    );
+    replace_once(
+        &mut emitter,
+        "emitted_instruction_index < verified_instruction_count",
+        "emitted_instruction_index < emitted_function_end",
+    );
+    replace_once(
+        &mut emitter,
+        "emitted_instruction_base = 25 + emitted_instruction_index * 11;",
+        "emitted_instruction_base = verified_header_words + emitted_instruction_index * 11;",
+    );
+    replace_once(
+        &mut emitter,
+        "while emitted_field_index < 6 {",
+        "while emitted_field_index < 7 {",
+    );
+    replace_once(
+        &mut emitter,
+        "            } else if emitted_field_index == 5 {\n                emitted_word_index = emitted_instruction_base + 8;\n            }",
+        "            } else if emitted_field_index == 5 {\n                emitted_word_index = emitted_instruction_base + 8;\n            } else if emitted_field_index == 6 {\n                emitted_word_index = emitted_instruction_base + 3;\n            }",
+    );
+    replace_once(
+        &mut emitter,
+        "            } else {\n                emitted_right_payload = emitted_word;\n            }",
+        "            } else if emitted_field_index == 5 {\n                emitted_right_payload = emitted_word;\n            } else {\n                emitted_instruction_result = emitted_word;\n            }",
+    );
+    replace_once(
+        &mut emitter,
+        "emitted_decimal_value = emitted_instruction_id;",
+        "emitted_decimal_value = emitted_instruction_result;",
+    );
+
+    let read_start = emitter
+        .find("            emitted_word_offset = emitted_word_index * 4;")
+        .expect("emitter word read");
+    let read_end = emitter[read_start..]
+        .find("            if emitted_field_index == 0 {")
+        .expect("instruction fields")
+        + read_start;
+    let word_read = emitter[read_start..read_end].to_string();
+    let decimal_start = emitter
+        .find("            emitted_decimal_value = emitted_instruction_result;")
+        .expect("decimal writer");
+    let decimal_end = emitter[decimal_start..]
+        .find("            emitted_fragment = emitted_opcode + 2;")
+        .expect("decimal end")
+        + decimal_start;
+    let decimal = emitter[decimal_start..decimal_end]
+        .replace("emitted_instruction_result", "emitted_function_id");
+    let prologue_start = emitter
+        .find("    if emitted_attempted == 1 {\n        emitted_fragment = 1;")
+        .expect("prologue");
+    let prologue_end = emitter[prologue_start..]
+        .find("    while emitted_status == 0 && emitted_attempted == 1")
+        .expect("instruction loop")
+        + prologue_start;
+    let mut prologue = emitter[prologue_start..prologue_end].to_string();
+    let fragment_start = prologue
+        .find("        emitted_fragment_index = 0;")
+        .expect("fragment writer");
+    let fragment_end = prologue.rfind("    }\n").expect("prologue close");
+    let suffix_writer = prologue[fragment_start..fragment_end]
+        .lines()
+        .map(|line| format!("    {line}\n"))
+        .collect::<String>();
+    replace_once(
+        &mut prologue,
+        "        emitted_fragment = 1;",
+        "        emitted_fragment = 1;\n        if emitted_function_id != verified_entry_function {\n            emitted_fragment = 13;\n        }",
+    );
+    let close = prologue
+        .rfind("    }\n")
+        .expect("prologue close after fragment selection");
+    prologue.insert_str(
+        close,
+        &format!(
+            r#"        if emitted_function_id != verified_entry_function {{
+{decimal}            emitted_fragment = 14;
+{suffix_writer}        }}
+"#
+        ),
+    );
+    emitter.replace_range(prologue_start..prologue_end, &prologue);
+
+    let body_start = emitter
+        .find("    if emitted_attempted == 1 {\n        emitted_fragment = 1;")
+        .expect("module body");
+    let body_end = emitter
+        .find("    if emitted_attempted == 1 {\n        if emitted_status == 0 {")
+        .expect("emitter checksum");
+    let body = emitter[body_start..body_end]
+        .lines()
+        .map(|line| {
+            if line.is_empty() {
+                String::new()
+            } else {
+                format!("    {line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = format!(
+        r#"    while emitted_attempted == 1 && emitted_status == 0
+        && emitted_function_index < verified_function_count {{
+        emitted_field_index = 0;
+        while emitted_field_index < 3 {{
+            emitted_word_index = 10 + emitted_function_index * 9;
+            if emitted_field_index == 1 {{
+                emitted_word_index = 16 + emitted_function_index * 9;
+            }} else if emitted_field_index == 2 {{
+                emitted_word_index = 17 + emitted_function_index * 9;
+            }}
+{word_read}            if emitted_field_index == 0 {{
+                emitted_function_id = emitted_word;
+            }} else if emitted_field_index == 1 {{
+                emitted_function_first = emitted_word;
+            }} else {{
+                emitted_function_count = emitted_word;
+            }}
+            emitted_field_index = emitted_field_index + 1;
+        }}
+        emitted_instruction_index = emitted_function_first - 1;
+        emitted_function_end = emitted_instruction_index + emitted_function_count;
+{body}
+        emitted_function_index = emitted_function_index + 1;
+    }}
+
+"#
+    );
+    emitter.replace_range(body_start..body_end, &body);
+    let mut derived = source.to_string();
+    replace_once(&mut derived, original, &emitter);
+    replace_once(
+        &mut derived,
+        "fn emitter_fixed_length(fragment: int) -> int {\n    if fragment == 1 {\n        return 37;",
+        r#"fn emitter_fixed_length(fragment: int) -> int {
+    let mut prologue_length: int = 37;
+    if fragment == 13 {
+        prologue_length = 21;
+    }
+    if fragment == 1 || fragment == 13 {
+        return prologue_length;"#,
+    );
+    replace_once(
+        &mut derived,
+        "    if fragment == 6 {\n        return 12;",
+        "    if fragment == 6 || fragment == 14 {\n        return 12;",
+    );
+    replace_once(
+        &mut derived,
+        "fn emitter_fixed_byte(fragment: int, index: int) -> int {",
+        r#"fn emitter_fixed_byte(raw_fragment: int, raw_index: int) -> int {
+    let mut fragment: int = raw_fragment;
+    let mut index: int = raw_index;
+    if fragment == 13 {
+        fragment = 1;
+        if index == 20 {
+            index = 2;
+        }
+    } else if fragment == 14 {
+        fragment = 1;
+        index = index + 25;
+    }"#,
+    );
+    derived
+}
+
 /// Rewrite every parse-group record ceiling and every exhaustion
 /// `diagnostic_code` from the accepted 512 to [`PARSE_RECORD_BOUND`].
 ///
@@ -7246,9 +7930,10 @@ fn canonical_self_host_source_is_a_copy_derived_successor() {
     assert_eq!(
         h1a_source(),
         expected_h1a_source(),
-        "canonical source differs from accepted B1C in more than the six frozen ways"
+        "canonical source differs from the complete sequence of frozen transforms"
     );
-    // Every accepted product section survives unchanged.
+    // Every section marker survives. The stdout driver remains byte-identical;
+    // CAP-059's emitter edit is authenticated by the full reconstruction above.
     let derived = h1a_source();
     for marker in [
         "// CAP-045 B1A VERIFIER BEGIN",
@@ -7278,11 +7963,19 @@ fn canonical_self_host_source_is_a_copy_derived_successor() {
             "// CAP-047 B1C STDOUT DRIVER END",
         ),
     ] {
-        assert_eq!(
-            section(&derived, begin, end),
-            section(&accepted, begin, end),
-            "CAP-049 changed the accepted {begin} section"
-        );
+        if begin == "// CAP-046 B1B LLVM EMITTER BEGIN" {
+            assert_ne!(
+                section(&derived, begin, end),
+                section(&accepted, begin, end),
+                "CAP-059 must generalize the emitter; its exact new source was checked above"
+            );
+        } else {
+            assert_eq!(
+                section(&derived, begin, end),
+                section(&accepted, begin, end),
+                "CAP-049 changed the accepted {begin} section"
+            );
+        }
     }
 }
 
@@ -10151,10 +10844,9 @@ fn focused_module_probes_exercise_every_rule_of_the_admitted_shape() {
     }
 }
 
-/// CAP-058 / H1M-2. The same thing against *this* checkpoint's model, which
-/// unlike CAP-056's has two outcomes to build a vector for: a module the
-/// semantic phase accepts and the checked group refuses at C1, and a module the
-/// semantic phase refuses.
+/// Grade the current complete-module behavior. CAP-059's accepting paths use
+/// hand-derived text and a complete emitting vector. Semantic and checked-IR
+/// refusals keep the original zero-output harness.
 fn run_meaning_expectation(
     label: &str,
     source: &[u8],
@@ -10162,9 +10854,31 @@ fn run_meaning_expectation(
     semantic: &oracle::SemanticStop,
     optimization: &str,
 ) -> i32 {
-    // CAP-058 / H1M-2 stage 2b moves this one line and nothing else. A module
-    // the semantic phase accepts is no longer refused by C1: the checked group
-    // builds it and the verifier refuses it on its own declared function count.
+    if semantic.status == 0 {
+        let module = oracle::checked_module(stopped, semantic);
+        if module.status == 0 {
+            let probe = emission_probe_for_source(source);
+            let expected = successful_emission_expectation(
+                source,
+                stopped,
+                semantic,
+                &module,
+                probe.llvm.as_bytes(),
+                probe.counts.4,
+            );
+            let output =
+                run_emitting_expectation(label, source, stopped.consumed, &expected, optimization);
+            assert_eq!(
+                output.stdout,
+                probe.llvm.as_bytes(),
+                "{label}: exact module text"
+            );
+            compile_and_run_emitted_module(label, &output.stdout, probe.counts.4, optimization);
+            return output.status.code().expect("emitting harness status");
+        }
+    }
+    // The remaining paths are refusals before the verifier. Their old
+    // expectation vectors and no-output obligation remain unchanged.
     let expected = if semantic.status == 0 {
         oracle::module_expectation_vector(source, stopped, semantic)
     } else {
@@ -10298,21 +11012,26 @@ fn the_two_item_module_separates_the_base_product_from_this_one() {
     // because the refusal has moved one authority further down again.
     let c1 = oracle::c1_refused_expectation_vector(source, &module, &meaning);
     assert_eq!((c1[24], c1[25], c1[26], c1[30]), (1, 4, module.root, 3));
-    assert_eq!(
-        run_vector_expectation("two-item-gate-c1", source, module.consumed, &c1, "-O0"),
-        92,
-        "stage 2a's checked-group prediction must no longer describe the product"
-    );
-    assert_eq!(
-        run_vector_expectation(
-            "two-item-gate-meaning",
-            source,
-            module.consumed,
-            &oracle::module_expectation_vector(source, &module, &meaning),
-            "-O0"
-        ),
-        91
-    );
+    // CAP-059 preserves both expired vectors, grading their disagreements
+    // after the independently specified positive output has been captured.
+    let checked = oracle::checked_module(&module, &meaning);
+    let text = emission_probe_for_source(source).llvm.as_bytes();
+    assert_eq!(text.len(), 99);
+    let expired = oracle::module_expectation_vector(source, &module, &meaning);
+    let current = successful_emission_expectation(source, &module, &meaning, &checked, text, 2);
+    for (label, vector, code) in [
+        ("two-item-gate-c1", &c1, 92),
+        ("two-item-gate-meaning", &expired, 93),
+        ("two-item-gate-emitting", &current, 91),
+    ] {
+        let output = run_emitting_expectation(label, source, module.consumed, vector, "-O0");
+        assert_eq!(
+            output.status.code(),
+            Some(code),
+            "{label}: exact phase result"
+        );
+        assert_eq!(output.stdout, text, "{label}: exact positive output");
+    }
     assert_ne!(
         run_expectation("two-item-gate-base", compiled_h1a(), source, &base, "-O0"),
         91,
@@ -11328,10 +12047,9 @@ fn the_capacity_checkpoint_leaves_the_canonical_stop_unmoved() {
     );
 }
 
-/// The bound lives at exactly the parse-group sites and the verifier's own
-/// ceiling is untouched. A future edit that raised the verifier's `512` because
-/// it shares a literal with the others - the mistake the ledger explicitly
-/// warns against - fails here.
+/// The parse raise leaves the verifier's ceiling untouched in the reconstructed
+/// predecessor. CAP-059 subsequently raises it under separate authority; the
+/// live product still carries exactly the same parse-group comparisons/codes.
 ///
 /// The counts correct this checkpoint's own contract, which said "sixteen
 /// parse-group sites - eight comparisons and eight `diagnostic_code`
@@ -11381,7 +12099,8 @@ fn the_raise_touched_the_parse_group_and_left_the_verifier_alone() {
         .count();
     assert_eq!(codes, 16, "every exhaustion reports the bound it hit");
 
-    let remaining: Vec<&str> = source
+    let predecessor = expected_h1m2_source();
+    let remaining: Vec<&str> = predecessor
         .lines()
         .filter(|line| line.contains("512"))
         .map(|line| line.trim())
@@ -11392,8 +12111,17 @@ fn the_raise_touched_the_parse_group_and_left_the_verifier_alone() {
             "&& (verified_function_node < 3 || verified_function_node > 512) {",
             "verified_expected = 512;",
         ],
-        "the only `512` left in the product must be the verifier's, which is          recorded as debt and is not H1B's to widen"
+        "the parse-only predecessor retains exactly the verifier's two 512 literals"
     );
+    assert_eq!(
+        source,
+        generalize_module_verification_and_emission(&repair_checked_result_owners(
+            &raise_verified_function_node_bound(&predecessor)
+        ))
+    );
+    assert_eq!(source.matches("verified_function_node > 65536").count(), 1);
+    assert_eq!(source.matches("verified_expected = 65536;").count(), 1);
+    assert!(!source.contains("512"));
 }
 
 /// Drive the block store past the bound this checkpoint replaced, through the
@@ -12040,32 +12768,61 @@ const H1M2_STAGE_2B_ARENA_ADDED: (usize, usize, usize, usize, usize) = (68, 138,
 /// The other direction. See [`H1M2_STAGE_2B_ARENA_ADDED`].
 const H1M2_STAGE_2B_ARENA_REMOVED: (usize, usize, usize, usize, usize) = (0, 0, 8, 0, 44);
 
+/// CAP-059P, derived before editing the product: each of four nested owner-byte
+/// reads costs 10 nodes, 7 values, 4 operators and 2 calls. Three multiplications
+/// add 6/6/3, and three joining additions add 3/3/3, for 49/37/22/0/8.
+/// Two owner-range clauses add 8/8/4/0/0. Replacing literal 1 with the owner
+/// identifier changes no count. No return statement or final return is changed.
+const CHECKED_OWNER_ARENA_DELTA: (usize, usize, usize, usize, usize) = (57, 45, 26, 0, 8);
+
+/// CAP-059 stage 3b, derived independently before the canonical native replay.
+/// A separate stage-0 Rust AST visitor plus a lexer count of expression grouping
+/// parentheses reproduces the preceding 18,775/16,910/6,468/1,362/1,180 arenas.
+/// The fixed verifier/emitter/helper diff then adds 737 expression nodes/value
+/// records, 77 argument cells and no function wrappers: 814 nodes, 737 values.
+/// Operators add 254 binary/unary/borrow operators plus 56 parentheses (50
+/// calls and 6 expression groupings). Blocks add 41, calls 50. The 23 functions
+/// and 2 match-pattern parentheses are unchanged. This instrument is separate
+/// from the ingestion oracle below and from the linked Aero product.
+const MODULE_VERIFICATION_ARENA_DELTA: (usize, usize, usize, usize, usize) =
+    (814, 737, 310, 41, 50);
+
 const CANONICAL_ARENAS: (usize, usize, usize, usize, usize) = (
     PRE_EDIT_CANONICAL_ARENAS.0
         + CANONICAL_ARENA_DELTA.0
         + H1M2_ARENA_DELTA.0
         + H1M2_STAGE_2B_ARENA_ADDED.0
-        - H1M2_STAGE_2B_ARENA_REMOVED.0,
+        - H1M2_STAGE_2B_ARENA_REMOVED.0
+        + CHECKED_OWNER_ARENA_DELTA.0
+        + MODULE_VERIFICATION_ARENA_DELTA.0,
     PRE_EDIT_CANONICAL_ARENAS.1
         + CANONICAL_ARENA_DELTA.1
         + H1M2_ARENA_DELTA.1
         + H1M2_STAGE_2B_ARENA_ADDED.1
-        - H1M2_STAGE_2B_ARENA_REMOVED.1,
+        - H1M2_STAGE_2B_ARENA_REMOVED.1
+        + CHECKED_OWNER_ARENA_DELTA.1
+        + MODULE_VERIFICATION_ARENA_DELTA.1,
     PRE_EDIT_CANONICAL_ARENAS.2
         + CANONICAL_ARENA_DELTA.2
         + H1M2_ARENA_DELTA.2
         + H1M2_STAGE_2B_ARENA_ADDED.2
-        - H1M2_STAGE_2B_ARENA_REMOVED.2,
+        - H1M2_STAGE_2B_ARENA_REMOVED.2
+        + CHECKED_OWNER_ARENA_DELTA.2
+        + MODULE_VERIFICATION_ARENA_DELTA.2,
     PRE_EDIT_CANONICAL_ARENAS.3
         + CANONICAL_ARENA_DELTA.3
         + H1M2_ARENA_DELTA.3
         + H1M2_STAGE_2B_ARENA_ADDED.3
-        - H1M2_STAGE_2B_ARENA_REMOVED.3,
+        - H1M2_STAGE_2B_ARENA_REMOVED.3
+        + CHECKED_OWNER_ARENA_DELTA.3
+        + MODULE_VERIFICATION_ARENA_DELTA.3,
     PRE_EDIT_CANONICAL_ARENAS.4
         + CANONICAL_ARENA_DELTA.4
         + H1M2_ARENA_DELTA.4
         + H1M2_STAGE_2B_ARENA_ADDED.4
-        - H1M2_STAGE_2B_ARENA_REMOVED.4,
+        - H1M2_STAGE_2B_ARENA_REMOVED.4
+        + CHECKED_OWNER_ARENA_DELTA.4
+        + MODULE_VERIFICATION_ARENA_DELTA.4,
 );
 
 /// The module's item count, unchanged by this checkpoint.
@@ -12095,6 +12852,10 @@ const CANONICAL_ITEMS: usize = 23;
 /// touched. The census is **240 of 18,718**, so 98.718% of the arena is
 /// orphaned where stage 2a left 98.713%. The movement is expected and is not
 /// evidence: **it may not be cited as progress or as decay.**
+///
+/// CAP-059P and stage 3b add no return statement, change no final return
+/// expression and preserve the checked producer after P. The same derivation
+/// therefore keeps 240 reachable nodes while the full arena grows to 19,589.
 const CANONICAL_REACHABLE: usize = 240;
 
 /// CAP-057 / H1M-1b. The canonical source parses **end to end**, for the first
@@ -12660,15 +13421,30 @@ fn the_product_no_longer_refuses_a_multi_item_module_at_c1() {
             "`{}`: stage 2a's model cannot express a serialized module",
             probe.label
         );
-        assert_eq!(
+        let code = if oracle::checked_module(&target, &stop).status == 0 {
+            let output = run_emitting_expectation(
+                &format!("h1m2b-c1-{}", probe.label),
+                probe.source,
+                target.consumed,
+                &expired,
+                "-O0",
+            );
+            assert_eq!(
+                output.stdout,
+                emission_probe_for_source(probe.source).llvm.as_bytes()
+            );
+            output.status.code().expect("expired C1 harness status")
+        } else {
             run_vector_expectation(
                 &format!("h1m2b-c1-{}", probe.label),
                 probe.source,
                 target.consumed,
                 &expired,
-                "-O0"
-            ),
-            92,
+                "-O0",
+            )
+        };
+        assert_eq!(
+            code, 92,
             "`{}`: the checked group must now contradict stage 2a's prediction",
             probe.label
         );
@@ -12679,7 +13455,7 @@ fn the_product_no_longer_refuses_a_multi_item_module_at_c1() {
     );
 }
 
-/// **Stage 2b's whole product-visible claim, and the checkpoint's pin.**
+/// **Stage 2b's whole product-visible claim, retained as an expired premise.**
 ///
 /// The checked-IR group builds a module of N function records and the refusal
 /// relocates to the **verifier**, `compiler.aero:5555`,
@@ -12693,11 +13469,16 @@ fn the_product_no_longer_refuses_a_multi_item_module_at_c1() {
 /// re-derived from the raw bytes here rather than read from the probe row, so
 /// the two derivations grade each other.
 ///
-/// It is a **fail-before-emitter negative**: the module was constructed well
+/// It was a **fail-before-emitter negative**: the module was constructed well
 /// enough for the verifier to read its header and reject it on its own declared
 /// count. Stop condition 8 - a refusal at `verified_view_words < 9` or at
 /// `verified_format != 1` instead - is a malformed module and a different
 /// vector, and `oracle::verified_header_refusal` asserts against it.
+///
+/// CAP-059 preserves that vector and all checked-group assertions, but now
+/// requires verifier disagreement 93 plus the exact emitted LLVM bytes. The
+/// premise expires explicitly; an unchanged word-1 refusal would return 91
+/// and fail this test.
 #[test]
 fn the_checked_group_builds_n_function_records_and_the_verifier_refuses_them() {
     let mut graded = 0usize;
@@ -12767,17 +13548,22 @@ fn the_checked_group_builds_n_function_records_and_the_verifier_refuses_them() {
             probe.label
         );
 
+        let output = run_emitting_expectation(
+            &format!("h1m2b-{}", probe.label),
+            probe.source,
+            target.consumed,
+            &expected,
+            "-O0",
+        );
         assert_eq!(
-            run_vector_expectation(
-                &format!("h1m2b-{}", probe.label),
-                probe.source,
-                target.consumed,
-                &expected,
-                "-O0"
-            ),
-            91,
-            "`{}` diverged from the independent oracle",
+            output.status.code(),
+            Some(93),
+            "`{}` must contradict the expired verifier refusal, preserving checked IR",
             probe.label
+        );
+        assert_eq!(
+            output.stdout,
+            emission_probe_for_source(probe.source).llvm.as_bytes()
         );
     }
     assert_eq!(
@@ -12877,16 +13663,21 @@ fn probe_e_discriminates_from_probe_b_and_is_shown_to() {
 
     // 3. Both against the real linked product, which is what makes this a
     //    demonstration rather than an assertion about two models.
+    let b_output = run_emitting_expectation(
+        "h1m2b-discriminate-b",
+        b_probe.source,
+        b_target.consumed,
+        &b_now,
+        "-O0",
+    );
     assert_eq!(
-        run_vector_expectation(
-            "h1m2b-discriminate-b",
-            b_probe.source,
-            b_target.consumed,
-            &b_now,
-            "-O0"
-        ),
-        91,
-        "B diverged from the independent oracle"
+        b_output.status.code(),
+        Some(93),
+        "B preserves its checked vector and contradicts the expired verifier refusal"
+    );
+    assert_eq!(
+        b_output.stdout,
+        emission_probe_for_source(b_probe.source).llvm.as_bytes()
     );
     assert_eq!(
         run_vector_expectation(
@@ -13261,4 +14052,904 @@ fn the_two_models_churn_in_exactly_one_field_where_both_are_defined() {
         graded, 1,
         "G is the one shape both models express and refuse in the same place"
     );
+}
+
+// ---------------------------------------------------------------------------
+// CAP-059 / H1M-3 module verification and emission
+// ---------------------------------------------------------------------------
+
+/// Preserve the independent parse, meaning and checked-IR models. This new
+/// vector starts where those phases have completed, without changing the old
+/// module-expectation model whose verifier-refusal premise CAP-059 expires.
+fn completed_checked_expectation(
+    source: &[u8],
+    target: &oracle::Ingestion,
+    meaning: &oracle::SemanticStop,
+    module: &oracle::CheckedModule,
+) -> Vec<i32> {
+    assert_eq!((meaning.status, module.status), (0, 0));
+    let semantic = oracle::refused_semantic_checksum(&target.origins, meaning);
+    let mut vector = oracle::refused_expectation_vector(source, target, meaning);
+    vector[24..41].copy_from_slice(&[
+        module.attempted,
+        module.status,
+        module.node,
+        module.offset,
+        module.line,
+        module.column,
+        module.code,
+        module.expected,
+        module.actual,
+        module.values,
+        module.instructions,
+        module.results,
+        module.words,
+        module.root_kind,
+        module.root_payload,
+        module.root_type,
+        oracle::checked_module_checksum(semantic, module),
+    ]);
+    vector
+}
+
+/// The checksum covers the serialized words and the reported verifier fields,
+/// not the emitter's text. The root is encoded as sign and base-32768 limbs.
+fn verified_expectation_checksum(module: &oracle::CheckedModule, reported: &[i32; 11]) -> i32 {
+    faulted_verification_checksum(module, reported, None)
+}
+
+fn faulted_verification_checksum(
+    module: &oracle::CheckedModule,
+    reported: &[i32; 11],
+    fault: Option<(usize, i32)>,
+) -> i32 {
+    let mut checksum = 29;
+    for (index, word) in module.ir.iter().enumerate() {
+        let word = fault
+            .filter(|(at, _)| *at == index)
+            .map_or(*word, |(_, value)| value);
+        checksum = oracle::checksum_step(checksum, word);
+    }
+    let magnitude = i64::from(reported[9]).abs();
+    let sign = i32::from(reported[9] < 0);
+    let high = i32::try_from(magnitude / 32768).expect("i32 magnitude high limb");
+    let low = i32::try_from(magnitude % 32768).expect("i32 magnitude low limb");
+    for word in [
+        995,
+        reported[1],
+        reported[2] + 1,
+        reported[3],
+        reported[4],
+        reported[5],
+        reported[6],
+        reported[0],
+        reported[7],
+        reported[8],
+        sign,
+        high,
+        low,
+        reported[10],
+    ] {
+        checksum = oracle::checksum_step(checksum, word);
+    }
+    checksum
+}
+
+fn successful_emission_expectation(
+    source: &[u8],
+    target: &oracle::Ingestion,
+    meaning: &oracle::SemanticStop,
+    module: &oracle::CheckedModule,
+    llvm: &[u8],
+    root_value: i32,
+) -> Vec<i32> {
+    let mut vector = completed_checked_expectation(source, target, meaning, module);
+    let reported = [
+        1,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        0,
+        module.instructions,
+        module.results,
+        root_value,
+        module.results,
+    ];
+    vector[43..54].copy_from_slice(&reported);
+    let verified = verified_expectation_checksum(module, &reported);
+    vector[54] = verified;
+
+    let length = i32::try_from(llvm.len()).expect("bounded LLVM text");
+    let mut emitted = 43;
+    let mut driven = 59;
+    for byte in llvm {
+        emitted = oracle::checksum_step(emitted, i32::from(*byte));
+        driven = oracle::checksum_step(driven, i32::from(*byte));
+    }
+    for word in [
+        991,
+        verified,
+        0,
+        0,
+        0,
+        1,
+        length,
+        module.instructions,
+        module.results,
+    ] {
+        emitted = oracle::checksum_step(emitted, word);
+    }
+    for word in [997, emitted, 0, 0, 0, 1, length] {
+        driven = oracle::checksum_step(driven, word);
+    }
+    vector[55..61].copy_from_slice(&[1, 0, -1, 0, length, emitted]);
+    vector[61..67].copy_from_slice(&[1, 0, 0, -1, length, driven]);
+    vector
+}
+
+fn run_emitting_expectation(
+    label: &str,
+    source: &[u8],
+    consumed: i32,
+    expected: &[i32],
+    optimization: &str,
+) -> Output {
+    let workspace = TestWorkspace::new(label);
+    let llvm = workspace.write("product.ll", renamed_product(compiled_h1a()));
+    let harness = workspace.write(
+        "expectation.c",
+        emitting_expectation_harness(expected, source, consumed),
+    );
+    let runtime = repository_path("../../src/compiler/runtime/aero_test_runtime.c");
+    let executable = clang_link(
+        &workspace,
+        label,
+        optimization,
+        &[llvm.as_path(), runtime.as_path(), harness.as_path()],
+    );
+    let output = Command::new(executable)
+        .output()
+        .expect("run CAP-059 emitting harness");
+    assert!(
+        output.stderr.is_empty(),
+        "CAP-059 stderr: {:?}",
+        output.stderr
+    );
+    output
+}
+
+/// Feed the actual stdout bytes to an independent LLVM compiler, and execute
+/// the resulting entry function. This catches undefined-register text even
+/// when every product vector and text checksum is internally consistent.
+fn compile_and_run_emitted_module(label: &str, llvm: &[u8], result: i32, optimization: &str) {
+    let workspace = TestWorkspace::new(label);
+    let llvm = workspace.write("emitted.ll", llvm);
+    let harness = workspace.write(
+        "entry.c",
+        format!(
+            "#include <stdint.h>\nextern int32_t aero_b1_entry(void);\n\
+         int main(void) {{ return aero_b1_entry() == {result} ? 0 : 1; }}\n"
+        ),
+    );
+    let executable = clang_link(
+        &workspace,
+        label,
+        optimization,
+        &[llvm.as_path(), harness.as_path()],
+    );
+    let output = Command::new(executable)
+        .output()
+        .expect("run emitted CAP-059 module");
+    assert!(
+        output.status.success(),
+        "emitted LLVM returned the wrong value"
+    );
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+}
+
+/// Decision 4's source-derived live path: 256 literals and 255 additions make
+/// 511 expression nodes, followed by return 512 and function 513. No module
+/// generalization is involved. The unmodified product matches the obsolete
+/// located refusal exactly, so the first product assertion is deliberately red
+/// until the verifier raises its own range ceiling.
+#[test]
+fn a_single_item_with_513_nodes_verifies_emits_and_drives() {
+    let source = format!("fn f() -> int {{ return {}; }}", vec!["1"; 256].join("+"));
+    assert_eq!(source.len(), 537);
+    let ingested = module_ingest(source.as_bytes());
+    let target = oracle::binding_parser_stop(&ingested, source.as_bytes(), &module_caps());
+    assert_eq!(
+        (target.status, target.root, target.nodes.len()),
+        (0, 513, 513)
+    );
+    assert_eq!(target.nodes[511], [18, 0, 511, 0]);
+    assert_eq!(target.nodes[512][0], 19);
+    let meaning = oracle::module_semantic_meaning(&target);
+    assert_eq!(
+        (meaning.status, meaning.symbols, meaning.facts),
+        (0, 1, 513)
+    );
+    let module = oracle::checked_module(&target, &meaning);
+    assert_eq!(
+        (
+            module.values,
+            module.instructions,
+            module.results,
+            module.words
+        ),
+        (511, 256, 255, 4371)
+    );
+    assert_eq!((module.root_kind, module.root_payload), (2, 255));
+
+    // The expected text follows left associativity, independent of both the
+    // checked-IR oracle and the Aero emitter's record walk.
+    let mut llvm = String::from("define i32 @aero_b1_entry() {\nentry:\n  %r1 = add i32 1, 1\n");
+    for result in 2..=255 {
+        writeln!(llvm, "  %r{result} = add i32 %r{}, 1", result - 1).expect("derive add chain");
+    }
+    llvm.push_str("  ret i32 %r255\n}\n");
+    let expected = successful_emission_expectation(
+        source.as_bytes(),
+        &target,
+        &meaning,
+        &module,
+        llvm.as_bytes(),
+        256,
+    );
+    let mut obsolete = completed_checked_expectation(source.as_bytes(), &target, &meaning, &module);
+    let refusal = [1, 2, 12, 0, 1, 512, 513, 256, 255, 0, 0];
+    obsolete[43..54].copy_from_slice(&refusal);
+    obsolete[54] = verified_expectation_checksum(&module, &refusal);
+
+    for optimization in ["-O0", "-O2"] {
+        let old = run_emitting_expectation(
+            "h1m3a-expired-bound",
+            source.as_bytes(),
+            target.consumed,
+            &obsolete,
+            optimization,
+        );
+        assert_eq!(
+            old.status.code(),
+            Some(93),
+            "the verifier must contradict the exact old word-12 refusal at {optimization}"
+        );
+        assert_eq!(old.stdout, llvm.as_bytes());
+        let output = run_emitting_expectation(
+            "h1m3a-bound",
+            source.as_bytes(),
+            target.consumed,
+            &expected,
+            optimization,
+        );
+        assert_eq!(
+            output.status.code(),
+            Some(91),
+            "full vector at {optimization}"
+        );
+        assert_eq!(
+            output.stdout,
+            llvm.as_bytes(),
+            "exact LLVM at {optimization}"
+        );
+        compile_and_run_emitted_module("h1m3a-independent", &output.stdout, 256, optimization);
+    }
+}
+
+/// CAP-059P's frozen verifier-refusal vector. Stage 3b retains its complete
+/// checked expectation and explicitly contradicts the expired verifier fields.
+fn header_refused_checked_expectation(
+    source: &[u8],
+    target: &oracle::Ingestion,
+    meaning: &oracle::SemanticStop,
+    module: &oracle::CheckedModule,
+) -> Vec<i32> {
+    let mut vector = completed_checked_expectation(source, target, meaning, module);
+    let verified = oracle::verified_header_refusal(module);
+    vector[43..55].copy_from_slice(&[
+        verified.attempted,
+        verified.status,
+        verified.word_index,
+        verified.record_id,
+        verified.code,
+        verified.expected,
+        verified.actual,
+        verified.instructions,
+        verified.results,
+        verified.root_value,
+        verified.result_values,
+        verified.checksum,
+    ]);
+    vector
+}
+
+#[test]
+fn checked_results_belong_to_the_function_that_defines_them() {
+    // Owners, defining instructions and ranges are derived from the expressions
+    // in source order, before the checked serializer's oracle is consulted.
+    // In particular, a literal-only function consumes an instruction but no
+    // result ID; neither result ID nor result position determines its owner.
+    let probes: &[(&str, &[u8], &[i32], &[i32], &[(i32, i32)])] = &[
+        (
+            "two-results",
+            b"fn f()->int{return 1+2;} fn g()->int{return 3*4;}",
+            &[1, 2],
+            &[1, 3],
+            &[(1, 2), (3, 2)],
+        ),
+        (
+            "literal-first",
+            b"fn f()->int{return 1;} fn g()->int{return 2+3;} fn h()->int{return 4*5;}",
+            &[2, 3],
+            &[2, 4],
+            &[(1, 1), (2, 2), (4, 2)],
+        ),
+        (
+            "literal-middle",
+            b"fn f()->int{return 1+2;} fn g()->int{return 3;} fn h()->int{return 4+5;}",
+            &[1, 3],
+            &[1, 4],
+            &[(1, 2), (3, 1), (4, 2)],
+        ),
+        (
+            "unequal-and-literal-last",
+            b"fn f()->int{return 1+2*3;} fn g()->int{return 4+5;} fn h()->int{return 6;}",
+            &[1, 1, 2],
+            &[1, 2, 4],
+            &[(1, 3), (4, 2), (6, 1)],
+        ),
+    ];
+    for (label, source, owners, definitions, ranges) in probes {
+        let ingested = module_ingest(source);
+        let target = oracle::binding_parser_stop(&ingested, source, &module_caps());
+        assert_eq!(target.status, 0);
+        let meaning = oracle::module_semantic_meaning(&target);
+        let model = oracle::checked_module(&target, &meaning);
+        let items = ranges.len();
+        let instruction_base = 9 + 16 * items;
+        let result_base =
+            instruction_base + 11 * usize::try_from(model.instructions).expect("instructions");
+        assert_eq!(model.ir[1], i32::try_from(items).expect("items"));
+        assert_eq!(model.results, i32::try_from(owners.len()).expect("results"));
+        assert_eq!(owners.len(), definitions.len());
+        for (index, (first, count)) in ranges.iter().enumerate() {
+            let function_base = 9 + index * 9;
+            assert_eq!(
+                &model.ir[function_base + 7..function_base + 9],
+                &[*first, *count],
+                "{label}"
+            );
+        }
+
+        let mut corrected = model.clone();
+        let mut obsolete = model.clone();
+        for (index, (owner, definition)) in owners.iter().zip(*definitions).enumerate() {
+            let base = result_base + index * 6;
+            assert_eq!(model.ir[base], 4, "{label}: result record tag");
+            assert_eq!(
+                model.ir[base + 2],
+                i32::try_from(index + 1).expect("result id")
+            );
+            assert_eq!(
+                model.ir[base + 4],
+                *definition,
+                "{label}: defining instruction"
+            );
+            let instruction =
+                instruction_base + 11 * usize::try_from(*definition - 1).expect("definition");
+            assert_eq!(
+                model.ir[instruction + 10],
+                *owner,
+                "{label}: instruction owner"
+            );
+            let (first, count) = ranges[usize::try_from(*owner - 1).expect("owner")];
+            assert!(
+                *definition >= first && *definition < first + count,
+                "{label}: owner range"
+            );
+            corrected.ir[base + 1] = *owner;
+            // The predecessor's exact defect is retained as an expired model.
+            obsolete.ir[base + 1] = 1;
+        }
+        assert_ne!(
+            corrected.ir, obsolete.ir,
+            "{label} exposes the former constant"
+        );
+        if *label == "two-results" {
+            assert_eq!(result_base + 6 + 1, 92);
+            assert_eq!((obsolete.ir[92], corrected.ir[92]), (1, 2));
+        }
+        let expected = header_refused_checked_expectation(source, &target, &meaning, &corrected);
+        let expired = header_refused_checked_expectation(source, &target, &meaning, &obsolete);
+        assert_eq!(
+            &expected[..40],
+            &expired[..40],
+            "only checked bytes/checksums change"
+        );
+        assert_eq!(
+            &expected[43..54],
+            &expired[43..54],
+            "located header refusal is unchanged"
+        );
+        for optimization in ["-O0", "-O2"] {
+            let output = run_emitting_expectation(
+                &format!("h1m3-producer-{label}"),
+                source,
+                target.consumed,
+                &expected,
+                optimization,
+            );
+            assert_eq!(
+                output.status.code(),
+                Some(93),
+                "{label}: checked ownership agrees; the old verifier refusal expires at {optimization}"
+            );
+            assert_eq!(
+                output.stdout,
+                emission_probe_for_source(source).llvm.as_bytes()
+            );
+            let old = run_emitting_expectation(
+                &format!("h1m3-producer-old-{label}"),
+                source,
+                target.consumed,
+                &expired,
+                optimization,
+            );
+            assert_eq!(
+                old.status.code(),
+                Some(92),
+                "{label}: old ownership must disagree in checked IR at {optimization}"
+            );
+            assert_eq!(
+                old.stdout,
+                emission_probe_for_source(source).llvm.as_bytes()
+            );
+        }
+        assert_eq!(
+            model.ir, corrected.ir,
+            "{label}: the general oracle also models ownership"
+        );
+    }
+}
+
+struct EmissionProbe {
+    label: &'static str,
+    source: &'static [u8],
+    llvm: &'static str,
+    // Functions, expression values, instructions, results, entry value.
+    counts: (i32, i32, i32, i32, i32),
+}
+
+/// These texts are derived from each expression and function order, not from
+/// checked instruction records. They independently grade the serialized model
+/// as well as the Aero emitter. Result IDs stay global while LLVM uses each
+/// result only within its defining function.
+const EMISSION_PROBES: &[EmissionProbe] = &[
+    EmissionProbe {
+        label: "one-item",
+        source: b"fn f() -> int { return 1; }",
+        llvm: "define i32 @aero_b1_entry() {\nentry:\n  ret i32 1\n}\n",
+        counts: (1, 1, 1, 0, 1),
+    },
+    EmissionProbe {
+        label: "two-items",
+        source: b"fn f() -> int { return 1; } fn g() -> int { return 2; }",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  ret i32 1\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  ret i32 2\n}\n",
+        ),
+        counts: (2, 2, 2, 0, 2),
+    },
+    EmissionProbe {
+        label: "three-items",
+        source:
+            b"fn f() -> int { return 1; } fn g() -> int { return 2; } fn h() -> int { return 3; }",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  ret i32 1\n}\n",
+            "define i32 @aero_b1_f2() {\nentry:\n  ret i32 2\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  ret i32 3\n}\n",
+        ),
+        counts: (3, 3, 3, 0, 3),
+    },
+    EmissionProbe {
+        label: "two-items-with-expressions",
+        source: b"fn f() -> int { return 1+2; } fn g() -> int { return 3*4; }",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  %r1 = add i32 1, 2\n  ret i32 %r1\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  %r2 = mul i32 3, 4\n  ret i32 %r2\n}\n",
+        ),
+        counts: (2, 6, 4, 2, 12),
+    },
+    EmissionProbe {
+        label: "two-items-uneven",
+        source: b"fn f() -> int { return 1+2*3; } fn g() -> int { return 4; }",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  %r1 = mul i32 2, 3\n  %r2 = add i32 1, %r1\n  ret i32 %r2\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  ret i32 4\n}\n",
+        ),
+        counts: (2, 6, 4, 2, 4),
+    },
+    EmissionProbe {
+        label: "literal-first",
+        source: b"fn f()->int{return 1;} fn g()->int{return 2+3;} fn h()->int{return 4*5;}",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  ret i32 1\n}\n",
+            "define i32 @aero_b1_f2() {\nentry:\n  %r1 = add i32 2, 3\n  ret i32 %r1\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  %r2 = mul i32 4, 5\n  ret i32 %r2\n}\n",
+        ),
+        counts: (3, 7, 5, 2, 20),
+    },
+    EmissionProbe {
+        label: "literal-middle",
+        source: b"fn f()->int{return 1+2;} fn g()->int{return 3;} fn h()->int{return 4+5;}",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  %r1 = add i32 1, 2\n  ret i32 %r1\n}\n",
+            "define i32 @aero_b1_f2() {\nentry:\n  ret i32 3\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  %r2 = add i32 4, 5\n  ret i32 %r2\n}\n",
+        ),
+        counts: (3, 7, 5, 2, 9),
+    },
+    EmissionProbe {
+        label: "unequal-and-literal-last",
+        source: b"fn f()->int{return 1+2*3;} fn g()->int{return 4+5;} fn h()->int{return 6;}",
+        llvm: concat!(
+            "define i32 @aero_b1_f1() {\nentry:\n  %r1 = mul i32 2, 3\n  %r2 = add i32 1, %r1\n  ret i32 %r2\n}\n",
+            "define i32 @aero_b1_f2() {\nentry:\n  %r3 = add i32 4, 5\n  ret i32 %r3\n}\n",
+            "define i32 @aero_b1_entry() {\nentry:\n  ret i32 6\n}\n",
+        ),
+        counts: (3, 9, 6, 3, 6),
+    },
+];
+
+fn emission_probe_for_source(source: &[u8]) -> &'static EmissionProbe {
+    EMISSION_PROBES
+        .iter()
+        .find(|probe| {
+            probe
+                .source
+                .iter()
+                .filter(|byte| !byte.is_ascii_whitespace())
+                .eq(source.iter().filter(|byte| !byte.is_ascii_whitespace()))
+        })
+        .expect("a hand-derived emission probe covers this arithmetic source")
+}
+
+#[test]
+fn small_modules_emit_exact_llvm_and_execute_each_entry() {
+    for probe in EMISSION_PROBES {
+        let ingested = module_ingest(probe.source);
+        let target = oracle::binding_parser_stop(&ingested, probe.source, &module_caps());
+        let meaning = oracle::module_semantic_meaning(&target);
+        let module = oracle::checked_module(&target, &meaning);
+        assert_eq!(
+            (
+                meaning.symbols,
+                module.values,
+                module.instructions,
+                module.results
+            ),
+            (
+                probe.counts.0,
+                probe.counts.1,
+                probe.counts.2,
+                probe.counts.3
+            ),
+            "{}: source-derived counts",
+            probe.label,
+        );
+        assert_eq!(
+            module.words,
+            9 + 16 * probe.counts.0 + 11 * probe.counts.2 + 6 * probe.counts.3
+        );
+        if probe.label == "two-items" {
+            assert_eq!(probe.llvm.len(), 99);
+        }
+        if probe.label == "two-items-uneven" {
+            assert_eq!(probe.llvm.len(), 145);
+        }
+        let expected = successful_emission_expectation(
+            probe.source,
+            &target,
+            &meaning,
+            &module,
+            probe.llvm.as_bytes(),
+            probe.counts.4,
+        );
+        for optimization in ["-O0", "-O2"] {
+            let output = run_emitting_expectation(
+                probe.label,
+                probe.source,
+                target.consumed,
+                &expected,
+                optimization,
+            );
+            assert_eq!(
+                output.status.code(),
+                Some(91),
+                "{}: full vector at {optimization}",
+                probe.label
+            );
+            assert_eq!(
+                output.stdout,
+                probe.llvm.as_bytes(),
+                "{}: every emitted byte at {optimization}",
+                probe.label
+            );
+            compile_and_run_emitted_module(
+                probe.label,
+                &output.stdout,
+                probe.counts.4,
+                optimization,
+            );
+        }
+    }
+}
+
+#[test]
+fn module_verification_rejects_corrupt_counts_ranges_and_owners_before_emission() {
+    let source = b"fn f()->int{return 1+2;} fn g()->int{return 3*4;}";
+    let target = oracle::binding_parser_stop(&module_ingest(source), source, &module_caps());
+    let meaning = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &meaning);
+    assert_eq!(&module.ir[..9], &[1, 2, 2, 4, 2, 2, 2, 2, 1]);
+    // (fault word, original, injected, status, located word, record, code,
+    // expected, actual, latched instructions, latched results, evaluated results).
+    // Every row was frozen from the validation rule before product edits.
+    let faults = [
+        (1, 2, 0, 1, 1, 0, 2, 510, 0, 0, 0, 0),
+        (1, 2, i32::MAX, 1, 1, 0, 2, 510, i32::MAX, 0, 0, 0),
+        (3, 4, 1, 1, 3, 0, 2, 2, 1, 1, 0, 0),
+        (25, 3, 2, 2, 25, 0, 1, 3, 2, 4, 2, 0),
+        (26, 2, 0, 2, 26, 0, 1, 2, 0, 4, 2, 0),
+        (26, 2, i32::MAX, 2, 26, 0, 1, 2, i32::MAX, 4, 2, 0),
+        (36, 2, 1, 2, 36, 0, 2, 2, 1, 4, 2, 0),
+        (39, 3, 1, 2, 39, 0, 2, 3, 1, 4, 2, 0),
+        (72, 8, 3, 3, 72, 3, 3, 6, 3, 4, 2, 1),
+        (73, 2, 1, 3, 73, 3, 1, 2, 1, 4, 2, 1),
+        (92, 2, 1, 6, 92, 2, 1, 2, 1, 4, 2, 2),
+        (95, 3, 2, 6, 95, 2, 2, 3, 2, 4, 2, 2),
+        (96, 8, 3, 6, 96, 2, 3, 8, 3, 4, 2, 2),
+    ];
+    for (
+        at,
+        original,
+        injected,
+        status,
+        word,
+        record,
+        code,
+        expected,
+        actual,
+        instructions,
+        results,
+        evaluated,
+    ) in faults
+    {
+        assert_eq!(
+            module.ir[at], original,
+            "the mutation's original word is independently known"
+        );
+        let mut vector = completed_checked_expectation(source, &target, &meaning, &module);
+        vector[41] = i32::try_from(at).expect("fault index");
+        vector[42] = injected;
+        let reported = [
+            1,
+            status,
+            word,
+            record,
+            code,
+            expected,
+            actual,
+            instructions,
+            results,
+            0,
+            evaluated,
+        ];
+        vector[43..54].copy_from_slice(&reported);
+        vector[54] = faulted_verification_checksum(&module, &reported, Some((at, injected)));
+        for optimization in ["-O0", "-O2"] {
+            assert_eq!(
+                run_vector_expectation(
+                    &format!("h1m3-fault-{at}-{injected}"),
+                    source,
+                    target.consumed,
+                    &vector,
+                    optimization,
+                ),
+                91,
+                "word {at} -> {injected}: exact refusal and no output at {optimization}"
+            );
+        }
+    }
+
+    // J: the entry is derived from independently authenticated ranges. I/R
+    // have already been latched, but no instruction has yet been evaluated.
+    let source = b"fn f() -> int { return 1; } fn g() -> int { return 2; }";
+    let target = oracle::binding_parser_stop(&module_ingest(source), source, &module_caps());
+    let meaning = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &meaning);
+    let mut vector = completed_checked_expectation(source, &target, &meaning, &module);
+    vector[41] = 5;
+    vector[42] = 1;
+    let reported = [1, 1, 5, 0, 2, 2, 1, 2, 0, 0, 0];
+    vector[43..54].copy_from_slice(&reported);
+    vector[54] = faulted_verification_checksum(&module, &reported, Some((5, 1)));
+    for optimization in ["-O0", "-O2"] {
+        assert_eq!(
+            run_vector_expectation(
+                "h1m3-entry-fault",
+                source,
+                target.consumed,
+                &vector,
+                optimization
+            ),
+            91
+        );
+    }
+}
+
+#[test]
+fn result_operands_cannot_cross_function_boundaries() {
+    let source = b"fn f()->int{return 1+2;} fn g()->int{return (3+4)+(5+6);}";
+    let target = oracle::binding_parser_stop(&module_ingest(source), source, &module_caps());
+    let meaning = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &meaning);
+    assert_eq!((module.instructions, module.results), (6, 4));
+    assert_eq!(&module.ir[85..96], &[3, 5, 1, 4, 1, 2, 2, 2, 3, 12, 2]);
+    for (at, original) in [(91, 2), (93, 3)] {
+        assert_eq!(module.ir[at], original);
+        let mut vector = completed_checked_expectation(source, &target, &meaning, &module);
+        vector[41] = i32::try_from(at).expect("fault index");
+        vector[42] = 1;
+        let reported = [
+            1,
+            4,
+            i32::try_from(at).expect("fault index"),
+            5,
+            3,
+            2,
+            1,
+            6,
+            4,
+            0,
+            3,
+        ];
+        vector[43..54].copy_from_slice(&reported);
+        vector[54] = faulted_verification_checksum(&module, &reported, Some((at, 1)));
+        for optimization in ["-O0", "-O2"] {
+            assert_eq!(
+                run_vector_expectation(
+                    "h1m3-foreign-result",
+                    source,
+                    target.consumed,
+                    &vector,
+                    optimization
+                ),
+                91,
+                "foreign result in operand word {at} must stop before emission at {optimization}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_510_function_ceiling_emits_multi_digit_names_and_executes() {
+    // Every source function owns one literal, its return node, its function
+    // node and one Return instruction. No result record is needed. This
+    // independently determines the complete shape at the accepted N/I ceiling.
+    const FUNCTIONS: i32 = 510;
+    let mut source = String::new();
+    let mut llvm = String::new();
+    for id in 1..=FUNCTIONS {
+        writeln!(source, "fn f{id}()->int{{return {id};}}").expect("format source item");
+        let name = if id == FUNCTIONS {
+            "aero_b1_entry".to_string()
+        } else {
+            format!("aero_b1_f{id}")
+        };
+        write!(
+            llvm,
+            "define i32 @{name}() {{\nentry:\n  ret i32 {id}\n}}\n"
+        )
+        .expect("format independently specified LLVM item");
+    }
+    // Nine 48-byte non-entry items, ninety 50-byte items, 410 52-byte
+    // items and the 53-byte entry. Decimal width is counted independently.
+    assert_eq!(llvm.len(), 9 * 48 + 90 * 50 + 410 * 52 + 53);
+    let source = source.as_bytes();
+    let target = oracle::binding_parser_stop(&module_ingest(source), source, &module_caps());
+    let meaning = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &meaning);
+    assert_eq!(target.nodes.len(), 1_530);
+    assert_eq!(target.root, 1_530);
+    assert_eq!(meaning.symbols, FUNCTIONS);
+    assert_eq!(
+        (module.values, module.instructions, module.results),
+        (510, 510, 0)
+    );
+    assert_eq!(module.words, 13_779);
+    assert_eq!(&module.ir[..9], &[1, 510, 510, 510, 0, 510, 1, 510, 1]);
+    for id in 1..=FUNCTIONS {
+        let item = usize::try_from(id - 1).expect("bounded function index");
+        let function = 9 + item * 9;
+        assert_eq!(
+            module.ir[function + 3],
+            id * 3,
+            "source-derived function node"
+        );
+        assert_eq!(&module.ir[function + 7..function + 9], &[id, 1]);
+        let instruction = 8_169 + item * 11;
+        assert_eq!(
+            &module.ir[instruction..instruction + 11],
+            &[3, id, 6, 0, 0, 1, id, 0, 0, id * 3 - 1, id],
+            "source-derived Return, literal, origin and owner"
+        );
+    }
+    let expected = successful_emission_expectation(
+        source,
+        &target,
+        &meaning,
+        &module,
+        llvm.as_bytes(),
+        FUNCTIONS,
+    );
+    for optimization in ["-O0", "-O2"] {
+        let output = run_emitting_expectation(
+            "h1m3-function-ceiling",
+            source,
+            target.consumed,
+            &expected,
+            optimization,
+        );
+        assert_eq!(
+            output.status.code(),
+            Some(91),
+            "full ceiling vector at {optimization}"
+        );
+        assert_eq!(output.stdout, llvm.as_bytes(), "all 510 exact definitions");
+        compile_and_run_emitted_module(
+            "h1m3-function-ceiling",
+            &output.stdout,
+            FUNCTIONS,
+            optimization,
+        );
+    }
+}
+
+#[test]
+fn later_function_returns_must_terminate_their_own_range() {
+    let source = b"fn f()->int{return 1+2;} fn g()->int{return 3*4;}";
+    let target = oracle::binding_parser_stop(&module_ingest(source), source, &module_caps());
+    let meaning = oracle::module_semantic_meaning(&target);
+    let module = oracle::checked_module(&target, &meaning);
+    // Header 41; instruction 3 starts at 63, instruction 4 at 74. Only
+    // opcode field 2 changes. The first mutation inserts an early Return,
+    // retaining the legacy invalid-opcode expected/actual convention; the
+    // second removes the required terminal Return. These complete diagnostics
+    // were frozen before native replay. Neither may emit a byte.
+    for (at, original, injected, record, evaluated) in [(65, 3, 6, 3, 1), (76, 6, 1, 4, 2)] {
+        assert_eq!(module.ir[at], original);
+        let mut vector = completed_checked_expectation(source, &target, &meaning, &module);
+        vector[41] = i32::try_from(at).expect("bounded fault word");
+        vector[42] = injected;
+        let reported = [1, 3, vector[41], record, 2, 6, injected, 4, 2, 0, evaluated];
+        vector[43..54].copy_from_slice(&reported);
+        vector[54] = faulted_verification_checksum(&module, &reported, Some((at, injected)));
+        for optimization in ["-O0", "-O2"] {
+            assert_eq!(
+                run_vector_expectation(
+                    "h1m3-later-return",
+                    source,
+                    target.consumed,
+                    &vector,
+                    optimization,
+                ),
+                91,
+                "opcode word {at}: exact refusal and no output at {optimization}"
+            );
+        }
+    }
 }

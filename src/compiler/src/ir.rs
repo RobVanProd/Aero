@@ -162,6 +162,11 @@ pub enum Inst {
         result: Value,
         value: Value,
     },
+    /// Write one verified i32 diagnostic byte or return a sticky runtime status.
+    CheckedStderrWriteByte {
+        result: Value,
+        value: Value,
+    },
     /// Verified creation of one allocation-free local byte-buffer owner.
     CheckedByteBufferNew {
         result: Value,
