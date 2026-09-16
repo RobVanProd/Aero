@@ -1,5 +1,20 @@
 # Bootstrap Convergence Readiness
 
+## Local execution boundary - 2026-09-16
+
+Continued H1 implementation is authorized from integration merge `df0fece`.
+CAP-059 stage 3a and the separate checked-result owner repair have focused native
+evidence. Stage 3b now passes exact multiple-function LLVM/native execution and
+located corruption refusals at O0/O2. The complete local gate and compatibility
+records are in TASK_LEDGER.md. These changes are unpublished local work.
+
+The canonical source still fails at its first identifier. The connected AST is
+designed, not implemented; compiler-subset meaning, lowering and code generation
+remain incomplete. The new independent stderr transport has Linux native ABI
+evidence but no source-profile or process-protocol integration. Windows execution,
+same-source stage convergence and H2 acceptance remain open. The frozen stage
+protocol below is unchanged.
+
 ## Current integration boundary - 2026-09-05
 
 INTEGRATION-001 consolidates the existing work through `2d99ca7`; see

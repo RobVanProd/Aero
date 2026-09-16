@@ -165,6 +165,32 @@
   emitting harness and independently byte-grade their output. Old checked
   disagreements remain 92; expired verifier disagreements become 93. Probe E
   and all other source/semantic/checked failures keep the no-output harness.
+- Compatibility replay identified one additional expired-positive caller:
+  the B half of `probe_e_discriminates_from_probe_b_and_is_shown_to`.
+  Its old vector remains unchanged, now requiring 93 and the independently
+  derived 99-byte module through the emitting harness. Every E-half assertion
+  and its no-output harness remain unchanged. This is the same pre-authorized
+  positive-output transition, not a relaxation of a negative boundary.
+- The full target then identified the same issue in
+  `the_two_item_module_separates_the_base_product_from_this_one`: preserve its
+  expired C1 checked vector (92) and module verifier vector (93), grade the
+  emitted 99 bytes independently, and add the current full successful vector
+  (91). Earlier semantic/base mismatches still return before output and retain
+  their existing harness. Audit remaining callers before another full replay.
+- Independent verifier/emitter review found no blocking defect. It identified
+  untested multi-digit non-entry names, the accepted 510-function bound, and
+  later-function Return corruption. Extend only the focused tests with a
+  source-derived literal-function boundary probe and independently specified
+  premature/missing terminal Return faults. Keep the frozen product unchanged;
+  no resource or producer bound may be widened to make those tests pass.
+- Frozen additional D faults: instruction 3 opcode at word 65 changes from 3
+  to 6, creating a premature Return in function 2, and reports
+  `(3,65,3,2,6,6)` with one result evaluated. Instruction 4 opcode at word 76
+  changes from 6 to 1, removing its terminal Return, and reports
+  `(3,76,4,2,6,1)` with two results evaluated. Each reports four instructions,
+  two results and root value 0, preserving the established opcode diagnostic.
+  The 510-literal-function source independently requires 1,530 syntax nodes,
+  510 instructions, no results and 13,779 checked words; no bound changes.
 
 | Run | Command / scope | Result |
 |---|---|---|
@@ -173,7 +199,77 @@
 | Stage 3a compatibility | Five focused reconstruction, canonical-output, bound-separation, source-census/refusal and existing multi-function-refusal tests | Exit 0, 5 passed / 0 failed / 59 filtered, 103.04 s. The canonical refusal/census and one-function output remain unchanged. |
 | CAP-059P red | Isolated-target `checked_results_belong_to_the_function_that_defines_them` before producer/model repair | Exit 101, 0 passed / 1 failed / 64 filtered, 51.09 s. Source-derived corrected ownership returned 92 instead of 91 at O0, locating the mismatch in checked IR. |
 | CAP-059P focused and stage 3a compatibility | Nine selected tests after producer-only repair | Exit 0, 9 passed / 0 failed / 56 filtered, 113.40 s. Four ownership sources passed O0/O2 with exact expired checked disagreement 92; old canonical output, 513-node emission, E/F/G refusals and canonical source census/refusal passed. Predicted arena delta +57 nodes / +45 values / +26 operators / +0 blocks / +8 calls matched unchanged prediction; 240 reachable nodes remain. |
-| Stage 3a/P full gate | Immutable local snapshot of the completed two prerequisites; separate from subsequent stage 3b development | |
+| Stage 3a/P full gate | Immutable local snapshot tree `f7489ef5da80b587f245b8669d5fa8de037b058e`; separate from subsequent stage 3b development | Exit 0. Formatting and correctness Clippy passed; 1,023 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets. The snapshot was not edited to record this result; its final verification record belongs in its commit message. |
+| Stage 3b red | `small_modules_emit_exact_llvm_and_execute_each_entry`, before verifier/emitter edits | Exit 101, 0 passed / 1 failed / 65 filtered, 55.28 s. The one-function case passed O0/O2 before the two-function case returned verifier disagreement 93 instead of success 91 at O0. |
+| Stage 3b fault red | Two count/range/owner and foreign-result regressions, before product edits | Exit 101, 0 passed / 2 failed / 66 filtered, 52.05 s. Independent source/serialized-word checks passed; count 0 and a foreign left-result operand produced 93 instead of the required new diagnostic-vector result 91 at O0. |
+| Stage 3b focused | Eight exact module emit/execute probes plus count/range/provenance/owner/entry and cross-function operand mutations | Exit 0, 3 passed / 0 failed / 65 filtered, 94.50 s. Complete vectors, hand-derived LLVM bytes and independent native execution passed at O0/O2. Thirteen metadata mutations, the derived-entry mutation and both foreign-result operands matched exact refusals with no output. |
+| Stage 3b first compatibility | Ten selected old-boundary and canonical tests | Exit 101, 9 passed / 1 failed / 58 filtered, 82.77 s. The B half described above used the old no-output harness and returned 62 on correct module output. No production defect or arena-prediction correction was observed. |
+| Stage 3b first complete focused target | All 68 ingestion-target tests after the first harness correction | Exit 101, 67 passed / 1 failed, 224.71 s. Canonical arenas matched the unchanged independent prediction and canonical semantic refusal passed. The only failure was the second named expired-positive harness caller above. |
+| Stage 3b caller and boundary replay | Corrected two-item caller, 510-function module and later-function Return faults | Exit 0, 3 passed / 0 failed / 67 filtered, 61.88 s. Expired/current vectors returned 92/93/91 with the exact 99-byte module. The 510-function module matched all 67 expectation fields and 26,305 exact emitted bytes, and its entry returned 510 after independent O0/O2 compilation. Both Return faults matched the frozen refusal with no output. Product digest remained unchanged. |
+| Stage 3b complete focused replay | All 70 ingestion-target tests on the frozen product and corrected harnesses | |
+| CAP-059 and runtime full gate | Immutable combined checkpoint, excluding later diagnostic-profile development | |
+
+Before canonical-source replay, an independent Rust AST visitor and lexer-based
+parenthesis count predicted the frozen 334,106-byte stage 3b source's arenas:
+19,589 nodes, 17,647 values, 6,778 operators, 1,403 blocks and 1,230 calls.
+Relative to stage 3a/P this is +814/+737/+310/+41/+50. The derivation counts
+737 new expression nodes/value records, 77 argument cells and no function
+wrappers; operators add 254 binary/unary/borrow operations and 56 expression
+parentheses (50 calls, six groupings). Function count 23 and match-pattern
+parentheses 2 are unchanged. The same visitor exactly reconstructs the prior
+18,775/16,910/6,468/1,362/1,180 arenas without using the ingestion test oracle.
+Checked construction, final return expressions and module linkage remain
+unchanged, so reachable nodes remain 240. These are predictions until native
+replay completes; they must not be tuned to its output.
+
+### H1E-RUNTIME-001 - independent binary diagnostic stream ABI
+
+- Observed: H1 requires exact Aero-authored diagnostics on stderr, but existing
+  runtime/source profiles supply only stdin and stdout. The existing runtime
+  is byte-frozen by earlier tests. The standard-library RFC's eprint direction
+  and H1 process contract authorize the missing transport, not general text or
+  dynamic Display support.
+- Hypothesis: a separate small C translation unit can supply diagnostic bytes
+  while leaving every existing runtime byte and source-profile rule untouched.
+  This runtime-only prerequisite can proceed independently of CAP-059's Aero
+  verifier/emitter. It is not yet reachable from Aero source or a completed H1E.
+- Allowed files for the runtime owner:
+  `src/compiler/runtime/aero_diagnostic_runtime.c` and
+  `src/compiler/tests/stderr_runtime_abi_tests.rs`. Lead owns this ledger and
+  documentation. No existing runtime/compiler/profile/test/workflow may change.
+- Frozen ABI: `int32_t aero_stderr_write_byte(int32_t value)` writes exactly one
+  binary byte to stderr and flushes it, returning 0 only after success. Values
+  outside 0..=255 return -3 without writing. Write/flush failures and POSIX
+  SIGPIPE setup failure return -1; Windows invalid-handle/binary-mode setup
+  failure returns -2. Each error is sticky for that channel, checked before
+  new input; stderr state is independent of existing stdin/stdout state.
+  Windows uses fd2 in binary mode, preserving LF/CR/NUL/0x1a/high bytes; POSIX
+  broken pipes terminate this operation with an error rather than a signal.
+  No allocator, parser, formatter, source lookup or compiler decision exists
+  in this transport. Aero will choose and emit diagnostics in a later slice.
+- Acceptance: a direct native ABI regression must fail for the absent export
+  before adding the C file. At O0/O2, independently capture exact binary
+  stderr, empty stdout, success/range boundaries, sticky range/I/O failures,
+  closed descriptor/broken pipe handling and stdout/stderr isolation. Preserve
+  the complete existing runtime file byte-for-byte. Build the Rust target in
+  a separate development target; final integration still requires the full
+  repository gate. Windows-specific tests may be authored but are not local
+  Windows execution evidence on this Linux host.
+- Risks/stop conditions: no source intrinsic/profile, LLVM/IR integration or
+  change to existing transport semantics in this slice; no diagnostic content
+  chosen by C; no physical rollback claim for already-written bytes after a
+  transport failure. Stop if unrelated files or semantics must change.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Runtime ABI red | Native all-byte regression before adding the C implementation | Exit 101, 0 passed / 1 failed / 4 filtered. Clang reached the link step and reported the missing `aero_stderr_write_byte` export. |
+| Runtime initial focused | Complete new ABI target | Exit 101, 5 passed / 1 failed. Both isolation-mode arguments began with `e`, selecting the same harness branch. Corrected the harness argument without changing the ABI. |
+| Runtime focused | `cargo test --manifest-path src/compiler/Cargo.toml --test stderr_runtime_abi_tests -- --nocapture`, isolated target | Exit 0, 6 passed / 0 failed, 0.17 s. Every native case compiled with Clang 22.1.8 at O0/O2 and `-Wall -Wextra -Werror`. All binary bytes, flush-before-success, sticky range/write/flush/setup errors, descriptor restoration and channel isolation passed. Owned Rust formatting also exited 0. |
+
+The existing `aero_runtime.c` remains SHA-256
+`0d27a379b24bf5e5fe8c79e2008d0cd92c905db2fac9bf34f1b34e01e745efb3`.
+Windows-specific tests are authored, not executed on this Linux host. Runtime
+integration into a source profile and the complete repository gate remain open.
 
 ### SELFHOST-AST-DESIGN-001 - connected representation design
 
@@ -200,6 +296,65 @@
 - Risks/stop conditions: ambiguous existing semantics, orphan nodes, lost
   declaration provenance or ordering, hidden parser-to-backend third phase,
   or relabeling a design as an implementation.
+
+### H1E-CHECKED-001 - diagnostic checked operation and backend
+
+- Observed: the independently tested diagnostic runtime has no corresponding
+  checked instruction or LLVM lowering. CAP-047 freezes the old byte-I/O
+  profile as reserving exactly stdout output; preserve that public boundary.
+- Hypothesis: an additive `ExactI32ByteDiagnosticsV0` profile, spelled
+  `exact-i32-byte-diagnostics-v0`, can inherit all current byte-I/O source
+  capabilities and additionally admit a checked stderr operation in its backend.
+  Source stderr admission remains a separate later two-phase slice.
+- Allowed files for the runtime owner, now acting as the single checked/backend
+  owner: `src/compiler/src/ir.rs`, `ir_verifier.rs`, `code_generator.rs`,
+  `language_profile.rs`, `main.rs`, and new `stderr_checked_backend_tests.rs`
+  in that same directory. Register the new crate-local test module under the
+  code generator. Lead owns the ledger and state documents.
+- Phase boundary: checked schema/verification plus LLVM lowering only.
+  Profile identity, inherited capability predicates, help/cache/parser tests
+  and stdin-inheritance dispatch are mechanical plumbing. Do not edit semantic
+  analysis, source contracts, IR construction, authentication, runtime files,
+  canonical Aero source or ingestion tests. Do not link the new runtime into
+  the CLI in this slice.
+- Frozen checked ABI: `Inst::CheckedStderrWriteByte { result, value }` uses one
+  verified logical Int operand and defines an Int raw status. Preserve SSA
+  single-definition, prior-definition, dominance and type rules. Reject
+  `aero_stderr_write_byte` collisions in module entries and nested functions.
+  Only the new profile accepts this checked operation; all earlier profiles
+  reject it. Emit one conditional declaration and one call per operation,
+  `i32 @aero_stderr_write_byte(i32)`, using the frozen C ABI without wrapping
+  source Result values yet. No raw call or printing instruction substitutes.
+- Authentication remains strict. The existing protocol authenticates nominal
+  layouts, function signatures and actual result/place metadata, not equivalence
+  between source-body operations and IR. Tests may use an explicitly authored
+  matching logical-descriptor/IR fixture, obtain a token through the normal
+  authenticator and enter the normal authenticated backend. This is typed
+  backend coverage, not proof of source-body correspondence. Never attach an
+  unrelated source descriptor, construct a token directly or add a bypass.
+- Red-first order: run a new-profile selection regression before production
+  edits. After passive profile/schema scaffolding, capture the checked fixture's
+  missing verifier/backend handling before implementing it. Production edits
+  begin only once CAP-059's current focused-target compatibility failure is
+  resolved and its completed green exit has been read.
+- Acceptance: deterministic verified LLVM; exact conditional declaration and
+  call order; duplicate/nonidentifier result, type/undefined/forward/dominance
+  failures; runtime-symbol collisions; earlier-profile refusal; missing,
+  signature-mismatched and stale-metadata authentication refusal. Explicitly
+  link native fixtures to the frozen diagnostic runtime at O0/O2 and assert
+  binary stderr, empty stdout, raw success/range/sticky statuses. Existing
+  source compilation through the new profile inherits byte-I/O behavior;
+  unresolved source `stderr_write_byte` still fails. Finish focused tests and
+  the full repository gate. No source-output or H1 completion claim follows.
+- Risks/stop conditions: crossing a third compiler phase, changing authentication
+  or C transport semantics, widening an old profile, allowing source stderr
+  prematurely, or claiming Windows execution from Linux fixtures.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Profile selector red | New diagnostic profile regression before production changes | Exit 101, 0 passed / 1 failed / 312 filtered. The selector rejects `exact-i32-byte-diagnostics-v0` as unsupported. Only the new crate-local test file and a test-only module registration were added; production behavior remained unchanged. |
+| Checked backend red | Typed fixture after passive schema/profile scaffolding | |
+| Checked/backend focused | Verification, authentication, LLVM and native fixtures | |
 
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 
