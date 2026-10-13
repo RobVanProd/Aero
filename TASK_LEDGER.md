@@ -1,5 +1,188 @@
 # Aero Task Ledger
 
+## H1E-SOURCE-002 - source diagnostics and CLI runtime linkage
+
+- Date/authorization: 2026-10-12, user requested synchronization and continued
+  Aero work. Restored missing Windows checkout from origin. Development starts
+  at published PR #92 head `ff10caca3d95fb64a90369afe148bea4f5ef45df`, tree
+  `a7684379e4a6fb8067a1e8f41e0f4c1bb12a696b`; its 13 public checks completed
+  successfully. Master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`.
+- Observed: the diagnostic profile verifies and lowers checked stderr writes,
+  but source `stderr_write_byte` is unresolved and CLI links only the original
+  runtime. CAP-059 is already implemented on this branch and is not repeated.
+- Frozen source contract: only `exact-i32-byte-diagnostics-v0` reserves
+  `stderr_write_byte(int) -> Result<int, int>`, with exactly one Int argument
+  in a direct, explicitly annotated Result initializer inside a nongeneric
+  source function. Mirror stdout's established admissible contexts and exact
+  carrier wrapping. Semantic analysis and independent IR admission must agree.
+  Emit the existing checked stderr operation; raw ABI calls and runtime symbol
+  collisions remain rejected. Earlier profiles retain their prior behavior,
+  including ordinary user functions named stderr_write_byte. In the diagnostic
+  profile that name is reserved and cannot shadow the intrinsic.
+- Frozen transport: existing binary runtime statuses 0/-1/-2/-3 and independent
+  sticky stderr/stdout state are unchanged. CLI native runs of this profile
+  embed and compile the separate diagnostic runtime inside the existing run
+  artifact directory and link it in both llc and direct-Clang paths. Keep the
+  current CLI output presentation and cleanup/exit-code behavior.
+- Source owner allowed files: `src/compiler/src/byte_output_source_contract.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `language_profile.rs`, `lib.rs`,
+  `stderr_checked_backend_tests.rs`, and new
+  `src/compiler/tests/stderr_source_profile_tests.rs`. This owner alone handles
+  coupled semantic/IR changes and mechanical profile dispatch. No verifier,
+  backend, runtime or canonical Aero source changes under this task.
+- Lead allowed files: `src/compiler/src/main.rs`, new crate-local
+  `src/compiler/src/stderr_cli_runtime_tests.rs`, new
+  `src/compiler/tests/stderr_cli_runtime_tests.rs`, this ledger,
+  `PROJECT_STATE.md`, `SELF_HOSTING_ROADMAP.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `BUILD.md`. Existing compatibility sentinels may change only under an explicit
+  separately recorded amendment supported by a reviewed production diff.
+- Acceptance: source regression must fail before production edits; source
+  checks, independent raw-AST IR rejection, authentication and exact checked
+  operation; native binary bytes, computed values, typed range/sticky errors,
+  channel isolation at O0/O2; old-profile and invalid-context negatives. CLI
+  regression first proves the embedded diagnostic object is absent, then tests
+  source check/build/run, artifact cleanup and matching process exit. Complete
+  focused compatibility tests and repository-root ./tools/test.sh with verified
+  LLVM 22.1.8; record results only after reading completed exit statuses.
+- Risks/stop conditions: no existing-profile widening, invented contexts,
+  unchecked lowering, lost diagnostics, runtime changes, connected-AST work,
+  self-hosting claim, or edits outside ownership. Preserve existing histories;
+  publish a validated checkpoint to cumulative draft PR #92, never direct master.
+- Reviewed compatibility amendment: the completed allocator ABI replay fails
+  only its textual count of two `&runtime_obj_path` references after the two
+  link commands became one shared link helper. Authorize only that assertion
+  in `src/compiler/tests/allocator_runtime_abi_tests.rs`: require the original
+  object in the runtime vector, both object/LLVM input branches and the shared
+  link command consuming the full vector. Retain every native ABI/failure and
+  original-runtime embedding assertion. New independent native tests already
+  execute both branches with bytes 0/255 and verify earlier-profile exclusion.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Published baseline | PR #92 exact head public checks | All 13 completed successfully; independently read via GitHub before development. Local replay pending. |
+| Local baseline | Existing library and binary targets (intentional new CLI regression excluded) | Completed exit 0; 319 library and 36 binary tests passed. Full original-target build --no-run also completed exit 0. |
+| Source red | New source regression before production edits | Completed process exit 1, 0 passed/1 failed: direct explicitly annotated stderr call is unresolved in semantics. Log h1e-source-red.log. |
+| CLI red | New embedded-runtime regression before main.rs edits | Completed process exit 1, 0 passed/1 failed: independent C observer cannot link aero_stderr_write_byte against the CLI embedded runtime. Log october-cli-red.log. |
+| CLI native unit | Three native runtime/link tests after main.rs edits | Completed exit 0, 3 passed: embedded diagnostics, both llc/direct-Clang link paths, and original-runtime-only earlier profiles. |
+| Allocator compatibility red | Existing r1a_runtime_and_driver_boundary_executes_with_deterministic_failure | Completed process exit 1, sole old textual duplicate-reference count failed (0 vs 2); all earlier embedding anchors passed. |
+| Focused | Source, native, CLI and compatibility targets | Completed exit 0: 6 source/native cases at O0/O2, 6 contract units, 7 checked-backend cases, 1 existing stdout source regression; 3 native CLI unit tests, 5 public CLI cases and 2 allocator compatibility tests. All-target correctness Clippy and formatting also completed exit 0. |
+| Final gate | ./tools/test.sh on final recorded tree | Result belongs in commit message after the tree is fixed. |
+
+- Additional red-first context evidence: raw-AST global initialization and
+  nested reserved definitions initially reached verifier rejection rather than
+  IR Admission. Stderr-only function-context/reservation checks now reject them
+  during admission; the existing context marker is reused without new syntax.
+  A nested stderr call inside another direct output initializer initially passed
+  semantic analysis because the initializer flag leaked into argument inference.
+  The independently rejecting IR phase exposed the disagreement. A diagnostic-
+  only Cell guard now rejects nested stdout/stderr output during argument
+  evaluation and restores its prior state before propagating inference errors.
+  All three nesting combinations have semantic and raw-AST negative assertions.
+- Native fixture corrections are test expectations only: the unchanged source
+  carrier wrapper negates raw negative statuses, so -3 becomes Err(3). A Windows
+  failure-injection harness also defines _CRT_SECURE_NO_WARNINGS for its test-only
+  fopen use. The final native tests grade positive source errors and raw runtime
+  behavior separately; neither runtime nor wrapping semantics changed.
+- Read-only review confirmed conditional embedding and both CLI link paths.
+  New public CLI coverage forces failure while compiling the second runtime and
+  checks removal of the partially created original object/diagnostic source.
+  Invalid diagnostic context is refused with no published artifacts. Earlier
+  profiles preserve runtime objects, source helper behavior and negative checks.
+- Host toolchain: Rust 1.97.1, official LLVM/Clang 22.1.8 Windows x86_64 archive,
+  downloaded SHA-256 d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234
+  matched the release's digest before extraction. Builds, logs and temporary
+  files reside on D:. The fresh clone's Git Bash gate script was normalized from
+  CRLF to its unchanged LF Git contents; no script behavior change is included.
+- First root replay completed process exit 1 after formatting, correctness
+  Clippy, 322 library and 39 binary tests passed. The first integration target,
+  acyclic_copy_aggregate_tests, refused two tracked example byte comparisons:
+  Windows checkout autocrlf had converted their indexed LF bytes to CRLF.
+  Normalize only tracked text files whose Git index records LF and worktree
+  records CRLF (485 files), preserving content and any UTF-8 BOM. Use repository-
+  local core.autocrlf=input for future checkouts. This changed no Git content:
+  the staged tree remained 1f8f155d19a118aa344b43e21a7da4353c4d613a and unstaged
+  Git diff stayed empty. The previously failing native target then completed
+  exit 0, 1 passed/0 failed. Full root replay restarts on the final ledger tree;
+  the failed environmental run is not checkpoint acceptance.
+- The second full root replay completed process exit 1 at the canonical compiler
+  graph regression: adding a separately declared CLI test module exceeded its
+  frozen module set. Keep that architecture test unchanged. Include the same
+  three native tests inside main.rs's existing `tests` module, with no added
+  binary module declaration. The complete binary target then completed exit 0
+  with 39 passed, and the canonical graph target completed exit 0 with 1 passed.
+  Restart the complete gate on this final registration/ledger tree; earlier
+  partial or red runs remain diagnostic rather than acceptance.
+- A late read-only admission probe before checkpoint acceptance exposed another
+  context leak through eager array inference: with value(Result<int,int>)->int
+  and head([int;1])->int helpers, the expression
+  `stderr_write_byte(head([value(stderr_write_byte(65))]))` reached public IR
+  rejection instead of semantic rejection. Function calls themselves are not
+  cached, but array-element inference can run before the outer argument guard.
+  Stop the in-flight gate; it is not acceptance. Add independent semantic/raw-
+  AST negatives for these array-mediated nesting cases and a pure-array helper
+  positive. Guard diagnostic output arguments during preflight as well as type
+  inference, restoring state before any error return. Earlier profiles and the
+  frozen direct-initializer contract remain unchanged. Complete focused tests
+  and restart the full gate only on the corrected final tree.
+- Array-mediated regression completed process exit 1 before its fix. The final
+  preflight guard now rejects both outer/inner channels across ArrayLiteral and
+  ArrayRepeat, with seven contract units completing exit 0. Six source/native
+  cases, seven checked-backend cases and one earlier stdout case also completed
+  exit 0; the positive computed-array helper executes at O0/O2. Read-only review
+  found the same guard covers eager Match/field inference and restores prior
+  state on success and error. The public probe now reports Semantic Analysis
+  Error instead of IR Generation Error. The intentionally stopped full replay
+  is not acceptance; rerun the complete gate on this corrected final tree.
+- Final CLI/architecture/allocator compatibility replay after the preflight
+  correction completed exit 0: 39 binary unit tests, 5 diagnostic CLI cases,
+  2 allocator ABI cases and 1 canonical graph case. No skipped or ignored test
+  was added. Final full-tree result remains reserved for the commit message.
+
+### H1E-RUNTIME-002 - preserve sticky stderr errors under the Windows CRT
+
+- Final root replay on ba2dd743b9ff2bb6e22103238649dfeacaa9e866 completed
+  process exit 1 at the pre-existing stderr_runtime_abi_tests target: four
+  Windows cases passed and initialized closed-descriptor coverage terminated
+  with 0xc0000409 after writing exactly the prior byte S. The frozen expectation
+  remains exit 91, stdout O, stderr S, raw sticky -1 after descriptor closure.
+- Diagnosis: the Windows CRT treats a closed descriptor used by stdio as an
+  invalid parameter and its default handler aborts instead of returning EOF.
+  This is a runtime defect against H1E-RUNTIME-001, not an oracle to weaken.
+- Frozen repair: only the separate diagnostic runtime may adapt CRT calls with
+  a temporary thread-local invalid-parameter handler, restore the caller's
+  handler before every return, and map failures to the established -2 setup/-1
+  write statuses. Preserve binary bytes, flush-before-success, first-error
+  precedence, independent channels and all existing-runtime bytes. Do not
+  install a process-global handler or choose diagnostic text in C.
+- Allowed files: src/compiler/runtime/aero_diagnostic_runtime.c and focused
+  tests in src/compiler/tests/stderr_runtime_abi_tests.rs. Lead owns this ledger
+  and affected state/BUILD documentation. No other compiler or runtime phase
+  changes under this prerequisite. Existing failing closed-descriptor native
+  test is the approved red; additional Windows coverage must prove the caller's
+  thread-local handler is restored on success, setup and write failure paths.
+- Acceptance: unchanged closed-descriptor test at O0/O2; complete runtime ABI,
+  source/native, backend and CLI focused coverage; restore final recorded-tree
+  root-gate acceptance after the repair. Record completed exits only.
+- Windows CI coverage amendment: its native system job runs individually
+  scripted products but no cargo test target, so the prior all-green public
+  check did not execute the new diagnostic ABI cases. Lead may add a focused
+  step in .github/workflows/rust.yml running the diagnostic runtime, source and
+  CLI integration targets with the existing pinned LLVM configuration. Retain
+  all earlier native and security steps; Linux already runs cargo test in full.
+- Completed evidence: the unchanged closed-descriptor native regression
+  independently reproduced process exit 1 with 0xc0000409. The new restoration
+  test also reproduced red before production edits (after one corrected harness
+  insertion compile error). The corrected complete Windows runtime target
+  completed exit 0, six passed, including O0/O2 cold/initialized closure,
+  binary/range/sticky behavior, exact handler identity and callable caller
+  handlers. Root's exact three-target Windows workflow command then completed
+  exit 0 with 6 runtime, 6 source/native and 5 CLI tests. Checked-backend replay
+  completed exit 0 with 7 passed. Read-only review found no remaining defect;
+  original-runtime SHA remains frozen and POSIX transport code is equivalent.
+- Final acceptance remains a fresh complete root gate on the final recorded
+  tree. The earlier Windows failure is preserved as a real product red, not
+  reclassified as a passed or merely environmental run.
+
 ## SELFHOST-2026-09 - local self-hosting execution
 
 - User objective: copy this repository and work toward a self-hosting Aero

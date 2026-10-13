@@ -2490,6 +2490,18 @@ jobs:
       shell: pwsh
       run: cargo build --locked --manifest-path src/compiler/Cargo.toml
 
+    - name: Test Windows diagnostic runtime, source profile, and CLI
+      shell: pwsh
+      env:
+        CARGO_BUILD_JOBS: "2"
+        RUST_TEST_THREADS: "2"
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $false
+        cargo test --locked --manifest-path src/compiler/Cargo.toml --test stderr_runtime_abi_tests --test stderr_source_profile_tests --test stderr_cli_runtime_tests
+        if ($LASTEXITCODE -ne 0) {
+          throw "Windows diagnostic runtime/source/CLI tests failed with exit code $LASTEXITCODE"
+        }
+
     - name: Confirm Windows LLVM 22 rejects known-invalid IR
       shell: pwsh
       run: |

@@ -75,6 +75,20 @@ Gate output paths on `C:` are rejected. These gate paths differ from the standal
 
 ## CLI command summary
 
+For source diagnostic byte output, select `--language-profile
+exact-i32-byte-diagnostics-v0` with `check`, `build` or `run`. A direct call such
+as `let written: Result<int, int> = stderr_write_byte(65);` is admitted inside
+a nongeneric function. Success is `Ok(0)`; failures use positive error codes,
+including `Err(3)` for a byte outside 0 through 255. Each channel keeps its own sticky
+failure state. CPU `run` embeds and links both runtimes automatically; externally
+linking the generated LLVM requires `aero_diagnostic_runtime.c` in addition to
+the original runtime. The CLI retains its existing `Error output:` presentation;
+the linked program's stderr bytes themselves are binary.
+
+On Windows, recoverable stderr descriptor failures return their typed transport
+errors; the runtime restores the caller's thread-local CRT handler after each
+descriptor/write operation and leaves its global handler unchanged.
+
 - `aero build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--backend <cpu|rocm|cuda>] [--gpu <arch>]`: compile Aero source to LLVM IR with optional accelerator target metadata
 - `aero run <input.aero> [--target <cpu|rocm|cuda>] [--backend <cpu|rocm|cuda>] [--gpu <arch>]`: compile source and request a target-specific run stage; artifacts are temporary under `target/aero-run`
 - `aero check <input.aero>`: type-check only (no code generation)

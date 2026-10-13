@@ -5,7 +5,7 @@ use crate::byte_buffer_source_contract::{
     is_reserved_byte_buffer_intrinsic,
 };
 use crate::byte_input_source_contract::{STDIN_READ_BYTE, is_reserved_byte_input_intrinsic};
-use crate::byte_output_source_contract::{STDOUT_WRITE_BYTE, is_reserved_byte_output_intrinsic};
+use crate::byte_output_source_contract::is_reserved_byte_output_intrinsic;
 use crate::ir::LogicalType;
 use crate::resolved_profile_shape::{
     ResolvedProfileAssignmentProjection, ResolvedProfileAssignmentRoot,
@@ -102,7 +102,11 @@ impl LanguageProfile {
         )
     }
 
-    /// Checked backend capability only; stderr source admission is separate.
+    pub(crate) fn enables_byte_diagnostics_source(self) -> bool {
+        self == Self::ExactI32ByteDiagnosticsV0
+    }
+
+    /// Checked backend capability for the separate diagnostic transport.
     pub(crate) fn allows_checked_stderr_output(self) -> bool {
         self == Self::ExactI32ByteDiagnosticsV0
     }
@@ -350,7 +354,7 @@ impl ExactByteOutputProfileValidator {
             else {
                 continue;
             };
-            if !is_reserved_byte_output_intrinsic(name) {
+            if !is_reserved_byte_output_intrinsic(name, profile.enables_byte_diagnostics_source()) {
                 continue;
             }
             if !matches!(
@@ -365,7 +369,7 @@ impl ExactByteOutputProfileValidator {
             if arguments.len() != 1 {
                 return Err(profile_named_error(
                     profile,
-                    &format!("byte-output intrinsic `{STDOUT_WRITE_BYTE}` argument topology"),
+                    &format!("byte-output intrinsic `{name}` argument topology"),
                 ));
             }
         }

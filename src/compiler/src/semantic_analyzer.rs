@@ -19,7 +19,7 @@ use crate::byte_input_source_contract::{
     result_context_diagnostic as byte_input_result_context_diagnostic,
 };
 use crate::byte_output_source_contract::{
-    STDOUT_WRITE_BYTE, classify_byte_output_intrinsic_call,
+    STDERR_WRITE_BYTE, classify_byte_output_intrinsic_call,
     is_direct_byte_output_result_initializer, is_reserved_byte_output_intrinsic,
     result_context_diagnostic as byte_output_result_context_diagnostic,
 };
@@ -66,7 +66,7 @@ use crate::tuple_contract::{
 };
 use crate::types::{OwnershipState, Ty, infer_binary_type};
 use crate::use_import_contract::unsupported_name_import_diagnostic;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 type ArrayInferenceCache = HashMap<*const Expression, Ty>;
@@ -833,8 +833,10 @@ pub struct SemanticAnalyzer {
     byte_buffer_source_enabled: bool,
     byte_input_source_enabled: bool,
     byte_output_source_enabled: bool,
+    byte_diagnostics_source_enabled: bool,
     byte_input_result_initializer_active: bool,
     byte_output_result_initializer_active: bool,
+    byte_diagnostics_argument_active: Cell<bool>,
 }
 
 impl SemanticAnalyzer {
@@ -867,8 +869,10 @@ impl SemanticAnalyzer {
             byte_buffer_source_enabled: false,
             byte_input_source_enabled: false,
             byte_output_source_enabled: false,
+            byte_diagnostics_source_enabled: false,
             byte_input_result_initializer_active: false,
             byte_output_result_initializer_active: false,
+            byte_diagnostics_argument_active: Cell::new(false),
         }
     }
 
@@ -887,6 +891,12 @@ impl SemanticAnalyzer {
     pub(crate) fn new_with_byte_io_source() -> Self {
         let mut analyzer = Self::new_with_byte_input_source();
         analyzer.byte_output_source_enabled = true;
+        analyzer
+    }
+
+    pub(crate) fn new_with_byte_diagnostics_source() -> Self {
+        let mut analyzer = Self::new_with_byte_io_source();
+        analyzer.byte_diagnostics_source_enabled = true;
         analyzer
     }
 
@@ -1094,7 +1104,11 @@ impl SemanticAnalyzer {
         use_context: FunctionCallUse,
     ) -> Result<Option<Ty>, String> {
         if !self.byte_output_source_enabled
-            || !classify_byte_output_intrinsic_call(name, arguments)?
+            || !classify_byte_output_intrinsic_call(
+                name,
+                arguments,
+                self.byte_diagnostics_source_enabled,
+            )?
         {
             return Ok(None);
         }
@@ -1103,24 +1117,35 @@ impl SemanticAnalyzer {
             || self.inside_impl
         {
             return Err(format!(
-                "byte-output intrinsic `{STDOUT_WRITE_BYTE}` requires a direct nongeneric source function body"
+                "byte-output intrinsic `{name}` requires a direct nongeneric source function body"
             ));
         }
-        if use_context == FunctionCallUse::Discarded || !self.byte_output_result_initializer_active
+        if use_context == FunctionCallUse::Discarded
+            || !self.byte_output_result_initializer_active
+            || (self.byte_diagnostics_source_enabled && self.byte_diagnostics_argument_active.get())
         {
-            return Err(byte_output_result_context_diagnostic());
+            return Err(byte_output_result_context_diagnostic(name));
         }
+        // A direct initializer authenticates only this call, not calls nested
+        // within its Int argument. Earlier stdout profiles keep their admission.
+        let previous_argument_context = self
+            .byte_diagnostics_source_enabled
+            .then(|| self.byte_diagnostics_argument_active.replace(true));
         let actual =
-            self.infer_and_validate_expression_immutable_with_cache(&arguments[0], array_types)?;
+            self.infer_and_validate_expression_immutable_with_cache(&arguments[0], array_types);
+        if let Some(previous) = previous_argument_context {
+            self.byte_diagnostics_argument_active.set(previous);
+        }
+        let actual = actual?;
         if actual != Ty::Int {
             return Err(format!(
-                "byte-output intrinsic `{STDOUT_WRITE_BYTE}` argument has type {actual}, expected int"
+                "byte-output intrinsic `{name}` argument has type {actual}, expected int"
             ));
         }
         let result = private_result_int_int_name();
         self.enum_registry
             .owned_place_logical_type(&result)
-            .map_err(|_| byte_output_result_context_diagnostic())?;
+            .map_err(|_| byte_output_result_context_diagnostic(name))?;
         Ok(Some(Ty::Enum(result)))
     }
 
@@ -1525,9 +1550,16 @@ impl SemanticAnalyzer {
                         "byte-input intrinsic name `{name}` is reserved by exact-i32-byte-input-v0"
                     ));
                 }
-                if self.byte_output_source_enabled && is_reserved_byte_output_intrinsic(name) {
+                if self.byte_output_source_enabled
+                    && is_reserved_byte_output_intrinsic(name, self.byte_diagnostics_source_enabled)
+                {
                     return Err(format!(
-                        "byte-output intrinsic name `{name}` is reserved by exact-i32-byte-io-v0"
+                        "byte-output intrinsic name `{name}` is reserved by {}",
+                        if name == STDERR_WRITE_BYTE {
+                            "exact-i32-byte-diagnostics-v0"
+                        } else {
+                            "exact-i32-byte-io-v0"
+                        }
                     ));
                 }
                 let reference_transport = match classify_reference_function_with_enums(
@@ -1821,8 +1853,14 @@ impl SemanticAnalyzer {
                 self.check_expression_initialization(right)?;
             }
             Expression::FunctionCall { name, arguments } => {
-                if self.byte_output_source_enabled && is_reserved_byte_output_intrinsic(name) {
-                    classify_byte_output_intrinsic_call(name, arguments)?;
+                if self.byte_output_source_enabled
+                    && is_reserved_byte_output_intrinsic(name, self.byte_diagnostics_source_enabled)
+                {
+                    classify_byte_output_intrinsic_call(
+                        name,
+                        arguments,
+                        self.byte_diagnostics_source_enabled,
+                    )?;
                     self.check_expression_initialization(&arguments[0])?;
                     return Ok(());
                 }
@@ -2268,15 +2306,34 @@ impl SemanticAnalyzer {
                 }
             }
             Expression::FunctionCall { name, arguments } => {
-                if self.byte_output_source_enabled && is_reserved_byte_output_intrinsic(name) {
-                    classify_byte_output_intrinsic_call(name, arguments)?;
-                    self.preflight_expression_with_array_mode(
+                if self.byte_output_source_enabled
+                    && is_reserved_byte_output_intrinsic(name, self.byte_diagnostics_source_enabled)
+                {
+                    classify_byte_output_intrinsic_call(
+                        name,
+                        arguments,
+                        self.byte_diagnostics_source_enabled,
+                    )?;
+                    if self.byte_diagnostics_source_enabled
+                        && self.byte_diagnostics_argument_active.get()
+                    {
+                        return Err(byte_output_result_context_diagnostic(name));
+                    }
+                    // Preflight can infer and cache array element types eagerly.
+                    // Establish the argument context before traversing any shape.
+                    let previous_argument_context = self
+                        .byte_diagnostics_source_enabled
+                        .then(|| self.byte_diagnostics_argument_active.replace(true));
+                    let result = self.preflight_expression_with_array_mode(
                         &arguments[0],
                         interleave_array_inference,
                         array_types,
                         struct_context,
-                    )?;
-                    return Ok(());
+                    );
+                    if let Some(previous) = previous_argument_context {
+                        self.byte_diagnostics_argument_active.set(previous);
+                    }
+                    return result;
                 }
                 if self.byte_input_source_enabled && is_reserved_byte_input_intrinsic(name) {
                     classify_byte_input_intrinsic_call(name, arguments)?;
@@ -3198,7 +3255,11 @@ impl SemanticAnalyzer {
                     is_direct_byte_input_result_initializer(value, type_annotation.as_ref())
                 });
                 let byte_output_result_initializer = value.as_ref().is_some_and(|value| {
-                    is_direct_byte_output_result_initializer(value, type_annotation.as_ref())
+                    is_direct_byte_output_result_initializer(
+                        value,
+                        type_annotation.as_ref(),
+                        self.byte_diagnostics_source_enabled,
+                    )
                 });
                 if self.byte_input_source_enabled
                     && value.as_ref().is_some_and(|value| {
@@ -3210,13 +3271,12 @@ impl SemanticAnalyzer {
                     return Err(byte_input_result_context_diagnostic());
                 }
                 if self.byte_output_source_enabled
-                    && value.as_ref().is_some_and(|value| {
-                        matches!(value, Expression::FunctionCall { name, arguments }
-                            if is_reserved_byte_output_intrinsic(name) && arguments.len() == 1)
-                    })
+                    && let Some(Expression::FunctionCall { name, arguments }) = value.as_ref()
+                    && is_reserved_byte_output_intrinsic(name, self.byte_diagnostics_source_enabled)
+                    && arguments.len() == 1
                     && !byte_output_result_initializer
                 {
-                    return Err(byte_output_result_context_diagnostic());
+                    return Err(byte_output_result_context_diagnostic(name));
                 }
 
                 if self.byte_buffer_source_enabled {
@@ -3624,9 +3684,16 @@ impl SemanticAnalyzer {
                         "byte-input intrinsic name `{name}` is reserved by exact-i32-byte-input-v0"
                     ));
                 }
-                if self.byte_output_source_enabled && is_reserved_byte_output_intrinsic(name) {
+                if self.byte_output_source_enabled
+                    && is_reserved_byte_output_intrinsic(name, self.byte_diagnostics_source_enabled)
+                {
                     return Err(format!(
-                        "byte-output intrinsic name `{name}` is reserved by exact-i32-byte-io-v0"
+                        "byte-output intrinsic name `{name}` is reserved by {}",
+                        if name == STDERR_WRITE_BYTE {
+                            "exact-i32-byte-diagnostics-v0"
+                        } else {
+                            "exact-i32-byte-io-v0"
+                        }
                     ));
                 }
                 // Phase 5: Register generic type parameters in scope

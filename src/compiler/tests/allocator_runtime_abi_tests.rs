@@ -317,11 +317,21 @@ fn r1a_runtime_and_driver_boundary_executes_with_deterministic_failure() {
     ] {
         assert!(main.contains(anchor), "compiler driver omitted `{anchor}`");
     }
-    assert_eq!(
-        main.matches("&runtime_obj_path").count(),
-        2,
-        "both CPU link paths must consume the compiled runtime object"
-    );
+    for anchor in [
+        "vec![artifacts.runtime_obj_file.clone()]",
+        "fn link_cpu_program",
+        "let input = if let Some(llc_bin) = llc_bin",
+        "&artifacts.obj_file",
+        "&artifacts.ll_file",
+        ".arg(input)",
+        ".args(runtime_objects)",
+        "link_cpu_program(&clang_bin, llc_bin.as_deref(), artifacts, &runtime_objects)",
+    ] {
+        assert!(
+            main.contains(anchor),
+            "shared CPU link paths omitted `{anchor}`"
+        );
+    }
     let production_runtime =
         fs::read_to_string(&production_runtime_path).expect("read production allocator runtime");
     let test_runtime = fs::read_to_string(&test_runtime_path).expect("read test allocator runtime");

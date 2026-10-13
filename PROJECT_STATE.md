@@ -1,13 +1,17 @@
 # Aero Project State
 
-Last updated: 2026-09-16 (America/New_York)
+Last updated: 2026-10-13 (America/New_York)
 
-## Local self-hosting work after the integration merge
+## Current development after the integration merge
 
-This local checkout starts at upstream `df0fecea13e9f28c5065e092973aa34d5ac055c9`
-on `agent/aero-integration`. The user authorized continued self-hosting
-implementation. The phase-1-only boundary below is historical. Local changes
-have not been published or accepted by protected CI.
+Public master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`; its four
+post-merge workflows completed successfully. The restored Windows checkout tracks
+`agent/aero-self-hosting-2026-09-16`, cumulative draft
+[PR #92](https://github.com/RobVanProd/Aero/pull/92). Its previous published head
+`ff10caca3d95fb64a90369afe148bea4f5ef45df` passed all 13 public checks, including
+the Windows native gate. It is published development work, not a master merge.
+The user authorized synchronization and continued implementation on 2026-10-12;
+the phase-1-only boundary below is historical.
 
 The immutable upstream Linux baseline passes 1,021 tests with 16 existing
 ignored tests. CAP-059 stage 3a admits a 513-node arithmetic function, and the
@@ -18,19 +22,29 @@ provenance and cross-function operands. Independent Clang execution passes at
 O0/O2. Compatibility and complete-tree validation are tracked in TASK_LEDGER.md;
 focused evidence is not full checkpoint acceptance.
 
-The new separate diagnostic runtime implements binary, sticky-error stderr
-byte output. Six Linux native ABI tests pass at O0/O2; it is not yet available
-through an Aero source profile. Windows cases have not been executed locally.
-The existing runtime is byte-identical.
+The separate diagnostic runtime implements binary, sticky-error stderr byte
+output. Its original six native ABI tests and checked backend fixtures are
+retained. The original runtime remains byte-identical.
 
-H1E-CHECKED-001 adds the `exact-i32-byte-diagnostics-v0` profile and a distinct
-checked stderr instruction, strict verification and authenticated LLVM lowering.
-Its seven new backend tests pass within 319 library and 36 binary unit tests;
-stdout compatibility also passes. The profile currently inherits byte-I/O source
-behavior: stderr source admission and CLI runtime linkage remain deferred.
-Three historical whole-file IR/verifier sentinels were explicitly updated for
-the reviewed addition; all three compatibility regressions pass, with runtime
-and LLVM sentinels unchanged. Full integration validation remains in progress.
+H1E-CHECKED-001 supplies `exact-i32-byte-diagnostics-v0`, a distinct checked
+stderr instruction, strict verification and authenticated LLVM lowering.
+H1E-SOURCE-002 now connects `stderr_write_byte(int) -> Result<int, int>` to that
+operation, with independent semantic and raw-AST IR admission. The call requires
+an explicitly annotated direct Result initializer inside a nongeneric source
+function. Earlier profiles retain their existing boundaries. Native CLI runs
+embed the separate diagnostic runtime and link it through either llc or direct
+Clang; artifact cleanup and the existing CLI output presentation are preserved.
+Raw transport failures become positive source error codes (for example, -3
+becomes Err(3)); stdout and stderr keep independent sticky state. Completed
+focused evidence is in TASK_LEDGER.md. Final-tree root-gate results belong in
+the implementation commit message and PR; no pending run is claimed as passed.
+
+H1E-RUNTIME-002 repairs the separate stderr transport on Windows: recoverable
+closed-descriptor CRT calls return their existing sticky errors while a narrow
+thread-local handler is installed and then restored. The caller's global handler
+and original runtime are unchanged. Native O0/O2 tests cover restoration and
+binary/error behavior, and Windows CI now runs diagnostic runtime, source and
+CLI integration targets explicitly.
 
 The canonical compiler still fails semantic analysis at its first identifier.
 Its parser does not yet connect parameters, bindings, statements or control flow

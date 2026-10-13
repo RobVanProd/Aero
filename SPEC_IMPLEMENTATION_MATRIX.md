@@ -1,25 +1,30 @@
 # Aero Specification-to-Implementation Matrix
 
-## Local capability delta - 2026-09-16
+## Current capability delta - 2026-10-13
 
-Unpublished work on `agent/aero-integration`, based on integration merge
-`df0fece`, adds focused Linux native evidence for the CAP-059 513-node bound,
+Published draft PR #92 on `agent/aero-self-hosting-2026-09-16`, based on merge
+`df0fece`, adds native evidence for the CAP-059 513-node bound,
 correct checked-result ownership, and multiple arithmetic function verification
 and emission. Exact O0/O2 LLVM/native probes and corrupted metadata/foreign-result
 refusals pass. Full local validation is tracked in TASK_LEDGER.md. This remains
 the bounded arithmetic subset; it does not compile the canonical compiler.
 
-A separate C stderr byte transport passes six Linux native ABI tests at O0/O2.
-It changes no existing runtime bytes or public source profile. Source integration
-and Windows execution remain outstanding. Connected AST design, compiler-subset
+A separate C stderr byte transport has six native ABI tests at O0/O2.
+Its checked backend was published at `ff10caca`, which passed all 13 public
+checks including the Windows native gate. The original runtime remains unchanged.
+Connected AST design, compiler-subset
 semantics/lowering and actual self-hosting are still incomplete. The historical
 integration and acceptance records below do not describe these local changes.
 
-H1E-CHECKED-001 adds a separate diagnostic profile and one verified checked
-stderr instruction with authenticated LLVM lowering. Linux O0/O2 backend
-fixtures pass; source calls and CLI diagnostic-runtime linkage are not yet
-implemented. Every earlier public profile retains its behavior. The ordinary
-source name `stderr_write_byte` remains an ordinary user helper at this stage.
+H1E-CHECKED-001 adds a diagnostic profile and verified checked stderr operation
+with authenticated LLVM lowering. H1E-SOURCE-002 connects a one-Int-argument
+`stderr_write_byte` call only in a direct `Result<int, int>` initializer inside
+a nongeneric function. Independent semantic and IR admission enforce this
+boundary. CLI native runs link the separate embedded runtime through both link
+paths. Earlier profiles preserve ordinary user helpers with that name; the
+diagnostic profile reserves it. Source Err codes are positive, including Err(3)
+for a raw -3 range/sticky failure. Full-tree evidence is in the candidate commit
+and cumulative PR, and no draft capability is presented as a master checkpoint.
 
 ## Reading this matrix after phase 1 integration
 

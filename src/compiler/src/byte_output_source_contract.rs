@@ -2,43 +2,45 @@ use crate::ast::{Expression, Type};
 use crate::builtin_carrier_contract::private_result_int_int_name;
 
 pub(crate) const STDOUT_WRITE_BYTE: &str = "stdout_write_byte";
+pub(crate) const STDERR_WRITE_BYTE: &str = "stderr_write_byte";
 
-pub(crate) fn is_reserved_byte_output_intrinsic(name: &str) -> bool {
-    name == STDOUT_WRITE_BYTE
+pub(crate) fn is_reserved_byte_output_intrinsic(name: &str, diagnostics_enabled: bool) -> bool {
+    name == STDOUT_WRITE_BYTE || (diagnostics_enabled && name == STDERR_WRITE_BYTE)
 }
 
-/// Classify only the closed CAP-047 source call. Type, source-context, and
+/// Classify the closed stdout call and profile-gated diagnostic stderr call.
+/// Type, source-context, and
 /// checked-IR admission remain independently owned by semantics and IR
 /// generation.
 pub(crate) fn classify_byte_output_intrinsic_call(
     name: &str,
     arguments: &[Expression],
+    diagnostics_enabled: bool,
 ) -> Result<bool, String> {
-    if !is_reserved_byte_output_intrinsic(name) {
+    if !is_reserved_byte_output_intrinsic(name, diagnostics_enabled) {
         return Ok(false);
     }
     if arguments.len() != 1 {
         return Err(format!(
-            "byte-output intrinsic `{STDOUT_WRITE_BYTE}` requires exactly one argument"
+            "byte-output intrinsic `{name}` requires exactly one argument"
         ));
     }
     Ok(true)
 }
 
-pub(crate) fn result_context_diagnostic() -> String {
-    format!(
-        "byte-output intrinsic `{STDOUT_WRITE_BYTE}` requires an explicit `Result<int, int>` context"
-    )
+pub(crate) fn result_context_diagnostic(name: &str) -> String {
+    format!("byte-output intrinsic `{name}` requires an explicit `Result<int, int>` context")
 }
 
 pub(crate) fn is_direct_byte_output_result_initializer(
     expression: &Expression,
     annotation: Option<&Type>,
+    diagnostics_enabled: bool,
 ) -> bool {
     matches!(
         expression,
         Expression::FunctionCall { name, arguments }
-            if is_reserved_byte_output_intrinsic(name)
+            if is_reserved_byte_output_intrinsic(name, diagnostics_enabled)
                 && arguments.len() == 1
                 && matches!(annotation, Some(Type::Named(result)) if result == &private_result_int_int_name())
     )
@@ -69,6 +71,175 @@ fn main() -> int {
     fn parsed() -> Vec<crate::ast::AstNode> {
         let tokens = try_tokenize_with_locations(SOURCE, None).expect("CAP-047 source lexes");
         parse_with_locations(tokens).expect("CAP-047 source parses")
+    }
+
+    fn parsed_source(source: &str) -> Vec<crate::ast::AstNode> {
+        let tokens = try_tokenize_with_locations(source, None).expect("source fixture lexes");
+        parse_with_locations(tokens).expect("source fixture parses")
+    }
+
+    #[test]
+    fn diagnostic_source_has_one_exact_checked_stderr_operation() {
+        let source = SOURCE.replace(STDOUT_WRITE_BYTE, STDERR_WRITE_BYTE);
+        let (_, ast, resolved) = SemanticAnalyzer::new_with_byte_diagnostics_source()
+            .analyze_with_resolved_profile(parsed_source(&source))
+            .expect("diagnostic source passes independent semantics");
+        validate_resolved_language_profile(&resolved, LanguageProfile::ExactI32ByteDiagnosticsV0)
+            .expect("diagnostic source profile admission");
+        assert!(
+            IrGenerator::new_with_byte_io_source()
+                .try_generate_ir(ast.clone())
+                .is_err()
+        );
+        let checked = IrGenerator::new_with_byte_diagnostics_source()
+            .try_generate_ir(parsed_source(&source))
+            .expect("diagnostic source reaches verified IR");
+        let body = function_body(&checked, "main");
+        let writes: Vec<_> = body
+            .iter()
+            .filter_map(|instruction| match instruction {
+                Inst::CheckedStderrWriteByte { result, value } => Some((result, value)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(writes.len(), 1);
+        assert_eq!(writes[0].1, &Value::ImmInt(65));
+        let Value::Reg(id) = writes[0].0 else {
+            panic!("stderr write must define a result")
+        };
+        assert_eq!(
+            checked.metadata().functions["main"].results[&ResultId(*id)],
+            LogicalType::Int
+        );
+        assert!(!body.iter().any(|instruction| matches!(instruction, Inst::Call { function, .. } if function == "aero_stderr_write_byte")));
+        assert!(
+            !body
+                .iter()
+                .any(|instruction| matches!(instruction, Inst::CheckedStdoutWriteByte { .. }))
+        );
+    }
+
+    #[test]
+    fn diagnostic_semantics_and_raw_ast_ir_independently_reject_invalid_source() {
+        for (label, source) in [
+            (
+                "no arguments",
+                "fn main() -> int { let value: Result<int, int> = stderr_write_byte(); return 0; }",
+            ),
+            (
+                "two arguments",
+                "fn main() -> int { let value: Result<int, int> = stderr_write_byte(1, 2); return 0; }",
+            ),
+            (
+                "wrong type",
+                "fn main() -> int { let value: Result<int, int> = stderr_write_byte(1 < 2); return 0; }",
+            ),
+            (
+                "discarded",
+                "fn main() -> int { stderr_write_byte(65); return 0; }",
+            ),
+            (
+                "inferred",
+                "fn main() -> int { let value = stderr_write_byte(65); return 0; }",
+            ),
+            (
+                "wrong annotation",
+                "fn main() -> int { let value: int = stderr_write_byte(65); return 0; }",
+            ),
+            (
+                "nested",
+                "fn consume(value: Result<int, int>) -> int { return 0; } fn main() -> int { return consume(stderr_write_byte(65)); }",
+            ),
+            (
+                "stderr nested in stderr argument",
+                "fn value(r: Result<int, int>) -> int { return match r { Ok(v) => v, Err(e) => e, }; } fn main() -> int { let written: Result<int, int> = stderr_write_byte(value(stderr_write_byte(65))); return 0; }",
+            ),
+            (
+                "stdout nested in stderr argument",
+                "fn value(r: Result<int, int>) -> int { return match r { Ok(v) => v, Err(e) => e, }; } fn main() -> int { let written: Result<int, int> = stderr_write_byte(value(stdout_write_byte(65))); return 0; }",
+            ),
+            (
+                "stderr nested in stdout argument",
+                "fn value(r: Result<int, int>) -> int { return match r { Ok(v) => v, Err(e) => e, }; } fn main() -> int { let written: Result<int, int> = stdout_write_byte(value(stderr_write_byte(65))); return 0; }",
+            ),
+            (
+                "return",
+                "fn emit() -> Result<int, int> { return stderr_write_byte(65); } fn main() -> int { return 0; }",
+            ),
+            (
+                "generic",
+                "fn emit<T>() -> int { let value: Result<int, int> = stderr_write_byte(65); return 0; } fn main() -> int { return 0; }",
+            ),
+            (
+                "reserved function",
+                "fn stderr_write_byte(value: int) -> int { return value; } fn main() -> int { return 0; }",
+            ),
+            (
+                "nested reserved function",
+                "fn main() -> int { fn stderr_write_byte(value: int) -> int { return value; } return 0; }",
+            ),
+            (
+                "reserved impl method",
+                "struct Console { marker: int } impl Console { fn stderr_write_byte(value: int) -> int { return value; } } fn main() -> int { return 0; }",
+            ),
+            (
+                "raw ABI",
+                "fn main() -> int { return aero_stderr_write_byte(65); }",
+            ),
+            (
+                "global initializer",
+                "let value: Result<int, int> = stderr_write_byte(65); fn main() -> int { return 0; }",
+            ),
+            (
+                "impl",
+                "struct Console { marker: int } impl Console { fn emit() -> int { let written: Result<int, int> = stderr_write_byte(65); return 0; } } fn main() -> int { return 0; }",
+            ),
+        ] {
+            let ast = parsed_source(source);
+            SemanticAnalyzer::new_with_byte_diagnostics_source()
+                .analyze(ast.clone())
+                .expect_err(&format!("{label}: independent semantic admission"));
+            let error = IrGenerator::new_with_byte_diagnostics_source()
+                .try_generate_ir(ast)
+                .expect_err(&format!(
+                    "{label}: raw AST must not bypass independent IR admission"
+                ));
+            assert!(
+                matches!(error, crate::ir_generator::IrGenerationError::Admission(_)),
+                "{label}: rejected only after raw IR generation: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostic_argument_preflight_rejects_array_mediated_output_calls() {
+        for outer in [STDERR_WRITE_BYTE, STDOUT_WRITE_BYTE] {
+            for inner in [STDERR_WRITE_BYTE, STDOUT_WRITE_BYTE] {
+                for array in ["[value(INNER(65))]", "[value(INNER(65)); 1]"] {
+                    let array = array.replace("INNER", inner);
+                    let source = format!(
+                        "fn value(r: Result<int, int>) -> int {{ return match r {{ Ok(v) => v, Err(e) => e, }}; }} fn head(a: [int; 1]) -> int {{ return a[0]; }} fn main() -> int {{ let written: Result<int, int> = {outer}(head({array})); return 0; }}"
+                    );
+                    let ast = parsed_source(&source);
+                    let error = SemanticAnalyzer::new_with_byte_diagnostics_source()
+                        .analyze(ast.clone())
+                        .expect_err(
+                            "array preflight must not infer a nested output call as admitted",
+                        );
+                    assert!(
+                        error.contains(&result_context_diagnostic(inner)),
+                        "{source}: {error}"
+                    );
+                    let error = IrGenerator::new_with_byte_diagnostics_source()
+                        .try_generate_ir(ast)
+                        .expect_err("raw AST array mediation must fail independent IR admission");
+                    assert!(
+                        matches!(error, crate::ir_generator::IrGenerationError::Admission(_)),
+                        "{source}: {error}"
+                    );
+                }
+            }
+        }
     }
 
     fn function_body<'a>(checked: &'a CheckedIr, name: &str) -> &'a [Inst] {
@@ -116,21 +287,49 @@ fn main() -> int {
         assert!(
             classify_byte_output_intrinsic_call(
                 STDOUT_WRITE_BYTE,
-                &[Expression::IntegerLiteral(65)]
+                &[Expression::IntegerLiteral(65)],
+                false,
             )
             .expect("exact one-argument call")
         );
-        assert!(classify_byte_output_intrinsic_call(STDOUT_WRITE_BYTE, &[]).is_err());
+        assert!(classify_byte_output_intrinsic_call(STDOUT_WRITE_BYTE, &[], false).is_err());
         assert!(
             classify_byte_output_intrinsic_call(
                 STDOUT_WRITE_BYTE,
-                &[Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)]
+                &[Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
+                false,
             )
             .is_err()
         );
         assert!(
-            !classify_byte_output_intrinsic_call("ordinary", &[Expression::IntegerLiteral(65)])
-                .expect("ordinary call")
+            !classify_byte_output_intrinsic_call(
+                "ordinary",
+                &[Expression::IntegerLiteral(65)],
+                false
+            )
+            .expect("ordinary call")
+        );
+    }
+
+    #[test]
+    fn stderr_classification_is_enabled_only_for_diagnostic_source() {
+        let arguments = [Expression::IntegerLiteral(65)];
+        assert!(
+            !classify_byte_output_intrinsic_call(STDERR_WRITE_BYTE, &arguments, false).unwrap()
+        );
+        assert!(classify_byte_output_intrinsic_call(STDERR_WRITE_BYTE, &arguments, true).unwrap());
+        assert!(classify_byte_output_intrinsic_call(STDERR_WRITE_BYTE, &[], true).is_err());
+        assert!(
+            classify_byte_output_intrinsic_call(
+                STDERR_WRITE_BYTE,
+                &[Expression::IntegerLiteral(1), Expression::IntegerLiteral(2)],
+                true
+            )
+            .is_err()
+        );
+        assert!(
+            !classify_byte_output_intrinsic_call("aero_stderr_write_byte", &arguments, true)
+                .unwrap()
         );
     }
 

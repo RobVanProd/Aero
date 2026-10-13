@@ -362,6 +362,92 @@ int main(void) {
     }
 }
 
+#[cfg(windows)]
+#[test]
+fn stderr_restores_caller_invalid_parameter_handlers_on_every_exit() {
+    let workspace = TestWorkspace::new("handler-restoration");
+    let source = r#"
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <io.h>
+#include <windows.h>
+extern int32_t aero_stderr_write_byte(int32_t value);
+static int thread_calls = 0;
+static int global_calls = 0;
+static void __cdecl caller_thread_handler(const wchar_t *expression, const wchar_t *function,
+                                         const wchar_t *file, unsigned int line, uintptr_t reserved) {
+    (void)expression; (void)function; (void)file; (void)line; (void)reserved;
+    thread_calls++;
+}
+static void __cdecl caller_global_handler(const wchar_t *expression, const wchar_t *function,
+                                         const wchar_t *file, unsigned int line, uintptr_t reserved) {
+    (void)expression; (void)function; (void)file; (void)line; (void)reserved;
+    global_calls++;
+}
+static int caller_handlers_are_restored(void) {
+    if (_get_thread_local_invalid_parameter_handler() != caller_thread_handler) return 0;
+    if (_get_invalid_parameter_handler() != caller_global_handler || global_calls != 0) return 0;
+    int before = thread_calls;
+    if (_close(-1) != -1 || thread_calls != before + 1 || global_calls != 0) return 0;
+    return 1;
+}
+int main(int argc, char **argv) {
+    if (argc != 2) return 70;
+    _invalid_parameter_handler original_global = _set_invalid_parameter_handler(caller_global_handler);
+    _invalid_parameter_handler original_thread = _set_thread_local_invalid_parameter_handler(caller_thread_handler);
+    if (argv[1][0] == 's') {
+        if (aero_stderr_write_byte(65) != 0 || !caller_handlers_are_restored()) return 71;
+        if (aero_stderr_write_byte(255) != 0 || !caller_handlers_are_restored()) return 72;
+    } else if (argv[1][0] == 'r') {
+        if (aero_stderr_write_byte(256) != -3 || !caller_handlers_are_restored()) return 73;
+        if (aero_stderr_write_byte(65) != -3 || !caller_handlers_are_restored()) return 74;
+    } else {
+        int initialized = argv[1][0] == 'i';
+        if (setvbuf(stderr, NULL, _IONBF, 0) != 0) return 75;
+        int saved = _dup(2);
+        if (saved < 0) return 76;
+        if (initialized && (aero_stderr_write_byte(83) != 0 || !caller_handlers_are_restored())) return 77;
+        if (_close(2) != 0) return 78;
+        /* Keep the OS standard handle valid while the CRT descriptor is closed,
+           so the cold branch independently exercises _setmode failure. */
+        if (!SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(saved))) return 79;
+        int32_t expected = initialized ? -1 : -2;
+        int calls_before = thread_calls;
+        if (aero_stderr_write_byte(65) != expected || thread_calls != calls_before) return 80;
+        if (!caller_handlers_are_restored()) return 81;
+        if (aero_stderr_write_byte(256) != expected || !caller_handlers_are_restored()) return 82;
+        if (_dup2(saved, 2) != 0) return 83;
+        if (!SetStdHandle(STD_ERROR_HANDLE, (HANDLE)_get_osfhandle(2))) return 84;
+        if (_close(saved) != 0) return 85;
+        clearerr(stderr);
+        if (aero_stderr_write_byte(66) != expected || !caller_handlers_are_restored()) return 86;
+    }
+    _set_thread_local_invalid_parameter_handler(original_thread);
+    _set_invalid_parameter_handler(original_global);
+    return 91;
+}
+"#;
+    for optimization in ["-O0", "-O2"] {
+        let executable = workspace.compile(optimization, source);
+        for (mode, stderr) in [
+            ("success", &[65, 255][..]),
+            ("range", &[][..]),
+            ("cold", &[][..]),
+            ("initialized", &[83][..]),
+        ] {
+            assert_output(
+                Command::new(&executable)
+                    .arg(mode)
+                    .output()
+                    .expect("run Windows handler restoration ABI"),
+                b"",
+                stderr,
+            );
+        }
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn stderr_sigpipe_setup_failure_is_sticky_and_precedes_io() {

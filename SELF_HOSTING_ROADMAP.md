@@ -1,27 +1,31 @@
 # Aero Self-Hosting Roadmap
 
-Last reviewed: 2026-09-16 (America/New_York)
+Last reviewed: 2026-10-13 (America/New_York)
 
-## Local execution after phase 1
+## Current execution after phase 1
 
-The local branch begins at the integration merge `df0fece`; continued H1 work
-is authorized. CAP-059's node-bound repair and corrected checked-result owners
-have focused native evidence. Multiple-function verification/emission now passes
-its focused O0/O2 emit/execute and corruption probes. Full local validation is
-tracked separately in `TASK_LEDGER.md`; no public acceptance is claimed.
+Master's phase-1 integration merge `df0fece` has completed its post-merge
+checks. Continued work is on `agent/aero-self-hosting-2026-09-16`, draft PR #92.
+Its previous published head `ff10caca` passed all 13 public checks. CAP-059's
+node-bound repair, corrected result owners and multiple-function verifier/emitter
+are already implemented. Their O0/O2 exact-output and corruption probes remain
+mandatory. Published draft work is distinct from acceptance on master.
 
 The next compiler representation work is the connected AST described in
 `H1_CONNECTED_AST_DESIGN.md`, followed by scoped names/types/ownership, checked
-lowering, and matching verification/emission. In parallel, a separate stderr
-transport has passed Linux ABI tests; source-profile and process-protocol
-integration remain open. The canonical source still stops at its first identifier.
+lowering, and matching verification/emission. The separate stderr transport now
+has source-profile and native CLI integration under H1E-SOURCE-002; the full
+compiler process protocol remains open. The canonical source still stops at its first identifier.
 All six self-hosting conditions below remain mandatory.
 
-The additive diagnostic profile now has typed checked-IR/backend support with
-native O0/O2 evidence. Source admission and native CLI linkage are the next
-separate diagnostic slice; the current profile still inherits only the earlier
-byte-I/O source capabilities. The connected-AST observer and representation work
-proceed independently of this Rust bootstrap support.
+The additive diagnostic profile connects a direct, explicitly typed source
+stderr call to its checked operation and authenticated backend. It inherits
+byte-I/O capabilities and preserves earlier profiles. Native CLI linking embeds
+the additional runtime inside the existing cleanup boundary. Complete-tree
+validation is recorded in the implementation commit/PR. The next compiler
+milestone is the connected-AST observer and its independently specified small
+trees, followed by representation work; see `H1_CONNECTED_AST_DESIGN.md` and
+SELFHOST-AST-OBSERVE-001 in the ledger.
 
 ## Historical handoff: integrate before the next implementation
 

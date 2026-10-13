@@ -1,4 +1,4 @@
-//! H1E-CHECKED-001 tests the checked backend, not stderr source admission.
+//! H1E-CHECKED-001 checked backend coverage and H1E-SOURCE-002 inheritance boundaries.
 
 use crate::LanguageProfile;
 
@@ -339,7 +339,7 @@ fn checked_stderr_keeps_profile_and_authentication_guards() {
 }
 
 #[test]
-fn diagnostic_profile_inherits_byte_io_without_stderr_source_admission() {
+fn diagnostic_profile_inherits_byte_io_and_keeps_raw_stderr_abi_closed() {
     let source = r#"
 fn result_value(value: Result<int, int>) -> int {
     return match value { Ok(status) => status, Err(code) => 0 - code, };
@@ -374,27 +374,45 @@ fn main() -> int {
                 "fn helper(value: int) -> int {{ let written: Result<int, int> = {name}(value); return 0; }} fn main() -> int {{ return helper(65); }}"
             ),
         ] {
-            let error = check_program(&unresolved, inherited.clone())
-                .expect_err("stderr source is not admitted yet");
+            let boundary = if name == "stderr_write_byte" {
+                CompilerOptions {
+                    language_profile: LanguageProfile::ExactI32ByteIoV0,
+                    ..CompilerOptions::default()
+                }
+            } else {
+                inherited.clone()
+            };
+            let error = check_program(&unresolved, boundary.clone())
+                .expect_err("earlier source and raw ABI boundaries remain closed");
             assert!(
                 error.contains(&format!("Function `{name}` is not defined")),
                 "{error}"
             );
-            assert_eq!(
-                compile_program(&unresolved, inherited.clone()).unwrap_err(),
-                error
-            );
+            assert_eq!(compile_program(&unresolved, boundary).unwrap_err(), error);
         }
     }
     let ordinary = "fn stderr_write_byte(value: int) -> int { return value; } fn main() -> int { return stderr_write_byte(91); }";
-    let ordinary_llvm =
-        compile_program(ordinary, inherited).expect("ordinary source helper remains ordinary");
+    let diagnostic_error = check_program(ordinary, inherited.clone())
+        .expect_err("diagnostic profile now reserves the source name");
+    assert!(diagnostic_error.contains("intrinsic name `stderr_write_byte` is reserved"));
+    assert_eq!(
+        compile_program(ordinary, inherited).unwrap_err(),
+        diagnostic_error
+    );
+    let ordinary_llvm = compile_program(
+        ordinary,
+        CompilerOptions {
+            language_profile: LanguageProfile::ExactI32ByteIoV0,
+            ..CompilerOptions::default()
+        },
+    )
+    .expect("earlier ordinary source helper remains ordinary");
     assert_eq!(
         ordinary_llvm,
         compile_program(
             ordinary,
             CompilerOptions {
-                language_profile: LanguageProfile::ExactI32ByteIoV0,
+                language_profile: LanguageProfile::ExactI32ByteInputV0,
                 ..CompilerOptions::default()
             }
         )
