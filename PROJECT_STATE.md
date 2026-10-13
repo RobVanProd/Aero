@@ -7,9 +7,11 @@ Last updated: 2026-10-13 (America/New_York)
 Public master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`; its four
 post-merge workflows completed successfully. The restored Windows checkout tracks
 `agent/aero-self-hosting-2026-09-16`, cumulative draft
-[PR #92](https://github.com/RobVanProd/Aero/pull/92). Its previous published head
-`ff10caca3d95fb64a90369afe148bea4f5ef45df` passed all 13 public checks, including
-the Windows native gate. It is published development work, not a master merge.
+[PR #92](https://github.com/RobVanProd/Aero/pull/92). The pre-AST published head
+`7237dae7ec21b49b71dd142ac858bba702b8b3b1` passed all 13 public checks, including
+both Linux gates, stable/nightly Rust and the Windows native gate. It repairs
+pinned llc-22 discovery in the diagnostic native regression without production
+changes. It is published development work, not a master merge.
 The user authorized synchronization and continued implementation on 2026-10-12;
 the phase-1-only boundary below is historical.
 
@@ -46,11 +48,27 @@ and original runtime are unchanged. Native O0/O2 tests cover restoration and
 binary/error behavior, and Windows CI now runs diagnostic runtime, source and
 CLI integration targets explicitly.
 
-The canonical compiler still fails semantic analysis at its first identifier.
-Its parser does not yet connect parameters, bindings, statements or control flow
-into a complete AST; `H1_CONNECTED_AST_DESIGN.md` is a design for that work.
+H1-AST-001's development candidate now connects the complete admitted self-source
+grammar: parameters/types, bindings/mutation, ordered statements and Returns,
+blocks/branches/loops, Match ownership and existing references/calls. Its native
+observer compares exact hand graphs and an independent Rust-AST projection;
+structural, source-role and expression-occurrence authentication reject corrupted
+arenas before meaning. Compact arithmetic and CAP-059 encodings remain unchanged.
+
+The completed focused matrix on source SHA256
+`2506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75`
+passed36 tests; native cases run at O0/O2. The canonical source has49,863 connected nodes/origins
+with no orphans, but still refuses its first identifier at node3/offset68,
+line2/column18 (semantic17/code2,23 function symbols,0 facts). Literal-only rich
+forms refuse new structure with located28 before facts or checked IR. This is
+native-validated representation, not canonical compilation or self-hosting.
+Complete historical compatibility and the final fixed-tree root gate remain
+mandatory; their completed evidence belongs in the implementation commit and
+cumulative PR, not a predicted result in this document. Master is unchanged.
+
 Compiler-subset semantics and lowering, the process interface, same-source
-stage convergence and reproducible self-hosting remain open.
+stage convergence and reproducible self-hosting remain open. The next contract
+is scoped names/types/ownership; it is not part of this representation checkpoint.
 
 ## Phase 1 integration status (supersedes historical current-head labels)
 

@@ -23,6 +23,9 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "support/self_host_connected_ast.rs"]
+mod connected_ast;
+
 const ACCEPTED_B1C_PRODUCT: &str =
     "../../examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero";
 const H1A_PRODUCT: &str = "../../examples/aero_self_host_v0/compiler.aero";
@@ -829,7 +832,7 @@ mod oracle {
     /// continue the expression, leaving `index` on it, and returns the root node
     /// id. An error carries the located token and the product's own
     /// `(status, diagnostic_code)` for it.
-    fn parse_expression(
+    pub(super) fn parse_expression(
         ingested: &Ingestion,
         source: &[u8],
         index: &mut usize,
@@ -7929,12 +7932,63 @@ fn canonical_self_host_source_is_a_copy_derived_successor() {
     );
     assert_eq!(
         h1a_source(),
-        expected_h1a_source(),
+        connected_ast::expected_successor_source(&expected_h1a_source()),
         "canonical source differs from the complete sequence of frozen transforms"
     );
     // Every section marker survives. The stdout driver remains byte-identical;
     // CAP-059's emitter edit is authenticated by the full reconstruction above.
     let derived = h1a_source();
+    let historical = expected_h1a_source();
+    let checked_section = |source: &str| {
+        source
+            .split_once("    let mut checked_status: int = 0;")
+            .unwrap()
+            .1
+            .split_once("// CAP-045 B1A VERIFIER BEGIN")
+            .unwrap()
+            .0
+            .to_string()
+    };
+    assert_eq!(
+        checked_section(&derived),
+        checked_section(&historical),
+        "connected AST cannot change the checked-IR group"
+    );
+    for (begin, end) in [
+        (
+            "// CAP-045 B1A VERIFIER BEGIN",
+            "// CAP-045 B1A VERIFIER END",
+        ),
+        (
+            "// CAP-046 B1B LLVM EMITTER BEGIN",
+            "// CAP-046 B1B LLVM EMITTER END",
+        ),
+        (
+            "// CAP-047 B1C STDOUT DRIVER BEGIN",
+            "// CAP-047 B1C STDOUT DRIVER END",
+        ),
+    ] {
+        let unchanged = |source: &str| {
+            source
+                .split_once(begin)
+                .unwrap()
+                .1
+                .split_once(end)
+                .unwrap()
+                .0
+                .to_string()
+        };
+        assert_eq!(
+            unchanged(&derived),
+            unchanged(&historical),
+            "connected AST cannot change {begin}"
+        );
+    }
+    assert_eq!(
+        derived.split_once("fn main() -> int {").unwrap().1,
+        historical.split_once("fn main() -> int {").unwrap().1,
+        "main remains byte-identical"
+    );
     for marker in [
         "// CAP-045 B1A VERIFIER BEGIN",
         "// CAP-045 B1A VERIFIER END",
@@ -8293,7 +8347,7 @@ fn focused_signature_probes_exercise_every_rule_of_the_admitted_grammar() {
             "no CAP-050 probe gets its function `}}` accepted"
         );
         assert_eq!(
-            run_expectation("signature-probe", compiled_h1a(), source, &module, "-O0"),
+            connected_ast::run_successor_expectation("signature-probe", source, &module, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-050 target"
         );
@@ -8581,7 +8635,7 @@ fn focused_match_probes_exercise_every_rule_of_the_admitted_construct() {
         MATCH_PROBES.iter().zip(match_probe_targets())
     {
         assert_eq!(
-            run_expectation("match-probe", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("match-probe", source, &target, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-051 target"
         );
@@ -8971,14 +9025,14 @@ fn focused_statement_probes_exercise_every_rule_of_the_admitted_grammar() {
             let ingested = module_ingest(source);
             let now = oracle::binding_parser_stop(&ingested, source, &module_caps());
             assert_eq!(
-                run_expectation("statement-probe", compiled_h1a(), source, &now, "-O0"),
+                connected_ast::run_successor_expectation("statement-probe", source, &now, "-O0"),
                 91,
                 "probe `{label}` diverged from the CAP-057 target"
             );
             continue;
         }
         assert_eq!(
-            run_expectation("statement-probe", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("statement-probe", source, &target, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-052 target"
         );
@@ -9483,7 +9537,7 @@ fn focused_control_flow_probes_exercise_every_rule_of_the_admitted_grammar() {
         CONTROL_FLOW_PROBES.iter().zip(control_flow_probe_targets())
     {
         assert_eq!(
-            run_expectation("control-flow-probe", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("control-flow-probe", source, &target, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-053 target"
         );
@@ -10237,14 +10291,14 @@ fn focused_call_probes_exercise_every_rule_of_the_admitted_grammar() {
     for ((label, source, _, _, _, _, _, _), target) in CALL_PROBES.iter().zip(call_probe_targets())
     {
         assert_eq!(
-            run_expectation("call-probe", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("call-probe", source, &target, "-O0"),
             91,
             "probe `{label}` diverged from the derived CAP-054 target"
         );
     }
     let (probe, target) = canonical_main_probe();
     assert_eq!(
-        run_expectation("call-probe", compiled_h1a(), &probe, &target, "-O0"),
+        connected_ast::run_successor_expectation("call-probe", &probe, &target, "-O0"),
         91,
         "probe `call-canonical-main` diverged from the derived CAP-054 target"
     );
@@ -10507,7 +10561,7 @@ fn the_out_of_table_shapes_run_against_the_product() {
         MODEL_LOCK_SHAPES.iter().zip(model_lock_targets())
     {
         assert_eq!(
-            run_expectation("model-lock", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("model-lock", source, &target, "-O0"),
             91,
             "out-of-table shape `{label}` diverged from the CAP-056 model"
         );
@@ -10825,7 +10879,10 @@ fn focused_module_probes_exercise_every_rule_of_the_admitted_shape() {
             // this checkpoint had to preserve.
             continue;
         }
-        let code = if target.status == 0 {
+        let successor = connected_ast::successor_parser(source, &module_caps());
+        let code = if successor.nodes.iter().any(|node| node[0] >= 24) {
+            connected_ast::run_successor_expectation("module-probe", source, &target, "-O0")
+        } else if target.status == 0 {
             // CAP-058 / H1M-2 inverts this rather than weakening it. CAP-056's
             // model is still asserted to refuse every multi-item shape, and the
             // product is now graded against CAP-058's, which accepts the
@@ -11166,7 +11223,12 @@ fn the_canonical_fourteen_item_prefix_is_a_complete_module() {
     );
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
-            run_meaning_expectation("canonical-fourteen", probe, &target, &meaning, optimization),
+            connected_ast::run_successor_expectation(
+                "canonical-fourteen",
+                probe,
+                &target,
+                optimization
+            ),
             91,
             "the fourteen-item prefix diverged from the oracle at {optimization}"
         );
@@ -11826,6 +11888,9 @@ fn the_item_nodes_are_charged_against_the_node_ceiling() {
 
 /// Two of the five ceilings cannot be reached, and both facts are derived
 /// rather than discovered by a probe that failed to build.
+/// Historical CAP-055 model-only proof: its 6.5-token record floor does not
+/// describe H1-AST-001's replacement records. The independent successor proof
+/// and exact 650-If/1950-record witness live in connected_ast below.
 ///
 /// A value push is paired with a node append at all four of its sites, and
 /// three node appends have no value push at all - the function node, the root
@@ -12113,11 +12178,13 @@ fn the_raise_touched_the_parse_group_and_left_the_verifier_alone() {
         ],
         "the parse-only predecessor retains exactly the verifier's two 512 literals"
     );
+    let historical_expected = generalize_module_verification_and_emission(
+        &repair_checked_result_owners(&raise_verified_function_node_bound(&predecessor)),
+    );
+    assert_eq!(expected_h1a_source(), historical_expected);
     assert_eq!(
         source,
-        generalize_module_verification_and_emission(&repair_checked_result_owners(
-            &raise_verified_function_node_bound(&predecessor)
-        ))
+        connected_ast::expected_successor_source(&historical_expected)
     );
     assert_eq!(source.matches("verified_function_node > 65536").count(), 1);
     assert_eq!(source.matches("verified_expected = 65536;").count(), 1);
@@ -12208,7 +12275,7 @@ fn the_product_holds_more_block_records_than_the_replaced_bound() {
         "this shape gets its function `}}` accepted"
     );
     assert_eq!(
-        run_expectation("block-storage", compiled_h1a(), &source, &module, "-O0"),
+        connected_ast::run_successor_expectation("block-storage", &source, &module, "-O0"),
         91,
         "the product's block store did not hold {BLOCKS} records"
     );
@@ -12518,7 +12585,7 @@ fn focused_binding_type_probes_exercise_every_rule_of_the_admitted_types() {
              downstream group stays not-attempted"
         );
         assert_eq!(
-            run_expectation("binding-type-probe", compiled_h1a(), source, &target, "-O0"),
+            connected_ast::run_successor_expectation("binding-type-probe", source, &target, "-O0"),
             91,
             "probe `{label}` diverged from the CAP-057 target"
         );
@@ -12575,7 +12642,7 @@ fn the_binding_types_leave_the_fourteen_item_prefix_untouched() {
     assert_eq!(semantic.symbols, 14);
     assert_eq!(oracle::module_semantic_stop(&target).symbols, 1);
     assert_eq!(
-        run_meaning_expectation("binding-fourteen", probe, &target, &semantic, "-O0"),
+        connected_ast::run_successor_expectation("binding-fourteen", probe, &target, "-O0"),
         91,
         "the fourteen-item prefix diverged from the oracle"
     );
@@ -12877,7 +12944,9 @@ const CANONICAL_REACHABLE: usize = 240;
 ///    refusal and does not modify it.
 #[test]
 fn the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it() {
-    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    // Preserve the exact historical source, census and pure-model authority;
+    // current connected native acceptance is a separate successor vector below.
+    let source = expected_h1a_source().into_bytes();
     let ingested = module_ingest(&source);
     let target = oracle::binding_parser_stop(&ingested, &source, &module_caps());
 
@@ -13028,9 +13097,17 @@ fn the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it() {
 
     // And the product, at both optimization levels, exactly as the canonical
     // run has been graded since CAP-049.
+    let current = fs::read(repository_path(H1A_PRODUCT)).expect("read connected canonical source");
+    let current_predecessor =
+        oracle::binding_parser_stop(&module_ingest(&current), &current, &module_caps());
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
-            run_module_expectation("self-ingestion", &source, &target, &semantic, optimization),
+            connected_ast::run_successor_expectation(
+                "self-ingestion-connected",
+                &current,
+                &current_predecessor,
+                optimization
+            ),
             91,
             "the canonical end-to-end parse diverged from the independent \
              oracle at {optimization}"
@@ -13044,7 +13121,8 @@ fn the_canonical_source_parses_end_to_end_and_the_semantic_phase_refuses_it() {
 /// arena from them, and it understands none of it.
 #[test]
 fn the_end_to_end_parse_is_not_a_compile() {
-    let source = fs::read(repository_path(H1A_PRODUCT)).expect("read CAP-049 canonical source");
+    // This census is frozen historical evidence, not the current representation.
+    let source = expected_h1a_source().into_bytes();
     let ingested = module_ingest(&source);
     let target = oracle::binding_parser_stop(&ingested, &source, &module_caps());
     let semantic = oracle::module_semantic_meaning(&target);

@@ -1,5 +1,264 @@
 # Aero Task Ledger
 
+## H1-AST-001 - complete connected representation for the admitted self-source grammar
+
+- Date/authorization: 2026-10-13, user requested continued AST representation.
+  Starting published checkpoint 7237dae7ec21b49b71dd142ac858bba702b8b3b1,
+  tree d1f6dcf506e88fc3dc1cd3415dd8b024628807e9, has a completed local root
+  gate recorded in its commit. Public repair checks subsequently completed:
+  all13 are COMPLETED/SUCCESS on that exact head, and the watcher completed
+  exit0. Product edits were held until those statuses were read and the lead
+  sent the explicit green signal; H1-AST-001 implementation is now authorized.
+- Observed: syntax is consumed but parameters, declarations, assignments,
+  ordered statements, blocks, conditions and Match ownership are disconnected.
+  The current canonical source has 19,589 arena nodes but only 240 reachable.
+  Native AST capture does not yet exist. These are predecessor observations,
+  not claims about the new representation.
+- Frozen representation: H1_CONNECTED_AST_DESIGN.md in full, kinds 24..38,
+  four nonnegative words, earlier-child IDs, exact source provenance and type
+  spellings. Parameter annotations remain int/Result<int,int>; locals also
+  permit ByteBuffer. No grammar or language meaning is added. Keep the compact
+  zero-parameter single-Return encoding byte-for-byte; rich functions use the
+  descriptor/Block/statement cells. Preserve all current arithmetic and CAP-059
+  emitted LLVM, malformed-input priority/location and negative type boundaries.
+- Full checkpoint scope includes parameters, annotated mutable/immutable lets,
+  assignment targets, statement order, every Return, blocks, If/else/else-if,
+  While, Match scrutinee/constructor/binder/arm order, references and call order.
+  A partial params/binding implementation cannot claim complete zero-orphan
+  representation while the admitted control/Match grammar remains disconnected.
+- One vertical writer owns only examples/aero_self_host_v0/compiler.aero
+  (parser representation/continuations plus structural/origin/connectivity
+  authentication and the frozen rich refusal),
+  src/compiler/tests/self_host_source_ingestion_tests.rs, and new
+  src/compiler/tests/support/self_host_connected_ast.rs. Do not edit the Rust
+  compiler, runtime, checked-IR group, verifier/emitter/driver groups or main.
+  Root lead owns this ledger, H1_CONNECTED_AST_DESIGN.md clarification if needed,
+  PROJECT_STATE.md, SELF_HOSTING_ROADMAP.md, BOOTSTRAP_CONVERGENCE_READINESS.md
+  and SPEC_IMPLEMENTATION_MATRIX.md. Other agents are read-only reviewers.
+- Phase limit: parser representation plus semantic authentication only. Function
+  symbols retain [1,name,itemNode,1]; their current builder does not inspect
+  kind-19's left child. Authenticate complete structure/origins, build function
+  symbols, preserve identifier-use refusal first, then reject the first new
+  kind in node order with semantic status28/code=kind and its exact origin.
+  Facts remain empty; checked IR and later phases are unattempted. Do not
+  manufacture Int facts for structural nodes or relax fact_count=node_count.
+- Lead resource-diagnostic decision before start-sidecar implementation: failed
+  allocation/reallocation is semantic26/code4 at the current structurally
+  validated node, with unlocated offset-1/line0/column0 before origin auth.
+  Proposed code2 was rejected because HEAD's existing symbol heap failure is
+  26/2; origins are26/1 and facts26/3. Capacity statuses24/25 are distinct and
+  unchanged. Never describe raw unverified origin words as authenticated.
+  Invalid connectivity/occurrence remains27/1; facts/later phases stay empty.
+- Lead approved equivalent origin coordinate lookup by integral binary search
+  over the already source-coordinate-authenticated, strictly ordered token table.
+  Exact kind/start/line/column and all role/name/type/occurrence obligations remain;
+  non-token, EOF and wrong-coordinate negatives are required. No phase, meaning,
+  public performance claim or test obligation changes. The connectivity pass is
+  after the parse expectation comparison and before origins, so its OOM cannot
+  truncate a parser checksum and be mistaken for parser-only exit80.
+- Native fault-red review froze minimal role fixes: Result's two inner int tokens
+  must have identifier kind1 as well as exact bytes; Let requires '=' after its
+  complete allowed annotation. Later location fallback must preserve new pre-origin
+  unlocated failures, while retaining original origin/symbol/fact behavior.
+- Lead work-hazard decision before final brace-auth changes: repeated nested-body
+  scans are replaced by one monotone closing-event token walk. Keep starts unchanged;
+  add immutable two-word brace history (<=node_count, <=65,536 records/524,288 bytes)
+  and one-word/node end indices (<=65,536 words/262,144 bytes). Closing events map
+  Block30/Match37/compactFn19 in postorder; richFn19 inherits its body's close.
+  Exact opener ownership and missing/unmatched/extra events remain27/1; new heap
+  failures26/5(history),26/6(ends) are unlocated at current node. No lower grammar
+  cutoff, existing capacity widening, language meaning, third phase or backend
+  change is authorized. New source/count/trace derivation and both stores' exact
+  alloc/realloc failure tests are required before acceptance. Full frozen design
+  is in H1_CONNECTED_AST_DESIGN.md.
+- Lead-review correction kept visible: an initial review request mistakenly
+  proposed accepting functions with only nested Returns and adding a presumed
+  duplicate-name refusal to the successor model. After reading immutable HEAD
+  parser_cycle_state21's block_state2 requirement, oracle::parser_stop's explicit
+  nested-Return exclusion, and the existing symbol append loop, both requests
+  were withdrawn before implementation. Preserve outer terminal Return grammar
+  and existing symbol behavior;27/3 authenticates chains/schema, not duplicate
+  names. Neither a model nor production defect is inferred on those points.
+- Final c585c663 static auth review identified ordinary-expression occurrence
+  ownership as an additional obligation of the already frozen every-node guarantee.
+  A first literal relocated to a second identical literal is a specific unrun
+  hypothesis; it is not a claimed native result. Freeze/run relocation and swap
+  negatives before fixes. Lead approved one append-only two-word/node source-range
+  store (<=65,536 records/524,288 bytes), leaving starts/history/ends unchanged.
+  Iterative exact adjacency/ranges authenticate operators/calls/grouping and each
+  owned initializer/Return/condition/arm slot; strictly increasing atom origins
+  prevent duplicate grouping work. Wrong occurrence27/1, current validating owner
+  with authenticated tuple; new heap failure26/7 is unlocated and excluded from
+  raw-origin reload like26/4..6. No new grammar, cutoff, type/name meaning or phase
+  is authorized. Full contract and new derivation/failure obligations are in design.
+- Capacity: source1,048,576 bytes, tokens262,144, names16,384; nodes/value/operator/call/control
+  records retain 65,536 ceilings. Control records are20 words/80 bytes, including
+  replacement records (max5,242,880 bytes); start-index sidecar is one i32 per
+  node (max262,144 bytes). Old parameter store has no independent count ceiling;
+  new annotations/parameters consume the node budget. No bound may be widened
+  to fit implementation growth. Derive successor source/arena counts from the
+  chosen representation before native replay; do not tune them to observed output.
+- Observer preparation follows SELFHOST-AST-OBSERVE-001: unchanged test runtime
+  included once with only three allocator export names renamed; forwarding
+  wrappers track stable identities through reallocations, poison fresh capacity
+  with0xA5, capture before release and write artifacts after product returns.
+  Keep exact input, forbidden output, allocation failure/counters/size/leak checks.
+  Select owners by independently derived first-use and cleanup trace, never by
+  declaration order, capacity as logical length, or searching expected contents.
+- Frozen predecessor owner traces to validate, not assumed observations:
+  compact/mutation first allocation source1,tokens2,names3,origins4,nodes5,values6;
+  cleanup4,6,5,2,3,1. Two-param first allocations source1,tokens2,names3,
+  parameters4,origins5,nodes6,values7; cleanup5,7,4,6,2,3,1. bytes_new allocates
+  nothing; first push allocates8 bytes and growth doubles. Reallocation preserves
+  identity and failed reallocation preserves owner/bytes. Derive successor traces
+  anew if parameter/annotation first-use changes; never retune a predicted trace.
+- Exact initial source bytes and hand-derived node records [kind,payload,left,right]:
+  compact: fn f()->int{return 1;}
+  [1,1,0,0] [18,0,1,0] [19,1,2,0]; origin offsets19,12,0 and token kinds2,6,3.
+  parameters: fn f(a:int,b:Result<int,int>)->int{return 1;}
+  [24,1,0,0] [25,2,1,0] [24,2,0,0] [25,4,3,2] [1,1,0,0]
+  [18,0,5,0] [29,0,0,6] [30,0,7,0] [38,1,4,8] [19,1,9,0];
+  offsets7,5,13,11,42,35,35,34,0,0; token kinds1,1,1,1,2,6,6,12,3,3.
+  mutation: fn f()->int{let mut x:int=1;x=2;return 3;}
+  [24,1,0,0] [1,1,0,0] [27,3,1,2] [29,0,0,3] [1,2,0,0]
+  [28,3,5,0] [29,0,4,6] [1,3,0,0] [18,0,8,0] [29,0,7,9]
+  [30,0,10,0] [38,1,0,11] [19,1,12,0];
+  offsets22,26,12,12,30,28,28,39,32,32,11,0,0;
+  token kinds1,2,4,4,2,1,1,2,6,6,12,3,3.
+  All single-line origins are [nodeId,offset,1,offset+1,tokenKind]. Full expected
+  graphs must be defined independently before running the changed producer.
+- Lead clarification before product edits: MatchArm kind35 anchors to its own
+  constructor token; its comma is only the append trigger. The independent
+  asymmetric else-if/While/arbitrary Alpha-Beta Match witnesses contain29/20/18
+  nodes respectively. Preserve arbitrary constructor spellings in hand-only
+  witnesses; Rust projection applies only where Rust parses the same source.
+  Independent physical continuation count is While +2*If +If-with-else; an
+  else-if counts as its parent's else and as a child If, not an extra Block.
+- Acceptance ordering: observer compact green and genuine O0/O2 parameter/
+  statement red comparisons before product changes; then nested/asymmetric If,
+  While, else-if, Match binders/arm swaps, borrowed-call argument order and
+  functions with differing parameter lists. Compare actual nodes/origins to hand
+  arrays plus an independent normalized Rust-AST projection. On complete parse,
+  authenticate postorder occurrence intervals with root start1 and root=nodeCount,
+  proving no gaps, shared nodes or orphans. Preserve parser-only exit80 label;
+  structural capture is not semantic authentication or output evidence.
+- Review successor amendments explicitly: historical whole-source reconstruction,
+  source census and rich partial-arena/refusal expectations necessarily change.
+  Preserve predecessor models/evidence; add a successor oracle rather than
+  replacing expected numbers with captured producer output. Compact malformed
+  parse append ordering and LLVM bytes remain exact. Canonical first identifier
+  becomes scrutinee node3/offset68/line2/column18 by the frozen design, not by tuning.
+  Read-only compatibility review also identifies the out-of-table model-lock
+  native runner's If/assignment shape. Approve its explicit successor grading,
+  while retaining MODEL_LOCK_SHAPES and all predecessor pure-model/contradiction
+  assertions. This is a reviewed representation amendment, not a test skip or
+  a change to grammar priority, expression-work costs or compact emission.
+  Completed integration gate later exposed one expired whole-file equality in
+  the_raise_touched_the_parse_group_and_left_the_verifier_alone: the live AST
+  file was compared directly with its pre-AST CAP-059 reconstruction. Approve
+  only explicit successor identity there: retain all live16 comparisons,
+  17 compared stores,16 capacity-code assignments, both verifier65,536 sentinels
+  and absence of512; preserve the old whole-file equality on expected_h1a_source(),
+  then require live source==expected_successor_source(historical_expected).
+  Current downstream section guards remain. No source behavior, count retuning,
+  test exclusion, semantic change or weaker guard is authorized.
+- Final acceptance: completed focused native tests, corruption/budget/allocation
+  failures and all canonical functions/full-source structural comparisons;
+  full repository-root ./tools/test.sh; recorded-tree evidence in commit message;
+  cumulative draft PR metadata matches the exact public head and exclusions.
+- Read-only preparation reviews: allocator forwarding and owner selection have
+  no blocking finding; independent Rust/graph normalization retains names,
+  annotations, mutability, parameter/statement/branch/Match/call/function order.
+  Object caching retains immutable bytes and compiler identity, not observed
+  arenas or a static owning workspace. These are code-review findings only;
+  no authentication, implementation acceptance or additional native run follows
+  from them. Failure/partial-write controls and representation acceptance remain
+  separate completed-run obligations.
+- Completed predecessor preflight (h1-ast-independent-budget-final.log, exit0):
+  unchanged source334,106 bytes; MD5 13c3d98476f74fdedb211d6765f1485d;
+  SHA256 6b3608f0ed17f0fffb4c1250a1edb1c27bebb56856b492dfcf2aa80925c60c5d;
+  40,155 tokens,699 names,23 functions. The independent Rust-AST occurrence
+  visitor requires33,482 connected nodes/origins,2,792 physical continuations,
+  deepest control14 for these bytes. Per-function additive counts are in that
+  completed log. These are representation requirements, not observed native
+  connected AST output or successor-source counts. Source/token/name/node/control
+  ceilings are asserted unchanged; other operational-store costs remain pending.
+- Completed initial successor preflight, before changed native replay
+  (h1-ast-successor-budget-3.log, exit0,1 passed/0 failed): source422,224 bytes,
+  MD5 84b296caebce65c7f296295b7a09324f,
+  SHA256 1a69b242102a7a728bc20b56bb5f42d1525da4b23f08569ce82a0a45dbef87a8.
+  The source fingerprint was read again and matched the completed preflight.
+  Independent closed Rust-AST visitor:23 functions,43,908 nodes/origins;
+  ingestion52,684 tokens/836 names;3,336 physical continuations,max depth14.
+  Preserved binding_parser_stop operational model on these exact source bytes
+  derives values23,714/operators9,608/calls1,944/parameters100 separately;
+  representation-only appends do not push those expression work stores.
+  All existing ceilings are asserted unchanged. This snapshot is a predicted
+  successor, not a native result or an acceptance claim; later source changes
+  require another independent preflight before replay.
+- Completed bounded-brace successor preflight before native replay
+  (h1-ast-successor-budget-linear-braces-final.log, exit0,1 passed/0 failed):
+  source435,565 bytes, MD5 fe6841fbc2a339d5786c233d991de81e,
+  SHA256 c585c6639c2f2457bd19f79a92843e68d112698107f54a7174f9b91fda1c93d8;
+  fingerprint re-read and matched. Independent visitor:23 functions,
+  45,686 nodes/origins,54,833 tokens/860 names,3,411 physical controls/max depth14.
+  Separate expression model:values24,829/operators10,181/calls2,105/parameters100.
+  Starts and ends each45,686 words/182,744 bytes; distinct source/structural
+  closure derivation1,762 history records/14,096 bytes. Existing/new frozen
+  ceilings are asserted. These are pre-replay expected costs, not native results.
+- Completed source-range successor preflight before fixed native replay
+  (h1-ast-successor-budget-ranges-final.log, exit0,1 passed/0 failed):
+  source464,089 bytes, MD5 d4f39816b59cd84329502f7c7bf1e348,
+  SHA256 2506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75;
+  fingerprint re-read and matched. Independent visitor:23 functions,
+  49,863 nodes/origins,59,778 tokens/890 names,3,575 physical controls/max depth14.
+  Separate expression model:values27,567/operators11,620/calls2,489/parameters100.
+  Starts and ends each49,863 words/199,452 bytes; history1,849 records/14,792 bytes;
+  source ranges49,863 records/398,904 bytes. All frozen ceilings remain asserted.
+  These are independent expected costs, not changed native observations.
+- Grouped-reference authority clarification: preserved parse_expression clears
+  arg_leading at an ordinary grouping '('; '&' is admitted only immediately
+  after a call '(' or argument comma. Keep g((&x),(&mut y),((1))) as the exact
+  parser-negative11 witness, not a positive; add g(&x,&mut y,((1))) as an admitted
+  borrowed/grouped-ordinary-argument positive. This corrects a new test assumption,
+  not the production grammar. No grouping/reference admission is widened.
+- Read-only source-range review on exact2506e2ad snapshot: no remaining blocker
+  found in strict atom order, literal payload, ordered expression/source slots,
+  grouping versus call delimiters, iterative bounded records or diagnostic
+  fallback. Checked IR, verifier, emitter, driver and main compare identical to
+  published7237dae. This is static review only, with no executed tests or
+  acceptance claim; subsequent source edits are outside that reviewed snapshot.
+- Stop: semantic ambiguity, third compiler phase, unexpected checked/backend
+  edits, capacity overrun needing widening, missing independent count derivation,
+  lost work, weakened tests, new ignored tests, or treating syntax as self-hosting.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Baseline prerequisite | AST-BASELINE-001 public repair checks on7237dae; ast-baseline-public-watch.log plus fresh PR92 head/status metadata | Completed watcher exit0; all13 public checks COMPLETED/SUCCESS on the exact published head, including both Linux gates, stable/nightly and Windows native. Read before product green signal. |
+| Observer control | Native compact AST/origin capture O0/O2; h1-ast-observer-compact.log | Completed exit0; 1 passed, 0 failed. Both native captures match the frozen three nodes/origins and independently derived owner trace. |
+| Observer red | Native parameter and statement hand graphs O0/O2; h1-ast-observer-graphs-red.log | Completed exit1; compact 1 passed, parameter/mutation 2 failed. Both O0/O2 captures completed before comparison: predecessor parameters 3 nodes versus frozen 10; mutation 5 versus frozen 13. No product edits. |
+| Observer preparation | h1-ast-observer-preparation-complete.log, combined frozen native/authority controls | Completed exit1; 7 controls passed, 8 intentional representation comparisons failed, 0 ignored. Each failing fixture completed both O0/O2 captures and trace/input/output/counter checks before its exact hand-graph comparison failed. |
+| Independent authority | h1-ast-hand-authority-complete.log and h1-ast-origin-authority.log | Each completed exit0; 1 passed, 0 failed, including caught same-kind origin and illegal type/topology controls. These verify the independent oracle, not product authentication. |
+| Observer failure/tail controls | h1-ast-observer-forwarding.log and h1-ast-observer-tail.log | Each completed exit0; 1 passed, 0 failed. Forwarding O0/O2 reallocation failure and logical-prefix/partial-record checks are observer evidence, not new product allocation-edge coverage. |
+| Independent predecessor budget | h1-ast-independent-budget-final.log | Completed exit0; 1 passed, 0 failed. Exact counts are the predecessor preflight above, not successor-native measurements. |
+| Initial successor budget | h1-ast-successor-budget-3.log, exact1a69b242 source fingerprint | Completed exit0; 1 passed, 0 failed. Counts above were derived before changed native replay, not measured from the producer. |
+| First changed native matrix | h1-ast-connected-parser-first.log on1a69b242 | Completed exit1; 15 passed, 1 failed. All small exact graphs passed O0/O2; canonical observed3,780 nodes versus pre-derived43,908. Diagnosis: stale consumed-brace lookahead after no-else If. No complete-checkpoint claim. |
+| Lookahead successor preflight | h1-ast-successor-budget-lookahead.log on689fa0a7 source | Completed exit0; 1 passed, 0 failed. Source422,417 bytes/MD5 5a8481a1376d789a86cd2bdf1ada16eb; predicted43,911 nodes/origins,52,688 tokens,836 names,3,336 controls,values23,715/operators9,608/calls1,944/parameters100 before fixed replay. |
+| Connected parser/auth focused | h1-ast-connected-parser-and-auth-2.log on689fa0a7 | Completed exit0; 21 passed, 0 failed. O0/O2 all-functions/whole-source native43,911 nodes/origins, normalized equality/zero-orphans/source-role checks; full refusal vectors canonical17/2 atnode3/offset68/line2/column18,23 symbols/0 facts, plus literal-rich28. Small While/If witnesses are postfix controls, not claimed pre-fix reds. |
+| Authentication fault matrix | h1-ast-connected-auth-faults-3.log | Completed exit1; 23 passed, 2 failed. New start-store OOM and pre-origin connectivity vectors expose later legacy fallback overwriting unlocated fields; other wrong-coordinate/token/occurrence controls pass. Preserve this red before minimal fallback fix. |
+| Token-role red | h1-ast-token-role-red.log | Completed exit1; 0 passed, 1 failed. Four completed O0/O2 native runs expose missing Result-inner identifier kind and Let '=' checks, each returning90 instead of its full27/1 vector. Preserve before role fixes. |
+| Bounded-brace successor budget | h1-ast-successor-budget-linear-braces-final.log, exactc585c663 source | Completed exit0; 1 passed, 0 failed. Independent expected costs above precede native replay; replay remains unrecorded until completed status is read. |
+| Bounded-brace native matrix | h1-ast-connected-linear-auth-4.log, exactc585c663 source | Completed exit0; 30 passed, 0 failed, 0 ignored. O0/O2 whole-source45,686 connected nodes/origins and full refusal vectors; exact26/4..6 first-allocation/growth failures; brace/coordinate/type/owner mutations; 16,381-level While witness with65,533 nodes. Ordinary-expression occurrence gap remains open; this is not final acceptance. |
+| Ordinary-expression occurrence red | h1-ast-expression-occurrence-red.log, unchangedc585c663 product | Completed exit1; 0 passed, 1 failed, 0 ignored. All six O0/O2 full27/1 vectors completed before the outer assertion: same1 relocation, two-way same1 binding swap and return1+1 atom swap each returned90 instead of91. Frozen rejecting nodes are firstLet3 for both binding cases and secondatom2 for arithmetic. Preserve this red before source-range implementation. |
+| Source-range successor budget | h1-ast-successor-budget-ranges-final.log, exact2506e2ad source | Completed exit0; 1 passed, 0 failed. Expected source/arena/resource costs above were derived and fingerprint-verified before fixed native replay. |
+| Source-range native matrix | h1-ast-connected-ranges-5.log, unchanged2506e2ad source | Completed exit0; 36 passed, 0 failed, 0 ignored. O0/O2 same-value relocation/swaps and 1+1 now match full27/1 vectors; exact26/7 first-allocation/growth unlocated failures, all prior26/4..6 faults, grouped/direct-borrow positives and preserved grouped-reference11 negative pass. Canonical49,863 connected nodes/origins and full17/2 refusal match; 16,381-level While and65,535-grouping controls pass. New literal-payload mutation control is post-fix and remains unexecuted at this point; no pre-fix red is claimed for it. |
+| Grouping authority correction | h1-ast-grouping-admission-authority.log and corrected pure admission check | First completed exit1, 0 passed/1 failed: new test incorrectly expected original grouped-reference source to be admitted. Corrected pure check completed exit0, 1 passed; exact original source remains native-negative11 and passed in ranges-5. No production grammar change or deleted witness. |
+| Representation integration authority | h1-ast-source-reconstruction-final-frozen.log; h1-ast-model-authority-final.log; h1-ast-budget-authority-final.log | Each completed exit0: reconstruction1 passed, model3 passed, budget1 passed. Exact2506e2ad source rederived/verified; downstream sections unchanged. Final scoped Rust formatting and git diff --check completed exit0. These are pure/integration checks, not full historical native acceptance. |
+| Additional historical-target attempt | h1-ast-source-ingestion-full-compatibility.log | Unified command completed exit1 by deliberate interruption to bound duplicate native rebuilds. Only early cases completed; no final test summary. This is neither a completed full-target result nor acceptance/failure evidence for the historical suite. The final root gate must run every historical case and the post-fix literal-payload control without exclusions. |
+| First complete integration-gate attempt | ./tools/test.sh; h1-ast-final-fixed-tree-gate.log; fixedtree922047faf3e286f75dd6ce2d6890ee1ba0fd49d9 | Completed process exit1 at the source-ingestion target:106 passed/1 failed/0 ignored. Sole failure is the expired historical whole-file identity comparison at parenttest:12181; live capacity/verifier guards and all other cases pass, including the post-fix literal-payload native control and deterministic source/file compilation. Later targets did not run; no whole-repository pass is claimed. Preserve this red before the explicit test-only successor amendment. |
+| Sentinel compatibility amendment | h1-ast-capacity-source-sentinel-amendment.log; focused pure historical/successor identity check | Completed exit0;1 passed/0 failed. Historical whole-file identity is retained; live file is checked through the explicit successor transform. All16/17/16 capacity checks, both verifier65,536 sentinels and no512 assertion remain unchanged. Scoped parent Rust formatting and diff check completed exit0; production source remains exact2506e2ad. No native/full-target pass is inferred from this pure check. |
+| Root gate | ./tools/test.sh on final recorded tree | Result belongs in commit message after the tree is fixed. |
+
 ## AST-BASELINE-001 - restore the published Linux test baseline
 
 - Date/task: 2026-10-13, prerequisite to user-authorized AST representation.
@@ -27,6 +286,7 @@
 | Public red | Compiler CI 38355877654 and nightly 38355877655 on 8f9f2f2 | Completed failure: binary target 38 passed/1 failed; missing unversioned llc at the new two-path native test. |
 | Focused | Existing two-path native runtime test | Completed exit 0, 1 passed/0 failed on Windows LLVM22.1.8; both native paths and binary-byte assertions retained. |
 | Root gate | ./tools/test.sh on recorded final tree | Result recorded in the repair commit message after the tree is fixed. |
+| Public repair | PR92 exact7237dae head, ast-baseline-public-watch.log and fresh head/status metadata | Completed watcher exit0; all13 checks COMPLETED/SUCCESS. Both Linux root gates, stable/nightly and Windows native are green; read before authorizing AST product edits. |
 
 - First local root replay completed process exit 1 with 322 library cases
   passing and the unchanged inherited-pipe deadline case failing its existing

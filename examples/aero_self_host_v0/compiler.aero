@@ -1307,6 +1307,21 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut parser_record_2: int = 0;
     let mut parser_record_3: int = 0;
     let mut parser_record_4: int = 0;
+    let mut parser_record_5: int = 0;
+    let mut parser_record_6: int = 0;
+    let mut parser_record_7: int = 0;
+    let mut parser_record_8: int = 0;
+    let mut parser_record_9: int = 0;
+    let mut parser_record_10: int = 0;
+    let mut parser_record_11: int = 0;
+    let mut parser_record_12: int = 0;
+    let mut parser_record_13: int = 0;
+    let mut parser_record_14: int = 0;
+    let mut parser_record_15: int = 0;
+    let mut parser_record_16: int = 0;
+    let mut parser_record_17: int = 0;
+    let mut parser_record_18: int = 0;
+    let mut parser_record_19: int = 0;
 
     let mut parser_append_target: int = 0;
     let mut parser_append_width: int = 0;
@@ -1319,6 +1334,21 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut parser_append_2: int = 0;
     let mut parser_append_3: int = 0;
     let mut parser_append_4: int = 0;
+    let mut parser_append_5: int = 0;
+    let mut parser_append_6: int = 0;
+    let mut parser_append_7: int = 0;
+    let mut parser_append_8: int = 0;
+    let mut parser_append_9: int = 0;
+    let mut parser_append_10: int = 0;
+    let mut parser_append_11: int = 0;
+    let mut parser_append_12: int = 0;
+    let mut parser_append_13: int = 0;
+    let mut parser_append_14: int = 0;
+    let mut parser_append_15: int = 0;
+    let mut parser_append_16: int = 0;
+    let mut parser_append_17: int = 0;
+    let mut parser_append_18: int = 0;
+    let mut parser_append_19: int = 0;
     let mut parser_append_offset: int = 0;
     let mut parser_append_line: int = 0;
     let mut parser_append_column: int = 0;
@@ -1330,6 +1360,64 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut pending_node_offset: int = 0;
     let mut pending_node_line: int = 0;
     let mut pending_node_column: int = 0;
+    // H1-AST-001 retains connected occurrence structure without adding meaning.
+    let mut ast_after: int = 0;
+    let mut ast_actual: int = 0;
+    let mut ast_resume: int = 0;
+    let mut ast_statement_after: int = 0;
+    let mut ast_statement_node: int = 0;
+    let mut ast_block_node: int = 0;
+    let mut ast_function_body: int = 0;
+    let mut ast_function_parameters: int = 0;
+    let mut ast_parameter_annotation: int = 0;
+    let mut ast_parameter_start: int = 0;
+    let mut ast_parameter_line: int = 0;
+    let mut ast_parameter_column: int = 0;
+    let mut ast_parameter_type_start: int = 0;
+    let mut ast_parameter_type_line: int = 0;
+    let mut ast_parameter_type_column: int = 0;
+    let mut ast_statement_start: int = 0;
+    let mut ast_statement_line: int = 0;
+    let mut ast_statement_column: int = 0;
+    let mut ast_statement_name: int = 0;
+    let mut ast_statement_mutable: int = 0;
+    let mut ast_statement_type: int = 0;
+    let mut ast_statement_annotation: int = 0;
+    let mut ast_statement_type_start: int = 0;
+    let mut ast_statement_type_line: int = 0;
+    let mut ast_statement_type_column: int = 0;
+    let mut ast_block_statements: int = 0;
+    let mut ast_block_first: int = 0;
+    let mut ast_block_cells: int = 0;
+    let mut ast_block_start: int = 0;
+    let mut ast_block_line: int = 0;
+    let mut ast_block_column: int = 0;
+    let mut ast_close_after: int = 0;
+    let mut ast_control_resume: int = 0;
+    let mut ast_control_kind: int = 0;
+    let mut ast_control_phase: int = 0;
+    let mut ast_control_previous: int = 0;
+    let mut ast_control_condition: int = 0;
+    let mut ast_control_then: int = 0;
+    let mut ast_control_start: int = 0;
+    let mut ast_control_line: int = 0;
+    let mut ast_control_column: int = 0;
+    let mut ast_control_node: int = 0;
+    let mut ast_control_else: int = 0;
+    let mut ast_control_depth_push: int = 0;
+    let mut ast_control_after: int = 0;
+    let mut ast_control_lookahead: int = 0;
+    let mut ast_match_start: int = 0;
+    let mut ast_match_line: int = 0;
+    let mut ast_match_column: int = 0;
+    let mut ast_match_subject: int = 0;
+    let mut ast_match_constructor: int = 0;
+    let mut ast_match_constructor_start: int = 0;
+    let mut ast_match_constructor_line: int = 0;
+    let mut ast_match_constructor_column: int = 0;
+    let mut ast_match_binder: int = 0;
+    let mut ast_match_first: int = 0;
+    let mut ast_match_second: int = 0;
 
     while parser_running == 1 {
         parser_cycle_state = parser_state;
@@ -1556,6 +1644,9 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 if (param_cycle_mode == 0 && current_kind == 1)
                     || param_cycle_mode == 9 {
                     param_name_id = current_name_id;
+                    ast_parameter_start = current_start;
+                    ast_parameter_line = current_line;
+                    ast_parameter_column = current_column;
                     param_mode = 1;
                     if param_name_id <= 0 {
                         status = 16;
@@ -1578,6 +1669,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 if param_cycle_mode == 2 || param_cycle_mode == 4
                     || param_cycle_mode == 6 {
+                    if param_cycle_mode == 2 {
+                        ast_parameter_type_start = current_start;
+                        ast_parameter_type_line = current_line;
+                        ast_parameter_type_column = current_column;
+                    }
                     param_is_int = 0;
                     param_is_result = 0;
                     if current_length == 3 {
@@ -1705,6 +1801,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 function_start = current_start;
                 function_line = current_line;
                 function_column = current_column;
+                ast_function_parameters = 0;
+                ast_block_statements = 0;
+                ast_block_first = 0;
+                ast_block_cells = 0;
+                ast_control_resume = 0;
             }
             if parser_running == 1 && skeleton_step == 1 {
                 function_name_id = current_name_id;
@@ -1713,12 +1814,29 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_running = 0;
                 }
             }
+            if parser_running == 1 && skeleton_step == 6 {
+                ast_block_start = current_start;
+                ast_block_line = current_line;
+                ast_block_column = current_column;
+            }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
                 if param_hold == 0 {
                     skeleton_step = skeleton_step + 1;
                 }
                 parser_state = 1;
+                if param_store == 1 {
+                    pending_node_kind = 24;
+                    pending_node_payload = param_type_code;
+                    pending_node_left = 0;
+                    pending_node_right = 0;
+                    pending_node_offset = ast_parameter_type_start;
+                    pending_node_line = ast_parameter_type_line;
+                    pending_node_column = ast_parameter_type_column;
+                    ast_actual = 1;
+                    ast_after = 62;
+                    parser_state = 60;
+                }
                 if skeleton_step == 7 {
                     parser_state = 44;
                 }
@@ -1809,33 +1927,58 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                         parser_running = 0;
                     }
                     if parser_running == 1 {
-                        parser_record_target = 3;
-                        parser_record_width = 3;
-                        parser_record_index = block_top;
-                        parser_record_field = 0;
-                        parser_record_byte = 0;
-                        parser_record_word = 0;
-                        parser_record_0 = 0;
-                        parser_record_1 = 0;
-                        parser_record_2 = 0;
-                        parser_record_3 = 0;
-                        parser_record_4 = 0;
-                        parser_record_after = 54;
-                        parser_state = 31;
+                        parse_index = parse_index + 1;
+                        ast_statement_after = 67;
+                        parser_state = 67;
+                        if block_state == 2 {
+                            ast_statement_start = return_start;
+                            ast_statement_line = return_line;
+                            ast_statement_column = return_column;
+                            pending_node_kind = 18;
+                            pending_node_payload = 0;
+                            pending_node_left = body_root;
+                            pending_node_right = 0;
+                            pending_node_offset = return_start;
+                            pending_node_line = return_line;
+                            pending_node_column = return_column;
+                            ast_actual = 6;
+                            ast_after = 66;
+                            parser_state = 60;
+                        }
                     }
                 }
                 if parser_running == 1 && statement_mode > 0 {
-                    block_state = 1;
-                    parse_index = parse_index + 1;
-                    value_top = 0;
-                    value_depth = 0;
-                    expecting_operand = 1;
-                    parser_state = 46;
-                    if statement_mode == 3 {
-                        parser_state = 40;
-                    }
-                    if statement_mode >= 4 {
-                        parser_state = 3;
+                    if ast_block_statements == 1 && ast_block_cells == 0 {
+                        ast_resume = 45;
+                        parser_record_target = 5;
+                        parser_record_width = 5;
+                        parser_record_index = ast_block_first;
+                        parser_record_field = 0;
+                        parser_record_byte = 0;
+                        parser_record_word = 0;
+                        parser_record_after = 64;
+                        parser_state = 31;
+                    } else {
+                        ast_statement_start = current_start;
+                        ast_statement_line = current_line;
+                        ast_statement_column = current_column;
+                        ast_statement_name = current_name_id;
+                        ast_statement_mutable = 0;
+                        ast_statement_type = 0;
+                        ast_statement_annotation = 0;
+                        ast_control_resume = 0;
+                        block_state = 1;
+                        parse_index = parse_index + 1;
+                        value_top = 0;
+                        value_depth = 0;
+                        expecting_operand = 1;
+                        parser_state = 46;
+                        if statement_mode == 3 {
+                            parser_state = 40;
+                        }
+                        if statement_mode >= 4 {
+                            parser_state = 3;
+                        }
                     }
                 }
             }
@@ -1897,6 +2040,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 && (stmt_cycle_step == 3 || stmt_cycle_step == 6
                 || stmt_cycle_step == 8) {
+                if stmt_cycle_step == 3 {
+                    ast_statement_type_start = current_start;
+                    ast_statement_type_line = current_line;
+                    ast_statement_type_column = current_column;
+                }
                 stmt_is_int = 0;
                 stmt_is_buffer = 0;
                 stmt_is_result = 0;
@@ -1951,6 +2099,13 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
             }
             if parser_running == 1 {
+                if stmt_cycle_step == 0 && current_kind == 5 {
+                    ast_statement_mutable = 1;
+                }
+                if (stmt_cycle_step == 0 && current_kind == 1)
+                    || stmt_cycle_step == 1 {
+                    ast_statement_name = current_name_id;
+                }
                 parse_index = parse_index + 1;
                 stmt_step = stmt_cycle_step + 1;
                 if stmt_cycle_step == 0 && current_kind == 1 {
@@ -1966,13 +2121,33 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 if stmt_cycle_step == 4 {
                     parser_state = 3;
                 }
+                ast_statement_type = 0;
+                if stmt_cycle_step == 3 && stmt_is_int == 1 {
+                    ast_statement_type = 1;
+                }
+                if stmt_cycle_step == 3 && stmt_is_buffer == 1 {
+                    ast_statement_type = 3;
+                }
+                if stmt_cycle_step == 9 {
+                    ast_statement_type = 2;
+                }
+                if ast_statement_type > 0 {
+                    pending_node_kind = 24;
+                    pending_node_payload = ast_statement_type;
+                    pending_node_left = 0;
+                    pending_node_right = 0;
+                    pending_node_offset = ast_statement_type_start;
+                    pending_node_line = ast_statement_type_line;
+                    pending_node_column = ast_statement_type_column;
+                    ast_actual = 1;
+                    ast_after = 74;
+                    parser_state = 60;
+                }
             }
         }
 
-        // ';' terminates the statement rather than closing the body. It is the
-        // one rule the ordinary return expression and the CAP-051 match
-        // construct both return to, so their two entry points into the closing
-        // sequence collapse into this one.
+        // Completing a statement retains its declaration/target and expression.
+        // A Return stays pending until this block's closing brace validates.
         if parser_cycle_state == 49 {
             stmt_terminator = 18;
             if statement_mode >= 4 {
@@ -1994,38 +2169,74 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
-                // 'body_root' stays one register and the last write wins. Every
-                // block's 'return' is its last statement and every function
-                // body ends in one, so the last 'return' completed in token
-                // order within a function is always the function body's own.
                 if statement_mode == 3 {
                     body_root = expression_root;
                     block_state = 2;
-                }
-                block_kind_push = 0;
-                if statement_mode == 4 {
-                    block_kind_push = 1;
-                }
-                if statement_mode == 5 {
-                    block_kind_push = 2;
-                }
-                statement_mode = 0;
-                parser_state = 44;
-                if block_kind_push > 0 {
-                    parser_state = 52;
+                    statement_mode = 0;
+                    parser_state = 44;
+                } else {
+                    if statement_mode == 1 || statement_mode == 2 {
+                        pending_node_kind = 28;
+                        pending_node_payload = ast_statement_name;
+                        pending_node_left = expression_root;
+                        pending_node_right = 0;
+                        ast_actual = 1;
+                        if statement_mode == 1 {
+                            pending_node_kind = 26 + ast_statement_mutable;
+                            pending_node_left = ast_statement_annotation;
+                            pending_node_right = expression_root;
+                            ast_actual = 4;
+                        }
+                        pending_node_offset = ast_statement_start;
+                        pending_node_line = ast_statement_line;
+                        pending_node_column = ast_statement_column;
+                        ast_statement_after = 44;
+                        ast_after = 66;
+                        parser_state = 60;
+                    } else {
+                        ast_control_kind = 1;
+                        if statement_mode == 5 {
+                            ast_control_kind = 2;
+                        }
+                        ast_control_phase = 1;
+                        ast_control_previous = block_top;
+                        ast_control_condition = expression_root;
+                        ast_control_then = 0;
+                        ast_control_start = ast_statement_start;
+                        ast_control_line = ast_statement_line;
+                        ast_control_column = ast_statement_column;
+                        parser_append_0 = ast_control_kind;
+                        parser_append_1 = ast_control_previous;
+                        parser_append_2 = ast_control_resume;
+                        parser_append_3 = ast_control_phase;
+                        parser_append_4 = block_state;
+                        parser_append_5 = ast_block_statements;
+                        parser_append_6 = ast_block_first;
+                        parser_append_7 = ast_block_cells;
+                        parser_append_8 = ast_block_start;
+                        parser_append_9 = ast_block_line;
+                        parser_append_10 = ast_block_column;
+                        parser_append_11 = body_root;
+                        parser_append_12 = return_start;
+                        parser_append_13 = return_line;
+                        parser_append_14 = return_column;
+                        parser_append_15 = ast_control_condition;
+                        parser_append_16 = ast_control_then;
+                        parser_append_17 = ast_control_start;
+                        parser_append_18 = ast_control_line;
+                        parser_append_19 = ast_control_column;
+                        ast_control_depth_push = 1;
+                        ast_control_after = 76;
+                        parser_state = 52;
+                    }
                 }
             }
         }
 
-        // An 'else' continues the chain with another 'if', or opens the final
-        // 'else' body. Nothing else is admissible after it.
+        // Immutable twenty-word control continuations preserve the complete
+        // parent block, pending Return, condition, branch and source anchors.
         if parser_cycle_state == 51 {
-            if current_kind < 0 || current_start < 0 || current_length < 0
-                || current_line <= 0 || current_column <= 0 {
-                status = 16;
-                parser_running = 0;
-            }
-            if parser_running == 1 && current_kind != 12 && current_kind != 7 {
+            if current_kind != 12 && current_kind != 7 {
                 status = 10;
                 error_offset = current_start;
                 error_line = current_line;
@@ -2036,28 +2247,36 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 {
                 parse_index = parse_index + 1;
-                block_state = 1;
+                ast_control_phase = 3;
+                ast_control_after = 76;
                 if current_kind == 7 {
-                    statement_mode = 4;
-                    value_top = 0;
-                    value_depth = 0;
-                    expecting_operand = 1;
-                    parser_state = 3;
-                } else {
-                    statement_mode = 0;
-                    block_kind_push = 3;
-                    parser_state = 52;
+                    ast_control_phase = 4;
+                    ast_control_after = 77;
                 }
+                parser_append_0 = ast_control_kind;
+                parser_append_1 = ast_control_previous;
+                parser_append_2 = ast_control_resume;
+                parser_append_3 = ast_control_phase;
+                parser_append_4 = block_state;
+                parser_append_5 = ast_block_statements;
+                parser_append_6 = ast_block_first;
+                parser_append_7 = ast_block_cells;
+                parser_append_8 = ast_block_start;
+                parser_append_9 = ast_block_line;
+                parser_append_10 = ast_block_column;
+                parser_append_11 = body_root;
+                parser_append_12 = return_start;
+                parser_append_13 = return_line;
+                parser_append_14 = return_column;
+                parser_append_15 = ast_control_condition;
+                parser_append_16 = ast_control_then;
+                parser_append_17 = ast_control_start;
+                parser_append_18 = ast_control_line;
+                parser_append_19 = ast_control_column;
+                ast_control_depth_push = 0;
+                parser_state = 52;
             }
         }
-
-        // Push one block record: the block's kind - 1 an 'if' body, 2 a 'while'
-        // body, 3 an 'else' body - the enclosing block's statement state, and
-        // the link to the enclosing record. Only a nested block pushes, so a
-        // 'block_top' of zero is the function body and its closing rule is
-        // unchanged. The store is a fourth monotonic parse-group counter and
-        // carries the same bound and the same exhaustion diagnostic as the
-        // value and operator stores.
         if parser_cycle_state == 52 {
             if block_records >= 65536 {
                 status = 15;
@@ -2070,12 +2289,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_running == 1 {
                 parser_append_target = 5;
-                parser_append_width = 3;
-                parser_append_0 = block_kind_push;
-                parser_append_1 = block_state;
-                parser_append_2 = block_top;
-                parser_append_3 = 0;
-                parser_append_4 = 0;
+                parser_append_width = 20;
                 parser_append_field = 0;
                 parser_append_byte = 0;
                 parser_append_after = 53;
@@ -2088,37 +2302,197 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         if parser_cycle_state == 53 {
             block_records = block_records + 1;
             block_top = block_records;
-            block_depth = block_depth + 1;
+            block_depth = block_depth + ast_control_depth_push;
+            parser_state = ast_control_after;
+        }
+        if parser_cycle_state == 76 {
+            ast_block_start = current_start;
+            ast_block_line = current_line;
+            ast_block_column = current_column;
             block_state = 0;
+            ast_block_statements = 0;
+            ast_block_first = 0;
+            ast_block_cells = 0;
+            body_root = 0;
+            return_start = 0;
+            return_line = 0;
+            return_column = 0;
+            statement_mode = 0;
+            match_active = 0;
+            ast_control_lookahead = 0;
             parser_state = 44;
         }
-
-        // The block record is decoded; pop it, restore the enclosing block's
-        // statement state, and admit 'else' only after an 'if' body.
-        if parser_cycle_state == 54 {
-            block_kind_popped = parser_record_0;
-            block_state_saved = parser_record_1;
-            block_previous = parser_record_2;
-            if block_kind_popped <= 0 || block_kind_popped > 3
-                || block_state_saved < 0 || block_state_saved > 2 {
-                status = 16;
-                parser_running = 0;
-            }
-            if parser_running == 1 && (block_previous < 0 || block_depth <= 0
-                || block_previous >= block_top) {
+        if parser_cycle_state == 77 {
+            ast_statement_start = current_start;
+            ast_statement_line = current_line;
+            ast_statement_column = current_column;
+            ast_control_resume = 1;
+            statement_mode = 4;
+            value_top = 0;
+            value_depth = 0;
+            operator_top = 0;
+            operator_depth = 0;
+            paren_depth = 0;
+            call_top = 0;
+            held_active = 0;
+            ref_pending = 0;
+            arg_leading = 0;
+            expecting_operand = 1;
+            ast_control_lookahead = 0;
+            parser_state = 3;
+        }
+        if parser_cycle_state == 72 {
+            ast_control_kind = parser_record_0;
+            ast_control_previous = parser_record_1;
+            ast_control_resume = parser_record_2;
+            ast_control_phase = parser_record_3;
+            block_state = parser_record_4;
+            ast_block_statements = parser_record_5;
+            ast_block_first = parser_record_6;
+            ast_block_cells = parser_record_7;
+            ast_block_start = parser_record_8;
+            ast_block_line = parser_record_9;
+            ast_block_column = parser_record_10;
+            body_root = parser_record_11;
+            return_start = parser_record_12;
+            return_line = parser_record_13;
+            return_column = parser_record_14;
+            ast_control_condition = parser_record_15;
+            ast_control_then = parser_record_16;
+            ast_control_start = parser_record_17;
+            ast_control_line = parser_record_18;
+            ast_control_column = parser_record_19;
+            if ast_control_kind < 1 || ast_control_kind > 2
+                || ast_control_previous < 0 || ast_control_previous >= block_top
+                || ast_control_resume < 0 || ast_control_resume > 1
+                || ast_control_phase < 1 || ast_control_phase > 4
+                || block_state < 0 || block_state > 2 || block_depth <= 0 {
                 status = 16;
                 parser_running = 0;
             }
             if parser_running == 1 {
-                block_top = block_previous;
-                block_depth = block_depth - 1;
-                block_state = block_state_saved;
-                block_else = 0;
-                if block_kind_popped == 1 {
-                    block_else = 1;
+                statement_mode = 0;
+                match_active = 0;
+                value_top = 0;
+                value_depth = 0;
+                operator_top = 0;
+                operator_depth = 0;
+                paren_depth = 0;
+                call_top = 0;
+                held_active = 0;
+                ref_pending = 0;
+                arg_leading = 0;
+                expecting_operand = 1;
+                if ast_control_kind == 1 && ast_control_phase == 1 {
+                    ast_control_then = ast_block_node;
+                    ast_control_phase = 2;
+                    parser_append_0 = ast_control_kind;
+                    parser_append_1 = ast_control_previous;
+                    parser_append_2 = ast_control_resume;
+                    parser_append_3 = ast_control_phase;
+                    parser_append_4 = block_state;
+                    parser_append_5 = ast_block_statements;
+                    parser_append_6 = ast_block_first;
+                    parser_append_7 = ast_block_cells;
+                    parser_append_8 = ast_block_start;
+                    parser_append_9 = ast_block_line;
+                    parser_append_10 = ast_block_column;
+                    parser_append_11 = body_root;
+                    parser_append_12 = return_start;
+                    parser_append_13 = return_line;
+                    parser_append_14 = return_column;
+                    parser_append_15 = ast_control_condition;
+                    parser_append_16 = ast_control_then;
+                    parser_append_17 = ast_control_start;
+                    parser_append_18 = ast_control_line;
+                    parser_append_19 = ast_control_column;
+                    ast_control_depth_push = 0;
+                    ast_control_after = 80;
+                    parser_state = 52;
+                } else {
+                    block_top = ast_control_previous;
+                    block_depth = block_depth - 1;
+                    pending_node_kind = 33;
+                    pending_node_payload = 0;
+                    pending_node_left = ast_control_condition;
+                    pending_node_right = ast_block_node;
+                    pending_node_offset = ast_control_start;
+                    pending_node_line = ast_control_line;
+                    pending_node_column = ast_control_column;
+                    ast_actual = 9;
+                    ast_after = 73;
+                    if ast_control_kind == 1 {
+                        pending_node_kind = 31;
+                        pending_node_left = ast_control_then;
+                        pending_node_right = ast_block_node;
+                        ast_actual = 7;
+                        ast_after = 78;
+                    }
+                    parser_state = 60;
                 }
+            }
+        }
+        if parser_cycle_state == 80 {
+            parser_token_after = 81;
+            parser_token_field = 0;
+            parser_token_byte = 0;
+            parser_token_word = 0;
+            parser_state = 30;
+        }
+        if parser_cycle_state == 81 {
+            if current_kind == 8 {
                 parse_index = parse_index + 1;
-                parser_state = 44;
+                ast_control_lookahead = 0;
+                parser_state = 50;
+            } else {
+                ast_control_lookahead = 1;
+                block_top = ast_control_previous;
+                block_depth = block_depth - 1;
+                pending_node_kind = 31;
+                pending_node_payload = 0;
+                pending_node_left = ast_control_then;
+                pending_node_right = 0;
+                pending_node_offset = ast_control_start;
+                pending_node_line = ast_control_line;
+                pending_node_column = ast_control_column;
+                ast_actual = 7;
+                ast_after = 78;
+                parser_state = 60;
+            }
+        }
+        if parser_cycle_state == 78 {
+            pending_node_kind = 32;
+            pending_node_payload = 0;
+            pending_node_left = ast_control_condition;
+            pending_node_right = node_id;
+            pending_node_offset = ast_control_start;
+            pending_node_line = ast_control_line;
+            pending_node_column = ast_control_column;
+            ast_actual = 7;
+            ast_after = 73;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 73 {
+            if ast_control_resume == 1 {
+                ast_block_node = node_id;
+                parser_record_target = 3;
+                parser_record_width = 20;
+                parser_record_index = block_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_after = 72;
+                parser_state = 31;
+            } else {
+                ast_statement_start = ast_control_start;
+                ast_statement_line = ast_control_line;
+                ast_statement_column = ast_control_column;
+                ast_statement_after = 44;
+                if ast_control_lookahead == 1 {
+                    ast_statement_after = 45;
+                }
+                ast_after = 66;
+                parser_state = 66;
             }
         }
 
@@ -2152,6 +2526,11 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 }
                 if match_is_match == 1 {
                     match_active = 1;
+                    ast_match_start = current_start;
+                    ast_match_line = current_line;
+                    ast_match_column = current_column;
+                    ast_match_first = 0;
+                    ast_match_second = 0;
                     match_step = 0;
                     parse_index = parse_index + 1;
                     parser_state = 42;
@@ -2205,13 +2584,58 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 parse_index = parse_index + 1;
                 match_step = match_cycle_step + 1;
                 parser_state = 42;
+                if match_cycle_step == 0 || match_cycle_step == 4
+                    || match_cycle_step == 10 {
+                    pending_node_kind = 34;
+                    if match_cycle_step == 0 {
+                        pending_node_kind = 2;
+                    }
+                    pending_node_payload = current_name_id;
+                    pending_node_left = 0;
+                    pending_node_right = 0;
+                    pending_node_offset = current_start;
+                    pending_node_line = current_line;
+                    pending_node_column = current_column;
+                    ast_actual = 1;
+                    ast_after = 84;
+                    if match_cycle_step == 0 {
+                        ast_after = 83;
+                    }
+                    parser_state = 60;
+                }
+                if match_cycle_step == 2 || match_cycle_step == 8 {
+                    ast_match_constructor = current_name_id;
+                    ast_match_constructor_start = current_start;
+                    ast_match_constructor_line = current_line;
+                    ast_match_constructor_column = current_column;
+                }
                 if match_cycle_step == 6 || match_cycle_step == 12 {
                     expecting_operand = 1;
                     parser_state = 3;
                 }
+                if match_cycle_step == 7 || match_cycle_step == 13 {
+                    pending_node_kind = 35;
+                    pending_node_payload = ast_match_constructor;
+                    pending_node_left = ast_match_binder;
+                    pending_node_right = expression_root;
+                    pending_node_offset = ast_match_constructor_start;
+                    pending_node_line = ast_match_constructor_line;
+                    pending_node_column = ast_match_constructor_column;
+                    ast_actual = 1;
+                    ast_after = 85;
+                    parser_state = 60;
+                }
                 if match_cycle_step == 14 {
-                    match_active = 0;
-                    parser_state = 48;
+                    pending_node_kind = 36;
+                    pending_node_payload = 0;
+                    pending_node_left = ast_match_first;
+                    pending_node_right = ast_match_second;
+                    pending_node_offset = ast_match_start;
+                    pending_node_line = ast_match_line;
+                    pending_node_column = ast_match_column;
+                    ast_actual = 1;
+                    ast_after = 86;
+                    parser_state = 60;
                 }
             }
         }
@@ -2994,39 +3418,20 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 && closing_cycle_step == 0 {
                 parse_index = parse_index + 1;
                 closing_step = 1;
-                if node_count >= 65536 {
-                    status = 14;
-                    error_offset = return_start;
-                    error_line = return_line;
-                    error_column = return_column;
-                    diagnostic_code = 65536;
-                    diagnostic_actual = 6;
-                    parser_running = 0;
-                }
-                if parser_running == 1 {
-                    pending_node_kind = 18;
-                    pending_node_payload = 0;
-                    pending_node_left = body_root;
-                    pending_node_right = 0;
-                    pending_node_after = 22;
-                    pending_node_offset = return_start;
-                    pending_node_line = return_line;
-                    pending_node_column = return_column;
-                    parser_append_target = 4;
-                    parser_append_width = 5;
-                    parser_append_0 = node_count + 1;
-                    parser_append_1 = return_start;
-                    parser_append_2 = return_line;
-                    parser_append_3 = return_column;
-                    parser_append_4 = 6;
-                    parser_append_field = 0;
-                    parser_append_byte = 0;
-                    parser_append_after = 33;
-                    parser_append_offset = return_start;
-                    parser_append_line = return_line;
-                    parser_append_column = return_column;
-                    parser_state = 32;
-                }
+                ast_statement_start = return_start;
+                ast_statement_line = return_line;
+                ast_statement_column = return_column;
+                pending_node_kind = 18;
+                pending_node_payload = 0;
+                pending_node_left = body_root;
+                pending_node_right = 0;
+                pending_node_offset = return_start;
+                pending_node_line = return_line;
+                pending_node_column = return_column;
+                ast_actual = 6;
+                ast_statement_after = 67;
+                ast_after = 66;
+                parser_state = 60;
             }
         }
         if parser_cycle_state == 22 {
@@ -3379,6 +3784,252 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             parser_state = 3;
         }
 
+        // Structural appends share the accepted origin-then-node transaction.
+        // They never manufacture a value-stack entry or a scalar semantic fact.
+        if parser_cycle_state == 60 {
+            if node_count >= 65536 {
+                status = 14;
+                error_offset = pending_node_offset;
+                error_line = pending_node_line;
+                error_column = pending_node_column;
+                diagnostic_code = 65536;
+                diagnostic_actual = ast_actual;
+                parser_running = 0;
+            }
+            if parser_running == 1 {
+                pending_node_after = 61;
+                parser_append_target = 4;
+                parser_append_width = 5;
+                parser_append_0 = node_count + 1;
+                parser_append_1 = pending_node_offset;
+                parser_append_2 = pending_node_line;
+                parser_append_3 = pending_node_column;
+                parser_append_4 = ast_actual;
+                parser_append_field = 0;
+                parser_append_byte = 0;
+                parser_append_after = 33;
+                parser_append_offset = pending_node_offset;
+                parser_append_line = pending_node_line;
+                parser_append_column = pending_node_column;
+                parser_state = 32;
+            }
+        }
+        if parser_cycle_state == 61 {
+            node_count = node_count + 1;
+            node_id = node_count;
+            parser_state = ast_after;
+        }
+        if parser_cycle_state == 62 {
+            ast_parameter_annotation = node_id;
+            pending_node_kind = 25;
+            pending_node_payload = param_name_id;
+            pending_node_left = ast_parameter_annotation;
+            pending_node_right = ast_function_parameters;
+            pending_node_offset = ast_parameter_start;
+            pending_node_line = ast_parameter_line;
+            pending_node_column = ast_parameter_column;
+            ast_actual = 1;
+            ast_after = 63;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 63 {
+            ast_function_parameters = node_id;
+            parser_state = 1;
+        }
+        // Promote a held first statement only when it is really needed.
+        if parser_cycle_state == 64 {
+            pending_node_kind = 29;
+            pending_node_payload = 0;
+            pending_node_left = 0;
+            pending_node_right = ast_block_first;
+            pending_node_offset = parser_record_1;
+            pending_node_line = parser_record_2;
+            pending_node_column = parser_record_3;
+            ast_actual = parser_record_4;
+            ast_after = 65;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 65 {
+            ast_block_cells = node_id;
+            parser_state = ast_resume;
+        }
+        if parser_cycle_state == 66 {
+            ast_statement_node = node_id;
+            if ast_block_statements == 0 {
+                ast_block_first = ast_statement_node;
+                ast_block_statements = 1;
+                statement_mode = 0;
+                parser_state = ast_statement_after;
+            } else {
+                pending_node_kind = 29;
+                pending_node_payload = 0;
+                pending_node_left = ast_block_cells;
+                pending_node_right = ast_statement_node;
+                pending_node_offset = ast_statement_start;
+                pending_node_line = ast_statement_line;
+                pending_node_column = ast_statement_column;
+                ast_actual = 1;
+                if pending_node_kind == 29 {
+                    parser_record_target = 5;
+                    parser_record_width = 5;
+                    parser_record_index = ast_statement_node;
+                    parser_record_field = 0;
+                    parser_record_byte = 0;
+                    parser_record_word = 0;
+                    parser_record_after = 75;
+                    parser_state = 31;
+                }
+            }
+        }
+        if parser_cycle_state == 75 {
+            ast_actual = parser_record_4;
+            ast_after = 68;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 68 {
+            ast_block_cells = node_id;
+            ast_block_statements = ast_block_statements + 1;
+            statement_mode = 0;
+            parser_state = ast_statement_after;
+        }
+        if parser_cycle_state == 67 {
+            if block_top == 0 && ast_function_parameters == 0
+                && ast_block_statements == 1 {
+                parser_record_target = 6;
+                parser_record_width = 4;
+                parser_record_index = ast_block_first;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_after = 79;
+                parser_state = 31;
+            } else {
+                parser_state = 82;
+            }
+        }
+        if parser_cycle_state == 79 {
+            if parser_record_0 == 18 {
+                ast_function_body = ast_block_first;
+                pending_node_kind = 19;
+                pending_node_payload = function_name_id;
+                pending_node_left = ast_function_body;
+                pending_node_right = item_previous;
+                pending_node_offset = function_start;
+                pending_node_line = function_line;
+                pending_node_column = function_column;
+                ast_actual = 3;
+                ast_after = 69;
+                parser_state = 60;
+            } else {
+                parser_state = 82;
+            }
+        }
+        if parser_cycle_state == 82 {
+                if ast_block_cells == 0 {
+                    ast_resume = 82;
+                    parser_record_target = 5;
+                    parser_record_width = 5;
+                    parser_record_index = ast_block_first;
+                    parser_record_field = 0;
+                    parser_record_byte = 0;
+                    parser_record_word = 0;
+                    parser_record_after = 64;
+                    parser_state = 31;
+                } else {
+                    pending_node_kind = 30;
+                    pending_node_payload = 0;
+                    pending_node_left = ast_block_cells;
+                    pending_node_right = 0;
+                    pending_node_offset = ast_block_start;
+                    pending_node_line = ast_block_line;
+                    pending_node_column = ast_block_column;
+                    ast_actual = 12;
+                    ast_after = 70;
+                    parser_state = 60;
+                }
+        }
+        if parser_cycle_state == 69 {
+            item_previous = node_id;
+            parser_state = 20;
+        }
+        if parser_cycle_state == 70 {
+            ast_block_node = node_id;
+            // This real Block consumed its closing brace. A no-else child's
+            // earlier lookahead is no longer available for parent dispatch.
+            ast_control_lookahead = 0;
+            if block_top == 0 {
+                pending_node_kind = 38;
+                pending_node_payload = 1;
+                pending_node_left = ast_function_parameters;
+                pending_node_right = ast_block_node;
+                pending_node_offset = function_start;
+                pending_node_line = function_line;
+                pending_node_column = function_column;
+                ast_actual = 3;
+                ast_after = 71;
+                parser_state = 60;
+            } else {
+                parser_record_target = 3;
+                parser_record_width = 20;
+                parser_record_index = block_top;
+                parser_record_field = 0;
+                parser_record_byte = 0;
+                parser_record_word = 0;
+                parser_record_after = 72;
+                parser_state = 31;
+            }
+        }
+        if parser_cycle_state == 71 {
+            ast_function_body = node_id;
+            pending_node_kind = 19;
+            pending_node_payload = function_name_id;
+            pending_node_left = ast_function_body;
+            pending_node_right = item_previous;
+            pending_node_offset = function_start;
+            pending_node_line = function_line;
+            pending_node_column = function_column;
+            ast_actual = 3;
+            ast_after = 69;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 74 {
+            ast_statement_annotation = node_id;
+            parser_state = 46;
+        }
+        if parser_cycle_state == 83 {
+            ast_match_subject = node_id;
+            parser_state = 42;
+        }
+        if parser_cycle_state == 84 {
+            ast_match_binder = node_id;
+            parser_state = 42;
+        }
+        if parser_cycle_state == 85 {
+            if match_step == 8 {
+                ast_match_first = node_id;
+            } else {
+                ast_match_second = node_id;
+            }
+            parser_state = 42;
+        }
+        if parser_cycle_state == 86 {
+            pending_node_kind = 37;
+            pending_node_payload = 0;
+            pending_node_left = ast_match_subject;
+            pending_node_right = node_id;
+            pending_node_offset = ast_match_start;
+            pending_node_line = ast_match_line;
+            pending_node_column = ast_match_column;
+            ast_actual = 1;
+            ast_after = 87;
+            parser_state = 60;
+        }
+        if parser_cycle_state == 87 {
+            expression_root = node_id;
+            match_active = 0;
+            parser_state = 48;
+        }
+
         // The origin is complete; append the frozen four-word node next.
         if parser_cycle_state == 33 {
             origin_count = origin_count + 1;
@@ -3427,8 +4078,17 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     parser_read_byte_value = result_value(bytes_get(&calls,
                         parser_read_offset));
                 }
+                if parser_record_target == 5 {
+                    parser_read_byte_value = result_value(bytes_get(&origins,
+                        parser_read_offset));
+                }
+                if parser_record_target == 6 {
+                    parser_read_byte_value = result_value(bytes_get(&nodes,
+                        parser_read_offset));
+                }
                 if parser_record_target != 1 && parser_record_target != 2
-                    && parser_record_target != 3 && parser_record_target != 4 {
+                    && parser_record_target != 3 && parser_record_target != 4
+                    && parser_record_target != 5 && parser_record_target != 6 {
                     status = 16;
                     parser_running = 0;
                 }
@@ -3476,6 +4136,51 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 if parser_record_field == 4 {
                     parser_record_4 = parser_record_word;
                 }
+                if parser_record_field == 5 {
+                    parser_record_5 = parser_record_word;
+                }
+                if parser_record_field == 6 {
+                    parser_record_6 = parser_record_word;
+                }
+                if parser_record_field == 7 {
+                    parser_record_7 = parser_record_word;
+                }
+                if parser_record_field == 8 {
+                    parser_record_8 = parser_record_word;
+                }
+                if parser_record_field == 9 {
+                    parser_record_9 = parser_record_word;
+                }
+                if parser_record_field == 10 {
+                    parser_record_10 = parser_record_word;
+                }
+                if parser_record_field == 11 {
+                    parser_record_11 = parser_record_word;
+                }
+                if parser_record_field == 12 {
+                    parser_record_12 = parser_record_word;
+                }
+                if parser_record_field == 13 {
+                    parser_record_13 = parser_record_word;
+                }
+                if parser_record_field == 14 {
+                    parser_record_14 = parser_record_word;
+                }
+                if parser_record_field == 15 {
+                    parser_record_15 = parser_record_word;
+                }
+                if parser_record_field == 16 {
+                    parser_record_16 = parser_record_word;
+                }
+                if parser_record_field == 17 {
+                    parser_record_17 = parser_record_word;
+                }
+                if parser_record_field == 18 {
+                    parser_record_18 = parser_record_word;
+                }
+                if parser_record_field == 19 {
+                    parser_record_19 = parser_record_word;
+                }
                 parser_record_field = parser_record_field + 1;
                 parser_record_byte = 0;
                 parser_record_word = 0;
@@ -3500,6 +4205,51 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             }
             if parser_append_field == 4 {
                 parser_append_word = parser_append_4;
+            }
+            if parser_append_field == 5 {
+                parser_append_word = parser_append_5;
+            }
+            if parser_append_field == 6 {
+                parser_append_word = parser_append_6;
+            }
+            if parser_append_field == 7 {
+                parser_append_word = parser_append_7;
+            }
+            if parser_append_field == 8 {
+                parser_append_word = parser_append_8;
+            }
+            if parser_append_field == 9 {
+                parser_append_word = parser_append_9;
+            }
+            if parser_append_field == 10 {
+                parser_append_word = parser_append_10;
+            }
+            if parser_append_field == 11 {
+                parser_append_word = parser_append_11;
+            }
+            if parser_append_field == 12 {
+                parser_append_word = parser_append_12;
+            }
+            if parser_append_field == 13 {
+                parser_append_word = parser_append_13;
+            }
+            if parser_append_field == 14 {
+                parser_append_word = parser_append_14;
+            }
+            if parser_append_field == 15 {
+                parser_append_word = parser_append_15;
+            }
+            if parser_append_field == 16 {
+                parser_append_word = parser_append_16;
+            }
+            if parser_append_field == 17 {
+                parser_append_word = parser_append_17;
+            }
+            if parser_append_field == 18 {
+                parser_append_word = parser_append_18;
+            }
+            if parser_append_field == 19 {
+                parser_append_word = parser_append_19;
             }
             if parser_append_word < 0 || parser_append_field < 0
                 || parser_append_field >= parser_append_width {
@@ -3589,14 +4339,14 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     }
     if bytes_len(&nodes) < node_count * 16 || bytes_len(&values) < value_records * 8
         || bytes_len(&operators) < operator_records * 20
-        || bytes_len(&blocks) < block_records * 12
+        || bytes_len(&blocks) < block_records * 80
         || bytes_len(&calls) < call_records * 12 {
         return 70;
     }
     if status == 0 && (bytes_len(&nodes) != node_count * 16
         || bytes_len(&values) != value_records * 8
         || bytes_len(&operators) != operator_records * 20
-        || bytes_len(&blocks) != block_records * 12
+        || bytes_len(&blocks) != block_records * 80
         || bytes_len(&calls) != call_records * 12) {
         return 70;
     }
@@ -3741,6 +4491,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
 
     let mut validate_node: int = 0;
     let mut validate_node_kind: int = 0;
+    let mut validate_left_kind: int = 0;
+    let mut validate_right_kind: int = 0;
+    let mut validate_left_expression: int = 0;
+    let mut validate_right_expression: int = 0;
+    let mut validate_child_payload: int = 0;
+    let mut validate_shape: int = 0;
     let mut validate_payload: int = 0;
     let mut validate_left: int = 0;
     let mut validate_right: int = 0;
@@ -3770,49 +4526,163 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             validate_node_field = validate_node_field + 1;
         }
         node_id = validate_node + 1;
-        if validate_node_kind <= 0 || validate_node_kind > 23 {
+        if validate_node_kind <= 0 || validate_node_kind > 38
+            || validate_left < 0 || validate_left >= node_id
+            || validate_right < 0 || validate_right >= node_id {
             return 78;
         }
+        validate_left_kind = 0;
+        validate_right_kind = 0;
+        validate_left_expression = 0;
+        validate_right_expression = 0;
+        if validate_left > 0 {
+            word_offset = (validate_left - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 78;
+            }
+            validate_left_kind = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+        }
+        if validate_right > 0 {
+            word_offset = (validate_right - 1) * 16;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                return 78;
+            }
+            validate_right_kind = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+        }
+        if (validate_left_kind >= 1 && validate_left_kind <= 17)
+            || validate_left_kind == 20 || validate_left_kind == 22
+            || validate_left_kind == 23 || validate_left_kind == 37 {
+            validate_left_expression = 1;
+        }
+        if (validate_right_kind >= 1 && validate_right_kind <= 17)
+            || validate_right_kind == 20 || validate_right_kind == 22
+            || validate_right_kind == 23 || validate_right_kind == 37 {
+            validate_right_expression = 1;
+        }
+        validate_shape = 0;
         if validate_node_kind == 1 {
-            if validate_left != 0 || validate_right != 0 {
+            if validate_left == 0 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 2 || validate_node_kind == 34 {
+            if validate_payload > 0 && validate_payload <= name_count && validate_left == 0 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 3 || validate_node_kind == 4 || validate_node_kind == 18 || validate_node_kind == 22 || validate_node_kind == 23 {
+            if validate_payload == 0 && validate_left_expression == 1 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind >= 5 && validate_node_kind <= 17 {
+            if validate_payload == 0 && validate_left_expression == 1 && validate_right_expression == 1 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 19 {
+            if validate_payload > 0 && validate_payload <= name_count && (validate_left_kind == 18 || validate_left_kind == 38) && (validate_right == 0 || validate_right_kind == 19) {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 20 {
+            if validate_payload > 0 && validate_payload <= name_count && (validate_left == 0 || validate_left_kind == 21) && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 21 {
+            if validate_payload == 0 && validate_left_expression == 1 && (validate_right == 0 || validate_right_kind == 21) {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 24 {
+            if validate_payload >= 1 && validate_payload <= 3 && validate_left == 0 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 25 {
+            if validate_payload > 0 && validate_payload <= name_count && validate_left_kind == 24 && (validate_right == 0 || validate_right_kind == 25) {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 26 || validate_node_kind == 27 {
+            if validate_payload > 0 && validate_payload <= name_count && validate_left_kind == 24 && validate_right_expression == 1 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 28 {
+            if validate_payload > 0 && validate_payload <= name_count && validate_left_expression == 1 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 29 {
+            if validate_payload == 0 && (validate_left == 0 || validate_left_kind == 29) && (validate_right_kind == 18 || validate_right_kind == 26 || validate_right_kind == 27 || validate_right_kind == 28 || validate_right_kind == 32 || validate_right_kind == 33) {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 30 {
+            if validate_payload == 0 && validate_left_kind == 29 && validate_right == 0 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 31 {
+            if validate_payload == 0 && validate_left_kind == 30 && (validate_right == 0 || validate_right_kind == 30 || validate_right_kind == 32) {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 32 {
+            if validate_payload == 0 && validate_left_expression == 1 && validate_right_kind == 31 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 33 {
+            if validate_payload == 0 && validate_left_expression == 1 && validate_right_kind == 30 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 35 {
+            if validate_payload > 0 && validate_payload <= name_count && validate_left_kind == 34 && validate_right_expression == 1 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 36 {
+            if validate_payload == 0 && validate_left_kind == 35 && validate_right_kind == 35 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 37 {
+            if validate_payload == 0 && validate_left_kind == 2 && validate_right_kind == 36 {
+                validate_shape = 1;
+            }
+        }
+        if validate_node_kind == 38 {
+            if validate_payload == 1 && (validate_left == 0 || validate_left_kind == 25) && validate_right_kind == 30 {
+                validate_shape = 1;
+            }
+        }
+        if validate_shape == 1 && validate_node_kind == 25 {
+            word_offset = (validate_left - 1) * 16 + 4;
+            byte_0 = result_value(bytes_get(&nodes, word_offset));
+            byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+            byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+            byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+            if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
                 return 78;
             }
-        } else if validate_node_kind == 2 {
-            if validate_payload <= 0 || validate_payload > name_count
-                || validate_left != 0 || validate_right != 0 {
-                return 78;
+            validate_child_payload = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+            if validate_child_payload < 1 || validate_child_payload > 2 {
+                validate_shape = 0;
             }
-        } else if validate_node_kind == 3 || validate_node_kind == 4
-            || validate_node_kind == 18 || validate_node_kind == 22
-            || validate_node_kind == 23 {
-            if validate_payload != 0 || validate_left <= 0
-                || validate_left >= node_id || validate_right != 0 {
-                return 78;
-            }
-        } else if validate_node_kind >= 5 && validate_node_kind <= 17 {
-            if validate_payload != 0 || validate_left <= 0 || validate_right <= 0
-                || validate_left >= node_id || validate_right >= node_id {
-                return 78;
-            }
-        } else if validate_node_kind == 20 {
-            if validate_payload <= 0 || validate_payload > name_count
-                || validate_left < 0 || validate_left >= node_id
-                || validate_right != 0 {
-                return 78;
-            }
-        } else if validate_node_kind == 21 {
-            if validate_payload != 0 || validate_left <= 0
-                || validate_left >= node_id || validate_right < 0
-                || validate_right >= node_id {
-                return 78;
-            }
-        } else if validate_node_kind == 19 {
-            if validate_payload <= 0 || validate_payload > name_count
-                || validate_left <= 0 || validate_left >= node_id
-                || validate_right < 0 || validate_right >= node_id {
-                return 78;
-            }
-        } else {
+        }
+        if validate_shape == 0 {
             return 78;
         }
         validate_node = validate_node + 1;
@@ -3893,7 +4763,118 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     }
 
     // Validate the parallel origin sidecar against source, tokens, and nodes.
+    // One append-only interval start per occurrence proves complete ownership.
+    // This structural authority precedes origin authentication and all meaning.
+    let mut ast_starts: ByteBuffer = bytes_new();
+    let mut ast_interval_id: int = 1;
+    let mut ast_interval_left: int = 0;
+    let mut ast_interval_right: int = 0;
+    let mut ast_interval_low: int = 0;
+    let mut ast_interval_high: int = 0;
+    let mut ast_interval_start: int = 0;
+    let mut ast_interval_later_start: int = 0;
+    let mut ast_interval_byte: int = 0;
+    while status == 0 && semantic_status == 0 && ast_interval_id <= node_count {
+        semantic_node = ast_interval_id;
+        semantic_offset = 0 - 1;
+        semantic_line = 0;
+        semantic_column = 0;
+        semantic_code = 1;
+        word_offset = (ast_interval_id - 1) * 16 + 8;
+        byte_0 = result_value(bytes_get(&nodes, word_offset));
+        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+            semantic_status = 27;
+        } else {
+            ast_interval_left = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+        }
+        word_offset = (ast_interval_id - 1) * 16 + 12;
+        byte_0 = result_value(bytes_get(&nodes, word_offset));
+        byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
+        byte_2 = result_value(bytes_get(&nodes, word_offset + 2));
+        byte_3 = result_value(bytes_get(&nodes, word_offset + 3));
+        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+            semantic_status = 27;
+        } else {
+            ast_interval_right = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+        }
+        ast_interval_low = ast_interval_left;
+        ast_interval_high = ast_interval_right;
+        if ast_interval_low > ast_interval_high {
+            ast_interval_low = ast_interval_right;
+            ast_interval_high = ast_interval_left;
+        }
+        ast_interval_start = ast_interval_id;
+        if semantic_status == 0 && ast_interval_high > 0 {
+            if ast_interval_high != ast_interval_id - 1 {
+                semantic_status = 27;
+            } else {
+                word_offset = (ast_interval_high - 1) * 4;
+                byte_0 = result_value(bytes_get(&ast_starts, word_offset));
+                byte_1 = result_value(bytes_get(&ast_starts, word_offset + 1));
+                byte_2 = result_value(bytes_get(&ast_starts, word_offset + 2));
+                byte_3 = result_value(bytes_get(&ast_starts, word_offset + 3));
+                if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                    semantic_status = 27;
+                } else {
+                    ast_interval_later_start = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+                }
+                ast_interval_start = ast_interval_later_start;
+                if semantic_status == 0 && ast_interval_low > 0 {
+                    if ast_interval_low == ast_interval_high
+                        || ast_interval_low != ast_interval_later_start - 1 {
+                        semantic_status = 27;
+                    } else {
+                        word_offset = (ast_interval_low - 1) * 4;
+                        byte_0 = result_value(bytes_get(&ast_starts, word_offset));
+                        byte_1 = result_value(bytes_get(&ast_starts, word_offset + 1));
+                        byte_2 = result_value(bytes_get(&ast_starts, word_offset + 2));
+                        byte_3 = result_value(bytes_get(&ast_starts, word_offset + 3));
+                        if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
+                            semantic_status = 27;
+                        } else {
+                            ast_interval_start = byte_0 + byte_1 * 256 + byte_2 * 65536 + byte_3 * 16777216;
+                        }
+                    }
+                }
+            }
+        }
+        ast_interval_byte = 0;
+        while semantic_status == 0 && ast_interval_byte < 4 {
+            byte = word_byte_0(ast_interval_start);
+            if ast_interval_byte == 1 {
+                byte = word_byte_1(ast_interval_start);
+            }
+            if ast_interval_byte == 2 {
+                byte = word_byte_2(ast_interval_start);
+            }
+            if ast_interval_byte == 3 {
+                byte = word_byte_3(ast_interval_start);
+            }
+            push_result = result_value(bytes_push(&mut ast_starts, byte));
+            if push_result < 0 {
+                semantic_status = 26;
+                semantic_code = 4;
+            }
+            ast_interval_byte = ast_interval_byte + 1;
+        }
+        ast_interval_id = ast_interval_id + 1;
+    }
+    if status == 0 && semantic_status == 0 {
+        if ast_interval_start != 1 || root != node_count
+            || bytes_len(&ast_starts) != node_count * 4 {
+            semantic_status = 27;
+            semantic_node = root;
+            semantic_offset = 0 - 1;
+            semantic_line = 0;
+            semantic_column = 0;
+            semantic_code = 1;
+        }
+    }
     let mut origin_index: int = 0;
+    let mut origin_auth_attempted: int = 0;
     let mut origin_field: int = 0;
     let mut origin_word: int = 0;
     let mut origin_node_id: int = 0;
@@ -3911,7 +4892,12 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     let mut origin_token_line: int = 0;
     let mut origin_token_column: int = 0;
     let mut origin_token_found: int = 0;
+    let mut origin_search_low: int = 0;
+    let mut origin_search_high: int = 0;
+    let mut origin_search_middle: int = 0;
+    let mut origin_node_right: int = 0;
     if status == 0 && semantic_status == 0 {
+        origin_auth_attempted = 1;
         if bytes_len(&origins) != origin_count * 20 || origin_count != node_count {
             semantic_status = 27;
             semantic_node = origin_count + 1;
@@ -3962,27 +4948,6 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 || origin_offset > source_length || origin_line <= 0
                 || origin_column <= 0 || origin_token_kind <= 0
                 || origin_token_kind > 37 {
-                semantic_status = 27;
-            }
-        }
-        if semantic_status == 0 {
-            location_index = 0;
-            location_line = 1;
-            location_column = 1;
-            while semantic_status == 0 && location_index < origin_offset {
-                byte = result_value(bytes_get(&source, location_index));
-                if byte < 0 {
-                    semantic_status = 27;
-                } else if byte == 10 {
-                    location_line = location_line + 1;
-                    location_column = 1;
-                } else {
-                    location_column = location_column + 1;
-                }
-                location_index = location_index + 1;
-            }
-            if semantic_status == 0 && (location_line != origin_line
-                || location_column != origin_column) {
                 semantic_status = 27;
             }
         }
@@ -4067,28 +5032,74 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 if origin_node_kind == 23 {
                     origin_expected_kind = 37;
                 }
+                if origin_node_kind == 24 || origin_node_kind == 25
+                    || origin_node_kind == 28 || origin_node_kind == 34
+                    || origin_node_kind == 35 || origin_node_kind == 36
+                    || origin_node_kind == 37 {
+                    origin_expected_kind = 1;
+                }
+                if origin_node_kind == 26 || origin_node_kind == 27 {
+                    origin_expected_kind = 4;
+                }
+                if origin_node_kind == 30 {
+                    origin_expected_kind = 12;
+                }
+                if origin_node_kind == 31 || origin_node_kind == 32 {
+                    origin_expected_kind = 7;
+                }
+                if origin_node_kind == 33 {
+                    origin_expected_kind = 9;
+                }
+                if origin_node_kind == 38 {
+                    origin_expected_kind = 3;
+                }
+                if origin_node_kind == 29 {
+                    word_offset = origin_index * 16 + 12;
+                    origin_node_right = result_value(bytes_get(&nodes, word_offset))
+                        + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                        + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+                    word_offset = (origin_node_right - 1) * 20 + 16;
+                    origin_expected_kind = result_value(bytes_get(&origins, word_offset))
+                        + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                        + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                }
                 if origin_expected_kind == 0 || origin_token_kind != origin_expected_kind {
                     semantic_status = 27;
                 }
             }
         }
         if semantic_status == 0 {
-            origin_token_index = 0;
+            // Token coordinates were authenticated once against source above.
+            // Match the exact tuple with logarithmic token selection.
+            origin_search_low = 0;
+            origin_search_high = token_count;
+            while semantic_status == 0 && origin_search_low < origin_search_high {
+                origin_search_middle = origin_search_low
+                    + signed_quotient(origin_search_high - origin_search_low, 2);
+                word_offset = origin_search_middle * 24 + 4;
+                origin_token_start = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if origin_token_start < origin_offset {
+                    origin_search_low = origin_search_middle + 1;
+                } else {
+                    origin_search_high = origin_search_middle;
+                }
+            }
+            origin_token_index = origin_search_low;
             origin_token_found = 0;
-            while origin_token_index < token_count && origin_token_found == 0 {
+            if origin_token_index < token_count {
                 origin_token_field = 0;
-                origin_token_record_kind = 0;
-                origin_token_start = 0;
-                origin_token_line = 0;
-                origin_token_column = 0;
                 while semantic_status == 0 && origin_token_field < 5 {
                     word_offset = origin_token_index * 24 + origin_token_field * 4;
                     byte_0 = result_value(bytes_get(&tokens, word_offset));
                     byte_1 = result_value(bytes_get(&tokens, word_offset + 1));
                     byte_2 = result_value(bytes_get(&tokens, word_offset + 2));
                     byte_3 = result_value(bytes_get(&tokens, word_offset + 3));
-                    if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0
-                        || byte_3 > 127 {
+                    if byte_0 < 0 || byte_1 < 0 || byte_2 < 0 || byte_3 < 0 || byte_3 > 127 {
                         semantic_status = 27;
                     } else {
                         origin_token_word = byte_0 + byte_1 * 256 + byte_2 * 65536
@@ -4111,7 +5122,6 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                     && origin_token_column == origin_column {
                     origin_token_found = 1;
                 }
-                origin_token_index = origin_token_index + 1;
             }
             if semantic_status == 0 && origin_token_found == 0 {
                 semantic_status = 27;
@@ -4120,6 +5130,1471 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
         origin_index = origin_index + 1;
     }
 
+
+
+    // Bounded brace ownership: every closing event is consumed once in AST
+    // postorder. Coordinates are verified above; new resource failures remain
+    // explicitly unlocated until complete source-role authentication.
+    let mut ast_brace_history: ByteBuffer = bytes_new();
+    let mut ast_ends: ByteBuffer = bytes_new();
+    let mut map_index: int = 1;
+    let mut map_kind: int = 0;
+    let mut map_left: int = 0;
+    let mut map_right: int = 0;
+    let mut map_word: int = 0;
+    let mut map_end: int = 0;
+    let mut map_inherit: int = 0;
+    let mut map_consume: int = 0;
+    let mut map_token: int = 0;
+    let mut map_token_kind: int = 0;
+    let mut map_open: int = 0;
+    let mut map_expected_open: int = 0;
+    let mut map_previous: int = 0;
+    let mut map_active: int = 0;
+    let mut map_history_count: int = 0;
+    let mut map_closures: int = 0;
+    let mut map_found: int = 0;
+    let mut map_scan: int = 0;
+    let mut map_field: int = 0;
+    let mut map_byte: int = 0;
+    let mut map_append: int = 0;
+    while status == 0 && semantic_status == 0 && map_index <= node_count {
+        word_offset = (map_index - 1) * 16 + 0;
+            map_kind = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (map_index - 1) * 16 + 8;
+            map_left = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (map_index - 1) * 16 + 12;
+            map_right = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        semantic_node = map_index;
+        word_offset = (map_index - 1) * 20 + 4;
+            semantic_offset = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (map_index - 1) * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (map_index - 1) * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        semantic_code = 1;
+        map_end = 0;
+        map_inherit = 0;
+        map_consume = 0;
+        if map_kind == 30 || map_kind == 37 { map_consume = 1; }
+        if map_kind == 19 {
+            word_offset = (map_left - 1) * 16 + 0;
+            map_word = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if map_word == 18 { map_consume = 1; }
+            else { map_inherit = map_left; }
+        }
+        if map_kind == 29 || map_kind == 32 || map_kind == 33
+            || map_kind == 38 { map_inherit = map_right; }
+        if map_kind == 18 { map_inherit = map_left; }
+        if map_kind == 31 {
+            map_inherit = map_left;
+            if map_right > 0 { map_inherit = map_right; }
+        }
+        if map_inherit > 0 {
+            word_offset = (map_inherit - 1) * 4;
+            map_end = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+            if map_end < 0 || map_end > token_count { semantic_status = 27; }
+        }
+        if map_consume == 1 {
+            origin_search_low = 0;
+            origin_search_high = token_count;
+            while origin_search_low < origin_search_high {
+                origin_search_middle = origin_search_low
+                    + signed_quotient(origin_search_high - origin_search_low, 2);
+                word_offset = (origin_search_middle) * 24 + 4;
+            map_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if map_word < semantic_offset {
+                    origin_search_low = origin_search_middle + 1;
+                } else { origin_search_high = origin_search_middle; }
+            }
+            map_expected_open = origin_search_low;
+            if map_kind == 37 { map_expected_open = map_expected_open + 2; }
+            if map_kind == 19 {
+                map_scan = map_expected_open + 1;
+                map_expected_open = 0 - 1;
+                while map_scan < token_count && map_expected_open < 0 {
+                    word_offset = (map_scan) * 24 + 0;
+            map_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                    if map_word == 12 { map_expected_open = map_scan; }
+                    map_scan = map_scan + 1;
+                }
+            }
+            word_offset = (map_expected_open) * 24 + 0;
+            map_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if map_expected_open < 0 || map_expected_open >= token_count
+                || map_word != 12 { semantic_status = 27; }
+            map_found = 0;
+            while semantic_status == 0 && map_token < token_count && map_found == 0 {
+                word_offset = (map_token) * 24 + 0;
+            map_token_kind = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if map_token_kind == 12 {
+                    if map_history_count >= node_count { semantic_status = 27; }
+
+                map_field = 0;
+                while semantic_status == 0 && map_field < 2 {
+                    map_append = map_end;
+                    map_append = map_active;
+                    if map_field == 1 { map_append = map_token; }
+                    map_byte = 0;
+                    while semantic_status == 0 && map_byte < 4 {
+                        byte = word_byte_0(map_append);
+                        if map_byte == 1 { byte = word_byte_1(map_append); }
+                        if map_byte == 2 { byte = word_byte_2(map_append); }
+                        if map_byte == 3 { byte = word_byte_3(map_append); }
+                        push_result = result_value(bytes_push(&mut ast_brace_history, byte));
+                        if push_result < 0 {
+                            semantic_status = 26;
+                            semantic_code = 5;
+                            semantic_offset = 0 - 1;
+                            semantic_line = 0;
+                            semantic_column = 0;
+                        }
+                        map_byte = map_byte + 1;
+                    }
+                    map_field = map_field + 1;
+                }
+
+                    if semantic_status == 0 {
+                        map_history_count = map_history_count + 1;
+                        map_active = map_history_count;
+                    }
+                }
+                if map_token_kind == 13 {
+                    if map_active <= 0 || map_active > map_history_count {
+                        semantic_status = 27;
+                    } else {
+                        word_offset = (map_active - 1) * 8;
+            map_previous = result_value(bytes_get(&ast_brace_history, word_offset))
+                + result_value(bytes_get(&ast_brace_history, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_brace_history, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_brace_history, word_offset + 3)) * 16777216;
+                        word_offset = (map_active - 1) * 8 + 4;
+            map_open = result_value(bytes_get(&ast_brace_history, word_offset))
+                + result_value(bytes_get(&ast_brace_history, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_brace_history, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_brace_history, word_offset + 3)) * 16777216;
+                        if map_previous < 0 || map_previous >= map_active
+                            || map_open != map_expected_open {
+                            semantic_status = 27;
+                        } else {
+                            map_active = map_previous;
+                            map_closures = map_closures + 1;
+                            map_found = 1;
+                            map_end = map_token + 1;
+                        }
+                    }
+                }
+                map_token = map_token + 1;
+            }
+            if semantic_status == 0 && map_found == 0 { semantic_status = 27; }
+        }
+
+                map_field = 0;
+                while semantic_status == 0 && map_field < 1 {
+                    map_append = map_end;
+
+                    map_byte = 0;
+                    while semantic_status == 0 && map_byte < 4 {
+                        byte = word_byte_0(map_append);
+                        if map_byte == 1 { byte = word_byte_1(map_append); }
+                        if map_byte == 2 { byte = word_byte_2(map_append); }
+                        if map_byte == 3 { byte = word_byte_3(map_append); }
+                        push_result = result_value(bytes_push(&mut ast_ends, byte));
+                        if push_result < 0 {
+                            semantic_status = 26;
+                            semantic_code = 6;
+                            semantic_offset = 0 - 1;
+                            semantic_line = 0;
+                            semantic_column = 0;
+                        }
+                        map_byte = map_byte + 1;
+                    }
+                    map_field = map_field + 1;
+                }
+
+        map_index = map_index + 1;
+    }
+    if status == 0 && semantic_status == 0 {
+        if map_active != 0 || map_closures != map_history_count
+            || map_history_count > node_count
+            || bytes_len(&ast_brace_history) != map_history_count * 8
+            || bytes_len(&ast_ends) != node_count * 4 { semantic_status = 27; }
+        while semantic_status == 0 && map_token < token_count {
+            word_offset = (map_token) * 24 + 0;
+            map_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if map_word == 12 || map_word == 13 { semantic_status = 27; }
+            map_token = map_token + 1;
+        }
+    }
+    // Authenticate source roles only after every origin tuple is verified.
+    // Name identity does not substitute for the owned declaration occurrence.
+    let mut auth_index: int = 0;
+    let mut auth_field: int = 0;
+    let mut auth_word: int = 0;
+    let mut auth_kind: int = 0;
+    let mut auth_payload: int = 0;
+    let mut auth_left: int = 0;
+    let mut auth_right: int = 0;
+    let mut auth_offset: int = 0;
+    let mut auth_token: int = 0;
+    let mut auth_neighbor: int = 0;
+    let mut auth_link: int = 0;
+    let mut auth_other: int = 0;
+    let mut auth_related: int = 0;
+    let mut auth_type: int = 0;
+    let mut auth_type_token: int = 0;
+    let mut auth_type_count: int = 0;
+    let mut auth_spelling: int = 0;
+    let mut auth_spelling_start: int = 0;
+    let mut auth_spelling_length: int = 0;
+    let mut auth_spelling_index: int = 0;
+    let mut auth_spelling_byte: int = 0;
+    let mut auth_expected_byte: int = 0;
+    let mut auth_open: int = 0;
+    let mut auth_close: int = 0;
+    let mut auth_depth: int = 0;
+    let mut auth_scan: int = 0;
+    let mut auth_name_token: int = 0;
+    let mut auth_name_start: int = 0;
+    let mut auth_name_length: int = 0;
+    let mut auth_body: int = 0;
+    let mut auth_else: int = 0;
+    while status == 0 && semantic_status == 0 && auth_index < node_count {
+        word_offset = auth_index * 16;
+            auth_kind = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = auth_index * 16 + 4;
+            auth_payload = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = auth_index * 16 + 8;
+            auth_left = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = auth_index * 16 + 12;
+            auth_right = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (auth_index + 1 - 1) * 20 + 4;
+            auth_offset = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        semantic_node = auth_index + 1;
+        semantic_offset = auth_offset;
+        word_offset = (auth_index + 1 - 1) * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (auth_index + 1 - 1) * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        semantic_code = 1;
+        origin_search_low = 0;
+        origin_search_high = token_count;
+        while origin_search_low < origin_search_high {
+            origin_search_middle = origin_search_low
+                + signed_quotient(origin_search_high - origin_search_low, 2);
+            word_offset = (origin_search_middle) * 24 + 4;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word < auth_offset {
+                origin_search_low = origin_search_middle + 1;
+            } else {
+                origin_search_high = origin_search_middle;
+            }
+        }
+        auth_token = origin_search_low;
+        if auth_kind == 2 || auth_kind == 25 || auth_kind == 28
+            || auth_kind == 34 || auth_kind == 35 {
+            word_offset = (auth_token) * 24 + 20;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != auth_payload {
+                semantic_status = 27;
+            }
+        }
+        if auth_kind == 19 {
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 1) * 24 + 20;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 1 || auth_neighbor != auth_payload {
+                semantic_status = 27;
+            }
+        }
+        if auth_kind == 20 {
+            word_offset = (auth_token - 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_token - 1) * 24 + 20;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 1 || auth_neighbor != auth_payload {
+                semantic_status = 27;
+            }
+        }
+
+
+        // Authenticate occurrence bytes against the declared interner spelling,
+        // rather than trusting an in-range token name ID alone.
+        auth_name_token = 0 - 1;
+        if auth_kind == 2 || auth_kind == 25 || auth_kind == 28
+            || auth_kind == 34 || auth_kind == 35 {
+            auth_name_token = auth_token;
+        }
+        if auth_kind == 19 { auth_name_token = auth_token + 1; }
+        if auth_kind == 20 { auth_name_token = auth_token - 1; }
+        if auth_kind == 26 { auth_name_token = auth_token + 1; }
+        if auth_kind == 27 { auth_name_token = auth_token + 2; }
+        if auth_name_token >= 0 {
+            word_offset = (auth_payload - 1) * 8;
+            auth_name_start = result_value(bytes_get(&names, word_offset))
+                + result_value(bytes_get(&names, word_offset + 1)) * 256
+                + result_value(bytes_get(&names, word_offset + 2)) * 65536
+                + result_value(bytes_get(&names, word_offset + 3)) * 16777216;
+            word_offset = (auth_payload - 1) * 8 + 4;
+            auth_name_length = result_value(bytes_get(&names, word_offset))
+                + result_value(bytes_get(&names, word_offset + 1)) * 256
+                + result_value(bytes_get(&names, word_offset + 2)) * 65536
+                + result_value(bytes_get(&names, word_offset + 3)) * 16777216;
+            word_offset = (auth_name_token) * 24 + 4;
+            auth_spelling_start = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_name_token) * 24 + 8;
+            auth_spelling_length = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_name_length != auth_spelling_length { semantic_status = 27; }
+            auth_spelling_index = 0;
+            while semantic_status == 0 && auth_spelling_index < auth_name_length {
+                if result_value(bytes_get(&source, auth_name_start + auth_spelling_index))
+                    != result_value(bytes_get(&source,
+                        auth_spelling_start + auth_spelling_index)) {
+                    semantic_status = 27;
+                }
+                auth_spelling_index = auth_spelling_index + 1;
+            }
+        }
+        // Authenticate the complete allowed annotation or contextual spelling.
+        auth_type = 0;
+        if auth_kind == 24 {
+            auth_type = auth_payload;
+        }
+        if auth_kind == 36 || auth_kind == 37 {
+            auth_type = 4;
+        }
+        auth_type_count = 0;
+        auth_type_token = auth_token;
+        while semantic_status == 0 && auth_type > 0 {
+            word_offset = auth_type_token * 24;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 1 { semantic_status = 27; }
+            auth_spelling = auth_type;
+            if auth_type_count > 0 {
+                auth_spelling = 1;
+            }
+            word_offset = (auth_type_token) * 24 + 4;
+            auth_spelling_start = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_type_token) * 24 + 8;
+            auth_spelling_length = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            auth_other = 3;
+            if auth_spelling == 2 {
+                auth_other = 6;
+            }
+            if auth_spelling == 3 {
+                auth_other = 10;
+            }
+            if auth_spelling == 4 {
+                auth_other = 5;
+            }
+            if auth_spelling_length != auth_other {
+                semantic_status = 27;
+            }
+            auth_spelling_index = 0;
+            while semantic_status == 0 && auth_spelling_index < auth_other {
+                auth_expected_byte = 0;
+                if auth_spelling == 1 {
+                    if auth_spelling_index == 0 { auth_expected_byte = 105; }
+                    if auth_spelling_index == 1 { auth_expected_byte = 110; }
+                    if auth_spelling_index == 2 { auth_expected_byte = 116; }
+                }
+                if auth_spelling == 2 {
+                    if auth_spelling_index == 0 { auth_expected_byte = 82; }
+                    if auth_spelling_index == 1 { auth_expected_byte = 101; }
+                    if auth_spelling_index == 2 { auth_expected_byte = 115; }
+                    if auth_spelling_index == 3 { auth_expected_byte = 117; }
+                    if auth_spelling_index == 4 { auth_expected_byte = 108; }
+                    if auth_spelling_index == 5 { auth_expected_byte = 116; }
+                }
+                if auth_spelling == 3 {
+                    if auth_spelling_index == 0 { auth_expected_byte = 66; }
+                    if auth_spelling_index == 1 { auth_expected_byte = 121; }
+                    if auth_spelling_index == 2 { auth_expected_byte = 116; }
+                    if auth_spelling_index == 3 { auth_expected_byte = 101; }
+                    if auth_spelling_index == 4 { auth_expected_byte = 66; }
+                    if auth_spelling_index == 5 { auth_expected_byte = 117; }
+                    if auth_spelling_index == 6 { auth_expected_byte = 102; }
+                    if auth_spelling_index == 7 { auth_expected_byte = 102; }
+                    if auth_spelling_index == 8 { auth_expected_byte = 101; }
+                    if auth_spelling_index == 9 { auth_expected_byte = 114; }
+                }
+                if auth_spelling == 4 {
+                    if auth_spelling_index == 0 { auth_expected_byte = 109; }
+                    if auth_spelling_index == 1 { auth_expected_byte = 97; }
+                    if auth_spelling_index == 2 { auth_expected_byte = 116; }
+                    if auth_spelling_index == 3 { auth_expected_byte = 99; }
+                    if auth_spelling_index == 4 { auth_expected_byte = 104; }
+                }
+                auth_spelling_byte = result_value(bytes_get(&source,
+                    auth_spelling_start + auth_spelling_index));
+                if auth_spelling_byte != auth_expected_byte {
+                    semantic_status = 27;
+                }
+                auth_spelling_index = auth_spelling_index + 1;
+            }
+            if auth_type == 2 && auth_type_count == 0 {
+                word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                word_offset = (auth_token + 3) * 24 + 0;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                word_offset = (auth_token + 5) * 24 + 0;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_token + 5 >= token_count || auth_word != 29
+                    || auth_neighbor != 16 || auth_other != 31 {
+                    semantic_status = 27;
+                }
+                auth_type_count = 1;
+                auth_type_token = auth_token + 2;
+            } else if auth_type == 2 && auth_type_count == 1 {
+                auth_type_count = 2;
+                auth_type_token = auth_token + 4;
+            } else {
+                auth_type = 0;
+            }
+        }
+
+        // Declaration adjacency pins each annotation and binder to its owner.
+        auth_neighbor = 0;
+        if auth_kind == 25 { auth_neighbor = auth_token; }
+        if auth_kind == 26 { auth_neighbor = auth_token + 1; }
+        if auth_kind == 27 {
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 5 { semantic_status = 27; }
+            auth_neighbor = auth_token + 2;
+        }
+        if auth_kind == 25 || auth_kind == 26 || auth_kind == 27 {
+            word_offset = (auth_neighbor) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_neighbor) * 24 + 20;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 1 || auth_other != auth_payload {
+                semantic_status = 27;
+            }
+            word_offset = (auth_neighbor + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_neighbor + 2) * 24 + 4;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_left - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_other != auth_word { semantic_status = 27; }
+            word_offset = (auth_neighbor + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 17 { semantic_status = 27; }
+            if auth_kind == 26 || auth_kind == 27 {
+                word_offset = (auth_left - 1) * 16 + 4;
+                auth_word = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+                auth_scan = auth_neighbor + 3;
+                if auth_word == 2 { auth_scan = auth_neighbor + 8; }
+                word_offset = auth_scan * 24;
+                auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_word != 25 { semantic_status = 27; }
+            }
+        }
+        if auth_kind == 28 {
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 25 { semantic_status = 27; }
+        }
+        if auth_kind == 34 {
+            word_offset = (auth_token - 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 2) * 24 + 0;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 10 || auth_neighbor != 11 || auth_other != 36 {
+                semantic_status = 27;
+            }
+        }
+        if auth_kind == 35 {
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 2) * 24 + 4;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_left - 1) * 20 + 4;
+            auth_other = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word != 10 || auth_neighbor != auth_other {
+                semantic_status = 27;
+            }
+            word_offset = (auth_right - 1) * 20 + 4;
+            auth_neighbor = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_neighbor <= auth_other || auth_other <= auth_offset {
+                semantic_status = 27;
+            }
+        }
+        if auth_kind == 22 || auth_kind == 23 {
+            word_offset = (auth_token + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if (auth_kind == 22 && auth_word == 5)
+                || (auth_kind == 23 && auth_word != 5) {
+                semantic_status = 27;
+            }
+        }
+
+        // Structural wrappers must copy the exact origin of their own role.
+        auth_related = 0;
+        if auth_kind == 29 || auth_kind == 32 || auth_kind == 37 {
+            auth_related = auth_right;
+        }
+        if auth_kind == 19 {
+            word_offset = (auth_left - 1) * 16 + 0;
+            auth_word = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if auth_word == 38 { auth_related = auth_left; }
+        }
+        auth_field = 1;
+        while semantic_status == 0 && auth_related > 0 && auth_field < 5 {
+            word_offset = (auth_index + 1 - 1) * 20 + auth_field * 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (auth_related - 1) * 20 + auth_field * 4;
+            auth_neighbor = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word != auth_neighbor { semantic_status = 27; }
+            auth_field = auth_field + 1;
+        }
+
+        // Reverse-linked occurrence sequences preserve leading source order.
+        auth_link = 0;
+        if auth_kind == 19 || auth_kind == 25 { auth_link = auth_right; }
+        if auth_kind == 29 { auth_link = auth_left; }
+        if auth_link > 0 {
+            word_offset = (auth_link - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word >= auth_offset { semantic_status = 27; }
+        }
+        if auth_kind == 36 {
+            word_offset = (auth_left - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (auth_right - 1) * 20 + 4;
+            auth_neighbor = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word >= auth_neighbor { semantic_status = 27; }
+        }
+
+        // Every statement occurrence lies inside its actual opening brace.
+        if auth_kind == 30 {
+            word_offset = auth_index * 4;
+            auth_close = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+            if auth_close <= 0 { semantic_status = 27; }
+            auth_close = auth_close - 1;
+            word_offset = (auth_close) * 24 + 4;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            auth_link = auth_left;
+            while semantic_status == 0 && auth_link > 0 {
+                word_offset = (auth_link - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                if auth_word <= auth_offset || auth_word >= auth_other {
+                    semantic_status = 27;
+                }
+                word_offset = (auth_link - 1) * 16 + 8;
+            auth_link = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            }
+        }
+
+
+        // Control bodies belong to this exact keyword occurrence. A same-kind
+        // brace or another If's branch cannot substitute for its own body.
+        if auth_kind == 32 || auth_kind == 33 {
+            auth_body = auth_right;
+            auth_else = 0;
+            if auth_kind == 32 {
+                word_offset = (auth_right - 1) * 16 + 8;
+            auth_body = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+                word_offset = (auth_right - 1) * 16 + 12;
+            auth_else = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            }
+            auth_scan = auth_token + 1;
+            auth_open = 0 - 1;
+            while auth_scan < token_count && auth_open < 0 {
+                word_offset = (auth_scan) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_word == 12 { auth_open = auth_scan; }
+                auth_scan = auth_scan + 1;
+            }
+            if auth_open < 0 { semantic_status = 27; }
+            word_offset = (auth_open) * 24 + 4;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_body - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word != auth_other { semantic_status = 27; }
+            word_offset = (auth_left - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word <= auth_offset || auth_word >= auth_other {
+                semantic_status = 27;
+            }
+            if auth_kind == 32 {
+                word_offset = (auth_body - 1) * 4;
+                auth_close = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+                if auth_close <= 0 { semantic_status = 27; }
+                auth_close = auth_close - 1;
+                word_offset = (auth_close + 1) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_else == 0 {
+                    if auth_word == 8 { semantic_status = 27; }
+                } else {
+                    if auth_word != 8 { semantic_status = 27; }
+                    word_offset = (auth_close + 2) * 24 + 4;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                    word_offset = (auth_else - 1) * 20 + 4;
+            auth_neighbor = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                    if auth_word != auth_neighbor { semantic_status = 27; }
+                }
+            }
+        }
+        // The descriptor's own header bounds its parameter declarations.
+        if auth_kind == 38 {
+            auth_scan = auth_token + 1;
+            auth_open = 0 - 1;
+            while auth_scan < token_count && auth_open < 0 {
+                word_offset = (auth_scan) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_word == 12 { auth_open = auth_scan; }
+                auth_scan = auth_scan + 1;
+            }
+            if auth_open < 0 { semantic_status = 27; }
+            word_offset = (auth_open) * 24 + 4;
+            auth_other = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (auth_right - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            if auth_word != auth_other { semantic_status = 27; }
+            auth_link = auth_left;
+            while semantic_status == 0 && auth_link > 0 {
+                word_offset = (auth_link - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                if auth_word <= auth_offset || auth_word >= auth_other {
+                    semantic_status = 27;
+                }
+                word_offset = (auth_link - 1) * 16 + 12;
+            auth_link = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            }
+        }
+
+        // Match owns its subject and first constructor token, not an interner
+        // occurrence elsewhere. The second arm follows the first top-level comma.
+        if auth_kind == 37 {
+            word_offset = (auth_left - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 1) * 24 + 4;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != auth_neighbor { semantic_status = 27; }
+            word_offset = (auth_token + 2) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != 12 { semantic_status = 27; }
+            word_offset = (auth_right - 1) * 16 + 8;
+            auth_link = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            word_offset = (auth_link - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (auth_token + 3) * 24 + 4;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != auth_neighbor { semantic_status = 27; }
+            auth_scan = auth_token + 3;
+            auth_depth = 0;
+            auth_close = 0 - 1;
+            while auth_scan < token_count && auth_close < 0 {
+                word_offset = (auth_scan) * 24 + 0;
+            auth_word = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if auth_word == 10 { auth_depth = auth_depth + 1; }
+                if auth_word == 11 { auth_depth = auth_depth - 1; }
+                if auth_word == 16 && auth_depth == 0 { auth_close = auth_scan; }
+                auth_scan = auth_scan + 1;
+            }
+            if auth_close < 0 { semantic_status = 27; }
+            word_offset = (auth_right - 1) * 16 + 12;
+            auth_link = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            word_offset = (auth_link - 1) * 20 + 4;
+            auth_word = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (auth_close + 1) * 24 + 4;
+            auth_neighbor = result_value(bytes_get(&tokens, word_offset))
+                    + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                    + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if auth_word != auth_neighbor { semantic_status = 27; }
+        }
+        auth_index = auth_index + 1;
+    }
+
+    // Exact source occurrences, not merely equal token spellings. Every range
+    // is computed once from earlier child ranges and authenticated role anchors.
+    let mut ast_ranges: ByteBuffer = bytes_new();
+    let mut range_index: int = 1;
+    let mut range_kind: int = 0;
+    let mut range_payload: int = 0;
+    let mut range_left: int = 0;
+    let mut range_right: int = 0;
+    let mut range_at: int = 0;
+    let mut range_first: int = 0;
+    let mut range_last: int = 0;
+    let mut range_left_first: int = 0;
+    let mut range_left_last: int = 0;
+    let mut range_right_first: int = 0;
+    let mut range_right_last: int = 0;
+    let mut range_word: int = 0;
+    let mut range_other: int = 0;
+    let mut range_aux: int = 0;
+    let mut range_set: int = 0;
+    let mut range_expression: int = 0;
+    let mut range_atom: int = 0;
+    let mut range_last_atom: int = 0 - 1;
+    let mut range_tmp: int = 0;
+    let mut range_pos: int = 0;
+    let mut range_length: int = 0;
+    let mut range_digit_index: int = 0;
+    let mut range_digit: int = 0;
+    let mut range_literal: int = 0;
+    let mut range_expand: int = 0;
+    let mut range_field: int = 0;
+    let mut range_byte: int = 0;
+    let mut range_append: int = 0;
+    while status == 0 && semantic_status == 0 && range_index <= node_count {
+        word_offset = (range_index - 1) * 16 + 0;
+            range_kind = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (range_index - 1) * 16 + 4;
+            range_payload = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (range_index - 1) * 16 + 8;
+            range_left = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (range_index - 1) * 16 + 12;
+            range_right = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        semantic_node = range_index;
+        word_offset = (range_index - 1) * 20 + 4;
+            semantic_offset = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (range_index - 1) * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (range_index - 1) * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        semantic_code = 1;
+        origin_search_low = 0;
+        origin_search_high = token_count;
+        while origin_search_low < origin_search_high {
+            origin_search_middle = origin_search_low
+                + signed_quotient(origin_search_high - origin_search_low, 2);
+            word_offset = (origin_search_middle) * 24 + 4;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word < semantic_offset { origin_search_low = origin_search_middle + 1; }
+            else { origin_search_high = origin_search_middle; }
+        }
+        range_at = origin_search_low;
+        range_left_first = 0 - 1;
+        range_left_last = 0 - 1;
+        range_right_first = 0 - 1;
+        range_right_last = 0 - 1;
+        if range_left > 0 {
+            word_offset = (range_left - 1) * 8 + 0;
+            range_left_first = result_value(bytes_get(&ast_ranges, word_offset))
+                + result_value(bytes_get(&ast_ranges, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ranges, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ranges, word_offset + 3)) * 16777216;
+            range_left_first = range_left_first - 1;
+            word_offset = (range_left - 1) * 8 + 4;
+            range_left_last = result_value(bytes_get(&ast_ranges, word_offset))
+                + result_value(bytes_get(&ast_ranges, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ranges, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ranges, word_offset + 3)) * 16777216;
+            range_left_last = range_left_last - 1;
+        }
+        if range_right > 0 {
+            word_offset = (range_right - 1) * 8 + 0;
+            range_right_first = result_value(bytes_get(&ast_ranges, word_offset))
+                + result_value(bytes_get(&ast_ranges, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ranges, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ranges, word_offset + 3)) * 16777216;
+            range_right_first = range_right_first - 1;
+            word_offset = (range_right - 1) * 8 + 4;
+            range_right_last = result_value(bytes_get(&ast_ranges, word_offset))
+                + result_value(bytes_get(&ast_ranges, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ranges, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ranges, word_offset + 3)) * 16777216;
+            range_right_last = range_right_last - 1;
+        }
+        range_first = range_at;
+        range_last = range_at;
+        range_set = 0;
+        range_expression = 0;
+        range_atom = 0;
+        if (range_kind >= 1 && range_kind <= 17) || range_kind == 20
+            || range_kind == 22 || range_kind == 23 || range_kind == 37 {
+            range_expression = 1;
+        }
+        if range_kind == 1 || range_kind == 2
+            || (range_kind == 20 && range_left == 0) { range_atom = 1; }
+        if range_atom == 1 {
+            if range_at <= range_last_atom { semantic_status = 27; }
+            range_last_atom = range_at;
+        }
+        if range_kind == 1 || range_kind == 2 || range_kind == 34 { range_set = 1; }
+
+        // The literal payload is an exact encoding of its own decimal token,
+        // not a newly inferred scalar fact.
+        if range_kind == 1 {
+            word_offset = (range_at) * 24 + 4;
+            range_pos = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_at) * 24 + 8;
+            range_length = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            range_literal = 0;
+            range_digit_index = 0;
+            while semantic_status == 0 && range_digit_index < range_length {
+                range_digit = result_value(bytes_get(&source, range_pos + range_digit_index)) - 48;
+                if range_digit < 0 || range_digit > 9 {
+                    semantic_status = 27;
+                } else if range_literal > signed_quotient(2147483647 - range_digit, 10) {
+                    semantic_status = 27;
+                } else { range_literal = range_literal * 10 + range_digit; }
+                range_digit_index = range_digit_index + 1;
+            }
+            if range_literal != range_payload { semantic_status = 27; }
+        }
+
+        if range_kind == 3 || range_kind == 4 || range_kind == 22 || range_kind == 23 {
+            range_tmp = range_at + 1;
+            if range_kind == 23 { range_tmp = range_at + 2; }
+            if range_left_first != range_tmp { semantic_status = 27; }
+            range_last = range_left_last;
+            range_set = 1;
+        }
+        if range_kind >= 5 && range_kind <= 17 {
+            if range_left_last + 1 != range_at || range_right_first != range_at + 1 {
+                semantic_status = 27;
+            }
+            range_first = range_left_first;
+            range_last = range_right_last;
+            range_set = 1;
+        }
+        if range_kind == 21 {
+            range_first = range_left_first;
+            range_last = range_at;
+            if range_right == 0 {
+                if range_left_last + 1 != range_at { semantic_status = 27; }
+            } else {
+                word_offset = (range_left_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if range_word != 16 || range_right_first != range_left_last + 2
+                    || range_right_last != range_at { semantic_status = 27; }
+            }
+            range_set = 1;
+        }
+        if range_kind == 20 {
+            range_first = range_at - 1;
+            if range_left == 0 {
+                range_last = range_at + 1;
+                word_offset = (range_last) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if range_word != 11 { semantic_status = 27; }
+            } else {
+                range_last = range_left_last;
+                word_offset = (range_last) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if range_left_first != range_at + 1 || range_word != 11 {
+                    semantic_status = 27;
+                }
+            }
+            range_set = 1;
+        }
+        if range_kind == 24 {
+            if range_payload == 2 { range_last = range_at + 5; }
+            range_set = 1;
+        }
+        if range_kind == 25 {
+            if range_left_first != range_at + 2 { semantic_status = 27; }
+            range_last = range_left_last;
+            if range_right > 0 {
+                word_offset = (range_right_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if range_word != 16 || range_at != range_right_last + 2 {
+                    semantic_status = 27;
+                }
+                range_first = range_right_first;
+            }
+            range_set = 1;
+        }
+        if range_kind == 26 || range_kind == 27 {
+            word_offset = (range_left_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_right_last + 1) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 25 || range_right_first != range_left_last + 2
+                || range_other != 18 { semantic_status = 27; }
+            range_last = range_right_last + 1;
+            range_set = 1;
+        }
+        if range_kind == 28 || range_kind == 18 {
+            range_tmp = range_at + 1;
+            if range_kind == 28 { range_tmp = range_at + 2; }
+            word_offset = (range_left_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_left_first != range_tmp || range_word != 18 { semantic_status = 27; }
+            range_last = range_left_last + 1;
+            range_set = 1;
+        }
+        if range_kind == 29 {
+            range_first = range_right_first;
+            range_last = range_right_last;
+            if range_left > 0 {
+                if range_left_last + 1 != range_right_first { semantic_status = 27; }
+                range_first = range_left_first;
+            }
+            range_set = 1;
+        }
+        if range_kind == 30 {
+            word_offset = (range_index - 1) * 4;
+            range_last = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+            range_last = range_last - 1;
+            if range_left_first != range_at + 1 || range_left_last + 1 != range_last {
+                semantic_status = 27;
+            }
+            range_set = 1;
+        }
+        if range_kind == 31 {
+            range_first = range_left_first;
+            range_last = range_left_last;
+            if range_right > 0 {
+                word_offset = (range_left_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                if range_word != 8 || range_right_first != range_left_last + 2 {
+                    semantic_status = 27;
+                }
+                range_last = range_right_last;
+            }
+            range_set = 1;
+        }
+        if range_kind == 32 || range_kind == 33 {
+            if range_left_first != range_at + 1 || range_left_last + 1 != range_right_first {
+                semantic_status = 27;
+            }
+            range_last = range_right_last;
+            range_set = 1;
+        }
+        if range_kind == 35 {
+            if range_left_first != range_at + 2 || range_left_last != range_at + 2
+                || range_right_first != range_at + 5 { semantic_status = 27; }
+            word_offset = (range_right_last + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 16 { semantic_status = 27; }
+            range_last = range_right_last + 1;
+            range_set = 1;
+        }
+        if range_kind == 36 {
+            if range_left_last + 1 != range_right_first { semantic_status = 27; }
+            range_first = range_left_first;
+            range_last = range_right_last;
+            range_set = 1;
+        }
+        if range_kind == 37 {
+            word_offset = (range_index - 1) * 4;
+            range_last = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+            range_last = range_last - 1;
+            if range_left_first != range_at + 1 || range_left_last != range_at + 1
+                || range_right_first != range_at + 3 || range_right_last + 1 != range_last {
+                semantic_status = 27;
+            }
+            range_set = 1;
+        }
+        if range_kind == 38 {
+            range_tmp = range_right_first - 1;
+
+            word_offset = (range_at + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_at + 2) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp - 2) * 24 + 0;
+            range_aux = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 1 || range_other != 10 || range_aux != 11 {
+                semantic_status = 27;
+            }
+            word_offset = (range_tmp - 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 4;
+            range_pos = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 8;
+            range_length = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 35 || range_other != 1 || range_length != 3
+                || result_value(bytes_get(&source, range_pos)) != 105
+                || result_value(bytes_get(&source, range_pos + 1)) != 110
+                || result_value(bytes_get(&source, range_pos + 2)) != 116 {
+                semantic_status = 27;
+            }
+
+            if range_left == 0 {
+                if range_tmp - 2 != range_at + 3 { semantic_status = 27; }
+            } else if range_left_first != range_at + 3
+                || range_left_last + 1 != range_tmp - 2 { semantic_status = 27; }
+            range_last = range_right_last;
+            range_set = 1;
+        }
+        if range_kind == 19 {
+            word_offset = (range_left - 1) * 16 + 0;
+            range_word = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if range_word == 38 {
+                if range_left_first != range_at { semantic_status = 27; }
+                range_last = range_left_last;
+            } else {
+                range_tmp = range_at + 5;
+
+            word_offset = (range_at + 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_at + 2) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp - 2) * 24 + 0;
+            range_aux = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 1 || range_other != 10 || range_aux != 11 {
+                semantic_status = 27;
+            }
+            word_offset = (range_tmp - 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 4;
+            range_pos = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_tmp) * 24 + 8;
+            range_length = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            if range_word != 35 || range_other != 1 || range_length != 3
+                || result_value(bytes_get(&source, range_pos)) != 105
+                || result_value(bytes_get(&source, range_pos + 1)) != 110
+                || result_value(bytes_get(&source, range_pos + 2)) != 116 {
+                semantic_status = 27;
+            }
+
+                word_offset = (range_at + 6) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+                word_offset = (range_index - 1) * 4;
+            range_last = result_value(bytes_get(&ast_ends, word_offset))
+                + result_value(bytes_get(&ast_ends, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_ends, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_ends, word_offset + 3)) * 16777216;
+                range_last = range_last - 1;
+                if range_word != 12 || range_left_first != range_at + 7
+                    || range_left_last + 1 != range_last { semantic_status = 27; }
+            }
+            if range_right > 0 && range_right_last + 1 != range_at { semantic_status = 27; }
+            range_set = 1;
+        }
+
+        // Grouping has no AST node. Immediate surrounding LP/RP belongs to
+        // this expression unless LP is the actual bare-callee call delimiter.
+        range_expand = range_expression;
+        while semantic_status == 0 && range_expand == 1 && range_first > 0
+            && range_last + 1 < token_count {
+            word_offset = (range_first - 1) * 24 + 0;
+            range_word = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            word_offset = (range_last + 1) * 24 + 0;
+            range_other = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            range_aux = 0;
+            if range_first > 1 {
+                word_offset = (range_first - 2) * 24 + 0;
+            range_aux = result_value(bytes_get(&tokens, word_offset))
+                + result_value(bytes_get(&tokens, word_offset + 1)) * 256
+                + result_value(bytes_get(&tokens, word_offset + 2)) * 65536
+                + result_value(bytes_get(&tokens, word_offset + 3)) * 16777216;
+            }
+            if range_word == 10 && range_other == 11 && range_aux != 1 {
+                range_first = range_first - 1;
+                range_last = range_last + 1;
+            } else { range_expand = 0; }
+        }
+        if range_set == 0 || range_first < 0 || range_last < range_first
+            || range_last >= token_count - 1 { semantic_status = 27; }
+        range_field = 0;
+        while semantic_status == 0 && range_field < 2 {
+            range_append = range_first + 1;
+            if range_field == 1 { range_append = range_last + 1; }
+            range_byte = 0;
+            while semantic_status == 0 && range_byte < 4 {
+                byte = word_byte_0(range_append);
+                if range_byte == 1 { byte = word_byte_1(range_append); }
+                if range_byte == 2 { byte = word_byte_2(range_append); }
+                if range_byte == 3 { byte = word_byte_3(range_append); }
+                push_result = result_value(bytes_push(&mut ast_ranges, byte));
+                if push_result < 0 {
+                    semantic_status = 26;
+                    semantic_code = 7;
+                    semantic_offset = 0 - 1;
+                    semantic_line = 0;
+                    semantic_column = 0;
+                }
+                range_byte = range_byte + 1;
+            }
+            range_field = range_field + 1;
+        }
+        range_index = range_index + 1;
+    }
+    if status == 0 && semantic_status == 0 && bytes_len(&ast_ranges) != node_count * 8 {
+        semantic_status = 27;
+        semantic_code = 1;
+    }
     // Emit one bounded function symbol per module item, in source order.
     //
     // CAP-058/H1M-2 Decision 4. The item chain is walked from `root` for its
@@ -4261,6 +6736,8 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     // *last* signature location after a completed multi-item parse, which is
     // right for a whole-module check and wrong for one item.
     if status == 0 && semantic_node > 0 && semantic_offset < 0
+        && origin_auth_attempted == 1
+        && (semantic_status != 26 || semantic_code < 4 || semantic_code > 7)
         && (semantic_status == 26 || semantic_status == 27) {
         word_offset = (semantic_node - 1) * 20 + 4;
         semantic_offset = result_value(bytes_get(&origins, word_offset))
@@ -4320,6 +6797,39 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
                 + result_value(bytes_get(&origins, word_offset + 2)) * 65536
                 + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
             semantic_code = 2;
+        }
+        semantic_index = semantic_index + 1;
+    }
+
+    // Connected structure is authenticated syntax, not invented scalar meaning.
+    // Keep the identifier-use refusal above first, then refuse the earliest new
+    // structural kind with its fully authenticated origin and no facts.
+    semantic_index = 0;
+    while status == 0 && semantic_status == 0 && semantic_index < node_count {
+        word_offset = semantic_index * 16;
+        semantic_kind = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        if semantic_kind >= 24 && semantic_kind <= 38 {
+            semantic_status = 28;
+            semantic_node = semantic_index + 1;
+            semantic_code = semantic_kind;
+            word_offset = semantic_index * 20 + 4;
+            semantic_offset = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = semantic_index * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = semantic_index * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
         }
         semantic_index = semantic_index + 1;
     }
@@ -7478,6 +9988,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
 
 // CAP-046 TRACKED SELF-TEST
 // CAP-047 TRACKED SELF-TEST
+
 
 fn main() -> int {
     return run_runtime_ascii_llvm_emitter(0, -1, 0, 0, 0, 0,

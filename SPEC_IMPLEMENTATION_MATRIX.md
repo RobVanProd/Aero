@@ -12,8 +12,13 @@ the bounded arithmetic subset; it does not compile the canonical compiler.
 A separate C stderr byte transport has six native ABI tests at O0/O2.
 Its checked backend was published at `ff10caca`, which passed all 13 public
 checks including the Windows native gate. The original runtime remains unchanged.
-Connected AST design, compiler-subset
-semantics/lowering and actual self-hosting are still incomplete. The historical
+H1-AST-001 supplies a native-validated connected-representation candidate after
+completed red-first controls and all13 public baseline checks on7237dae. Its
+focused36-test matrix covers the entire49,863-node canonical graph at O0/O2,
+provenance/refusal, resource failures and deep nesting. Complete-tree/public
+acceptance is separate; use the implementation commit and cumulative PR for
+exact completed gate status. Compiler-subset semantics/lowering and actual
+self-hosting are still incomplete. The historical
 integration and acceptance records below do not describe these local changes.
 
 H1E-CHECKED-001 adds a diagnostic profile and verified checked stderr operation

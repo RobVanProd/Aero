@@ -1,6 +1,36 @@
 # Bootstrap Convergence Readiness
 
-## Local execution boundary - 2026-09-16
+## Connected representation candidate - 2026-10-13
+
+H1-AST-001 is the bounded connected-representation candidate for cumulative draft
+PR #92. The contract is in H1_CONNECTED_AST_DESIGN.md. Completed native red-first
+controls precede product fixes; the corrected focused matrix passed36 tests,
+with native cases at O0/O2. All49,863 canonical nodes/origins match the independent structural model,
+with zero orphans and exact source-role/occurrence checks. Allocation/corruption,
+16,381-level While and65,535-grouping controls are included. See TASK_LEDGER.md
+for exact source fingerprints, completed statuses and earlier reds. Full historical
+compatibility and the final fixed-tree gate are still required acceptance steps;
+their completed results must be recorded in the implementation commit/PR.
+
+Representation does not establish meaning: the canonical source still stops at
+semantic17/code2, node3/offset68/line2/column18 with23 symbols and0 facts. Literal
+rich forms stop at located28 before facts/checked IR. Scoped semantics/lowering,
+the process protocol and stage convergence remain separate, unclosed work.
+
+Published development head 7237dae repairs Linux discovery of pinned llc-22
+in the existing diagnostic native regression. Its local root gate is recorded
+in the commit; all13 public checks subsequently completed successfully on that
+exact head. Earlier published development already
+includes CAP-059 multiple-function verification/emission and source/CLI stderr
+integration, including Windows native transport checks. These remain bounded
+capabilities, not canonical self-compilation, the complete process protocol,
+same-source stage convergence or H2 reproducible acceptance.
+
+The dated boundaries below are historical and are superseded by PROJECT_STATE.md
+and the exact head/evidence in the cumulative PR. Their remaining exclusions
+still apply unless a later checkpoint explicitly closes them.
+
+## Historical local execution boundary - 2026-09-16
 
 Continued H1 implementation is authorized from integration merge `df0fece`.
 CAP-059 stage 3a and the separate checked-result owner repair have focused native

@@ -6,14 +6,18 @@ Last reviewed: 2026-10-13 (America/New_York)
 
 Master's phase-1 integration merge `df0fece` has completed its post-merge
 checks. Continued work is on `agent/aero-self-hosting-2026-09-16`, draft PR #92.
-Its previous published head `ff10caca` passed all 13 public checks. CAP-059's
+The pre-AST published head `7237dae` passed all 13 public checks. CAP-059's
 node-bound repair, corrected result owners and multiple-function verifier/emitter
 are already implemented. Their O0/O2 exact-output and corruption probes remain
 mandatory. Published draft work is distinct from acceptance on master.
 
-The next compiler representation work is the connected AST described in
-`H1_CONNECTED_AST_DESIGN.md`, followed by scoped names/types/ownership, checked
-lowering, and matching verification/emission. The separate stderr transport now
+H1-AST-001 implements the connected AST in `H1_CONNECTED_AST_DESIGN.md` as a
+development candidate. Its completed36-test native matrix covers the full49,863-node
+canonical graph at O0/O2, source provenance, allocation failures and deep nesting.
+The required complete-tree gate and exact publication/check status are tracked
+separately by the implementation commit and cumulative PR. The next bounded
+contract is scoped names/types/ownership, then checked lowering and matching
+verification/emission; none is implemented by representation alone. The separate stderr transport now
 has source-profile and native CLI integration under H1E-SOURCE-002; the full
 compiler process protocol remains open. The canonical source still stops at its first identifier.
 All six self-hosting conditions below remain mandatory.
@@ -23,8 +27,10 @@ stderr call to its checked operation and authenticated backend. It inherits
 byte-I/O capabilities and preserves earlier profiles. Native CLI linking embeds
 the additional runtime inside the existing cleanup boundary. Complete-tree
 validation is recorded in the implementation commit/PR. The next compiler
-milestone is the connected-AST observer and its independently specified small
-trees, followed by representation work; see `H1_CONNECTED_AST_DESIGN.md` and
+milestone is acceptance of the connected-representation candidate. Its independent
+small trees, genuine native red-first controls and completed focused results are
+recorded separately from final-tree/public acceptance; see
+`H1_CONNECTED_AST_DESIGN.md`, H1-AST-001 and
 SELFHOST-AST-OBSERVE-001 in the ledger.
 
 ## Historical handoff: integrate before the next implementation
