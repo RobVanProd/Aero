@@ -41,7 +41,9 @@ fn embedded_runtime_links_the_diagnostic_channel() {
 #[test]
 fn diagnostic_runtime_is_linked_in_both_native_paths() {
     let clang = find_llvm_tool("clang").expect("LLVM 22 Clang is required");
-    let llc = find_llvm_tool("llc").expect("LLVM 22 llc is required");
+    let llc = find_llvm_tool("llc")
+        .or_else(|| find_llvm_tool("llc-22"))
+        .expect("LLVM 22 llc or llc-22 is required");
     for lowering in [Some(llc.as_str()), None] {
         let config = BuildConfig {
             language_profile: LanguageProfile::ExactI32ByteDiagnosticsV0,

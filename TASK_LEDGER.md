@@ -1,5 +1,48 @@
 # Aero Task Ledger
 
+## AST-BASELINE-001 - restore the published Linux test baseline
+
+- Date/task: 2026-10-13, prerequisite to user-authorized AST representation.
+  Published head 8f9f2f2 passes Windows native CI but Linux compiler CI and
+  nightly Rust CI completed failure; stable was cancelled by the failed matrix.
+- Observed red: diagnostic_runtime_is_linked_in_both_native_paths refuses
+  missing unversioned llc. The pinned Ubuntu package exposes llc-22; the test
+  bypasses that available tool although existing compiler fallback remains valid.
+- Frozen repair: keep both actual native linking paths and every assertion.
+  Test discovery may select llc-22 when llc is absent. Never skip a path, replace
+  hardware execution with simulation, or change production tool-discovery/ABI.
+- Allowed files: src/compiler/src/stderr_cli_runtime_tests.rs and this ledger.
+  Root lead owns this prerequisite. No AST/compiler behavior edits on the red
+  baseline. Published completed CI logs are the approved regression red.
+- Acceptance: focused existing binary test with pinned LLVM22.1.8 on Windows;
+  test discovery code must retain explicit Linux llc-22 fallback and exercise
+  the same real link helper. Full root gate before publishing the repair, then
+  completed required public CI before AST product changes. Keep run results
+  blank until their completed exit statuses are read.
+- Risks/stop conditions: no weakened assertion, new ignored test, fake llc,
+  unrelated source/profile/runtime changes, or architecture/semantic expansion.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Public red | Compiler CI 38355877654 and nightly 38355877655 on 8f9f2f2 | Completed failure: binary target 38 passed/1 failed; missing unversioned llc at the new two-path native test. |
+| Focused | Existing two-path native runtime test | Completed exit 0, 1 passed/0 failed on Windows LLVM22.1.8; both native paths and binary-byte assertions retained. |
+| Root gate | ./tools/test.sh on recorded final tree | Result recorded in the repair commit message after the tree is fixed. |
+
+- First local root replay completed process exit 1 with 322 library cases
+  passing and the unchanged inherited-pipe deadline case failing its existing
+  one-second wall-clock assertion. The same isolated test immediately completed
+  exit 0, 1 passed, with all timeout/descendant-containment assertions unchanged.
+  No cause or green whole-gate result is inferred from that isolated replay.
+  Restart the complete gate on the final ledger tree without skipping or
+  relaxing the timing test.
+- The second full root attempt also completed process exit 1 at that unchanged
+  library timing assertion (322 passed/1 failed). Read-only diagnostic runs of
+  the complete library then completed exit 0 with all 323 tests at one thread
+  (8.72 s) and at two threads (5.14 s). The production timer begins after
+  process creation/containment setup, but these observations do not isolate
+  startup versus cleanup latency. No verifier implementation or assertion is
+  changed; rerun the complete gate with the default two test threads.
+
 ## H1E-SOURCE-002 - source diagnostics and CLI runtime linkage
 
 - Date/authorization: 2026-10-12, user requested synchronization and continued
