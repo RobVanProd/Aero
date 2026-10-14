@@ -3746,7 +3746,7 @@ pub(super) fn successor_refusal(stopped: &oracle::Ingestion) -> oracle::Semantic
     stop
 }
 
-fn run_cached_vector(source: &[u8], expected: &[i32], optimization: &str) -> i32 {
+pub(super) fn run_cached_vector(source: &[u8], expected: &[i32], optimization: &str) -> i32 {
     let workspace = TestWorkspace::new("connected-ast-full-vector");
     let product = native_product(optimization);
     let object = workspace.write("product.o", &product.object);
@@ -3777,7 +3777,8 @@ fn run_cached_vector(source: &[u8], expected: &[i32], optimization: &str) -> i32
 /// Explicitly amended current-product grading; callers retain their complete
 /// historical models/tables and opt into this successor instead of silently
 /// switching a shared harness. Grammar diagnostics and expression work remain
-/// exact; only the reviewed connected representation/refusal changes.
+/// exact; representation changes and the separately frozen scalar semantic
+/// successor are graded explicitly. The predecessor refusal remains unchanged.
 pub(super) fn run_successor_expectation(
     label: &str,
     source: &[u8],
@@ -3829,14 +3830,18 @@ pub(super) fn run_successor_expectation(
             let meaning = oracle::module_semantic_meaning(&successor);
             return run_meaning_expectation(label, source, &successor, &meaning, optimization);
         }
-        oracle::refused_expectation_vector(source, &successor, &successor_refusal(&successor))
+        oracle::refused_expectation_vector(
+            source,
+            &successor,
+            &scoped_semantics::scalar_meaning(&successor),
+        )
     } else {
         oracle::expectation_vector(source, &successor)
     };
     run_cached_vector(source, &expected, optimization)
 }
 
-fn run_fault_vector(
+pub(super) fn run_fault_vector(
     source: &[u8],
     expected: &[i32],
     optimization: &str,
@@ -3898,7 +3903,7 @@ fn run_fault_vector(
     capture
 }
 
-fn growth_events_before_starts(source: &[u8]) -> u64 {
+pub(super) fn growth_events_before_starts(source: &[u8]) -> u64 {
     let model = successor_parser(source, &module_caps());
     assert_eq!(model.status, 0);
     let used = [
@@ -3929,7 +3934,7 @@ fn growth_events_before_starts(source: &[u8]) -> u64 {
         .sum()
 }
 
-fn growth_events(bytes: usize) -> u64 {
+pub(super) fn growth_events(bytes: usize) -> u64 {
     if bytes == 0 {
         return 0;
     }
@@ -4067,7 +4072,7 @@ fn brace_mapping_rejects_missing_extra_and_unmatched_events() {
 /// Closed form for a resource-boundary witness, not a recursive Rust-parser
 /// replay. n conditions, inner literal/Return/Cell/Block, n While records with
 /// n-1 enclosing Cell/Blocks, then the seven top-body/item records:4*n+9.
-fn deeply_nested_while_model(depth: usize) -> (Vec<u8>, oracle::Ingestion) {
+pub(super) fn deeply_nested_while_model(depth: usize) -> (Vec<u8>, oracle::Ingestion) {
     let mut source = b"fn f()->int{".to_vec();
     for _ in 0..depth {
         source.extend_from_slice(b"while 1{");
@@ -4133,7 +4138,22 @@ fn maximum_formula_nested_while_authenticates_without_a_lower_depth_cutoff() {
         unauthenticated_stop(28, first as i32 + 1, origin[1], origin[2], origin[3], 29);
     meaning.symbols = 1;
     meaning.symbol_words = vec![1, 1, model.root, 1];
-    let expected = oracle::refused_expectation_vector(&source, &model, &meaning);
+    let predecessor = oracle::refused_expectation_vector(&source, &model, &meaning);
+    assert_eq!(
+        predecessor[11], 28,
+        "historical representation refusal is retained"
+    );
+    let successor = scoped_semantics::scalar_meaning(&model);
+    assert_eq!(
+        (
+            successor.status,
+            successor.code,
+            successor.node,
+            successor.facts
+        ),
+        (31, 3, DEPTH as i32 + 5, DEPTH as i32 + 4)
+    );
+    let expected = oracle::refused_expectation_vector(&source, &model, &successor);
     for optimization in ["-O0", "-O2"] {
         assert_eq!(run_cached_vector(&source, &expected, optimization), 91);
     }
@@ -4508,8 +4528,13 @@ fn grouped_expressions_and_calls_keep_their_exact_owned_slots() {
     ] {
         let model = successor_parser(source, &module_caps());
         assert_eq!(model.status, 0);
-        let expected =
-            oracle::refused_expectation_vector(source, &model, &successor_refusal(&model));
+        let historical = successor_refusal(&model);
+        assert_eq!(historical.facts, 0, "preserved representation-only model");
+        let expected = oracle::refused_expectation_vector(
+            source,
+            &model,
+            &scoped_semantics::scalar_meaning(&model),
+        );
         for optimization in ["-O0", "-O2"] {
             assert_eq!(run_cached_vector(source, &expected, optimization), 91);
         }
@@ -4545,7 +4570,13 @@ fn balanced_grouping_at_the_existing_operator_bound_has_no_new_cutoff() {
     assert_eq!(model.status, 0);
     assert_eq!(model.counts.1, 65535);
     assert_eq!(model.nodes.len(), 8);
-    let expected = oracle::refused_expectation_vector(&source, &model, &successor_refusal(&model));
+    let historical = successor_refusal(&model);
+    assert_eq!(historical.facts, 0, "preserved representation-only model");
+    let expected = oracle::refused_expectation_vector(
+        &source,
+        &model,
+        &scoped_semantics::scalar_meaning(&model),
+    );
     for optimization in ["-O0", "-O2"] {
         assert_eq!(run_cached_vector(&source, &expected, optimization), 91);
     }
@@ -4602,7 +4633,8 @@ fn rich_hand_graphs_authenticate_and_refuse_before_meaning_at_o0_o2() {
         validate_origins(source, &stopped.nodes, &stopped.origins);
         let meaning = successor_refusal(&stopped);
         assert_eq!((meaning.facts, meaning.root_type), (0, 0));
-        let expected = oracle::refused_expectation_vector(source, &stopped, &meaning);
+        let current = scoped_semantics::scalar_meaning(&stopped);
+        let expected = oracle::refused_expectation_vector(source, &stopped, &current);
         for optimization in ["-O0", "-O2"] {
             assert_eq!(
                 run_cached_vector(source, &expected, optimization),
@@ -4637,7 +4669,19 @@ fn canonical_complete_connected_source_authenticates_to_the_frozen_identifier_re
         (17, 3, 68, 2, 18, 2)
     );
     assert_eq!((meaning.symbols, meaning.facts), (23, 0));
-    let expected = oracle::refused_expectation_vector(source.as_bytes(), &stopped, &meaning);
+    let current = scoped_semantics::scalar_meaning(&stopped);
+    assert_eq!(
+        (
+            current.status,
+            current.code,
+            current.node,
+            current.symbols,
+            current.facts
+        ),
+        (28, 24, 1, 23, 0),
+        "new rich subset refusal is explicit, not the old identifier model"
+    );
+    let expected = oracle::refused_expectation_vector(source.as_bytes(), &stopped, &current);
     for optimization in ["-O0", "-O2"] {
         assert_eq!(
             run_cached_vector(source.as_bytes(), &expected, optimization),
@@ -5125,6 +5169,10 @@ fn occurrence_count(functions: &[FunctionShape]) -> usize {
             }
         })
         .sum()
+}
+
+pub(super) fn independent_occurrence_count(source: &[u8]) -> usize {
+    occurrence_count(&rust_projection(source))
 }
 
 fn control_budget(statements: &[Stmt], depth: usize) -> (usize, usize) {
@@ -5720,9 +5768,9 @@ struct Owner {
 }
 
 #[derive(Debug)]
-struct Capture {
+pub(super) struct Capture {
     result: i32,
-    counters: [u64; 5],
+    pub(super) counters: [u64; 5],
     events: Vec<Event>,
     owners: Vec<Owner>,
 }
@@ -5794,7 +5842,7 @@ impl Capture {
         self.validate_trace_at(cleanup, 80);
     }
 
-    fn validate_trace_at(&self, cleanup: &[u32], result: i32) {
+    pub(super) fn validate_trace_at(&self, cleanup: &[u32], result: i32) {
         assert_eq!(
             self.result, result,
             "exact full-vector or parser-only capture exit"
@@ -5868,7 +5916,7 @@ impl Capture {
         assert!(capacities.iter().all(|capacity| *capacity == 0));
     }
 
-    fn records<const N: usize>(&self, id: u32) -> Vec<[i32; N]> {
+    pub(super) fn records<const N: usize>(&self, id: u32) -> Vec<[i32; N]> {
         let bytes = self.owner(id);
         assert_eq!(bytes.len() % 4, 0, "word-aligned physical capacity");
         let words = bytes
@@ -5893,6 +5941,22 @@ impl Capture {
                 })
             })
             .collect()
+    }
+
+    pub(super) fn failure_descriptor(&self) -> [u64; 4] {
+        let failed: Vec<_> = self
+            .events
+            .iter()
+            .filter(|event| !event.succeeded)
+            .collect();
+        assert_eq!(failed.len(), 1, "exactly one injected allocation failure");
+        let event = failed[0];
+        [
+            u64::from(event.kind),
+            u64::from(event.owner),
+            event.old_size,
+            event.new_size,
+        ]
     }
 }
 

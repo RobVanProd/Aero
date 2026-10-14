@@ -2,6 +2,17 @@
 
 ## Current capability delta - 2026-10-13
 
+Connected AST development checkpoint6d98b07 passed its complete local gate
+(1093/0/16/121, immutable commit evidence) and all13 exact-head public checks.
+H1C-SCALAR-001 is a local candidate in native verification for lexical scalar
+names/types/Copy mutability, with an explicit lowering barrier. Independent
+preflight54567nodes fits unchanged caps; corrected focused verification completed
+16passed/0failed including exact native arenas and resource/depth controls.
+Full-tree acceptance/publication remain mandatory, so no published semantic
+capability is claimed yet.
+Concrete Result and ByteBuffer ownership
+remain excluded from that first slice. See H1_SCOPED_SEMANTICS_DESIGN.md.
+
 Published draft PR #92 on `agent/aero-self-hosting-2026-09-16`, based on merge
 `df0fece`, adds native evidence for the CAP-059 513-node bound,
 correct checked-result ownership, and multiple arithmetic function verification

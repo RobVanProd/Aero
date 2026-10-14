@@ -6756,13 +6756,508 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
     }
 
+    // H1C-SCALAR-001: closed rich subset, then lexical names, then exact facts.
+    // Compact modules retain the complete predecessor route below.
+    let mut scoped_contexts: ByteBuffer = bytes_new();
+    let mut scoped_bindings: ByteBuffer = bytes_new();
+    let mut scoped_rich: int = 0;
+    let mut scoped_index: int = 0;
+    let mut scoped_kind: int = 0;
+    let mut scoped_payload: int = 0;
+    let mut scoped_left: int = 0;
+    let mut scoped_right: int = 0;
+    let mut scoped_function: int = 0;
+    let mut scoped_scope: int = 0;
+    let mut scoped_outer_scope: int = 0;
+    let mut scoped_parent_scope: int = 0;
+    let mut scoped_scope_start: int = 0;
+    let mut scoped_pending_assignment: int = 0;
+    let mut scoped_pending_start: int = 0;
+    let mut scoped_event: int = 0;
+    let mut scoped_field: int = 0;
+    let mut scoped_word: int = 0;
+    let mut scoped_byte: int = 0;
+    let mut scoped_value: int = 0;
+    let mut scoped_binding_count: int = 0;
+    let mut scoped_binding_index: int = 0;
+    let mut scoped_binding_name: int = 0;
+    let mut scoped_binding_function: int = 0;
+    let mut scoped_binding_scope: int = 0;
+    let mut scoped_binding_node: int = 0;
+    let mut scoped_binding_mutable: int = 0;
+    let mut scoped_search_scope: int = 0;
+    let mut scoped_search_name: int = 0;
+    let mut scoped_use_node: int = 0;
+    let mut scoped_current_only: int = 0;
+    let mut scoped_found: int = 0;
+    let mut scoped_action: int = 0;
+    let mut scoped_target_node: int = 0;
+    let mut scoped_target_kind: int = 0;
+    let mut scoped_target_name: int = 0;
+    let mut scoped_symbol_index: int = 0;
+    let mut scoped_previous_symbol: int = 0;
+    while status == 0 && semantic_status == 0 && scoped_index < node_count {
+        word_offset = scoped_index * 16;
+        scoped_kind = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        if scoped_kind >= 24 && scoped_kind <= 38 {
+            scoped_rich = 1;
+        }
+        scoped_index = scoped_index + 1;
+    }
+    scoped_index = 0;
+    while status == 0 && semantic_status == 0 && scoped_rich == 1
+        && scoped_index < node_count {
+        word_offset = scoped_index * 16;
+        scoped_kind = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = scoped_index * 16 + 4;
+        scoped_payload = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        if (scoped_kind >= 20 && scoped_kind <= 23)
+            || (scoped_kind >= 34 && scoped_kind <= 37)
+            || (scoped_kind == 24 && scoped_payload != 1) {
+            semantic_status = 28;
+            semantic_code = scoped_kind;
+            semantic_node = scoped_index + 1;
+            word_offset = (semantic_node - 1) * 20 + 4;
+            semantic_offset = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (semantic_node - 1) * 20 + 8;
+            semantic_line = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            word_offset = (semantic_node - 1) * 20 + 12;
+            semantic_column = result_value(bytes_get(&origins, word_offset))
+                + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        }
+        scoped_index = scoped_index + 1;
+    }
+    // Rich-route function namespace duplicates precede local-name analysis.
+    while status == 0 && semantic_status == 0 && scoped_rich == 1
+        && scoped_symbol_index < symbol_count {
+        word_offset = scoped_symbol_index * 16 + 4;
+        scoped_search_name = result_value(bytes_get(&symbols, word_offset))
+            + result_value(bytes_get(&symbols, word_offset + 1)) * 256
+            + result_value(bytes_get(&symbols, word_offset + 2)) * 65536
+            + result_value(bytes_get(&symbols, word_offset + 3)) * 16777216;
+        scoped_previous_symbol = 0;
+        while semantic_status == 0 && scoped_previous_symbol < scoped_symbol_index {
+            word_offset = scoped_previous_symbol * 16 + 4;
+            scoped_binding_name = result_value(bytes_get(&symbols, word_offset))
+                + result_value(bytes_get(&symbols, word_offset + 1)) * 256
+                + result_value(bytes_get(&symbols, word_offset + 2)) * 65536
+                + result_value(bytes_get(&symbols, word_offset + 3)) * 16777216;
+            if scoped_binding_name == scoped_search_name {
+                semantic_status = 30;
+                semantic_code = 1;
+                word_offset = scoped_symbol_index * 16 + 8;
+                scoped_target_node = result_value(bytes_get(&symbols, word_offset))
+                    + result_value(bytes_get(&symbols, word_offset + 1)) * 256
+                    + result_value(bytes_get(&symbols, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&symbols, word_offset + 3)) * 16777216;
+                semantic_node = scoped_target_node;
+                word_offset = (semantic_node - 1) * 20 + 4;
+                semantic_offset = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                word_offset = (semantic_node - 1) * 20 + 8;
+                semantic_line = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                word_offset = (semantic_node - 1) * 20 + 12;
+                semantic_column = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+            }
+            scoped_previous_symbol = scoped_previous_symbol + 1;
+        }
+        scoped_symbol_index = scoped_symbol_index + 1;
+    }
+    // Descending postorder appends contexts at direct index N-node. A nested
+    // Block records its parent before its body becomes active. Exact interval
+    // starts restore every closed scope; the outer self-parent retains params.
+    scoped_index = node_count - 1;
+    while status == 0 && semantic_status == 0 && scoped_rich == 1 && scoped_index >= 0 {
+        word_offset = (scoped_index + 1 - 1) * 16;
+        scoped_kind = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 4;
+        scoped_payload = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 8;
+        scoped_left = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 12;
+        scoped_right = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        scoped_parent_scope = scoped_scope;
+        while scoped_scope > 0 && scoped_scope != scoped_outer_scope
+            && scoped_parent_scope > 0 {
+            word_offset = (scoped_scope - 1) * 4;
+            scoped_scope_start = result_value(bytes_get(&ast_starts, word_offset))
+                + result_value(bytes_get(&ast_starts, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_starts, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_starts, word_offset + 3)) * 16777216;
+            if scoped_index + 1 < scoped_scope_start {
+                word_offset = (node_count - scoped_scope) * 12 + 4;
+                scoped_parent_scope = result_value(bytes_get(&scoped_contexts, word_offset))
+                    + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+                    + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+                scoped_scope = scoped_parent_scope;
+            } else {
+                scoped_parent_scope = 0;
+            }
+        }
+        if scoped_kind == 19 {
+            scoped_function = scoped_index + 1;
+            scoped_scope = 0;
+            scoped_outer_scope = 0;
+            scoped_pending_assignment = 0;
+            word_offset = (scoped_left - 1) * 16;
+            scoped_field = result_value(bytes_get(&nodes, word_offset))
+                + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            if scoped_field == 38 {
+                word_offset = (scoped_left - 1) * 16 + 12;
+                scoped_scope = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+                scoped_outer_scope = scoped_scope;
+            }
+        }
+        if scoped_kind == 28 {
+            scoped_pending_assignment = scoped_index + 1;
+            word_offset = scoped_index * 4;
+            scoped_pending_start = result_value(bytes_get(&ast_starts, word_offset))
+                + result_value(bytes_get(&ast_starts, word_offset + 1)) * 256
+                + result_value(bytes_get(&ast_starts, word_offset + 2)) * 65536
+                + result_value(bytes_get(&ast_starts, word_offset + 3)) * 16777216;
+        }
+        scoped_event = 0;
+        if scoped_pending_assignment > 0 && scoped_index + 1 == scoped_pending_start {
+            scoped_event = scoped_pending_assignment;
+            scoped_pending_assignment = 0;
+        }
+        semantic_node = scoped_index + 1;
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        scoped_field = 0;
+        while semantic_status == 0 && scoped_field < 3 {
+            scoped_word = scoped_function;
+            if scoped_field == 1 {
+                scoped_word = scoped_scope;
+            }             else if scoped_field == 2 {
+                scoped_word = scoped_event;
+            }
+            scoped_byte = 0;
+            while semantic_status == 0 && scoped_byte < 4 {
+                scoped_value = word_byte_0(scoped_word);
+                if scoped_byte == 1 {
+                    scoped_value = word_byte_1(scoped_word);
+                } else if scoped_byte == 2 {
+                    scoped_value = word_byte_2(scoped_word);
+                } else if scoped_byte == 3 {
+                    scoped_value = word_byte_3(scoped_word);
+                }
+                push_result = result_value(bytes_push(&mut scoped_contexts, scoped_value));
+                if push_result < 0 {
+                    semantic_status = 26;
+                    semantic_code = 8;
+                }
+                scoped_byte = scoped_byte + 1;
+            }
+            scoped_field = scoped_field + 1;
+        }
+        if scoped_kind == 30 {
+            scoped_scope = scoped_index + 1;
+        }
+        scoped_index = scoped_index - 1;
+    }
+    if status == 0 && semantic_status == 0 && scoped_rich == 1
+        && bytes_len(&scoped_contexts) != node_count * 12 {
+        semantic_status = 27;
+        semantic_code = 4;
+        semantic_node = root;
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+    }
+    // Names-only pass: no facts exist until the complete name environment is
+    // checked. Assignment's target event precedes its RHS; Let activates only
+    // after its initializer. The table is immutable and append-only.
+    scoped_index = 0;
+    while status == 0 && semantic_status == 0 && scoped_rich == 1 && scoped_index < node_count {
+        word_offset = (scoped_index + 1 - 1) * 16;
+        scoped_kind = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 4;
+        scoped_payload = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 8;
+        scoped_left = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (scoped_index + 1 - 1) * 16 + 12;
+        scoped_right = result_value(bytes_get(&nodes, word_offset))
+            + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+            + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+            + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+        word_offset = (node_count - scoped_index - 1) * 12;
+        scoped_function = result_value(bytes_get(&scoped_contexts, word_offset))
+            + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+            + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+            + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+        word_offset = (node_count - scoped_index - 1) * 12 + 4;
+        scoped_scope = result_value(bytes_get(&scoped_contexts, word_offset))
+            + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+            + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+            + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+        word_offset = (node_count - scoped_index - 1) * 12 + 8;
+        scoped_event = result_value(bytes_get(&scoped_contexts, word_offset))
+            + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+            + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+            + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+        scoped_action = 0;
+        while semantic_status == 0 && scoped_action < 2 {
+            scoped_target_node = 0;
+            scoped_target_kind = 0;
+            scoped_target_name = 0;
+            if scoped_action == 0 && scoped_event > 0 {
+                scoped_target_node = scoped_event;
+                scoped_target_kind = 28;
+                word_offset = (scoped_event - 1) * 16 + 4;
+                scoped_target_name = result_value(bytes_get(&nodes, word_offset))
+                    + result_value(bytes_get(&nodes, word_offset + 1)) * 256
+                    + result_value(bytes_get(&nodes, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&nodes, word_offset + 3)) * 16777216;
+            } else if scoped_action == 1 && (scoped_kind == 2
+                || scoped_kind == 25 || scoped_kind == 26 || scoped_kind == 27) {
+                scoped_target_node = scoped_index + 1;
+                scoped_target_kind = scoped_kind;
+                scoped_target_name = scoped_payload;
+            }
+            if scoped_target_node > 0 {
+                scoped_search_name = scoped_target_name;
+                scoped_use_node = scoped_target_node;
+                scoped_current_only = 0;
+                if scoped_target_kind >= 25 && scoped_target_kind <= 27 {
+                    scoped_current_only = 1;
+                }
+                scoped_found = 0;
+                scoped_search_scope = scoped_scope;
+                while scoped_found == 0 && scoped_search_scope > 0 {
+                    scoped_binding_index = scoped_binding_count - 1;
+                    while scoped_found == 0 && scoped_binding_index >= 0 {
+                        word_offset = scoped_binding_index * 20;
+                        scoped_binding_name = result_value(bytes_get(&scoped_bindings, word_offset))
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                        word_offset = scoped_binding_index * 20 + 4;
+                        scoped_binding_function = result_value(bytes_get(&scoped_bindings, word_offset))
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                        word_offset = scoped_binding_index * 20 + 8;
+                        scoped_binding_scope = result_value(bytes_get(&scoped_bindings, word_offset))
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                        word_offset = scoped_binding_index * 20 + 12;
+                        scoped_binding_node = result_value(bytes_get(&scoped_bindings, word_offset))
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                        word_offset = scoped_binding_index * 20 + 16;
+                        scoped_binding_mutable = result_value(bytes_get(&scoped_bindings, word_offset))
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                        if scoped_binding_name == scoped_search_name
+                            && scoped_binding_function == scoped_function
+                            && scoped_binding_scope == scoped_search_scope
+                            && scoped_binding_node < scoped_use_node {
+                            scoped_found = 1;
+                        }
+                        scoped_binding_index = scoped_binding_index - 1;
+                    }
+                    if scoped_found == 0 {
+                        if scoped_current_only == 1 {
+                            scoped_search_scope = 0;
+                        } else {
+                            word_offset = (node_count - scoped_search_scope) * 12 + 4;
+                            scoped_parent_scope = result_value(bytes_get(&scoped_contexts, word_offset))
+                                + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+                                + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+                                + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+                            if scoped_parent_scope == scoped_search_scope {
+                                scoped_search_scope = 0;
+                            } else {
+                                scoped_search_scope = scoped_parent_scope;
+                            }
+                        }
+                    }
+                }
+                if scoped_target_kind == 2 && scoped_found == 0 {
+                    semantic_status = 17;
+                    semantic_code = 2;
+                } else if scoped_target_kind == 28 && scoped_found == 0 {
+                    semantic_status = 30;
+                    semantic_code = 3;
+                } else if scoped_target_kind == 28 && scoped_binding_mutable != 1 {
+                    semantic_status = 32;
+                    semantic_code = 1;
+                } else if scoped_current_only == 1 && scoped_found == 1 {
+                    semantic_status = 30;
+                    semantic_code = 2;
+                }
+                semantic_node = scoped_target_node;
+                word_offset = (semantic_node - 1) * 20 + 4;
+                semantic_offset = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                word_offset = (semantic_node - 1) * 20 + 8;
+                semantic_line = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                word_offset = (semantic_node - 1) * 20 + 12;
+                semantic_column = result_value(bytes_get(&origins, word_offset))
+                    + result_value(bytes_get(&origins, word_offset + 1)) * 256
+                    + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+                    + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+                if semantic_status == 0 && scoped_current_only == 1 {
+                    scoped_binding_mutable = 0;
+                    if scoped_target_kind == 27 {
+                        scoped_binding_mutable = 1;
+                    }
+                    scoped_field = 0;
+                    while semantic_status == 0 && scoped_field < 5 {
+                        scoped_word = scoped_target_name;
+                        if scoped_field == 1 {
+                            scoped_word = scoped_function;
+                        }                         else if scoped_field == 2 {
+                            scoped_word = scoped_scope;
+                        }                         else if scoped_field == 3 {
+                            scoped_word = scoped_target_node;
+                        }                         else if scoped_field == 4 {
+                            scoped_word = scoped_binding_mutable;
+                        }
+                        scoped_byte = 0;
+                        while semantic_status == 0 && scoped_byte < 4 {
+                            scoped_value = word_byte_0(scoped_word);
+                            if scoped_byte == 1 {
+                                scoped_value = word_byte_1(scoped_word);
+                            } else if scoped_byte == 2 {
+                                scoped_value = word_byte_2(scoped_word);
+                            } else if scoped_byte == 3 {
+                                scoped_value = word_byte_3(scoped_word);
+                            }
+                            push_result = result_value(bytes_push(&mut scoped_bindings, scoped_value));
+                            if push_result < 0 {
+                                semantic_status = 26;
+                                semantic_code = 9;
+                            }
+                            scoped_byte = scoped_byte + 1;
+                        }
+                        scoped_field = scoped_field + 1;
+                    }
+                    if semantic_status == 0 {
+                        scoped_binding_count = scoped_binding_count + 1;
+                    }
+                }
+            }
+            scoped_action = scoped_action + 1;
+        }
+        scoped_index = scoped_index + 1;
+    }
+    if status == 0 && semantic_status == 0 && scoped_rich == 1
+        && (bytes_len(&scoped_bindings) != scoped_binding_count * 20
+        || scoped_binding_count > node_count) {
+        semantic_status = 27;
+        semantic_code = 4;
+        semantic_node = root;
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+    }
+
     // Match the accepted semantic phase order: all identifier uses first.
     let mut semantic_index: int = 0;
     let mut semantic_kind: int = 0;
     let mut semantic_payload: int = 0;
     let mut semantic_left: int = 0;
     let mut semantic_right: int = 0;
-    while status == 0 && semantic_status == 0 && semantic_index < node_count {
+    while scoped_rich == 0 && status == 0 && semantic_status == 0 && semantic_index < node_count {
         word_offset = semantic_index * 16;
         byte_0 = result_value(bytes_get(&nodes, word_offset));
         byte_1 = result_value(bytes_get(&nodes, word_offset + 1));
@@ -6805,7 +7300,7 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
     // Keep the identifier-use refusal above first, then refuse the earliest new
     // structural kind with its fully authenticated origin and no facts.
     semantic_index = 0;
-    while status == 0 && semantic_status == 0 && semantic_index < node_count {
+    while scoped_rich == 0 && status == 0 && semantic_status == 0 && semantic_index < node_count {
         word_offset = semantic_index * 16;
         semantic_kind = result_value(bytes_get(&nodes, word_offset))
             + result_value(bytes_get(&nodes, word_offset + 1)) * 256
@@ -6931,6 +7426,86 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             semantic_complete_type = 1;
             semantic_ownership = 1;
         }
+        if semantic_status == 0 && scoped_rich == 1 && semantic_kind == 2 {
+            semantic_rule_found = 1;
+            word_offset = (node_count - semantic_node) * 12;
+            scoped_function = result_value(bytes_get(&scoped_contexts, word_offset))
+                + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+                + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+                + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+            word_offset = (node_count - semantic_node) * 12 + 4;
+            scoped_scope = result_value(bytes_get(&scoped_contexts, word_offset))
+                + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+                + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+                + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+            scoped_search_name = semantic_payload;
+            scoped_use_node = semantic_node;
+            scoped_current_only = 0;
+            scoped_found = 0;
+            scoped_search_scope = scoped_scope;
+            while scoped_found == 0 && scoped_search_scope > 0 {
+                scoped_binding_index = scoped_binding_count - 1;
+                while scoped_found == 0 && scoped_binding_index >= 0 {
+                    word_offset = scoped_binding_index * 20;
+                    scoped_binding_name = result_value(bytes_get(&scoped_bindings, word_offset))
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                    word_offset = scoped_binding_index * 20 + 4;
+                    scoped_binding_function = result_value(bytes_get(&scoped_bindings, word_offset))
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                    word_offset = scoped_binding_index * 20 + 8;
+                    scoped_binding_scope = result_value(bytes_get(&scoped_bindings, word_offset))
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                    word_offset = scoped_binding_index * 20 + 12;
+                    scoped_binding_node = result_value(bytes_get(&scoped_bindings, word_offset))
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                    word_offset = scoped_binding_index * 20 + 16;
+                    scoped_binding_mutable = result_value(bytes_get(&scoped_bindings, word_offset))
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 1)) * 256
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 2)) * 65536
+                        + result_value(bytes_get(&scoped_bindings, word_offset + 3)) * 16777216;
+                    if scoped_binding_name == scoped_search_name
+                        && scoped_binding_function == scoped_function
+                        && scoped_binding_scope == scoped_search_scope
+                        && scoped_binding_node < scoped_use_node {
+                        scoped_found = 1;
+                    }
+                    scoped_binding_index = scoped_binding_index - 1;
+                }
+                if scoped_found == 0 {
+                    if scoped_current_only == 1 {
+                        scoped_search_scope = 0;
+                    } else {
+                        word_offset = (node_count - scoped_search_scope) * 12 + 4;
+                        scoped_parent_scope = result_value(bytes_get(&scoped_contexts, word_offset))
+                            + result_value(bytes_get(&scoped_contexts, word_offset + 1)) * 256
+                            + result_value(bytes_get(&scoped_contexts, word_offset + 2)) * 65536
+                            + result_value(bytes_get(&scoped_contexts, word_offset + 3)) * 16777216;
+                        if scoped_parent_scope == scoped_search_scope {
+                            scoped_search_scope = 0;
+                        } else {
+                            scoped_search_scope = scoped_parent_scope;
+                        }
+                    }
+                }
+            }
+            if scoped_found == 0 {
+                semantic_status = 17;
+                semantic_code = 2;
+            } else {
+                // Every live binding was admitted from annotation24/int1;
+                // the declaration is structural, its resolved use is Copy int.
+                semantic_complete_type = 1;
+                semantic_ownership = 1;
+            }
+        }
         if semantic_status == 0 && (semantic_kind == 3 || semantic_kind == 4) {
             semantic_rule_found = 1;
             semantic_expected = 2;
@@ -6999,6 +7574,26 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             } else {
                 semantic_complete_type = 2;
                 semantic_ownership = 1;
+            }
+        }
+        if semantic_status == 0 && scoped_rich == 1
+            && ((semantic_kind >= 24 && semantic_kind <= 33) || semantic_kind == 38) {
+            semantic_rule_found = 1;
+            if (semantic_kind == 26 || semantic_kind == 27) && semantic_right_type != 1 {
+                semantic_status = 31;
+                semantic_code = 1;
+                semantic_expected = 1;
+                semantic_actual = semantic_right_type;
+            } else if semantic_kind == 28 && semantic_left_type != 1 {
+                semantic_status = 31;
+                semantic_code = 2;
+                semantic_expected = 1;
+                semantic_actual = semantic_left_type;
+            } else if (semantic_kind == 32 || semantic_kind == 33) && semantic_left_type != 2 {
+                semantic_status = 31;
+                semantic_code = 3;
+                semantic_expected = 2;
+                semantic_actual = semantic_left_type;
             }
         }
         if semantic_status == 0 && semantic_kind == 18 {
@@ -7123,6 +7718,29 @@ fn run_runtime_ascii_llvm_emitter(expected_status: int, expected_offset: int,
             semantic_expected = 0;
             semantic_actual = 0;
         }
+    }
+
+    if status == 0 && semantic_status == 0 && scoped_rich == 1 {
+        // Typed scalar meaning is complete, but checked lowering is not owned
+        // by this slice. A nonzero barrier prevents every later phase.
+        semantic_status = 29;
+        semantic_code = 1;
+        semantic_node = root;
+        word_offset = (semantic_node - 1) * 20 + 4;
+        semantic_offset = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 8;
+        semantic_line = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
+        word_offset = (semantic_node - 1) * 20 + 12;
+        semantic_column = result_value(bytes_get(&origins, word_offset))
+            + result_value(bytes_get(&origins, word_offset + 1)) * 256
+            + result_value(bytes_get(&origins, word_offset + 2)) * 65536
+            + result_value(bytes_get(&origins, word_offset + 3)) * 16777216;
     }
 
     // Independently checksum the complete provenance/symbol/fact result.

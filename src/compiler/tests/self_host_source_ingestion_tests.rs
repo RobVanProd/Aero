@@ -26,6 +26,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[path = "support/self_host_connected_ast.rs"]
 mod connected_ast;
 
+#[path = "support/self_host_scoped_semantics.rs"]
+mod scoped_semantics;
+
 const ACCEPTED_B1C_PRODUCT: &str =
     "../../examples/aero_frontend_v0/runtime_ascii_toolchain_driver.aero";
 const H1A_PRODUCT: &str = "../../examples/aero_self_host_v0/compiler.aero";
@@ -7932,7 +7935,9 @@ fn canonical_self_host_source_is_a_copy_derived_successor() {
     );
     assert_eq!(
         h1a_source(),
-        connected_ast::expected_successor_source(&expected_h1a_source()),
+        scoped_semantics::expected_scoped_source(&connected_ast::expected_successor_source(
+            &expected_h1a_source()
+        )),
         "canonical source differs from the complete sequence of frozen transforms"
     );
     // Every section marker survives. The stdout driver remains byte-identical;
@@ -12184,7 +12189,9 @@ fn the_raise_touched_the_parse_group_and_left_the_verifier_alone() {
     assert_eq!(expected_h1a_source(), historical_expected);
     assert_eq!(
         source,
-        connected_ast::expected_successor_source(&historical_expected)
+        scoped_semantics::expected_scoped_source(&connected_ast::expected_successor_source(
+            &historical_expected
+        ))
     );
     assert_eq!(source.matches("verified_function_node > 65536").count(), 1);
     assert_eq!(source.matches("verified_expected = 65536;").count(), 1);

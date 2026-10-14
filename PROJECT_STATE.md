@@ -4,6 +4,32 @@ Last updated: 2026-10-13 (America/New_York)
 
 ## Current development after the integration merge
 
+Latest published development checkpoint is
+`6d98b07eb7cf1b00d6be5cb6ea61cfe42cdd613d`, AST tree
+`7aeff08fd323011d0e393f3d13ba8778b857acac`. Its complete local gate finished
+1093passed/0failed/16existingignored across121 targets (immutable commit message),
+and all13 exact-head public checks were subsequently reread COMPLETED/SUCCESS.
+Master is unchanged. The user now authorized scoped names/types/ownership.
+H1_SCOPED_SEMANTICS_DESIGN.md freezes the first scalar Copy/scope/mutability
+slice and explicit fail-before-lowering barrier. Its local semantic-only candidate
+has completed focused native verification, not published or accepted; Result path
+ownership and ByteBuffer loans follow separately. Pending work must not be
+confused with the accepted AST checkpoint.
+
+The scalar candidate source is501040bytes, SHA256
+`fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd`.
+Independent preflight derives54567nodes/65456tokens/928names within unchanged
+ceilings. It implements int parameters/bindings, lexical scopes/shadowing,
+mutability, exact Int/Bool Copy facts and a located29 barrier before lowering.
+The first focused run completed15passed/1failed due to a prederived observer
+trace reversing two old authentication-store IDs. The source-backed test-only
+correction and original failure remain in TASK_LEDGER.md. Corrected focused
+verification finished16passed/0failed, including48 full O0/O2 semantic vectors,
+6 exact Int/Bool/shadow arena captures,8 heap-failure runs and2 valid10000-depth
+native runs. Full-tree acceptance remains mandatory and is recorded only in
+the final implementation commit/PR after its completed status is read;
+no general ownership, checked lowering or canonical self-compilation is claimed.
+
 Public master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`; its four
 post-merge workflows completed successfully. The restored Windows checkout tracks
 `agent/aero-self-hosting-2026-09-16`, cumulative draft
@@ -48,7 +74,7 @@ and original runtime are unchanged. Native O0/O2 tests cover restoration and
 binary/error behavior, and Windows CI now runs diagnostic runtime, source and
 CLI integration targets explicitly.
 
-H1-AST-001's development candidate now connects the complete admitted self-source
+The published H1-AST-001 checkpoint connects the complete admitted self-source
 grammar: parameters/types, bindings/mutation, ordered statements and Returns,
 blocks/branches/loops, Match ownership and existing references/calls. Its native
 observer compares exact hand graphs and an independent Rust-AST projection;

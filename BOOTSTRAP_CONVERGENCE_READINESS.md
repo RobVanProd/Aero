@@ -1,5 +1,20 @@
 # Bootstrap Convergence Readiness
 
+## Scoped semantics preparation after the green AST checkpoint
+
+Published AST head6d98b07/tree7aeff08 has its completed1093-test local gate
+recorded in the commit and all13 exact-head public checks completed successfully.
+The user authorized scoped names/types/ownership next. The initial bounded
+contract H1C-SCALAR-001 covers scalar lexical scopes/types/Copy mutability only;
+see H1_SCOPED_SEMANTICS_DESIGN.md. A local candidate is in native verification:
+independent source budget54567nodes, with no cap increase. Corrected focused
+verification finished16passed/0failed with exact arenas, allocation failures and
+valid10000-depth native coverage at O0/O2. Complete-tree acceptance/publication
+remain separate mandatory gates; use the implementation commit and cumulative
+PR for completed results. It is not yet a published capability.
+Result move-flow/Match and ByteBuffer owner/loan fidelity need later slices,
+followed by checked lowering. No convergence or self-hosting condition is waived.
+
 ## Connected representation candidate - 2026-10-13
 
 H1-AST-001 is the bounded connected-representation candidate for cumulative draft

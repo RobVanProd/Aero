@@ -1,5 +1,198 @@
 # Aero Task Ledger
 
+## H1C-SCOPED-001 - scoped names, types and ownership: contract preparation
+
+- Authorization: user requested continued scoped names, types and ownership
+  after H1-AST-001. Baseline is published development commit
+  6d98b07eb7cf1b00d6be5cb6ea61cfe42cdd613d, tree
+  7aeff08fd323011d0e393f3d13ba8778b857acac. Fetch completed exit0 and the
+  assigned integration branch has zero ahead/behind divergence. The completed
+  AST local gate is recorded in that commit; all13 exact-head public checks
+  were reread as COMPLETED/SUCCESS before beginning this contract.
+- Observed behavior: the canonical connected AST is authenticated but refuses
+  its first identifier with semantic17/code2 and no facts. Rich literal syntax
+  refuses status28; representation alone supplies no scoped meaning.
+- Hypothesis: existing accepted compiler-subset rules can be transplanted into
+  the Aero semantic group in bounded, independently tested increments without
+  changing parser meaning or activating unchecked lowering.
+- Frozen preparation boundary: no new language semantics, no Rust product or
+  runtime change, no checked-IR/verifier/emitter/driver/main change, no capacity
+  increase. Existing diagnostics and arithmetic behavior remain until an exact
+  successor contract is approved. Type/ownership ambiguities are mandatory stops.
+- Lead owns this ledger and H1_SCOPED_SEMANTICS_DESIGN.md plus affected state/
+  capability/readiness documents. Two read-only auditors map existing accepted
+  scope/type/ownership authority and semantic storage/test boundaries; neither
+  may edit, commit, build or run native tests. Product writing is not yet assigned.
+- Acceptance preparation: freeze declarations, resolution order, type rules,
+  ownership state, bounded records, diagnostics, and the unchanged downstream
+  refusal before edits; require an independent semantic oracle and genuine native
+  red-first tests. Focused tests then repository-root ./tools/test.sh are mandatory.
+- Risks/stop conditions: uncertain shadowing/branch ownership, unsupported types
+  accidentally becoming Int, invalid input reaching IR, more than two compiler
+  phases, canonical source exhausting unchanged ceilings, or tests being retuned
+  to product output. Report the exact obstruction instead of widening scope.
+- Run results: none for this new task. Preparation does not claim implementation.
+
+### H1C-SCALAR-001 - first typed scalar scope slice
+
+- Lead froze H1_SCOPED_SEMANTICS_DESIGN.md: int parameters/local bindings,
+  exact Int/Bool expressions, Copy facts, scopes/shadowing, mutability and
+  condition/Return rules. Calls/Result/Match/ByteBuffer/references remain
+  explicitly unsupported, classified before new scalar name/type analysis.
+  Complete rich facts end at semantic29/code1 with checked IR unattempted.
+- One vertical writer may own compiler.aero's semantic group only,
+  self_host_source_ingestion_tests.rs, support/self_host_connected_ast.rs
+  (narrow exports/explicit successor grading, old model preserved), and new
+  support/self_host_scoped_semantics.rs. Lead alone edits docs. No other writer.
+- First authorization is regression/model preparation only. The writer must
+  report exact storage layout/resource diagnostics/trace derivation before
+  production storage edits and completed genuine native reds before product fixes.
+- All completed run rows below start with an empty result and are filled only
+  after reading their actual exit status. No new-task test result exists yet.
+- Completed read-only audits: scoped_semantics_audit and semantic_storage_audit
+  found no mandatory ambiguity for the bounded scalar rules. They identified
+  non-Copy Result path joins, exact ByteBuffer loan evaluation order, annotation/
+  Bool code collision and automatic checked-entry as material later-slice risks.
+  Neither changed files or executed tests; inspection is not new validation.
+- Before production edits, lead approved the writer's bounded reverse contexts
+  [functionNode,scopeBlockNode]2words/node, immutable block history
+  [previousHistoryId,blockNode,intervalStart]3words/Block, and scalar bindings
+  [nameId,functionNode,scopeBlockNode,declarationNode,mutable]5words/binding.
+  Each has at mostnode_count<=65536 records:524288/786432/1310720 bytes.
+  Heap codes26/8,26/9,26/10 respectively use the current token-authenticated
+  node's exact location after origin auth. Old unlocated26/4..7 stay unchanged.
+  The writer must still complete independent oracle/handfacts/native reds
+  before product fixes, derive owner traces before captures, and preserve
+  function isolation/parameter outer-scope identity across reverse traversal.
+- Pre-edit storage amendment: the initial3-store proposal above was replaced
+  before any product write. Final layout is reverse contexts
+  [functionNode,scopeBlockNode,assignmentTargetEvent]3words/node/786432 bytes
+  and bindings5words/declaration/1310720 bytes; heap26/8 and26/9 respectively,
+  both fully located after authentication. Nested Block parent is already in
+  its immutable context and crossing starts[Block] restores it, so separate
+  history is unnecessary. Assignment events at starts[Assignment] ensure target
+  lookup/immutability precedes RHS name failures. Name/duplicate/immutable
+  failures have0facts; a separate ascending type pass can retain exact prefixes.
+  No third store or capacity widening; full final design supersedes proposal.
+- Compact-routing clarification before product: modules with no kinds24..38
+  keep their entire legacy route, including rejected calls/references/identifiers.
+  New preclassification applies only to rich modules. This is not a blanket
+  diagnostic-priority change to previously compact programs.
+- Preparation chronology (completed statuses read before recording):
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-oracle-preparation.log | 0 | 5 pure oracle tests passed; no native or product claim |
+  | h1c-scalar-native-red-o0-o2.log, first invocation | 1 | 0 passed/1 harness failure before native execution: expected67 versus actual signature ABI68; not a product red |
+
+  The narrow harness correction preserves all67 pipeline fields plus the
+  parameter-count field. Its corrected native replay is pending; no result
+  is inferred from the earlier preparation failure.
+- Completed corrected preparation (actual statuses read before this entry):
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-native-red-o0-o2-corrected.log | 1 | 0 passed/1 assertion failure,637.88s; all22 native vectors completed;20 returned90 at O0/O2 for the10 new scalar behavior families; the already-correct initializer-visible negative returned91 twice and is a control, not a red |
+  | h1c-scalar-oracle-final-preparation.log | 0 | 10 pure tests passed, including exact hand facts/contexts/bindings, compact predecessor parity, function/sibling scope, Copy/mutability and65533-node/16381-depth independent context construction |
+
+  Source remained SHA2562506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75
+  through these runs. This is genuine pre-edit failure evidence, not an accepted
+  new capability. Lead authorizes the sole writer to implement the frozen scalar
+  semantic group now. Extended23-case vectors and observer/resource/deep controls
+  must run after fixes; repeating the same expensive pre-edit canonical build
+  is not necessary. No test is skipped, deleted, weakened or counted as green.
+- Initial production candidate is source SHA256
+  fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd,
+  501040bytes/MD5934b67660b06bf6d466c3965d0aaebbf. Both read-only source
+  audits found no concrete algorithm/semantic blocker on that exact source.
+  Root independently compared the unchanged complete prefix and checked-IR/
+  verifier/emitter/driver/main suffix against6d98; comparison completedexit0.
+  Inspection does not prove native correctness, allocation cleanup or performance.
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-production-pure-preflight.log | 0 | 12 pure tests passed; exact additive source reconstruction and independent census before changed native replay:54567nodes/65456tokens/928names,10969-node headroom; no existing cap widened |
+
+  The large valid-Bool witness is independently derived before native replay:
+  10000nested While,120031sourcebytes/60015tokens/60009nodes,
+  20002values/10000operators/10000controls and complete29/root1 facts. The
+  previous16381-deep Int-condition graph remains parser-legal but now rejects
+  condition type31; it is not described as a positive typed-program test.
+  Post-fix native vectors, exact arena capture, heap failure and deep tests are
+  pending. An extra compact literal-call/no-Identifier preservation witness was
+  requested after static review; it must retain old27/2 and its prior fact prefix.
+- Resource precision before final validation: contexts786432 and bindings1310720
+  are maximum logical record bytes; existing ByteBuffer doubling can reserve
+  1048576 and2097152 physical bytes respectively. These capacities are derived,
+  not observed results or widened syntax/node limits. Native capture must ignore
+  poisoned reserved tails as records and retain exact allocator-size checks.
+  The final compact-literal-call regression was added after the running23-case
+  focused binary was built; final gate will execute24cases/48O0O2 vectors.
+- Final-gate Bool/shadow observer witness is independently frozen before replay:
+  22nodes, outerBlock20/innerBlock13; bindings[2,22,20,2,0] and[2,22,13,8,0],
+  comparisonnode5 is Bool2. First-use owners source1/tokens2/names3/params4/
+  origins5/nodes6/values7/operators8/controls9/starts10/history11/ends12/ranges13/
+  symbols14/contexts15/bindings16/facts17; cleanup
+  16,15,13,12,11,10,17,14,5,8,7,9,4,6,2,3,1. This third witness was added
+  after the running focused binary's two-witness snapshot; the final gate must
+  validate it. These are predictions, not measured/corrected allocation identities.
+- Completed first post-fix focused run, after actualexit1 was read:
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-postfix-focused-o0-o2.log | 1 | 15passed/1failed,958.19s;23cases/46 full native vectors,8 new heap-failure runs and2 valid10000-depth native runs passed; observer stopped at its incorrect prederived cleanup trace before arena assertions |
+
+  Wrong prediction remains visible above: history and ends first-use IDs were
+  reversed. Unchanged map_index1 begins at annotation/literal node1; ast_ends
+  appends for every node, whereas history first pushes only at a closing-event
+  Block/Match/compactFunction. Accepted historical fault tests independently
+  already pin ends growth atnode3 and history after preceding end words. Lead
+  reread these source sites before approving this test-only correction:
+  parameter ends9/history10, cleanup14,13,11,9,10,8,15,12,5,7,4,6,2,3,1;
+  mutation ends8/history9, cleanup13,12,10,8,9,7,14,11,4,6,5,2,3,1;
+  shadow ends11/history12, cleanup16,15,13,11,12,10,17,14,5,8,7,9,4,6,2,3,1.
+  New context/binding/fact IDs, record contents, counters and all assertions
+  remain unchanged. No producer change or output-derived owner selection is
+  authorized. The corrected observer/final pure controls must pass before gate.
+- Corrected current-source pure controls completedexit0,12passed/0failed,
+  h1c-scalar-corrected-observer-pure-preflight.log (0.24s), read before this
+  entry. They include compact literal-call27/2 with1fact and independent
+  Bool/shadow22-node expectations. Corrected final focused native replay is
+  still pending; no observer or whole-matrix pass is inferred yet.
+- Corrected complete focused replay finished before this entry was written:
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-final-focused-o0-o2.log | 0 | 16passed/0failed/0ignored,946.93s; all24cases/48 full native O0/O2 vectors,3 observer witnesses/6 exact context-binding-fact captures,8 located new-store allocation/growth failures,2 valid10000-depth native runs passed |
+
+  Source remains fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd.
+  Corrected traces, exact records, counters, poisoned capacity tails, retained
+  failure bytes and leak/size checks are now execution evidence, not predictions.
+  Historical compact model/source transforms and all existing assertions remain.
+  Full compatibility/root validation is still required. The final fixed-tree
+  gate result belongs only in the implementation commit message after completion,
+  never in these files before or after the run they purport to verify.
+- Frozen prospective owner traces before product/capture, not observed results:
+  parameter `fn f(x:int)->int{return x;}` first allocations source1/tokens2/
+  names3/parameters4/origins5/nodes6/values7/starts8/history9/ends10/ranges11/
+  symbols12/contexts13/bindings14/facts15; cleanup
+  14,13,11,10,9,8,15,12,5,7,4,6,2,3,1. Mutable-Let witness without parameters:
+  source1/tokens2/names3/origins4/nodes5/values6/starts7/history8/ends9/ranges10/
+  symbols11/contexts12/bindings13/facts14; cleanup
+  13,12,10,9,8,7,14,11,4,6,5,2,3,1. Contexts then bindings are declared after
+  ast_ranges; runtime allocates only at firstpush and preserves IDs across growth.
+- Independent oracle inspection found unsupported classification before rich
+  route detection would incorrectly change compact rejected-call diagnostics.
+  Lead requested legacy delegation first plus direct old-model comparison tests.
+  This preparation correction is not an implementation result; rich native
+  pre-edit probes remain pending and all historical models remain intact.
+- Mixed-invalid priority is frozen explicitly, not claimed Rust parity: name-only
+  traversal resolves a Let initializer before checking the completed declaration's
+  duplicate. `let x:int=1;let x:int=missing;` therefore fails17/2 with0facts before
+  30/2. Current Rust checks duplicate first; both reject this invalid program.
+  Valid initializer visibility and duplicate rejection stay unchanged. Lead
+  required a direct mixed-invalid regression without expanding the event layout.
+
 ## H1-AST-001 - complete connected representation for the admitted self-source grammar
 
 - Date/authorization: 2026-10-13, user requested continued AST representation.

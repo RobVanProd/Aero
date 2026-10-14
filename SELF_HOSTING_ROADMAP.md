@@ -4,6 +4,17 @@ Last reviewed: 2026-10-13 (America/New_York)
 
 ## Current execution after phase 1
 
+AST checkpoint6d98b07 is now published with completed local1093/0/16/121
+gate evidence in its commit and all13 public checks successful. Continued user
+authorization is scoped names/types/ownership. Implement H1C-SCALAR-001 first:
+lexical scalar names, exact types, Copy facts and mutability, stopping before
+lowering. Then resolve declared calls/concrete Result and path-sensitive moves,
+then accepted ByteBuffer owner/loan rules. The exact first-slice contract is
+H1_SCOPED_SEMANTICS_DESIGN.md. Its semantic-only candidate is implemented locally
+and completed16-test focused native verification, including exact arenas,
+allocation failures and valid10000-depth O0/O2 coverage. Full root-gate acceptance
+and publication remain mandatory. Focused results are not full checkpoint acceptance.
+
 Master's phase-1 integration merge `df0fece` has completed its post-merge
 checks. Continued work is on `agent/aero-self-hosting-2026-09-16`, draft PR #92.
 The pre-AST published head `7237dae` passed all 13 public checks. CAP-059's
