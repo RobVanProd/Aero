@@ -534,7 +534,8 @@ impl CodeGenerator {
                 Inst::CheckedStdinReadByte { result } => {
                     Self::bump_seed_from_value(&mut seed, result);
                 }
-                Inst::CheckedStdoutWriteByte { result, value } => {
+                Inst::CheckedStdoutWriteByte { result, value }
+                | Inst::CheckedStderrWriteByte { result, value } => {
                     Self::bump_seed_from_value(&mut seed, result);
                     Self::bump_seed_from_value(&mut seed, value);
                 }
@@ -1694,6 +1695,7 @@ impl CodeGenerator {
         allow_byte_buffer: bool,
         allow_byte_input: bool,
         allow_byte_output: bool,
+        allow_diagnostic_output: bool,
     ) -> Option<&'static str> {
         instructions
             .iter()
@@ -1704,6 +1706,7 @@ impl CodeGenerator {
                         allow_byte_buffer,
                         allow_byte_input,
                         allow_byte_output,
+                        allow_diagnostic_output,
                     )
                 }
                 Inst::FAdd(..) | Inst::FSub(..) | Inst::FMul(..) | Inst::FDiv(..) => {
@@ -1743,6 +1746,9 @@ impl CodeGenerator {
                 Inst::CheckedStdoutWriteByte { .. } if !allow_byte_output => {
                     Some("profile-excluded byte-output instruction")
                 }
+                Inst::CheckedStderrWriteByte { .. } if !allow_diagnostic_output => {
+                    Some("profile-excluded diagnostic-output instruction")
+                }
                 _ => None,
             })
     }
@@ -1764,6 +1770,7 @@ impl CodeGenerator {
             let allow_byte_buffer = self.language_profile.enables_byte_buffer_source();
             let allow_byte_input = self.language_profile.enables_byte_input_source();
             let allow_byte_output = self.language_profile.enables_byte_output_source();
+            let allow_diagnostic_output = self.language_profile.allows_checked_stderr_output();
             Self::ensure_exact_record_result_metadata(metadata, allow_byte_buffer)
                 .map_err(&reject)?;
             self.ensure_exact_record_result_authentication(
@@ -1780,6 +1787,7 @@ impl CodeGenerator {
                     allow_byte_buffer,
                     allow_byte_input,
                     allow_byte_output,
+                    allow_diagnostic_output,
                 ) {
                     return Err(reject(format!(
                         "function `{function_name}` contains {instruction}"
@@ -1966,6 +1974,7 @@ impl CodeGenerator {
                 | Inst::CheckedEnumDispatch { .. }
                 | Inst::CheckedStdinReadByte { .. }
                 | Inst::CheckedStdoutWriteByte { .. }
+                | Inst::CheckedStderrWriteByte { .. }
                 | Inst::CheckedByteBufferNew { .. }
                 | Inst::CheckedByteBufferMove { .. }
                 | Inst::CheckedByteBufferImmutableBorrow { .. }
@@ -2107,6 +2116,16 @@ impl CodeGenerator {
         })
     }
 
+    fn contains_checked_stderr_write(instructions: &[Inst]) -> bool {
+        instructions.iter().any(|instruction| match instruction {
+            Inst::CheckedStderrWriteByte { .. } => true,
+            Inst::FunctionDef { body, .. } | Inst::CheckedFunctionDef { body, .. } => {
+                Self::contains_checked_stderr_write(body)
+            }
+            _ => false,
+        })
+    }
+
     /// Verifies private IR and emits LLVM only after the complete program is admitted.
     pub fn try_generate_code<I>(&mut self, ir: I) -> Result<String, CodeGenerationError>
     where
@@ -2155,6 +2174,17 @@ impl CodeGenerator {
             return Err(CodeGenerationError::LanguageProfileContract {
                 profile: self.language_profile,
                 detail: "checked stdout byte writes require exact-i32-byte-io-v0".to_string(),
+            });
+        }
+        let contains_checked_stderr_write = checked_ir
+            .raw()
+            .values()
+            .any(|function| Self::contains_checked_stderr_write(&function.body));
+        if contains_checked_stderr_write && !self.language_profile.allows_checked_stderr_output() {
+            return Err(CodeGenerationError::LanguageProfileContract {
+                profile: self.language_profile,
+                detail: "checked stderr byte writes require exact-i32-byte-diagnostics-v0"
+                    .to_string(),
             });
         }
         self.ensure_language_profile_codegen_support(&metadata, checked_ir.raw(), authenticated)?;
@@ -2214,6 +2244,9 @@ impl CodeGenerator {
         let requires_byte_output_runtime = ir_functions
             .values()
             .any(|function| Self::contains_checked_stdout_write(&function.body));
+        let requires_diagnostic_runtime = ir_functions
+            .values()
+            .any(|function| Self::contains_checked_stderr_write(&function.body));
         let mut generic_enum_identities = BTreeSet::new();
         if let Some(metadata) = &self.checked_metadata {
             Self::collect_metadata_generic_enum_identities(metadata, &mut generic_enum_identities);
@@ -2257,6 +2290,9 @@ impl CodeGenerator {
         }
         if requires_byte_output_runtime {
             llvm_ir.push_str("declare i32 @aero_stdout_write_byte(i32)\n\n");
+        }
+        if requires_diagnostic_runtime {
+            llvm_ir.push_str("declare i32 @aero_stderr_write_byte(i32)\n\n");
         }
         if requires_array_bounds_trap {
             llvm_ir.push_str("declare void @llvm.trap()\n\n");
@@ -2557,6 +2593,15 @@ impl CodeGenerator {
                     };
                     llvm_ir.push_str(&format!(
                         "  %reg{result} = call i32 @aero_stdin_read_byte()\n"
+                    ));
+                }
+                Inst::CheckedStderrWriteByte { result, value } => {
+                    let Value::Reg(result) = result else {
+                        unreachable!("verified stderr write result is a result register")
+                    };
+                    let value = self.value_to_i32_operand(llvm_ir, value);
+                    llvm_ir.push_str(&format!(
+                        "  %reg{result} = call i32 @aero_stderr_write_byte(i32 {value})\n"
                     ));
                 }
                 Inst::CheckedStdoutWriteByte { result, value } => {
@@ -5657,3 +5702,7 @@ fn test_infinite_loop_structure() {
     assert!(llvm_ir.contains("br label %loop_body"));
     assert!(llvm_ir.contains("loop_body:"));
 }
+
+#[cfg(test)]
+#[path = "stderr_checked_backend_tests.rs"]
+mod stderr_checked_backend_tests;

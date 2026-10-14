@@ -30,15 +30,32 @@ use std::time::Instant;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const PRODUCTION_RUNTIME_SOURCE: &[u8] = include_bytes!("../runtime/aero_runtime.c");
+const DIAGNOSTIC_RUNTIME_SOURCE: &[u8] = include_bytes!("../runtime/aero_diagnostic_runtime.c");
 
 fn compile_production_runtime(
     clang_bin: &str,
     source_file: &Path,
     object_file: &Path,
 ) -> Result<(), String> {
-    fs::write(source_file, PRODUCTION_RUNTIME_SOURCE).map_err(|error| {
+    compile_embedded_runtime(
+        clang_bin,
+        source_file,
+        object_file,
+        PRODUCTION_RUNTIME_SOURCE,
+        "Aero runtime",
+    )
+}
+
+fn compile_embedded_runtime(
+    clang_bin: &str,
+    source_file: &Path,
+    object_file: &Path,
+    source: &[u8],
+    description: &str,
+) -> Result<(), String> {
+    fs::write(source_file, source).map_err(|error| {
         format!(
-            "Error writing embedded Aero runtime source to {}: {error}",
+            "Error writing embedded {description} source to {}: {error}",
             source_file.display()
         )
     })?;
@@ -52,7 +69,7 @@ fn compile_production_runtime(
         .arg(object_file)
         .output()
         .map_err(|error| {
-            format!("Error executing clang for embedded Aero runtime ({clang_bin}): {error}")
+            format!("Error executing clang for embedded {description} ({clang_bin}): {error}")
         })?;
 
     if !output.status.success() {
@@ -63,11 +80,81 @@ fn compile_production_runtime(
     }
     if !object_file.is_file() {
         return Err(format!(
-            "embedded Aero runtime compilation reported success without producing {}",
+            "embedded {description} compilation reported success without producing {}",
             object_file.display()
         ));
     }
 
+    Ok(())
+}
+
+fn compile_run_runtimes(
+    clang_bin: &str,
+    artifacts: &RunArtifactPaths,
+    language_profile: LanguageProfile,
+) -> Result<Vec<PathBuf>, String> {
+    compile_production_runtime(
+        clang_bin,
+        &artifacts.runtime_source_file,
+        &artifacts.runtime_obj_file,
+    )?;
+    let mut objects = vec![artifacts.runtime_obj_file.clone()];
+    if language_profile == LanguageProfile::ExactI32ByteDiagnosticsV0 {
+        compile_embedded_runtime(
+            clang_bin,
+            &artifacts.diagnostic_source_file,
+            &artifacts.diagnostic_obj_file,
+            DIAGNOSTIC_RUNTIME_SOURCE,
+            "Aero diagnostic runtime",
+        )?;
+        objects.push(artifacts.diagnostic_obj_file.clone());
+    }
+    Ok(objects)
+}
+
+fn link_cpu_program(
+    clang_bin: &str,
+    llc_bin: Option<&str>,
+    artifacts: &RunArtifactPaths,
+    runtime_objects: &[PathBuf],
+) -> Result<(), String> {
+    let input = if let Some(llc_bin) = llc_bin {
+        let llc_output = Command::new(llc_bin)
+            .arg("-filetype=obj")
+            .arg(&artifacts.ll_file)
+            .arg("-o")
+            .arg(&artifacts.obj_file)
+            .output()
+            .map_err(|err| format!("Error executing llc ({llc_bin}): {err}"))?;
+        if !llc_output.status.success() {
+            return Err(format!(
+                "Error running llc: {}",
+                String::from_utf8_lossy(&llc_output.stderr)
+            ));
+        }
+        &artifacts.obj_file
+    } else {
+        println!("llc not found in PATH. Falling back to direct clang LLVM IR compilation.");
+        &artifacts.ll_file
+    };
+    let clang_output = Command::new(clang_bin)
+        .arg(input)
+        .args(runtime_objects)
+        .arg("-o")
+        .arg(&artifacts.exe_file)
+        .output()
+        .map_err(|err| format!("Error executing clang ({clang_bin}): {err}"))?;
+    if !clang_output.status.success() {
+        let stage = if llc_bin.is_some() {
+            "clang"
+        } else {
+            "clang on LLVM IR fallback path"
+        };
+        return Err(format!(
+            "Error running {stage}: {}",
+            String::from_utf8_lossy(&clang_output.stderr)
+        ));
+    }
     Ok(())
 }
 
@@ -145,6 +232,8 @@ struct RunArtifactPaths {
     obj_file: PathBuf,
     runtime_source_file: PathBuf,
     runtime_obj_file: PathBuf,
+    diagnostic_source_file: PathBuf,
+    diagnostic_obj_file: PathBuf,
     exe_file: PathBuf,
     gpu_obj_file: PathBuf,
 }
@@ -233,6 +322,8 @@ fn create_run_artifact_paths(
     let obj_file = run_dir.join(format!("{}.o", safe_stem));
     let runtime_source_file = run_dir.join("aero_runtime.c");
     let runtime_obj_file = run_dir.join("aero_runtime.o");
+    let diagnostic_source_file = run_dir.join("aero_diagnostic_runtime.c");
+    let diagnostic_obj_file = run_dir.join("aero_diagnostic_runtime.o");
     let exe_name = if cfg!(windows) {
         format!("{}.exe", safe_stem)
     } else {
@@ -251,6 +342,8 @@ fn create_run_artifact_paths(
         obj_file,
         runtime_source_file,
         runtime_obj_file,
+        diagnostic_source_file,
+        diagnostic_obj_file,
         exe_file,
         gpu_obj_file,
     })
@@ -1847,7 +1940,7 @@ fn dispatch_cli(args: &[String]) -> CliStatus {
 fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String> {
     let usage = || {
         format!(
-            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]",
+            "Usage: {} check <input.aero> [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0|exact-i32-byte-diagnostics-v0>]",
             args.first().map(String::as_str).unwrap_or("aero")
         )
     };
@@ -1890,13 +1983,13 @@ fn parse_check_args(args: &[String]) -> Result<(String, LanguageProfile), String
 
 fn build_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]"
+        "Usage: {program_name} build <input.aero> -o <output.ll> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--require-llvm-verifier] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0|exact-i32-byte-diagnostics-v0>]"
     )
 }
 
 fn run_usage(program_name: &str) -> String {
     format!(
-        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>]"
+        "Usage: {program_name} run <input.aero> [--target <cpu|rocm|cuda>] [--gpu <arch>] [--language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0|exact-i32-byte-diagnostics-v0>]"
     )
 }
 
@@ -2287,8 +2380,6 @@ fn run_aero_program_with_artifacts(
     artifacts: &RunArtifactPaths,
 ) -> Result<Option<i32>, String> {
     let ll_path = artifacts.ll_file.to_string_lossy().to_string();
-    let obj_path = artifacts.obj_file.to_string_lossy().to_string();
-    let runtime_obj_path = artifacts.runtime_obj_file.to_string_lossy().to_string();
     let exe_path = artifacts.exe_file.to_string_lossy().to_string();
     let gpu_obj_path = artifacts.gpu_obj_file.to_string_lossy().to_string();
 
@@ -2309,60 +2400,18 @@ fn run_aero_program_with_artifacts(
                 "Error executing clang: program not found. Make sure LLVM/clang is installed and in your PATH."
                     .to_string()
             })?;
-            compile_production_runtime(
-                &clang_bin,
-                &artifacts.runtime_source_file,
-                &artifacts.runtime_obj_file,
-            )?;
-
-            if let Some(llc_bin) = find_llvm_tool("llc") {
-                let llc_output = Command::new(&llc_bin)
-                    .args(["-filetype=obj", &ll_path, "-o", &obj_path])
-                    .output()
-                    .map_err(|err| format!("Error executing llc ({}): {}", llc_bin, err))?;
-
-                if !llc_output.status.success() {
-                    return Err(format!(
-                        "Error running llc: {}",
-                        String::from_utf8_lossy(&llc_output.stderr)
-                    ));
-                }
-
-                let clang_output = Command::new(&clang_bin)
-                    .args([&obj_path, &runtime_obj_path, "-o", &exe_path])
-                    .output()
-                    .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
-
-                if !clang_output.status.success() {
-                    return Err(format!(
-                        "Error running clang: {}",
-                        String::from_utf8_lossy(&clang_output.stderr)
-                    ));
-                }
-            } else {
-                // Fallback path: clang can compile textual LLVM IR directly.
-                println!(
-                    "llc not found in PATH. Falling back to direct clang LLVM IR compilation."
-                );
-
-                let clang_output = Command::new(&clang_bin)
-                    .args([&ll_path, &runtime_obj_path, "-o", &exe_path])
-                    .output()
-                    .map_err(|err| format!("Error executing clang ({}): {}", clang_bin, err))?;
-
-                if !clang_output.status.success() {
-                    return Err(format!(
-                        "Error running clang on LLVM IR fallback path: {}",
-                        String::from_utf8_lossy(&clang_output.stderr)
-                    ));
-                }
-            }
+            let runtime_objects =
+                compile_run_runtimes(&clang_bin, artifacts, build_config.language_profile)?;
+            let llc_bin = find_llvm_tool("llc");
+            link_cpu_program(&clang_bin, llc_bin.as_deref(), artifacts, &runtime_objects)?;
 
             let mut run_command = Command::new(&exe_path);
             run_command.stdin(
                 if matches!(
                     build_config.language_profile,
-                    LanguageProfile::ExactI32ByteInputV0 | LanguageProfile::ExactI32ByteIoV0
+                    LanguageProfile::ExactI32ByteInputV0
+                        | LanguageProfile::ExactI32ByteIoV0
+                        | LanguageProfile::ExactI32ByteDiagnosticsV0
                 ) {
                     Stdio::inherit()
                 } else {
@@ -2538,7 +2587,7 @@ fn print_help(program_name: &str) {
     println!("    -h, --help       Print this help message");
     println!("    -v, --version    Print version information");
     println!(
-        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0>  Select the compiler-enforced source profile"
+        "    --language-profile <experimental|stable-scalar-v0|exact-i32-array-v0|exact-i32-record-result-v0|exact-i32-byte-buffer-v0|exact-i32-byte-input-v0|exact-i32-byte-io-v0|exact-i32-byte-diagnostics-v0>  Select the compiler-enforced source profile"
     );
     println!();
     println!("EXECUTION BOUNDARIES:");
@@ -2695,6 +2744,7 @@ fn extract_error_line(error_msg: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    include!("stderr_cli_runtime_tests.rs");
     use std::fs;
 
     #[test]
@@ -2802,6 +2852,10 @@ mod tests {
                 LanguageProfile::ExactI32ByteInputV0,
             ),
             ("exact-i32-byte-io-v0", LanguageProfile::ExactI32ByteIoV0),
+            (
+                "exact-i32-byte-diagnostics-v0",
+                LanguageProfile::ExactI32ByteDiagnosticsV0,
+            ),
         ] {
             let check = vec![
                 "aero".to_string(),
@@ -2866,9 +2920,28 @@ mod tests {
             language_profile: LanguageProfile::ExactI32ByteIoV0,
             ..BuildConfig::default()
         };
+        let exact_byte_diagnostics = BuildConfig {
+            language_profile: LanguageProfile::ExactI32ByteDiagnosticsV0,
+            ..BuildConfig::default()
+        };
         let source = "fn main() -> int { return 0; }";
 
         for modules in [None, Some(b"module-frame".as_slice())] {
+            let diagnostic_key = compilation_cache_key(source, &exact_byte_diagnostics, modules);
+            for previous in [
+                &experimental,
+                &stable,
+                &exact_array,
+                &exact_record_result,
+                &exact_byte_buffer,
+                &exact_byte_input,
+                &exact_byte_io,
+            ] {
+                assert_ne!(
+                    diagnostic_key,
+                    compilation_cache_key(source, previous, modules)
+                );
+            }
             let experimental_key = compilation_cache_key(source, &experimental, modules);
             let stable_key = compilation_cache_key(source, &stable, modules);
             let exact_array_key = compilation_cache_key(source, &exact_array, modules);
@@ -2953,6 +3026,7 @@ mod tests {
             "exact-i32-byte-buffer-v0",
             "exact-i32-byte-input-v0",
             "exact-i32-byte-io-v0",
+            "exact-i32-byte-diagnostics-v0",
         ] {
             for mut arguments in cases.clone() {
                 let profile_index = arguments

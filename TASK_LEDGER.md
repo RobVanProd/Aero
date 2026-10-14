@@ -1,5 +1,1111 @@
 # Aero Task Ledger
 
+## H1C-SCOPED-001 - scoped names, types and ownership: contract preparation
+
+- Authorization: user requested continued scoped names, types and ownership
+  after H1-AST-001. Baseline is published development commit
+  6d98b07eb7cf1b00d6be5cb6ea61cfe42cdd613d, tree
+  7aeff08fd323011d0e393f3d13ba8778b857acac. Fetch completed exit0 and the
+  assigned integration branch has zero ahead/behind divergence. The completed
+  AST local gate is recorded in that commit; all13 exact-head public checks
+  were reread as COMPLETED/SUCCESS before beginning this contract.
+- Observed behavior: the canonical connected AST is authenticated but refuses
+  its first identifier with semantic17/code2 and no facts. Rich literal syntax
+  refuses status28; representation alone supplies no scoped meaning.
+- Hypothesis: existing accepted compiler-subset rules can be transplanted into
+  the Aero semantic group in bounded, independently tested increments without
+  changing parser meaning or activating unchecked lowering.
+- Frozen preparation boundary: no new language semantics, no Rust product or
+  runtime change, no checked-IR/verifier/emitter/driver/main change, no capacity
+  increase. Existing diagnostics and arithmetic behavior remain until an exact
+  successor contract is approved. Type/ownership ambiguities are mandatory stops.
+- Lead owns this ledger and H1_SCOPED_SEMANTICS_DESIGN.md plus affected state/
+  capability/readiness documents. Two read-only auditors map existing accepted
+  scope/type/ownership authority and semantic storage/test boundaries; neither
+  may edit, commit, build or run native tests. Product writing is not yet assigned.
+- Acceptance preparation: freeze declarations, resolution order, type rules,
+  ownership state, bounded records, diagnostics, and the unchanged downstream
+  refusal before edits; require an independent semantic oracle and genuine native
+  red-first tests. Focused tests then repository-root ./tools/test.sh are mandatory.
+- Risks/stop conditions: uncertain shadowing/branch ownership, unsupported types
+  accidentally becoming Int, invalid input reaching IR, more than two compiler
+  phases, canonical source exhausting unchanged ceilings, or tests being retuned
+  to product output. Report the exact obstruction instead of widening scope.
+- Run results: none for this new task. Preparation does not claim implementation.
+
+### H1C-SCALAR-001 - first typed scalar scope slice
+
+- Lead froze H1_SCOPED_SEMANTICS_DESIGN.md: int parameters/local bindings,
+  exact Int/Bool expressions, Copy facts, scopes/shadowing, mutability and
+  condition/Return rules. Calls/Result/Match/ByteBuffer/references remain
+  explicitly unsupported, classified before new scalar name/type analysis.
+  Complete rich facts end at semantic29/code1 with checked IR unattempted.
+- One vertical writer may own compiler.aero's semantic group only,
+  self_host_source_ingestion_tests.rs, support/self_host_connected_ast.rs
+  (narrow exports/explicit successor grading, old model preserved), and new
+  support/self_host_scoped_semantics.rs. Lead alone edits docs. No other writer.
+- First authorization is regression/model preparation only. The writer must
+  report exact storage layout/resource diagnostics/trace derivation before
+  production storage edits and completed genuine native reds before product fixes.
+- All completed run rows below start with an empty result and are filled only
+  after reading their actual exit status. No new-task test result exists yet.
+- Completed read-only audits: scoped_semantics_audit and semantic_storage_audit
+  found no mandatory ambiguity for the bounded scalar rules. They identified
+  non-Copy Result path joins, exact ByteBuffer loan evaluation order, annotation/
+  Bool code collision and automatic checked-entry as material later-slice risks.
+  Neither changed files or executed tests; inspection is not new validation.
+- Before production edits, lead approved the writer's bounded reverse contexts
+  [functionNode,scopeBlockNode]2words/node, immutable block history
+  [previousHistoryId,blockNode,intervalStart]3words/Block, and scalar bindings
+  [nameId,functionNode,scopeBlockNode,declarationNode,mutable]5words/binding.
+  Each has at mostnode_count<=65536 records:524288/786432/1310720 bytes.
+  Heap codes26/8,26/9,26/10 respectively use the current token-authenticated
+  node's exact location after origin auth. Old unlocated26/4..7 stay unchanged.
+  The writer must still complete independent oracle/handfacts/native reds
+  before product fixes, derive owner traces before captures, and preserve
+  function isolation/parameter outer-scope identity across reverse traversal.
+- Pre-edit storage amendment: the initial3-store proposal above was replaced
+  before any product write. Final layout is reverse contexts
+  [functionNode,scopeBlockNode,assignmentTargetEvent]3words/node/786432 bytes
+  and bindings5words/declaration/1310720 bytes; heap26/8 and26/9 respectively,
+  both fully located after authentication. Nested Block parent is already in
+  its immutable context and crossing starts[Block] restores it, so separate
+  history is unnecessary. Assignment events at starts[Assignment] ensure target
+  lookup/immutability precedes RHS name failures. Name/duplicate/immutable
+  failures have0facts; a separate ascending type pass can retain exact prefixes.
+  No third store or capacity widening; full final design supersedes proposal.
+- Compact-routing clarification before product: modules with no kinds24..38
+  keep their entire legacy route, including rejected calls/references/identifiers.
+  New preclassification applies only to rich modules. This is not a blanket
+  diagnostic-priority change to previously compact programs.
+- Preparation chronology (completed statuses read before recording):
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-oracle-preparation.log | 0 | 5 pure oracle tests passed; no native or product claim |
+  | h1c-scalar-native-red-o0-o2.log, first invocation | 1 | 0 passed/1 harness failure before native execution: expected67 versus actual signature ABI68; not a product red |
+
+  The narrow harness correction preserves all67 pipeline fields plus the
+  parameter-count field. Its corrected native replay is pending; no result
+  is inferred from the earlier preparation failure.
+- Completed corrected preparation (actual statuses read before this entry):
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-native-red-o0-o2-corrected.log | 1 | 0 passed/1 assertion failure,637.88s; all22 native vectors completed;20 returned90 at O0/O2 for the10 new scalar behavior families; the already-correct initializer-visible negative returned91 twice and is a control, not a red |
+  | h1c-scalar-oracle-final-preparation.log | 0 | 10 pure tests passed, including exact hand facts/contexts/bindings, compact predecessor parity, function/sibling scope, Copy/mutability and65533-node/16381-depth independent context construction |
+
+  Source remained SHA2562506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75
+  through these runs. This is genuine pre-edit failure evidence, not an accepted
+  new capability. Lead authorizes the sole writer to implement the frozen scalar
+  semantic group now. Extended23-case vectors and observer/resource/deep controls
+  must run after fixes; repeating the same expensive pre-edit canonical build
+  is not necessary. No test is skipped, deleted, weakened or counted as green.
+- Initial production candidate is source SHA256
+  fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd,
+  501040bytes/MD5934b67660b06bf6d466c3965d0aaebbf. Both read-only source
+  audits found no concrete algorithm/semantic blocker on that exact source.
+  Root independently compared the unchanged complete prefix and checked-IR/
+  verifier/emitter/driver/main suffix against6d98; comparison completedexit0.
+  Inspection does not prove native correctness, allocation cleanup or performance.
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-production-pure-preflight.log | 0 | 12 pure tests passed; exact additive source reconstruction and independent census before changed native replay:54567nodes/65456tokens/928names,10969-node headroom; no existing cap widened |
+
+  The large valid-Bool witness is independently derived before native replay:
+  10000nested While,120031sourcebytes/60015tokens/60009nodes,
+  20002values/10000operators/10000controls and complete29/root1 facts. The
+  previous16381-deep Int-condition graph remains parser-legal but now rejects
+  condition type31; it is not described as a positive typed-program test.
+  Post-fix native vectors, exact arena capture, heap failure and deep tests are
+  pending. An extra compact literal-call/no-Identifier preservation witness was
+  requested after static review; it must retain old27/2 and its prior fact prefix.
+- Resource precision before final validation: contexts786432 and bindings1310720
+  are maximum logical record bytes; existing ByteBuffer doubling can reserve
+  1048576 and2097152 physical bytes respectively. These capacities are derived,
+  not observed results or widened syntax/node limits. Native capture must ignore
+  poisoned reserved tails as records and retain exact allocator-size checks.
+  The final compact-literal-call regression was added after the running23-case
+  focused binary was built; final gate will execute24cases/48O0O2 vectors.
+- Final-gate Bool/shadow observer witness is independently frozen before replay:
+  22nodes, outerBlock20/innerBlock13; bindings[2,22,20,2,0] and[2,22,13,8,0],
+  comparisonnode5 is Bool2. First-use owners source1/tokens2/names3/params4/
+  origins5/nodes6/values7/operators8/controls9/starts10/history11/ends12/ranges13/
+  symbols14/contexts15/bindings16/facts17; cleanup
+  16,15,13,12,11,10,17,14,5,8,7,9,4,6,2,3,1. This third witness was added
+  after the running focused binary's two-witness snapshot; the final gate must
+  validate it. These are predictions, not measured/corrected allocation identities.
+- Completed first post-fix focused run, after actualexit1 was read:
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-postfix-focused-o0-o2.log | 1 | 15passed/1failed,958.19s;23cases/46 full native vectors,8 new heap-failure runs and2 valid10000-depth native runs passed; observer stopped at its incorrect prederived cleanup trace before arena assertions |
+
+  Wrong prediction remains visible above: history and ends first-use IDs were
+  reversed. Unchanged map_index1 begins at annotation/literal node1; ast_ends
+  appends for every node, whereas history first pushes only at a closing-event
+  Block/Match/compactFunction. Accepted historical fault tests independently
+  already pin ends growth atnode3 and history after preceding end words. Lead
+  reread these source sites before approving this test-only correction:
+  parameter ends9/history10, cleanup14,13,11,9,10,8,15,12,5,7,4,6,2,3,1;
+  mutation ends8/history9, cleanup13,12,10,8,9,7,14,11,4,6,5,2,3,1;
+  shadow ends11/history12, cleanup16,15,13,11,12,10,17,14,5,8,7,9,4,6,2,3,1.
+  New context/binding/fact IDs, record contents, counters and all assertions
+  remain unchanged. No producer change or output-derived owner selection is
+  authorized. The corrected observer/final pure controls must pass before gate.
+- Corrected current-source pure controls completedexit0,12passed/0failed,
+  h1c-scalar-corrected-observer-pure-preflight.log (0.24s), read before this
+  entry. They include compact literal-call27/2 with1fact and independent
+  Bool/shadow22-node expectations. Corrected final focused native replay is
+  still pending; no observer or whole-matrix pass is inferred yet.
+- Corrected complete focused replay finished before this entry was written:
+
+  | Run | Completed exit | Result |
+  |---|---:|---|
+  | h1c-scalar-final-focused-o0-o2.log | 0 | 16passed/0failed/0ignored,946.93s; all24cases/48 full native O0/O2 vectors,3 observer witnesses/6 exact context-binding-fact captures,8 located new-store allocation/growth failures,2 valid10000-depth native runs passed |
+
+  Source remains fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd.
+  Corrected traces, exact records, counters, poisoned capacity tails, retained
+  failure bytes and leak/size checks are now execution evidence, not predictions.
+  Historical compact model/source transforms and all existing assertions remain.
+  Full compatibility/root validation is still required. The final fixed-tree
+  gate result belongs only in the implementation commit message after completion,
+  never in these files before or after the run they purport to verify.
+- Frozen prospective owner traces before product/capture, not observed results:
+  parameter `fn f(x:int)->int{return x;}` first allocations source1/tokens2/
+  names3/parameters4/origins5/nodes6/values7/starts8/history9/ends10/ranges11/
+  symbols12/contexts13/bindings14/facts15; cleanup
+  14,13,11,10,9,8,15,12,5,7,4,6,2,3,1. Mutable-Let witness without parameters:
+  source1/tokens2/names3/origins4/nodes5/values6/starts7/history8/ends9/ranges10/
+  symbols11/contexts12/bindings13/facts14; cleanup
+  13,12,10,9,8,7,14,11,4,6,5,2,3,1. Contexts then bindings are declared after
+  ast_ranges; runtime allocates only at firstpush and preserves IDs across growth.
+- Independent oracle inspection found unsupported classification before rich
+  route detection would incorrectly change compact rejected-call diagnostics.
+  Lead requested legacy delegation first plus direct old-model comparison tests.
+  This preparation correction is not an implementation result; rich native
+  pre-edit probes remain pending and all historical models remain intact.
+- Mixed-invalid priority is frozen explicitly, not claimed Rust parity: name-only
+  traversal resolves a Let initializer before checking the completed declaration's
+  duplicate. `let x:int=1;let x:int=missing;` therefore fails17/2 with0facts before
+  30/2. Current Rust checks duplicate first; both reject this invalid program.
+  Valid initializer visibility and duplicate rejection stay unchanged. Lead
+  required a direct mixed-invalid regression without expanding the event layout.
+
+## H1-AST-001 - complete connected representation for the admitted self-source grammar
+
+- Date/authorization: 2026-10-13, user requested continued AST representation.
+  Starting published checkpoint 7237dae7ec21b49b71dd142ac858bba702b8b3b1,
+  tree d1f6dcf506e88fc3dc1cd3415dd8b024628807e9, has a completed local root
+  gate recorded in its commit. Public repair checks subsequently completed:
+  all13 are COMPLETED/SUCCESS on that exact head, and the watcher completed
+  exit0. Product edits were held until those statuses were read and the lead
+  sent the explicit green signal; H1-AST-001 implementation is now authorized.
+- Observed: syntax is consumed but parameters, declarations, assignments,
+  ordered statements, blocks, conditions and Match ownership are disconnected.
+  The current canonical source has 19,589 arena nodes but only 240 reachable.
+  Native AST capture does not yet exist. These are predecessor observations,
+  not claims about the new representation.
+- Frozen representation: H1_CONNECTED_AST_DESIGN.md in full, kinds 24..38,
+  four nonnegative words, earlier-child IDs, exact source provenance and type
+  spellings. Parameter annotations remain int/Result<int,int>; locals also
+  permit ByteBuffer. No grammar or language meaning is added. Keep the compact
+  zero-parameter single-Return encoding byte-for-byte; rich functions use the
+  descriptor/Block/statement cells. Preserve all current arithmetic and CAP-059
+  emitted LLVM, malformed-input priority/location and negative type boundaries.
+- Full checkpoint scope includes parameters, annotated mutable/immutable lets,
+  assignment targets, statement order, every Return, blocks, If/else/else-if,
+  While, Match scrutinee/constructor/binder/arm order, references and call order.
+  A partial params/binding implementation cannot claim complete zero-orphan
+  representation while the admitted control/Match grammar remains disconnected.
+- One vertical writer owns only examples/aero_self_host_v0/compiler.aero
+  (parser representation/continuations plus structural/origin/connectivity
+  authentication and the frozen rich refusal),
+  src/compiler/tests/self_host_source_ingestion_tests.rs, and new
+  src/compiler/tests/support/self_host_connected_ast.rs. Do not edit the Rust
+  compiler, runtime, checked-IR group, verifier/emitter/driver groups or main.
+  Root lead owns this ledger, H1_CONNECTED_AST_DESIGN.md clarification if needed,
+  PROJECT_STATE.md, SELF_HOSTING_ROADMAP.md, BOOTSTRAP_CONVERGENCE_READINESS.md
+  and SPEC_IMPLEMENTATION_MATRIX.md. Other agents are read-only reviewers.
+- Phase limit: parser representation plus semantic authentication only. Function
+  symbols retain [1,name,itemNode,1]; their current builder does not inspect
+  kind-19's left child. Authenticate complete structure/origins, build function
+  symbols, preserve identifier-use refusal first, then reject the first new
+  kind in node order with semantic status28/code=kind and its exact origin.
+  Facts remain empty; checked IR and later phases are unattempted. Do not
+  manufacture Int facts for structural nodes or relax fact_count=node_count.
+- Lead resource-diagnostic decision before start-sidecar implementation: failed
+  allocation/reallocation is semantic26/code4 at the current structurally
+  validated node, with unlocated offset-1/line0/column0 before origin auth.
+  Proposed code2 was rejected because HEAD's existing symbol heap failure is
+  26/2; origins are26/1 and facts26/3. Capacity statuses24/25 are distinct and
+  unchanged. Never describe raw unverified origin words as authenticated.
+  Invalid connectivity/occurrence remains27/1; facts/later phases stay empty.
+- Lead approved equivalent origin coordinate lookup by integral binary search
+  over the already source-coordinate-authenticated, strictly ordered token table.
+  Exact kind/start/line/column and all role/name/type/occurrence obligations remain;
+  non-token, EOF and wrong-coordinate negatives are required. No phase, meaning,
+  public performance claim or test obligation changes. The connectivity pass is
+  after the parse expectation comparison and before origins, so its OOM cannot
+  truncate a parser checksum and be mistaken for parser-only exit80.
+- Native fault-red review froze minimal role fixes: Result's two inner int tokens
+  must have identifier kind1 as well as exact bytes; Let requires '=' after its
+  complete allowed annotation. Later location fallback must preserve new pre-origin
+  unlocated failures, while retaining original origin/symbol/fact behavior.
+- Lead work-hazard decision before final brace-auth changes: repeated nested-body
+  scans are replaced by one monotone closing-event token walk. Keep starts unchanged;
+  add immutable two-word brace history (<=node_count, <=65,536 records/524,288 bytes)
+  and one-word/node end indices (<=65,536 words/262,144 bytes). Closing events map
+  Block30/Match37/compactFn19 in postorder; richFn19 inherits its body's close.
+  Exact opener ownership and missing/unmatched/extra events remain27/1; new heap
+  failures26/5(history),26/6(ends) are unlocated at current node. No lower grammar
+  cutoff, existing capacity widening, language meaning, third phase or backend
+  change is authorized. New source/count/trace derivation and both stores' exact
+  alloc/realloc failure tests are required before acceptance. Full frozen design
+  is in H1_CONNECTED_AST_DESIGN.md.
+- Lead-review correction kept visible: an initial review request mistakenly
+  proposed accepting functions with only nested Returns and adding a presumed
+  duplicate-name refusal to the successor model. After reading immutable HEAD
+  parser_cycle_state21's block_state2 requirement, oracle::parser_stop's explicit
+  nested-Return exclusion, and the existing symbol append loop, both requests
+  were withdrawn before implementation. Preserve outer terminal Return grammar
+  and existing symbol behavior;27/3 authenticates chains/schema, not duplicate
+  names. Neither a model nor production defect is inferred on those points.
+- Final c585c663 static auth review identified ordinary-expression occurrence
+  ownership as an additional obligation of the already frozen every-node guarantee.
+  A first literal relocated to a second identical literal is a specific unrun
+  hypothesis; it is not a claimed native result. Freeze/run relocation and swap
+  negatives before fixes. Lead approved one append-only two-word/node source-range
+  store (<=65,536 records/524,288 bytes), leaving starts/history/ends unchanged.
+  Iterative exact adjacency/ranges authenticate operators/calls/grouping and each
+  owned initializer/Return/condition/arm slot; strictly increasing atom origins
+  prevent duplicate grouping work. Wrong occurrence27/1, current validating owner
+  with authenticated tuple; new heap failure26/7 is unlocated and excluded from
+  raw-origin reload like26/4..6. No new grammar, cutoff, type/name meaning or phase
+  is authorized. Full contract and new derivation/failure obligations are in design.
+- Capacity: source1,048,576 bytes, tokens262,144, names16,384; nodes/value/operator/call/control
+  records retain 65,536 ceilings. Control records are20 words/80 bytes, including
+  replacement records (max5,242,880 bytes); start-index sidecar is one i32 per
+  node (max262,144 bytes). Old parameter store has no independent count ceiling;
+  new annotations/parameters consume the node budget. No bound may be widened
+  to fit implementation growth. Derive successor source/arena counts from the
+  chosen representation before native replay; do not tune them to observed output.
+- Observer preparation follows SELFHOST-AST-OBSERVE-001: unchanged test runtime
+  included once with only three allocator export names renamed; forwarding
+  wrappers track stable identities through reallocations, poison fresh capacity
+  with0xA5, capture before release and write artifacts after product returns.
+  Keep exact input, forbidden output, allocation failure/counters/size/leak checks.
+  Select owners by independently derived first-use and cleanup trace, never by
+  declaration order, capacity as logical length, or searching expected contents.
+- Frozen predecessor owner traces to validate, not assumed observations:
+  compact/mutation first allocation source1,tokens2,names3,origins4,nodes5,values6;
+  cleanup4,6,5,2,3,1. Two-param first allocations source1,tokens2,names3,
+  parameters4,origins5,nodes6,values7; cleanup5,7,4,6,2,3,1. bytes_new allocates
+  nothing; first push allocates8 bytes and growth doubles. Reallocation preserves
+  identity and failed reallocation preserves owner/bytes. Derive successor traces
+  anew if parameter/annotation first-use changes; never retune a predicted trace.
+- Exact initial source bytes and hand-derived node records [kind,payload,left,right]:
+  compact: fn f()->int{return 1;}
+  [1,1,0,0] [18,0,1,0] [19,1,2,0]; origin offsets19,12,0 and token kinds2,6,3.
+  parameters: fn f(a:int,b:Result<int,int>)->int{return 1;}
+  [24,1,0,0] [25,2,1,0] [24,2,0,0] [25,4,3,2] [1,1,0,0]
+  [18,0,5,0] [29,0,0,6] [30,0,7,0] [38,1,4,8] [19,1,9,0];
+  offsets7,5,13,11,42,35,35,34,0,0; token kinds1,1,1,1,2,6,6,12,3,3.
+  mutation: fn f()->int{let mut x:int=1;x=2;return 3;}
+  [24,1,0,0] [1,1,0,0] [27,3,1,2] [29,0,0,3] [1,2,0,0]
+  [28,3,5,0] [29,0,4,6] [1,3,0,0] [18,0,8,0] [29,0,7,9]
+  [30,0,10,0] [38,1,0,11] [19,1,12,0];
+  offsets22,26,12,12,30,28,28,39,32,32,11,0,0;
+  token kinds1,2,4,4,2,1,1,2,6,6,12,3,3.
+  All single-line origins are [nodeId,offset,1,offset+1,tokenKind]. Full expected
+  graphs must be defined independently before running the changed producer.
+- Lead clarification before product edits: MatchArm kind35 anchors to its own
+  constructor token; its comma is only the append trigger. The independent
+  asymmetric else-if/While/arbitrary Alpha-Beta Match witnesses contain29/20/18
+  nodes respectively. Preserve arbitrary constructor spellings in hand-only
+  witnesses; Rust projection applies only where Rust parses the same source.
+  Independent physical continuation count is While +2*If +If-with-else; an
+  else-if counts as its parent's else and as a child If, not an extra Block.
+- Acceptance ordering: observer compact green and genuine O0/O2 parameter/
+  statement red comparisons before product changes; then nested/asymmetric If,
+  While, else-if, Match binders/arm swaps, borrowed-call argument order and
+  functions with differing parameter lists. Compare actual nodes/origins to hand
+  arrays plus an independent normalized Rust-AST projection. On complete parse,
+  authenticate postorder occurrence intervals with root start1 and root=nodeCount,
+  proving no gaps, shared nodes or orphans. Preserve parser-only exit80 label;
+  structural capture is not semantic authentication or output evidence.
+- Review successor amendments explicitly: historical whole-source reconstruction,
+  source census and rich partial-arena/refusal expectations necessarily change.
+  Preserve predecessor models/evidence; add a successor oracle rather than
+  replacing expected numbers with captured producer output. Compact malformed
+  parse append ordering and LLVM bytes remain exact. Canonical first identifier
+  becomes scrutinee node3/offset68/line2/column18 by the frozen design, not by tuning.
+  Read-only compatibility review also identifies the out-of-table model-lock
+  native runner's If/assignment shape. Approve its explicit successor grading,
+  while retaining MODEL_LOCK_SHAPES and all predecessor pure-model/contradiction
+  assertions. This is a reviewed representation amendment, not a test skip or
+  a change to grammar priority, expression-work costs or compact emission.
+  Completed integration gate later exposed one expired whole-file equality in
+  the_raise_touched_the_parse_group_and_left_the_verifier_alone: the live AST
+  file was compared directly with its pre-AST CAP-059 reconstruction. Approve
+  only explicit successor identity there: retain all live16 comparisons,
+  17 compared stores,16 capacity-code assignments, both verifier65,536 sentinels
+  and absence of512; preserve the old whole-file equality on expected_h1a_source(),
+  then require live source==expected_successor_source(historical_expected).
+  Current downstream section guards remain. No source behavior, count retuning,
+  test exclusion, semantic change or weaker guard is authorized.
+- Final acceptance: completed focused native tests, corruption/budget/allocation
+  failures and all canonical functions/full-source structural comparisons;
+  full repository-root ./tools/test.sh; recorded-tree evidence in commit message;
+  cumulative draft PR metadata matches the exact public head and exclusions.
+- Read-only preparation reviews: allocator forwarding and owner selection have
+  no blocking finding; independent Rust/graph normalization retains names,
+  annotations, mutability, parameter/statement/branch/Match/call/function order.
+  Object caching retains immutable bytes and compiler identity, not observed
+  arenas or a static owning workspace. These are code-review findings only;
+  no authentication, implementation acceptance or additional native run follows
+  from them. Failure/partial-write controls and representation acceptance remain
+  separate completed-run obligations.
+- Completed predecessor preflight (h1-ast-independent-budget-final.log, exit0):
+  unchanged source334,106 bytes; MD5 13c3d98476f74fdedb211d6765f1485d;
+  SHA256 6b3608f0ed17f0fffb4c1250a1edb1c27bebb56856b492dfcf2aa80925c60c5d;
+  40,155 tokens,699 names,23 functions. The independent Rust-AST occurrence
+  visitor requires33,482 connected nodes/origins,2,792 physical continuations,
+  deepest control14 for these bytes. Per-function additive counts are in that
+  completed log. These are representation requirements, not observed native
+  connected AST output or successor-source counts. Source/token/name/node/control
+  ceilings are asserted unchanged; other operational-store costs remain pending.
+- Completed initial successor preflight, before changed native replay
+  (h1-ast-successor-budget-3.log, exit0,1 passed/0 failed): source422,224 bytes,
+  MD5 84b296caebce65c7f296295b7a09324f,
+  SHA256 1a69b242102a7a728bc20b56bb5f42d1525da4b23f08569ce82a0a45dbef87a8.
+  The source fingerprint was read again and matched the completed preflight.
+  Independent closed Rust-AST visitor:23 functions,43,908 nodes/origins;
+  ingestion52,684 tokens/836 names;3,336 physical continuations,max depth14.
+  Preserved binding_parser_stop operational model on these exact source bytes
+  derives values23,714/operators9,608/calls1,944/parameters100 separately;
+  representation-only appends do not push those expression work stores.
+  All existing ceilings are asserted unchanged. This snapshot is a predicted
+  successor, not a native result or an acceptance claim; later source changes
+  require another independent preflight before replay.
+- Completed bounded-brace successor preflight before native replay
+  (h1-ast-successor-budget-linear-braces-final.log, exit0,1 passed/0 failed):
+  source435,565 bytes, MD5 fe6841fbc2a339d5786c233d991de81e,
+  SHA256 c585c6639c2f2457bd19f79a92843e68d112698107f54a7174f9b91fda1c93d8;
+  fingerprint re-read and matched. Independent visitor:23 functions,
+  45,686 nodes/origins,54,833 tokens/860 names,3,411 physical controls/max depth14.
+  Separate expression model:values24,829/operators10,181/calls2,105/parameters100.
+  Starts and ends each45,686 words/182,744 bytes; distinct source/structural
+  closure derivation1,762 history records/14,096 bytes. Existing/new frozen
+  ceilings are asserted. These are pre-replay expected costs, not native results.
+- Completed source-range successor preflight before fixed native replay
+  (h1-ast-successor-budget-ranges-final.log, exit0,1 passed/0 failed):
+  source464,089 bytes, MD5 d4f39816b59cd84329502f7c7bf1e348,
+  SHA256 2506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75;
+  fingerprint re-read and matched. Independent visitor:23 functions,
+  49,863 nodes/origins,59,778 tokens/890 names,3,575 physical controls/max depth14.
+  Separate expression model:values27,567/operators11,620/calls2,489/parameters100.
+  Starts and ends each49,863 words/199,452 bytes; history1,849 records/14,792 bytes;
+  source ranges49,863 records/398,904 bytes. All frozen ceilings remain asserted.
+  These are independent expected costs, not changed native observations.
+- Grouped-reference authority clarification: preserved parse_expression clears
+  arg_leading at an ordinary grouping '('; '&' is admitted only immediately
+  after a call '(' or argument comma. Keep g((&x),(&mut y),((1))) as the exact
+  parser-negative11 witness, not a positive; add g(&x,&mut y,((1))) as an admitted
+  borrowed/grouped-ordinary-argument positive. This corrects a new test assumption,
+  not the production grammar. No grouping/reference admission is widened.
+- Read-only source-range review on exact2506e2ad snapshot: no remaining blocker
+  found in strict atom order, literal payload, ordered expression/source slots,
+  grouping versus call delimiters, iterative bounded records or diagnostic
+  fallback. Checked IR, verifier, emitter, driver and main compare identical to
+  published7237dae. This is static review only, with no executed tests or
+  acceptance claim; subsequent source edits are outside that reviewed snapshot.
+- Stop: semantic ambiguity, third compiler phase, unexpected checked/backend
+  edits, capacity overrun needing widening, missing independent count derivation,
+  lost work, weakened tests, new ignored tests, or treating syntax as self-hosting.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Baseline prerequisite | AST-BASELINE-001 public repair checks on7237dae; ast-baseline-public-watch.log plus fresh PR92 head/status metadata | Completed watcher exit0; all13 public checks COMPLETED/SUCCESS on the exact published head, including both Linux gates, stable/nightly and Windows native. Read before product green signal. |
+| Observer control | Native compact AST/origin capture O0/O2; h1-ast-observer-compact.log | Completed exit0; 1 passed, 0 failed. Both native captures match the frozen three nodes/origins and independently derived owner trace. |
+| Observer red | Native parameter and statement hand graphs O0/O2; h1-ast-observer-graphs-red.log | Completed exit1; compact 1 passed, parameter/mutation 2 failed. Both O0/O2 captures completed before comparison: predecessor parameters 3 nodes versus frozen 10; mutation 5 versus frozen 13. No product edits. |
+| Observer preparation | h1-ast-observer-preparation-complete.log, combined frozen native/authority controls | Completed exit1; 7 controls passed, 8 intentional representation comparisons failed, 0 ignored. Each failing fixture completed both O0/O2 captures and trace/input/output/counter checks before its exact hand-graph comparison failed. |
+| Independent authority | h1-ast-hand-authority-complete.log and h1-ast-origin-authority.log | Each completed exit0; 1 passed, 0 failed, including caught same-kind origin and illegal type/topology controls. These verify the independent oracle, not product authentication. |
+| Observer failure/tail controls | h1-ast-observer-forwarding.log and h1-ast-observer-tail.log | Each completed exit0; 1 passed, 0 failed. Forwarding O0/O2 reallocation failure and logical-prefix/partial-record checks are observer evidence, not new product allocation-edge coverage. |
+| Independent predecessor budget | h1-ast-independent-budget-final.log | Completed exit0; 1 passed, 0 failed. Exact counts are the predecessor preflight above, not successor-native measurements. |
+| Initial successor budget | h1-ast-successor-budget-3.log, exact1a69b242 source fingerprint | Completed exit0; 1 passed, 0 failed. Counts above were derived before changed native replay, not measured from the producer. |
+| First changed native matrix | h1-ast-connected-parser-first.log on1a69b242 | Completed exit1; 15 passed, 1 failed. All small exact graphs passed O0/O2; canonical observed3,780 nodes versus pre-derived43,908. Diagnosis: stale consumed-brace lookahead after no-else If. No complete-checkpoint claim. |
+| Lookahead successor preflight | h1-ast-successor-budget-lookahead.log on689fa0a7 source | Completed exit0; 1 passed, 0 failed. Source422,417 bytes/MD5 5a8481a1376d789a86cd2bdf1ada16eb; predicted43,911 nodes/origins,52,688 tokens,836 names,3,336 controls,values23,715/operators9,608/calls1,944/parameters100 before fixed replay. |
+| Connected parser/auth focused | h1-ast-connected-parser-and-auth-2.log on689fa0a7 | Completed exit0; 21 passed, 0 failed. O0/O2 all-functions/whole-source native43,911 nodes/origins, normalized equality/zero-orphans/source-role checks; full refusal vectors canonical17/2 atnode3/offset68/line2/column18,23 symbols/0 facts, plus literal-rich28. Small While/If witnesses are postfix controls, not claimed pre-fix reds. |
+| Authentication fault matrix | h1-ast-connected-auth-faults-3.log | Completed exit1; 23 passed, 2 failed. New start-store OOM and pre-origin connectivity vectors expose later legacy fallback overwriting unlocated fields; other wrong-coordinate/token/occurrence controls pass. Preserve this red before minimal fallback fix. |
+| Token-role red | h1-ast-token-role-red.log | Completed exit1; 0 passed, 1 failed. Four completed O0/O2 native runs expose missing Result-inner identifier kind and Let '=' checks, each returning90 instead of its full27/1 vector. Preserve before role fixes. |
+| Bounded-brace successor budget | h1-ast-successor-budget-linear-braces-final.log, exactc585c663 source | Completed exit0; 1 passed, 0 failed. Independent expected costs above precede native replay; replay remains unrecorded until completed status is read. |
+| Bounded-brace native matrix | h1-ast-connected-linear-auth-4.log, exactc585c663 source | Completed exit0; 30 passed, 0 failed, 0 ignored. O0/O2 whole-source45,686 connected nodes/origins and full refusal vectors; exact26/4..6 first-allocation/growth failures; brace/coordinate/type/owner mutations; 16,381-level While witness with65,533 nodes. Ordinary-expression occurrence gap remains open; this is not final acceptance. |
+| Ordinary-expression occurrence red | h1-ast-expression-occurrence-red.log, unchangedc585c663 product | Completed exit1; 0 passed, 1 failed, 0 ignored. All six O0/O2 full27/1 vectors completed before the outer assertion: same1 relocation, two-way same1 binding swap and return1+1 atom swap each returned90 instead of91. Frozen rejecting nodes are firstLet3 for both binding cases and secondatom2 for arithmetic. Preserve this red before source-range implementation. |
+| Source-range successor budget | h1-ast-successor-budget-ranges-final.log, exact2506e2ad source | Completed exit0; 1 passed, 0 failed. Expected source/arena/resource costs above were derived and fingerprint-verified before fixed native replay. |
+| Source-range native matrix | h1-ast-connected-ranges-5.log, unchanged2506e2ad source | Completed exit0; 36 passed, 0 failed, 0 ignored. O0/O2 same-value relocation/swaps and 1+1 now match full27/1 vectors; exact26/7 first-allocation/growth unlocated failures, all prior26/4..6 faults, grouped/direct-borrow positives and preserved grouped-reference11 negative pass. Canonical49,863 connected nodes/origins and full17/2 refusal match; 16,381-level While and65,535-grouping controls pass. New literal-payload mutation control is post-fix and remains unexecuted at this point; no pre-fix red is claimed for it. |
+| Grouping authority correction | h1-ast-grouping-admission-authority.log and corrected pure admission check | First completed exit1, 0 passed/1 failed: new test incorrectly expected original grouped-reference source to be admitted. Corrected pure check completed exit0, 1 passed; exact original source remains native-negative11 and passed in ranges-5. No production grammar change or deleted witness. |
+| Representation integration authority | h1-ast-source-reconstruction-final-frozen.log; h1-ast-model-authority-final.log; h1-ast-budget-authority-final.log | Each completed exit0: reconstruction1 passed, model3 passed, budget1 passed. Exact2506e2ad source rederived/verified; downstream sections unchanged. Final scoped Rust formatting and git diff --check completed exit0. These are pure/integration checks, not full historical native acceptance. |
+| Additional historical-target attempt | h1-ast-source-ingestion-full-compatibility.log | Unified command completed exit1 by deliberate interruption to bound duplicate native rebuilds. Only early cases completed; no final test summary. This is neither a completed full-target result nor acceptance/failure evidence for the historical suite. The final root gate must run every historical case and the post-fix literal-payload control without exclusions. |
+| First complete integration-gate attempt | ./tools/test.sh; h1-ast-final-fixed-tree-gate.log; fixedtree922047faf3e286f75dd6ce2d6890ee1ba0fd49d9 | Completed process exit1 at the source-ingestion target:106 passed/1 failed/0 ignored. Sole failure is the expired historical whole-file identity comparison at parenttest:12181; live capacity/verifier guards and all other cases pass, including the post-fix literal-payload native control and deterministic source/file compilation. Later targets did not run; no whole-repository pass is claimed. Preserve this red before the explicit test-only successor amendment. |
+| Sentinel compatibility amendment | h1-ast-capacity-source-sentinel-amendment.log; focused pure historical/successor identity check | Completed exit0;1 passed/0 failed. Historical whole-file identity is retained; live file is checked through the explicit successor transform. All16/17/16 capacity checks, both verifier65,536 sentinels and no512 assertion remain unchanged. Scoped parent Rust formatting and diff check completed exit0; production source remains exact2506e2ad. No native/full-target pass is inferred from this pure check. |
+| Root gate | ./tools/test.sh on final recorded tree | Result belongs in commit message after the tree is fixed. |
+
+## AST-BASELINE-001 - restore the published Linux test baseline
+
+- Date/task: 2026-10-13, prerequisite to user-authorized AST representation.
+  Published head 8f9f2f2 passes Windows native CI but Linux compiler CI and
+  nightly Rust CI completed failure; stable was cancelled by the failed matrix.
+- Observed red: diagnostic_runtime_is_linked_in_both_native_paths refuses
+  missing unversioned llc. The pinned Ubuntu package exposes llc-22; the test
+  bypasses that available tool although existing compiler fallback remains valid.
+- Frozen repair: keep both actual native linking paths and every assertion.
+  Test discovery may select llc-22 when llc is absent. Never skip a path, replace
+  hardware execution with simulation, or change production tool-discovery/ABI.
+- Allowed files: src/compiler/src/stderr_cli_runtime_tests.rs and this ledger.
+  Root lead owns this prerequisite. No AST/compiler behavior edits on the red
+  baseline. Published completed CI logs are the approved regression red.
+- Acceptance: focused existing binary test with pinned LLVM22.1.8 on Windows;
+  test discovery code must retain explicit Linux llc-22 fallback and exercise
+  the same real link helper. Full root gate before publishing the repair, then
+  completed required public CI before AST product changes. Keep run results
+  blank until their completed exit statuses are read.
+- Risks/stop conditions: no weakened assertion, new ignored test, fake llc,
+  unrelated source/profile/runtime changes, or architecture/semantic expansion.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Public red | Compiler CI 38355877654 and nightly 38355877655 on 8f9f2f2 | Completed failure: binary target 38 passed/1 failed; missing unversioned llc at the new two-path native test. |
+| Focused | Existing two-path native runtime test | Completed exit 0, 1 passed/0 failed on Windows LLVM22.1.8; both native paths and binary-byte assertions retained. |
+| Root gate | ./tools/test.sh on recorded final tree | Result recorded in the repair commit message after the tree is fixed. |
+| Public repair | PR92 exact7237dae head, ast-baseline-public-watch.log and fresh head/status metadata | Completed watcher exit0; all13 checks COMPLETED/SUCCESS. Both Linux root gates, stable/nightly and Windows native are green; read before authorizing AST product edits. |
+
+- First local root replay completed process exit 1 with 322 library cases
+  passing and the unchanged inherited-pipe deadline case failing its existing
+  one-second wall-clock assertion. The same isolated test immediately completed
+  exit 0, 1 passed, with all timeout/descendant-containment assertions unchanged.
+  No cause or green whole-gate result is inferred from that isolated replay.
+  Restart the complete gate on the final ledger tree without skipping or
+  relaxing the timing test.
+- The second full root attempt also completed process exit 1 at that unchanged
+  library timing assertion (322 passed/1 failed). Read-only diagnostic runs of
+  the complete library then completed exit 0 with all 323 tests at one thread
+  (8.72 s) and at two threads (5.14 s). The production timer begins after
+  process creation/containment setup, but these observations do not isolate
+  startup versus cleanup latency. No verifier implementation or assertion is
+  changed; rerun the complete gate with the default two test threads.
+
+## H1E-SOURCE-002 - source diagnostics and CLI runtime linkage
+
+- Date/authorization: 2026-10-12, user requested synchronization and continued
+  Aero work. Restored missing Windows checkout from origin. Development starts
+  at published PR #92 head `ff10caca3d95fb64a90369afe148bea4f5ef45df`, tree
+  `a7684379e4a6fb8067a1e8f41e0f4c1bb12a696b`; its 13 public checks completed
+  successfully. Master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`.
+- Observed: the diagnostic profile verifies and lowers checked stderr writes,
+  but source `stderr_write_byte` is unresolved and CLI links only the original
+  runtime. CAP-059 is already implemented on this branch and is not repeated.
+- Frozen source contract: only `exact-i32-byte-diagnostics-v0` reserves
+  `stderr_write_byte(int) -> Result<int, int>`, with exactly one Int argument
+  in a direct, explicitly annotated Result initializer inside a nongeneric
+  source function. Mirror stdout's established admissible contexts and exact
+  carrier wrapping. Semantic analysis and independent IR admission must agree.
+  Emit the existing checked stderr operation; raw ABI calls and runtime symbol
+  collisions remain rejected. Earlier profiles retain their prior behavior,
+  including ordinary user functions named stderr_write_byte. In the diagnostic
+  profile that name is reserved and cannot shadow the intrinsic.
+- Frozen transport: existing binary runtime statuses 0/-1/-2/-3 and independent
+  sticky stderr/stdout state are unchanged. CLI native runs of this profile
+  embed and compile the separate diagnostic runtime inside the existing run
+  artifact directory and link it in both llc and direct-Clang paths. Keep the
+  current CLI output presentation and cleanup/exit-code behavior.
+- Source owner allowed files: `src/compiler/src/byte_output_source_contract.rs`,
+  `semantic_analyzer.rs`, `ir_generator.rs`, `language_profile.rs`, `lib.rs`,
+  `stderr_checked_backend_tests.rs`, and new
+  `src/compiler/tests/stderr_source_profile_tests.rs`. This owner alone handles
+  coupled semantic/IR changes and mechanical profile dispatch. No verifier,
+  backend, runtime or canonical Aero source changes under this task.
+- Lead allowed files: `src/compiler/src/main.rs`, new crate-local
+  `src/compiler/src/stderr_cli_runtime_tests.rs`, new
+  `src/compiler/tests/stderr_cli_runtime_tests.rs`, this ledger,
+  `PROJECT_STATE.md`, `SELF_HOSTING_ROADMAP.md`, `SPEC_IMPLEMENTATION_MATRIX.md`,
+  `BUILD.md`. Existing compatibility sentinels may change only under an explicit
+  separately recorded amendment supported by a reviewed production diff.
+- Acceptance: source regression must fail before production edits; source
+  checks, independent raw-AST IR rejection, authentication and exact checked
+  operation; native binary bytes, computed values, typed range/sticky errors,
+  channel isolation at O0/O2; old-profile and invalid-context negatives. CLI
+  regression first proves the embedded diagnostic object is absent, then tests
+  source check/build/run, artifact cleanup and matching process exit. Complete
+  focused compatibility tests and repository-root ./tools/test.sh with verified
+  LLVM 22.1.8; record results only after reading completed exit statuses.
+- Risks/stop conditions: no existing-profile widening, invented contexts,
+  unchecked lowering, lost diagnostics, runtime changes, connected-AST work,
+  self-hosting claim, or edits outside ownership. Preserve existing histories;
+  publish a validated checkpoint to cumulative draft PR #92, never direct master.
+- Reviewed compatibility amendment: the completed allocator ABI replay fails
+  only its textual count of two `&runtime_obj_path` references after the two
+  link commands became one shared link helper. Authorize only that assertion
+  in `src/compiler/tests/allocator_runtime_abi_tests.rs`: require the original
+  object in the runtime vector, both object/LLVM input branches and the shared
+  link command consuming the full vector. Retain every native ABI/failure and
+  original-runtime embedding assertion. New independent native tests already
+  execute both branches with bytes 0/255 and verify earlier-profile exclusion.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Published baseline | PR #92 exact head public checks | All 13 completed successfully; independently read via GitHub before development. Local replay pending. |
+| Local baseline | Existing library and binary targets (intentional new CLI regression excluded) | Completed exit 0; 319 library and 36 binary tests passed. Full original-target build --no-run also completed exit 0. |
+| Source red | New source regression before production edits | Completed process exit 1, 0 passed/1 failed: direct explicitly annotated stderr call is unresolved in semantics. Log h1e-source-red.log. |
+| CLI red | New embedded-runtime regression before main.rs edits | Completed process exit 1, 0 passed/1 failed: independent C observer cannot link aero_stderr_write_byte against the CLI embedded runtime. Log october-cli-red.log. |
+| CLI native unit | Three native runtime/link tests after main.rs edits | Completed exit 0, 3 passed: embedded diagnostics, both llc/direct-Clang link paths, and original-runtime-only earlier profiles. |
+| Allocator compatibility red | Existing r1a_runtime_and_driver_boundary_executes_with_deterministic_failure | Completed process exit 1, sole old textual duplicate-reference count failed (0 vs 2); all earlier embedding anchors passed. |
+| Focused | Source, native, CLI and compatibility targets | Completed exit 0: 6 source/native cases at O0/O2, 6 contract units, 7 checked-backend cases, 1 existing stdout source regression; 3 native CLI unit tests, 5 public CLI cases and 2 allocator compatibility tests. All-target correctness Clippy and formatting also completed exit 0. |
+| Final gate | ./tools/test.sh on final recorded tree | Result belongs in commit message after the tree is fixed. |
+
+- Additional red-first context evidence: raw-AST global initialization and
+  nested reserved definitions initially reached verifier rejection rather than
+  IR Admission. Stderr-only function-context/reservation checks now reject them
+  during admission; the existing context marker is reused without new syntax.
+  A nested stderr call inside another direct output initializer initially passed
+  semantic analysis because the initializer flag leaked into argument inference.
+  The independently rejecting IR phase exposed the disagreement. A diagnostic-
+  only Cell guard now rejects nested stdout/stderr output during argument
+  evaluation and restores its prior state before propagating inference errors.
+  All three nesting combinations have semantic and raw-AST negative assertions.
+- Native fixture corrections are test expectations only: the unchanged source
+  carrier wrapper negates raw negative statuses, so -3 becomes Err(3). A Windows
+  failure-injection harness also defines _CRT_SECURE_NO_WARNINGS for its test-only
+  fopen use. The final native tests grade positive source errors and raw runtime
+  behavior separately; neither runtime nor wrapping semantics changed.
+- Read-only review confirmed conditional embedding and both CLI link paths.
+  New public CLI coverage forces failure while compiling the second runtime and
+  checks removal of the partially created original object/diagnostic source.
+  Invalid diagnostic context is refused with no published artifacts. Earlier
+  profiles preserve runtime objects, source helper behavior and negative checks.
+- Host toolchain: Rust 1.97.1, official LLVM/Clang 22.1.8 Windows x86_64 archive,
+  downloaded SHA-256 d96c2cc1736f4eb7fa43cb9bbdf56d93551a9ae0a9aadb9c99c3c3b2b712a234
+  matched the release's digest before extraction. Builds, logs and temporary
+  files reside on D:. The fresh clone's Git Bash gate script was normalized from
+  CRLF to its unchanged LF Git contents; no script behavior change is included.
+- First root replay completed process exit 1 after formatting, correctness
+  Clippy, 322 library and 39 binary tests passed. The first integration target,
+  acyclic_copy_aggregate_tests, refused two tracked example byte comparisons:
+  Windows checkout autocrlf had converted their indexed LF bytes to CRLF.
+  Normalize only tracked text files whose Git index records LF and worktree
+  records CRLF (485 files), preserving content and any UTF-8 BOM. Use repository-
+  local core.autocrlf=input for future checkouts. This changed no Git content:
+  the staged tree remained 1f8f155d19a118aa344b43e21a7da4353c4d613a and unstaged
+  Git diff stayed empty. The previously failing native target then completed
+  exit 0, 1 passed/0 failed. Full root replay restarts on the final ledger tree;
+  the failed environmental run is not checkpoint acceptance.
+- The second full root replay completed process exit 1 at the canonical compiler
+  graph regression: adding a separately declared CLI test module exceeded its
+  frozen module set. Keep that architecture test unchanged. Include the same
+  three native tests inside main.rs's existing `tests` module, with no added
+  binary module declaration. The complete binary target then completed exit 0
+  with 39 passed, and the canonical graph target completed exit 0 with 1 passed.
+  Restart the complete gate on this final registration/ledger tree; earlier
+  partial or red runs remain diagnostic rather than acceptance.
+- A late read-only admission probe before checkpoint acceptance exposed another
+  context leak through eager array inference: with value(Result<int,int>)->int
+  and head([int;1])->int helpers, the expression
+  `stderr_write_byte(head([value(stderr_write_byte(65))]))` reached public IR
+  rejection instead of semantic rejection. Function calls themselves are not
+  cached, but array-element inference can run before the outer argument guard.
+  Stop the in-flight gate; it is not acceptance. Add independent semantic/raw-
+  AST negatives for these array-mediated nesting cases and a pure-array helper
+  positive. Guard diagnostic output arguments during preflight as well as type
+  inference, restoring state before any error return. Earlier profiles and the
+  frozen direct-initializer contract remain unchanged. Complete focused tests
+  and restart the full gate only on the corrected final tree.
+- Array-mediated regression completed process exit 1 before its fix. The final
+  preflight guard now rejects both outer/inner channels across ArrayLiteral and
+  ArrayRepeat, with seven contract units completing exit 0. Six source/native
+  cases, seven checked-backend cases and one earlier stdout case also completed
+  exit 0; the positive computed-array helper executes at O0/O2. Read-only review
+  found the same guard covers eager Match/field inference and restores prior
+  state on success and error. The public probe now reports Semantic Analysis
+  Error instead of IR Generation Error. The intentionally stopped full replay
+  is not acceptance; rerun the complete gate on this corrected final tree.
+- Final CLI/architecture/allocator compatibility replay after the preflight
+  correction completed exit 0: 39 binary unit tests, 5 diagnostic CLI cases,
+  2 allocator ABI cases and 1 canonical graph case. No skipped or ignored test
+  was added. Final full-tree result remains reserved for the commit message.
+
+### H1E-RUNTIME-002 - preserve sticky stderr errors under the Windows CRT
+
+- Final root replay on ba2dd743b9ff2bb6e22103238649dfeacaa9e866 completed
+  process exit 1 at the pre-existing stderr_runtime_abi_tests target: four
+  Windows cases passed and initialized closed-descriptor coverage terminated
+  with 0xc0000409 after writing exactly the prior byte S. The frozen expectation
+  remains exit 91, stdout O, stderr S, raw sticky -1 after descriptor closure.
+- Diagnosis: the Windows CRT treats a closed descriptor used by stdio as an
+  invalid parameter and its default handler aborts instead of returning EOF.
+  This is a runtime defect against H1E-RUNTIME-001, not an oracle to weaken.
+- Frozen repair: only the separate diagnostic runtime may adapt CRT calls with
+  a temporary thread-local invalid-parameter handler, restore the caller's
+  handler before every return, and map failures to the established -2 setup/-1
+  write statuses. Preserve binary bytes, flush-before-success, first-error
+  precedence, independent channels and all existing-runtime bytes. Do not
+  install a process-global handler or choose diagnostic text in C.
+- Allowed files: src/compiler/runtime/aero_diagnostic_runtime.c and focused
+  tests in src/compiler/tests/stderr_runtime_abi_tests.rs. Lead owns this ledger
+  and affected state/BUILD documentation. No other compiler or runtime phase
+  changes under this prerequisite. Existing failing closed-descriptor native
+  test is the approved red; additional Windows coverage must prove the caller's
+  thread-local handler is restored on success, setup and write failure paths.
+- Acceptance: unchanged closed-descriptor test at O0/O2; complete runtime ABI,
+  source/native, backend and CLI focused coverage; restore final recorded-tree
+  root-gate acceptance after the repair. Record completed exits only.
+- Windows CI coverage amendment: its native system job runs individually
+  scripted products but no cargo test target, so the prior all-green public
+  check did not execute the new diagnostic ABI cases. Lead may add a focused
+  step in .github/workflows/rust.yml running the diagnostic runtime, source and
+  CLI integration targets with the existing pinned LLVM configuration. Retain
+  all earlier native and security steps; Linux already runs cargo test in full.
+- Completed evidence: the unchanged closed-descriptor native regression
+  independently reproduced process exit 1 with 0xc0000409. The new restoration
+  test also reproduced red before production edits (after one corrected harness
+  insertion compile error). The corrected complete Windows runtime target
+  completed exit 0, six passed, including O0/O2 cold/initialized closure,
+  binary/range/sticky behavior, exact handler identity and callable caller
+  handlers. Root's exact three-target Windows workflow command then completed
+  exit 0 with 6 runtime, 6 source/native and 5 CLI tests. Checked-backend replay
+  completed exit 0 with 7 passed. Read-only review found no remaining defect;
+  original-runtime SHA remains frozen and POSIX transport code is equivalent.
+- Final acceptance remains a fresh complete root gate on the final recorded
+  tree. The earlier Windows failure is preserved as a real product red, not
+  reclassified as a passed or merely environmental run.
+
+## SELFHOST-2026-09 - local self-hosting execution
+
+- User objective: copy this repository and work toward a self-hosting Aero
+  language using the repository as the source of requirements. This supersedes
+  the earlier phase-1-only session boundary; it does not change language semantics.
+- Starting copy: upstream master `df0fecea13e9f28c5065e092973aa34d5ac055c9`,
+  local branch `agent/aero-integration`. No public acceptance is claimed for
+  subsequent local work. Work and toolchains reside under `/home/lsd/Aero` on
+  this Linux host; historical Windows D: placement is not a Linux path rule.
+- Observed behavior from source inspection: the canonical 318,003-byte source
+  has 23 functions, parses, and is refused at semantic identifier node 1. Small
+  multi-function arithmetic probes stop at verifier word 1. Runtime evidence is
+  pending the initial baseline; source inspection is not a fresh test result.
+- First hypothesis and frozen semantics: execute the existing CAP-059 contract
+  below, first its separately safe stage 3a bound repair, then the coupled
+  verifier/emitter stage 3b. Preserve source grammar, semantics, checked IR,
+  accepted one-function LLVM, and all negative boundaries. This checkpoint is
+  a prerequisite, not self-hosting or convergence.
+- Allowed files for CAP-059: `examples/aero_self_host_v0/compiler.aero`
+  (only contracted verifier/emitter and fragment helpers),
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`, this ledger,
+  `PROJECT_STATE.md`, `SELF_HOSTING_ROADMAP.md`,
+  `BOOTSTRAP_CONVERGENCE_READINESS.md`, `SPEC_IMPLEMENTATION_MATRIX.md`.
+  Lead owns the ledger, contracts, integration, and result claims. One vertical
+  implementation owner owns the Aero product and focused tests.
+- Pre-implementation harness correction: CAP-059 Decisions 7 and 8 conflict.
+  The existing no-output harness returns 62 on any write before returning the
+  product's expected-vector result. Thus the expired multi-function refusal
+  test must use the new emitting harness to observe the contracted 93 while
+  preserving its old vector and checked-group assertions. All negative tests
+  retain the original no-output harness; that harness remains unchanged. This
+  corrects test plumbing only and is approved before product changes.
+- Pre-implementation verifier correction for stage 3b: the historical list of
+  32 sites omits an obligation exposed by multiple functions. The existing
+  left/right operand checks accept preceding module-global result IDs; LLVM
+  result values belong to individual functions. At each function boundary,
+  derive its first result ID from the preceding functions' completed result
+  count. A result operand must be at least that ID and at most the already
+  evaluated result count. Keep global numbering for serialized IDs and LLVM
+  names. This adds no source form or phase. Single-word mutations that replace
+  a second function's left or right result operand with a first-function result
+  must stop verification before emission, with exact located diagnostics.
+  Frozen independent probe: `fn f()->int{return 1+2;} fn g()->int{return
+  (3+4)+(5+6);}` has header length 41, six instructions and four results.
+  Function 2's final add is instruction 5 (base word 85); change word 91 from
+  2 to 1 for the left operand, or word 93 from 3 to 1 for the right operand.
+  Each must report status 4, word 91/93 respectively, record 5, code 3,
+  expected lower bound 2, actual 1. Both mutations preserve every other word.
+- Acceptance: completed clean baseline before checkpoint acceptance, failing regression first for each
+  behavior change, focused native tests including exact bytes and independent
+  LLVM compilation at O0/O2, diff/scope audit, then `./tools/test.sh`. Keep each
+  result blank until its completed exit status is read. Final recorded-tree
+  verification belongs in the commit message after the tree is fixed.
+- Risks/stop conditions: no implementation on a red baseline; no third compiler
+  phase, invented semantics, weakening or skipping tests, dirty-source
+  convergence claim, or canonical refusal drift. Further representation and
+  semantics work requires its own bounded ledger contract and regression.
+- Execution ordering clarified before product edits: baseline 1's sole observed
+  environmental failure has been resolved and the previously failing CAP-024
+  target completed 6/6 in baseline 2. The remaining full gate continues against
+  an immutable separate checkout. With no unresolved baseline failure, the
+  independently red-tested two-literal stage 3a repair may run concurrently in
+  the isolated development target. Any new baseline failure suspends further
+  production work; no checkpoint is accepted until both full gates complete.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Baseline 1 | `./tools/test.sh` in immutable upstream worktree, Rust 1.98.1 / LLVM 22.1.8 | Exit 101: CAP-024 contract tests could not execute `python`; host provides `python3` only. Fmt, correctness Clippy, 312 library and 36 binary tests passed before the environmental failure. |
+| Baseline 2 | Same upstream gate with workspace-local `python` alias to `/usr/bin/python3` | Exit 0. Formatting and correctness Clippy passed; 1,021 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets (312 library, 36 binary). Immutable upstream worktree remains clean. No ignored test was added or changed. |
+
+### CAP-059P - repair checked result ownership before stage 3b
+
+- Inspection invalidates one premise of the historical CAP-059 contract:
+  `compiler.aero`'s checked result serializer writes function 1 into every
+  result record, including results defined by subsequent functions. The old
+  Rust oracle duplicates that constant. Generalizing the verifier truthfully
+  would therefore refuse valid probes. Historical stop condition 1 applies:
+  stage 3b cannot be implemented against that producer without re-authoring.
+- This separate prerequisite changes only checked-IR construction. Stage 3a
+  remains independently valid. After its focused acceptance, first repair
+  result ownership here; only then execute the original two-phase stage 3b
+  against the corrected producer, with the explicit harness and operand-scope
+  corrections above. No combined three-phase implementation is authorized.
+- Frozen semantics: result field 1 is the owning function ID, equal to field
+  10 of its defining instruction and consistent with that function's range.
+  Read the owner from the defining instruction, validate it in `1..=N`, and
+  serialize it. Preserve global result IDs, all other fields, N=1 bytes,
+  verifier/emitter behavior and the located N>1 header refusal.
+- Allowed files: the same vertical owner may edit only the checked-result
+  serializer in `examples/aero_self_host_v0/compiler.aero` and its independent
+  model/regressions/reconstruction in
+  `src/compiler/tests/self_host_source_ingestion_tests.rs`. Lead owns this
+  ledger and the affected capability/state/readiness records.
+- Red-first acceptance: derive result ownership from per-function expression
+  sources and instruction ranges, independently of the serializer. For
+  `fn f()->int{return 1+2;} fn g()->int{return 3*4;}`, result 2 starts at word
+  91 and its owner at word 92 must be 2; the current producer emits 1. Also
+  cover a literal-only first function followed by result-producing functions
+  (result ID differs from owner ID), unequal counts, and a final literal-only
+  function. Grade corrected full checked expectation vectors against linked
+  Aero at O0/O2 while preserving the downstream header refusal and no output.
+  The old vector must locate the change to checked IR rather than parser,
+  semantics or verifier. Preserve the accepted one-function LLVM exactly.
+- Risks/stop conditions: do not conceal the duplicated oracle defect by changing
+  both constants without source/range-derived assertions; no parser, semantic,
+  verifier, emitter, driver or main edits; no weakening existing assertions.
+  Derive canonical arena delta from the edit and record completed exits only.
+
+### CAP-059 stage 3b - re-authored verifier/emitter prerequisites
+
+- The historical stage 3b contract resumes only after CAP-059P focused tests
+  establish truthful result owners. Its checked-IR group is then frozen again.
+  The same single vertical owner has only verifier/emitter/fragment helpers and
+  the focused Rust target; every other compiler phase remains unchanged.
+- In addition to the original positive probes, retain literal-only first and
+  middle functions and unequal result counts. Per-function ranges, rather than
+  result position, determine instruction/result ownership. Validate every
+  function and block record, contiguous nonempty covering ranges, exactly one
+  terminal Return per range, and the entry function derived from the final
+  range. Preserve module-global monotonic origins or an equivalent prior-
+  function lower bound. Never reset provenance to an unconstrained zero at a
+  function boundary.
+- Validate count bounds before multiplication or addition: function count is
+  in `1..=510` and cannot exceed instruction count; instruction/result ceilings
+  stay 510/509. Check spans against remaining instructions before computing
+  endpoints. Invalid function counts 0 or `i32::MAX` report header status 1,
+  word 1, code 2, expected ceiling 510, actual injected value. Keep the earlier
+  format, byte-view and existing N=1 negative diagnostics unchanged.
+- Every result's owner, defining instruction ID and origin must equal the
+  corresponding uniquely matched value-producing instruction, and that
+  instruction must lie inside its owner's validated range. A Return cannot
+  define a result. All repeated metadata reads must apply the same fault view.
+- For probe D, independently derived mutation offsets are: function 2 first
+  instruction at word 25 (3 -> 2 overlap), length at 26 (2 -> 0 or
+  `i32::MAX`); block 2 owner at 36 (2 -> 1), first instruction at 39 (3 -> 1);
+  instruction 3 origin at 72 (8 -> 3), owner at 73 (2 -> 1); result 2 owner at
+  92 (2 -> 1), definition at 95 (3 -> 2, a Return), origin at 96 (8 -> 3).
+  Instruction-owner corruption must report `(3,73,3,1,2,1)` and result-owner
+  corruption `(6,92,2,1,2,1)` in status/word/record/code/expected/actual order.
+  Each other corruption must fail verification before emission; its located
+  vector is derived from its explicit validation rule before product edits.
+- Original probes E/F/G, canonical semantic refusal, all one-function LLVM,
+  the non-orphan census derivation and zero-output negative harness remain
+  frozen. The only expired-positive harness changes are those explicitly
+  required by successful module emission. No corruption can become a success
+  because its tested word was subsequently reread without the fault.
+- Exact new D vectors, frozen before stage 3b edits, use
+  status/word/record/code/expected/actual order: overlap at 25 is
+  `(2,25,0,1,3,2)`; length at 26 is `(2,26,0,1,2,0)` or the same tuple with
+  actual `i32::MAX`; block owner is `(2,36,0,2,2,1)`; block first instruction
+  is `(2,39,0,2,3,1)`; instruction origin is `(3,72,3,3,6,3)`, deriving lower
+  bound 6 from prior function node 5; result definition is `(6,95,2,2,3,2)`;
+  result origin is `(6,96,2,3,8,3)`. An instruction count below N is
+  `(1,3,0,2,N,actual)`, after the existing absolute instruction-count check.
+  Entry probe J is refused after validated ranges prove entry 2, so its
+  reported instruction/result counts are 2/0. An out-of-range entry is still
+  rejected early, preserving the earlier single-function behavior.
+- Additional expired-positive harness callers are explicitly covered:
+  `the_product_no_longer_refuses_a_multi_item_module_at_c1` probes B/C/D,
+  successful module probes in `run_meaning_expectation`, and CAP-059P's
+  correct/obsolete owner vectors. Preserve every checked assertion and old
+  expectation vector; route only emitting positive paths through the binary
+  emitting harness and independently byte-grade their output. Old checked
+  disagreements remain 92; expired verifier disagreements become 93. Probe E
+  and all other source/semantic/checked failures keep the no-output harness.
+- Compatibility replay identified one additional expired-positive caller:
+  the B half of `probe_e_discriminates_from_probe_b_and_is_shown_to`.
+  Its old vector remains unchanged, now requiring 93 and the independently
+  derived 99-byte module through the emitting harness. Every E-half assertion
+  and its no-output harness remain unchanged. This is the same pre-authorized
+  positive-output transition, not a relaxation of a negative boundary.
+- The full target then identified the same issue in
+  `the_two_item_module_separates_the_base_product_from_this_one`: preserve its
+  expired C1 checked vector (92) and module verifier vector (93), grade the
+  emitted 99 bytes independently, and add the current full successful vector
+  (91). Earlier semantic/base mismatches still return before output and retain
+  their existing harness. Audit remaining callers before another full replay.
+- Independent verifier/emitter review found no blocking defect. It identified
+  untested multi-digit non-entry names, the accepted 510-function bound, and
+  later-function Return corruption. Extend only the focused tests with a
+  source-derived literal-function boundary probe and independently specified
+  premature/missing terminal Return faults. Keep the frozen product unchanged;
+  no resource or producer bound may be widened to make those tests pass.
+- Frozen additional D faults: instruction 3 opcode at word 65 changes from 3
+  to 6, creating a premature Return in function 2, and reports
+  `(3,65,3,2,6,6)` with one result evaluated. Instruction 4 opcode at word 76
+  changes from 6 to 1, removing its terminal Return, and reports
+  `(3,76,4,2,6,1)` with two results evaluated. Each reports four instructions,
+  two results and root value 0, preserving the established opcode diagnostic.
+  The 510-literal-function source independently requires 1,530 syntax nodes,
+  510 instructions, no results and 13,779 checked words; no bound changes.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Stage 3a red | Isolated-target focused `a_single_item_with_513_nodes_verifies_emits_and_drives` | Exit 101, intended native assertion: old full refusal vector returned 91 instead of required 93 at O0 (0 passed, 1 failed, 63 filtered; 50.63 s). Product unchanged. |
+| Stage 3a focused | Same isolated-target regression after the two verifier literals changed | Exit 0, 1 passed / 0 failed / 63 filtered, 54.93 s. O0/O2 complete vectors and exact LLVM passed; independent Clang built and ran the emitted entry, returning 256. Full baseline and compatibility still pending at this record. |
+| Stage 3a compatibility | Five focused reconstruction, canonical-output, bound-separation, source-census/refusal and existing multi-function-refusal tests | Exit 0, 5 passed / 0 failed / 59 filtered, 103.04 s. The canonical refusal/census and one-function output remain unchanged. |
+| CAP-059P red | Isolated-target `checked_results_belong_to_the_function_that_defines_them` before producer/model repair | Exit 101, 0 passed / 1 failed / 64 filtered, 51.09 s. Source-derived corrected ownership returned 92 instead of 91 at O0, locating the mismatch in checked IR. |
+| CAP-059P focused and stage 3a compatibility | Nine selected tests after producer-only repair | Exit 0, 9 passed / 0 failed / 56 filtered, 113.40 s. Four ownership sources passed O0/O2 with exact expired checked disagreement 92; old canonical output, 513-node emission, E/F/G refusals and canonical source census/refusal passed. Predicted arena delta +57 nodes / +45 values / +26 operators / +0 blocks / +8 calls matched unchanged prediction; 240 reachable nodes remain. |
+| Stage 3a/P full gate | Immutable local snapshot tree `f7489ef5da80b587f245b8669d5fa8de037b058e`; separate from subsequent stage 3b development | Exit 0. Formatting and correctness Clippy passed; 1,023 tests passed, 0 failed, 16 pre-existing ignored across 118 reported targets. The snapshot was not edited to record this result; its final verification record belongs in its commit message. |
+| Stage 3b red | `small_modules_emit_exact_llvm_and_execute_each_entry`, before verifier/emitter edits | Exit 101, 0 passed / 1 failed / 65 filtered, 55.28 s. The one-function case passed O0/O2 before the two-function case returned verifier disagreement 93 instead of success 91 at O0. |
+| Stage 3b fault red | Two count/range/owner and foreign-result regressions, before product edits | Exit 101, 0 passed / 2 failed / 66 filtered, 52.05 s. Independent source/serialized-word checks passed; count 0 and a foreign left-result operand produced 93 instead of the required new diagnostic-vector result 91 at O0. |
+| Stage 3b focused | Eight exact module emit/execute probes plus count/range/provenance/owner/entry and cross-function operand mutations | Exit 0, 3 passed / 0 failed / 65 filtered, 94.50 s. Complete vectors, hand-derived LLVM bytes and independent native execution passed at O0/O2. Thirteen metadata mutations, the derived-entry mutation and both foreign-result operands matched exact refusals with no output. |
+| Stage 3b first compatibility | Ten selected old-boundary and canonical tests | Exit 101, 9 passed / 1 failed / 58 filtered, 82.77 s. The B half described above used the old no-output harness and returned 62 on correct module output. No production defect or arena-prediction correction was observed. |
+| Stage 3b first complete focused target | All 68 ingestion-target tests after the first harness correction | Exit 101, 67 passed / 1 failed, 224.71 s. Canonical arenas matched the unchanged independent prediction and canonical semantic refusal passed. The only failure was the second named expired-positive harness caller above. |
+| Stage 3b caller and boundary replay | Corrected two-item caller, 510-function module and later-function Return faults | Exit 0, 3 passed / 0 failed / 67 filtered, 61.88 s. Expired/current vectors returned 92/93/91 with the exact 99-byte module. The 510-function module matched all 67 expectation fields and 26,305 exact emitted bytes, and its entry returned 510 after independent O0/O2 compilation. Both Return faults matched the frozen refusal with no output. Product digest remained unchanged. |
+| Stage 3b complete focused replay | All 70 ingestion-target tests on the frozen product and corrected harnesses | Exit 0, 70 passed / 0 failed / 0 ignored / 0 filtered, 230.65 s. All original 63 and seven added regressions passed. Native canonical arenas exactly matched the unchanged independent 19,589/17,647/6,778/1,403/1,230 prediction, with 240 reachable nodes and the same first-identifier semantic refusal. |
+| CAP-059 and runtime full gate | Immutable combined checkpoint, excluding later diagnostic-profile development | |
+
+Before canonical-source replay, an independent Rust AST visitor and lexer-based
+parenthesis count predicted the frozen 334,106-byte stage 3b source's arenas:
+19,589 nodes, 17,647 values, 6,778 operators, 1,403 blocks and 1,230 calls.
+Relative to stage 3a/P this is +814/+737/+310/+41/+50. The derivation counts
+737 new expression nodes/value records, 77 argument cells and no function
+wrappers; operators add 254 binary/unary/borrow operations and 56 expression
+parentheses (50 calls, six groupings). Function count 23 and match-pattern
+parentheses 2 are unchanged. The same visitor exactly reconstructs the prior
+18,775/16,910/6,468/1,362/1,180 arenas without using the ingestion test oracle.
+Checked construction, final return expressions and module linkage remain
+unchanged, so reachable nodes remain 240. These are predictions until native
+replay completes; they must not be tuned to its output.
+
+### H1E-RUNTIME-001 - independent binary diagnostic stream ABI
+
+- Observed: H1 requires exact Aero-authored diagnostics on stderr, but existing
+  runtime/source profiles supply only stdin and stdout. The existing runtime
+  is byte-frozen by earlier tests. The standard-library RFC's eprint direction
+  and H1 process contract authorize the missing transport, not general text or
+  dynamic Display support.
+- Hypothesis: a separate small C translation unit can supply diagnostic bytes
+  while leaving every existing runtime byte and source-profile rule untouched.
+  This runtime-only prerequisite can proceed independently of CAP-059's Aero
+  verifier/emitter. It is not yet reachable from Aero source or a completed H1E.
+- Allowed files for the runtime owner:
+  `src/compiler/runtime/aero_diagnostic_runtime.c` and
+  `src/compiler/tests/stderr_runtime_abi_tests.rs`. Lead owns this ledger and
+  documentation. No existing runtime/compiler/profile/test/workflow may change.
+- Frozen ABI: `int32_t aero_stderr_write_byte(int32_t value)` writes exactly one
+  binary byte to stderr and flushes it, returning 0 only after success. Values
+  outside 0..=255 return -3 without writing. Write/flush failures and POSIX
+  SIGPIPE setup failure return -1; Windows invalid-handle/binary-mode setup
+  failure returns -2. Each error is sticky for that channel, checked before
+  new input; stderr state is independent of existing stdin/stdout state.
+  Windows uses fd2 in binary mode, preserving LF/CR/NUL/0x1a/high bytes; POSIX
+  broken pipes terminate this operation with an error rather than a signal.
+  No allocator, parser, formatter, source lookup or compiler decision exists
+  in this transport. Aero will choose and emit diagnostics in a later slice.
+- Acceptance: a direct native ABI regression must fail for the absent export
+  before adding the C file. At O0/O2, independently capture exact binary
+  stderr, empty stdout, success/range boundaries, sticky range/I/O failures,
+  closed descriptor/broken pipe handling and stdout/stderr isolation. Preserve
+  the complete existing runtime file byte-for-byte. Build the Rust target in
+  a separate development target; final integration still requires the full
+  repository gate. Windows-specific tests may be authored but are not local
+  Windows execution evidence on this Linux host.
+- Risks/stop conditions: no source intrinsic/profile, LLVM/IR integration or
+  change to existing transport semantics in this slice; no diagnostic content
+  chosen by C; no physical rollback claim for already-written bytes after a
+  transport failure. Stop if unrelated files or semantics must change.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Runtime ABI red | Native all-byte regression before adding the C implementation | Exit 101, 0 passed / 1 failed / 4 filtered. Clang reached the link step and reported the missing `aero_stderr_write_byte` export. |
+| Runtime initial focused | Complete new ABI target | Exit 101, 5 passed / 1 failed. Both isolation-mode arguments began with `e`, selecting the same harness branch. Corrected the harness argument without changing the ABI. |
+| Runtime focused | `cargo test --manifest-path src/compiler/Cargo.toml --test stderr_runtime_abi_tests -- --nocapture`, isolated target | Exit 0, 6 passed / 0 failed, 0.17 s. Every native case compiled with Clang 22.1.8 at O0/O2 and `-Wall -Wextra -Werror`. All binary bytes, flush-before-success, sticky range/write/flush/setup errors, descriptor restoration and channel isolation passed. Owned Rust formatting also exited 0. |
+
+The existing `aero_runtime.c` remains SHA-256
+`0d27a379b24bf5e5fe8c79e2008d0cd92c905db2fac9bf34f1b34e01e745efb3`.
+Windows-specific tests are authored, not executed on this Linux host. Runtime
+integration into a source profile and the complete repository gate remain open.
+
+### SELFHOST-AST-DESIGN-001 - connected representation design
+
+- Observed: the parser consumes rich syntax but retains only 240 reachable
+  nodes out of its canonical 18,718-node arena. Parameter ownership, statement
+  order, bindings, assignment targets, branch/loop bodies and match arms are
+  not faithfully connected. The Rust AST already distinguishes these forms.
+- Hypothesis: a complete append-only structural encoding can retain the old
+  compact arithmetic representation while rich functions carry a signature
+  and body descriptor. This permits a later parser/authentication checkpoint
+  without simultaneously changing checked IR and emission.
+- Scope now is design only. Allowed file: `H1_CONNECTED_AST_DESIGN.md`.
+  The architecture auditor may write that document; the lead retains this
+  ledger and all semantic decisions. No production or test edits under this ID.
+- Frozen meaning: preserve the existing admitted grammar and source semantics;
+  internal node tags and structural encoding do not add source features.
+  Rich forms must remain refused before checked IR until their meaning and
+  lowering are separately implemented. Preserve every node's provenance and
+  lower-child-ID invariant, and require zero unreachable syntax nodes.
+- Acceptance: map each represented form to existing Rust AST/parser evidence;
+  specify hand-derived small trees, independent normalized-AST comparisons,
+  corruption/bounds/allocation cases, and compatibility tests. Review the
+  document against actual source. No executable capability is claimed.
+- Risks/stop conditions: ambiguous existing semantics, orphan nodes, lost
+  declaration provenance or ordering, hidden parser-to-backend third phase,
+  or relabeling a design as an implementation.
+
+### H1E-CHECKED-001 - diagnostic checked operation and backend
+
+- Observed: the independently tested diagnostic runtime has no corresponding
+  checked instruction or LLVM lowering. CAP-047 freezes the old byte-I/O
+  profile as reserving exactly stdout output; preserve that public boundary.
+- Hypothesis: an additive `ExactI32ByteDiagnosticsV0` profile, spelled
+  `exact-i32-byte-diagnostics-v0`, can inherit all current byte-I/O source
+  capabilities and additionally admit a checked stderr operation in its backend.
+  Source stderr admission remains a separate later two-phase slice.
+- Allowed files for the runtime owner, now acting as the single checked/backend
+  owner: `src/compiler/src/ir.rs`, `ir_verifier.rs`, `code_generator.rs`,
+  `language_profile.rs`, `main.rs`, and new `stderr_checked_backend_tests.rs`
+  in that same directory. Register the new crate-local test module under the
+  code generator. Lead owns the ledger and state documents.
+- Phase boundary: checked schema/verification plus LLVM lowering only.
+  Profile identity, inherited capability predicates, help/cache/parser tests
+  and stdin-inheritance dispatch are mechanical plumbing. Do not edit semantic
+  analysis, source contracts, IR construction, authentication, runtime files,
+  canonical Aero source or ingestion tests. Do not link the new runtime into
+  the CLI in this slice.
+- Frozen checked ABI: `Inst::CheckedStderrWriteByte { result, value }` uses one
+  verified logical Int operand and defines an Int raw status. Preserve SSA
+  single-definition, prior-definition, dominance and type rules. Reject
+  `aero_stderr_write_byte` collisions in module entries and nested functions.
+  Only the new profile accepts this checked operation; all earlier profiles
+  reject it. Emit one conditional declaration and one call per operation,
+  `i32 @aero_stderr_write_byte(i32)`, using the frozen C ABI without wrapping
+  source Result values yet. No raw call or printing instruction substitutes.
+- Authentication remains strict. The existing protocol authenticates nominal
+  layouts, function signatures and actual result/place metadata, not equivalence
+  between source-body operations and IR. Tests may use an explicitly authored
+  matching logical-descriptor/IR fixture, obtain a token through the normal
+  authenticator and enter the normal authenticated backend. This is typed
+  backend coverage, not proof of source-body correspondence. Never attach an
+  unrelated source descriptor, construct a token directly or add a bypass.
+- Red-first order: run a new-profile selection regression before production
+  edits. After passive profile/schema scaffolding, capture the checked fixture's
+  missing verifier/backend handling before implementing it. Production edits
+  begin only once CAP-059's current focused-target compatibility failure is
+  resolved and its completed green exit has been read.
+- Acceptance: deterministic verified LLVM; exact conditional declaration and
+  call order; duplicate/nonidentifier result, type/undefined/forward/dominance
+  failures; runtime-symbol collisions; earlier-profile refusal; missing,
+  signature-mismatched and stale-metadata authentication refusal. Explicitly
+  link native fixtures to the frozen diagnostic runtime at O0/O2 and assert
+  binary stderr, empty stdout, raw success/range/sticky statuses. Existing
+  source compilation through the new profile inherits byte-I/O behavior;
+  unresolved source `stderr_write_byte` still fails. Finish focused tests and
+  the full repository gate. No source-output or H1 completion claim follows.
+- Risks/stop conditions: crossing a third compiler phase, changing authentication
+  or C transport semantics, widening an old profile, allowing source stderr
+  prematurely, or claiming Windows execution from Linux fixtures.
+- Lead-owned digest-scope amendment after the intended checked schema change:
+  the existing complete-file sentinels in `stdin_byte_input_profile_tests.rs`,
+  `source_byte_buffer_profile_tests.rs` and `compiler_storage_arena_tests.rs`
+  also cover the deliberately extended IR enum and verifier. The stdin replay
+  completed exit 101 with seven passing cases and this sole sentinel failure;
+  the diagnostic runtime target separately passed all six cases. Independent
+  diff review confirms the IR change adds only the checked stderr variant and
+  verifier changes add its detection, reservation, result classification and
+  existing strict Int-use validation, retaining stdout's prior diagnostic text.
+  Authorize only those two current-file digest updates in the three arrays:
+  IR `2b8288bcbb2825586a0e406f37fbe12d` to
+  `8506e185ecae87c8e50e2eb43729fd03`; verifier
+  `d5fae602214665b724c48c9ae8090a06` to
+  `e6632f76c4264369160f7a17e1de1010`. Preserve predecessor digests in comments,
+  all runtime digests, source/LLVM sentinels and executable assertions. This
+  records the explicitly reviewed extension, not unspecified authority drift.
+
+| Run | Command / scope | Result |
+|---|---|---|
+| Profile selector red | New diagnostic profile regression before production changes | Exit 101, 0 passed / 1 failed / 312 filtered. The selector rejects `exact-i32-byte-diagnostics-v0` as unsupported. Only the new crate-local test file and a test-only module registration were added; production behavior remained unchanged. |
+| Checked backend red | Typed fixture after passive schema/profile scaffolding | Exit 101, 0 passed / 1 failed / 318 filtered. The verifier rejects the actual fixture at main/entry with `UnsupportedInstruction("checked stderr byte write (not implemented)")`. A preceding scaffold compile exposed an omitted exhaustive register-seed arm; its mechanical coverage was added before this completed red. |
+| Checked/backend focused | Verification, authentication, LLVM and native fixtures plus existing library/binary units | Exit 0, 319 library and 36 binary tests passed. All seven new checked/backend cases pass, including O0/O2 native output/status checks, computed operands and strict authentication/SSA. Unresolved source and ABI names fail directly and in helper bodies; ordinary user-defined `stderr_write_byte` preserves byte-I/O LLVM without acquiring a runtime call. Formatting exited 0. |
+| Stdout compatibility | Complete existing stdout target | Exit 0, 8 passed / 0 failed, 94.22 s. Frozen B1B/B1C LLVM, native execution and transactional driver tests pass. |
+| Historical authority compatibility | Three `accepted_` regressions after the explicit IR/verifier digest amendment | Exit 0, one passing test in each of compiler-storage, source-byte-buffer and stdin targets. All existing executable assertions and unchanged runtime/LLVM sentinels pass. |
+| Diagnostic checked/backend full gate | Immutable combined snapshot, excluding later connected-AST observation tests and source-intrinsic development | |
+
+### SELFHOST-AST-OBSERVE-001 - actual native AST regression fixtures
+
+- Observed: CAP-059's native source parses but only 240 nodes are reachable.
+  Counts/checksums do not independently demonstrate statement, parameter,
+  assignment, branch or binder ownership. A real native arena observer is
+  needed before the parser representation changes.
+- Hypothesis: a test-only forwarding allocator can capture the actual named
+  owner bytes before cleanup without changing the production ABI or runtime.
+- Allowed files for the canonical compiler owner in this preparation slice:
+  `src/compiler/tests/self_host_source_ingestion_tests.rs` and new
+  `src/compiler/tests/support/self_host_connected_ast.rs`. A child test module
+  may reuse existing native build/input helpers. No Aero product or compiler
+  implementation edit is authorized by this observation-only task.
+- Frozen observer: include the unchanged test runtime in the generated harness
+  with only its allocator export names renamed, then forward through wrappers.
+  Track identities across reallocations; initialize unused capacity to prevent
+  uninitialized-byte artifacts; preserve counters, failure injection, exact
+  input/forbidden product output, size and leak checks. Capture before release,
+  write a separate binary artifact only after the product returns. Capacities
+  are not logical lengths. Identify owners by a pre-derived first-use and
+  cleanup trace, never by declaration order or searching for expected contents.
+- To prove logical node/origin length, poison newly allocated capacity with
+  `0xA5`, including only the added tail on successful reallocation. Valid
+  serialized AST/origin words are nonnegative, so their high byte is below
+  128; an untouched poison word cannot be a written valid word. Recover the
+  aligned prefix, require all remaining bytes to retain poison, and require
+  complete 16-byte node / 20-byte origin records. Partial writes fail the
+  observer instead of being trimmed. Failed reallocations preserve the old
+  owner and bytes. This distinguishes logical length from capacity without
+  modifying the production ABI or selecting an owner by its contents.
+- Freeze `H1_CONNECTED_AST_DESIGN.md`'s node table, deferred Return, eager Match
+  arms, 20-word control records and postorder interval proof for these expected
+  fixtures. Three independent hand arrays cover two typed parameters (10 nodes),
+  mutable let/assignment/Return (13 nodes), nested If/else (27 nodes). Normalize
+  actual captured records and compare with Rust's parsed AST as well as those
+  exact arrays. Preserve arm, binder, branch and statement source order.
+- A parser-only capture may deliberately use a mismatching expectation vector
+  and require the existing parse-check return 80, allowing arena observation
+  before semantic authentication. Label it precisely; it is not evidence of
+  successful semantics or compiler output. If used, every arena and origin
+  prefix must still match independently derived expected records. Later full
+  vectors must exercise origin/connectivity authentication and rich refusal.
+- Acceptance: verify owner selection first on an unchanged compact arithmetic
+  product, then read a completed native red against the disconnected product
+  for at least the parameter and statement fixtures at O0/O2. Do not retune
+  expected arrays to captured bytes. Keep these intentional reds isolated;
+  they are excluded from the already running immutable acceptance gates.
+- Stop conditions: production instrumentation, allocator semantics changes,
+  content-based owner selection, treating capacity as used length, or calling
+  a checksum/count comparison normalized structural equality. Report a concrete
+  observation limitation rather than adding a production debug API.
+
 ## INTEGRATION-001 - phase 1 reconciliation and visitor-facing README
 
 ### INTEGRATION-001-W1 - repair the scorer workflow's allocation-placement oracle

@@ -308,6 +308,9 @@ fn accepted_profiles_and_byte_buffer_are_frozen_before_r2() {
     );
 
     let root = repository_root();
+    // H1E-CHECKED-001: reviewed additive stderr schema/verifier extension.
+    // Predecessor IR/verifier: 2b8288bcbb2825586a0e406f37fbe12d /
+    // d5fae602214665b724c48c9ae8090a06. Runtime and LLVM sentinels stay frozen.
     for (relative, expected) in [
         (
             "src/compiler/runtime/aero_runtime.c",
@@ -317,10 +320,10 @@ fn accepted_profiles_and_byte_buffer_are_frozen_before_r2() {
             "src/compiler/runtime/aero_test_runtime.c",
             "5f1db08f29355e78a1dda31747ec7055",
         ),
-        ("src/compiler/src/ir.rs", "2b8288bcbb2825586a0e406f37fbe12d"),
+        ("src/compiler/src/ir.rs", "8506e185ecae87c8e50e2eb43729fd03"),
         (
             "src/compiler/src/ir_verifier.rs",
-            "d5fae602214665b724c48c9ae8090a06",
+            "e6632f76c4264369160f7a17e1de1010",
         ),
     ] {
         assert_eq!(

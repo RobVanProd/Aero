@@ -1,6 +1,100 @@
 # Aero Project State
 
-Last updated: 2026-09-05 (America/New_York)
+Last updated: 2026-10-13 (America/New_York)
+
+## Current development after the integration merge
+
+Latest published development checkpoint is
+`6d98b07eb7cf1b00d6be5cb6ea61cfe42cdd613d`, AST tree
+`7aeff08fd323011d0e393f3d13ba8778b857acac`. Its complete local gate finished
+1093passed/0failed/16existingignored across121 targets (immutable commit message),
+and all13 exact-head public checks were subsequently reread COMPLETED/SUCCESS.
+Master is unchanged. The user now authorized scoped names/types/ownership.
+H1_SCOPED_SEMANTICS_DESIGN.md freezes the first scalar Copy/scope/mutability
+slice and explicit fail-before-lowering barrier. Its local semantic-only candidate
+has completed focused native verification, not published or accepted; Result path
+ownership and ByteBuffer loans follow separately. Pending work must not be
+confused with the accepted AST checkpoint.
+
+The scalar candidate source is501040bytes, SHA256
+`fe4e96680c75740752c5f74e45959361685f6736b70e8306219be7c4605c5ecd`.
+Independent preflight derives54567nodes/65456tokens/928names within unchanged
+ceilings. It implements int parameters/bindings, lexical scopes/shadowing,
+mutability, exact Int/Bool Copy facts and a located29 barrier before lowering.
+The first focused run completed15passed/1failed due to a prederived observer
+trace reversing two old authentication-store IDs. The source-backed test-only
+correction and original failure remain in TASK_LEDGER.md. Corrected focused
+verification finished16passed/0failed, including48 full O0/O2 semantic vectors,
+6 exact Int/Bool/shadow arena captures,8 heap-failure runs and2 valid10000-depth
+native runs. Full-tree acceptance remains mandatory and is recorded only in
+the final implementation commit/PR after its completed status is read;
+no general ownership, checked lowering or canonical self-compilation is claimed.
+
+Public master remains `df0fecea13e9f28c5065e092973aa34d5ac055c9`; its four
+post-merge workflows completed successfully. The restored Windows checkout tracks
+`agent/aero-self-hosting-2026-09-16`, cumulative draft
+[PR #92](https://github.com/RobVanProd/Aero/pull/92). The pre-AST published head
+`7237dae7ec21b49b71dd142ac858bba702b8b3b1` passed all 13 public checks, including
+both Linux gates, stable/nightly Rust and the Windows native gate. It repairs
+pinned llc-22 discovery in the diagnostic native regression without production
+changes. It is published development work, not a master merge.
+The user authorized synchronization and continued implementation on 2026-10-12;
+the phase-1-only boundary below is historical.
+
+The immutable upstream Linux baseline passes 1,021 tests with 16 existing
+ignored tests. CAP-059 stage 3a admits a 513-node arithmetic function, and the
+separate CAP-059P repair serializes each checked result's actual owning function.
+Stage 3b's focused native tests now verify and emit multiple arithmetic functions,
+preserve the single-function LLVM bytes, and reject corrupted ranges, owners,
+provenance and cross-function operands. Independent Clang execution passes at
+O0/O2. Compatibility and complete-tree validation are tracked in TASK_LEDGER.md;
+focused evidence is not full checkpoint acceptance.
+
+The separate diagnostic runtime implements binary, sticky-error stderr byte
+output. Its original six native ABI tests and checked backend fixtures are
+retained. The original runtime remains byte-identical.
+
+H1E-CHECKED-001 supplies `exact-i32-byte-diagnostics-v0`, a distinct checked
+stderr instruction, strict verification and authenticated LLVM lowering.
+H1E-SOURCE-002 now connects `stderr_write_byte(int) -> Result<int, int>` to that
+operation, with independent semantic and raw-AST IR admission. The call requires
+an explicitly annotated direct Result initializer inside a nongeneric source
+function. Earlier profiles retain their existing boundaries. Native CLI runs
+embed the separate diagnostic runtime and link it through either llc or direct
+Clang; artifact cleanup and the existing CLI output presentation are preserved.
+Raw transport failures become positive source error codes (for example, -3
+becomes Err(3)); stdout and stderr keep independent sticky state. Completed
+focused evidence is in TASK_LEDGER.md. Final-tree root-gate results belong in
+the implementation commit message and PR; no pending run is claimed as passed.
+
+H1E-RUNTIME-002 repairs the separate stderr transport on Windows: recoverable
+closed-descriptor CRT calls return their existing sticky errors while a narrow
+thread-local handler is installed and then restored. The caller's global handler
+and original runtime are unchanged. Native O0/O2 tests cover restoration and
+binary/error behavior, and Windows CI now runs diagnostic runtime, source and
+CLI integration targets explicitly.
+
+The published H1-AST-001 checkpoint connects the complete admitted self-source
+grammar: parameters/types, bindings/mutation, ordered statements and Returns,
+blocks/branches/loops, Match ownership and existing references/calls. Its native
+observer compares exact hand graphs and an independent Rust-AST projection;
+structural, source-role and expression-occurrence authentication reject corrupted
+arenas before meaning. Compact arithmetic and CAP-059 encodings remain unchanged.
+
+The completed focused matrix on source SHA256
+`2506e2adf4d43747c6fa9bf1aecd41a291130b2682cd96ecff83c2b69d1e8c75`
+passed36 tests; native cases run at O0/O2. The canonical source has49,863 connected nodes/origins
+with no orphans, but still refuses its first identifier at node3/offset68,
+line2/column18 (semantic17/code2,23 function symbols,0 facts). Literal-only rich
+forms refuse new structure with located28 before facts or checked IR. This is
+native-validated representation, not canonical compilation or self-hosting.
+Complete historical compatibility and the final fixed-tree root gate remain
+mandatory; their completed evidence belongs in the implementation commit and
+cumulative PR, not a predicted result in this document. Master is unchanged.
+
+Compiler-subset semantics and lowering, the process interface, same-source
+stage convergence and reproducible self-hosting remain open. The next contract
+is scoped names/types/ownership; it is not part of this representation checkpoint.
 
 ## Phase 1 integration status (supersedes historical current-head labels)
 
